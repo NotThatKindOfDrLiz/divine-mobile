@@ -166,6 +166,98 @@ class VideoEditorService {
     ),
   );
 
+  /// Creates ProImageEditorCallbacks with all necessary video, audio, and clips callbacks
+  ProImageEditorCallbacks getEditorCallbacks() {
+    return ProImageEditorCallbacks(
+      videoEditorCallbacks: VideoEditorCallbacks(
+        onPause: videoController?.pause,
+        onPlay: videoController?.play,
+        onMuteToggle: (isMuted) {
+          if (isMuted) {
+            audioService.setVolume(0);
+            videoController?.setVolume(0);
+          } else {
+            audioService.balanceAudio();
+          }
+        },
+        onTrimSpanUpdate: (durationSpan) {
+          if (videoController!.value.isPlaying) {
+            proVideoController!.pause();
+          }
+        },
+        onTrimSpanEnd: (span) async {
+          await _seekToPosition(span);
+        },
+      ),
+      audioEditorCallbacks: AudioEditorCallbacks(
+        onBalanceChange: audioService.balanceAudio,
+        onStartTimeChange: (startTime) async {
+          await Future.wait([
+            audioService.seek(startTime),
+            videoController!.seekTo(Duration.zero),
+          ]);
+        },
+        onPlay: audioService.play,
+        onStop: (audio) => audioService.pause(),
+      ),
+      clipsEditorCallbacks: ClipsEditorCallbacks(
+        onBuildPlayer: (controller, videoClip) {
+          return ClipsPreviewer(
+            videoConfigs: configs.videoEditor,
+            proController: controller,
+            videoClip: videoClip,
+          );
+        },
+        onMergeClips: mergeClips,
+        onReadKeyFrame: (source) async {
+          if (cachedKeyFrames.containsKey(source.id)) {
+            return cachedKeyFrames[source.id]!;
+          }
+
+          final result = await _proVideoEditor.getKeyFrames(
+            KeyFramesConfigs(
+              video: EditorVideo.autoSource(
+                assetPath: source.clip.assetPath,
+                byteArray: source.clip.bytes,
+                file: source.clip.file,
+                networkUrl: source.clip.networkUrl,
+              ),
+              outputSize: const Size.square(200),
+              boxFit: ThumbnailBoxFit.cover,
+              maxOutputFrames: 1,
+              outputFormat: ThumbnailFormat.jpeg,
+            ),
+          );
+          cachedKeyFrames[source.id] = result.first;
+          return result.first;
+        },
+        onReadKeyFrames: (source) async {
+          if (cachedKeyFrameList.containsKey(source.id)) {
+            return cachedKeyFrameList[source.id]!;
+          }
+
+          final result = await _proVideoEditor.getKeyFrames(
+            KeyFramesConfigs(
+              video: EditorVideo.autoSource(
+                assetPath: source.clip.assetPath,
+                byteArray: source.clip.bytes,
+                file: source.clip.file,
+                networkUrl: source.clip.networkUrl,
+              ),
+              outputSize: const Size.square(200),
+              boxFit: ThumbnailBoxFit.cover,
+              maxOutputFrames: 7,
+              outputFormat: ThumbnailFormat.jpeg,
+            ),
+          );
+          cachedKeyFrameList[source.id] = result;
+          return result;
+        },
+        onAddClip: addClip,
+      ),
+    );
+  }
+
   Future<void> initializePlayer() async {
     Log.info(
       '🎬 VideoEditorService.initializePlayer() START - videoPath: $videoPath',
@@ -475,98 +567,6 @@ class VideoEditorService {
     Log.info(
       '🎬 VideoEditorService.mergeClips() COMPLETE',
       category: LogCategory.video,
-    );
-  }
-
-  /// Creates ProImageEditorCallbacks with all necessary video, audio, and clips callbacks
-  ProImageEditorCallbacks getEditorCallbacks() {
-    return ProImageEditorCallbacks(
-      videoEditorCallbacks: VideoEditorCallbacks(
-        onPause: videoController?.pause,
-        onPlay: videoController?.play,
-        onMuteToggle: (isMuted) {
-          if (isMuted) {
-            audioService.setVolume(0);
-            videoController?.setVolume(0);
-          } else {
-            audioService.balanceAudio();
-          }
-        },
-        onTrimSpanUpdate: (durationSpan) {
-          if (videoController!.value.isPlaying) {
-            proVideoController!.pause();
-          }
-        },
-        onTrimSpanEnd: (span) async {
-          await _seekToPosition(span);
-        },
-      ),
-      audioEditorCallbacks: AudioEditorCallbacks(
-        onBalanceChange: audioService.balanceAudio,
-        onStartTimeChange: (startTime) async {
-          await Future.wait([
-            audioService.seek(startTime),
-            videoController!.seekTo(Duration.zero),
-          ]);
-        },
-        onPlay: audioService.play,
-        onStop: (audio) => audioService.pause(),
-      ),
-      clipsEditorCallbacks: ClipsEditorCallbacks(
-        onBuildPlayer: (controller, videoClip) {
-          return ClipsPreviewer(
-            videoConfigs: configs.videoEditor,
-            proController: controller,
-            videoClip: videoClip,
-          );
-        },
-        onMergeClips: mergeClips,
-        onReadKeyFrame: (source) async {
-          if (cachedKeyFrames.containsKey(source.id)) {
-            return cachedKeyFrames[source.id]!;
-          }
-
-          final result = await _proVideoEditor.getKeyFrames(
-            KeyFramesConfigs(
-              video: EditorVideo.autoSource(
-                assetPath: source.clip.assetPath,
-                byteArray: source.clip.bytes,
-                file: source.clip.file,
-                networkUrl: source.clip.networkUrl,
-              ),
-              outputSize: const Size.square(200),
-              boxFit: ThumbnailBoxFit.cover,
-              maxOutputFrames: 1,
-              outputFormat: ThumbnailFormat.jpeg,
-            ),
-          );
-          cachedKeyFrames[source.id] = result.first;
-          return result.first;
-        },
-        onReadKeyFrames: (source) async {
-          if (cachedKeyFrameList.containsKey(source.id)) {
-            return cachedKeyFrameList[source.id]!;
-          }
-
-          final result = await _proVideoEditor.getKeyFrames(
-            KeyFramesConfigs(
-              video: EditorVideo.autoSource(
-                assetPath: source.clip.assetPath,
-                byteArray: source.clip.bytes,
-                file: source.clip.file,
-                networkUrl: source.clip.networkUrl,
-              ),
-              outputSize: const Size.square(200),
-              boxFit: ThumbnailBoxFit.cover,
-              maxOutputFrames: 7,
-              outputFormat: ThumbnailFormat.jpeg,
-            ),
-          );
-          cachedKeyFrameList[source.id] = result;
-          return result;
-        },
-        onAddClip: addClip,
-      ),
     );
   }
 

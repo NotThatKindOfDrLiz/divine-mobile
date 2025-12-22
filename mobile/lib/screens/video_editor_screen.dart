@@ -46,7 +46,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
   bool _isVideoInitialized = false;
 
-  VideoRenderData? _task;
+  VideoRenderData? _renderTask;
 
   @override
   void initState() {
@@ -182,6 +182,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     );
   }
 
+  /// We open the metadata screen in parallel with the render task. This
+  /// improves the user experience significantly, as there is no loading
+  /// screen or it is very short.
   void _openMetadataScreen(String draftId) async {
     // Navigate to metadata screen
     await Navigator.of(context).push(
@@ -190,9 +193,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       ),
     );
 
-    if (_task == null) return;
+    if (_renderTask == null) return;
 
-    await ProVideoEditor.instance.cancel(_task!.id);
+    await ProVideoEditor.instance.cancel(_renderTask!.id);
   }
 
   /// Generates the final video based on the given [parameters].
@@ -225,7 +228,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       originalVolume -= volumeBalance;
     }
 
-    _task = VideoRenderData(
+    _renderTask = VideoRenderData(
       id: _videoEditorService.taskId,
       video: _videoEditorService.video,
       outputFormat: _videoEditorService.outputFormat,
@@ -255,7 +258,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     );
 
     try {
-      await ProVideoEditor.instance.renderVideoToFile(outputPath, _task!);
+      await ProVideoEditor.instance.renderVideoToFile(outputPath, _renderTask!);
 
       await _createDraft(draftId, outputPath);
 
@@ -369,7 +372,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
   }
 }
 
-// Only TEMPORARY!
+///---------------------- ONLY TEMPORARY!--------------------------------------
 /// TODO(@hm21): Remove the temporary bottom bar after the UI is planned.
 class MainEditorBottomBar extends StatefulWidget {
   const MainEditorBottomBar({
