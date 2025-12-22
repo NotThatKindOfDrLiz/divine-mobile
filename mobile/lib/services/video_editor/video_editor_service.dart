@@ -1,7 +1,7 @@
-import 'dart:typed_data';
-
+import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -13,18 +13,17 @@ import 'package:video_player/video_player.dart';
 
 import 'video_editor_audio_service.dart';
 
+// TODO(@hm21): Write unit-tests
 class VideoEditorService {
   VideoEditorService({
     required this.videoPath,
     required this.context,
     required this.onStateChanged,
-    required this.mounted,
   });
 
   final String videoPath;
   final BuildContext context;
   final VoidCallback onStateChanged;
-  final bool Function() mounted;
 
   final _proVideoEditor = ProVideoEditor.instance;
   final editorKey = GlobalKey<ProImageEditorState>();
@@ -48,6 +47,15 @@ class VideoEditorService {
   VideoPlayerController? videoController;
   late VideoEditorAudioService audioService;
 
+  /// Audio player for sound preview
+  AudioPlayer? _audioPlayer;
+
+  /// The ID of the currently selected sound for the video
+  String? selectedSoundId;
+
+  /// The ID of the currently playing sound
+  String? _currentSoundId;
+
   /// Stores generated thumbnails for the trimmer bar and filter background.
   List<ImageProvider>? _thumbnails;
 
@@ -66,7 +74,7 @@ class VideoEditorService {
   late final ProImageEditorConfigs configs = ProImageEditorConfigs(
     dialogConfigs: DialogConfigs(
       widgets: DialogWidgets(
-        //TODO: loadingDialog: (message, configs) =>
+        //TODO(@hm21): loadingDialog: (message, configs) =>
       ),
     ),
     mainEditor: MainEditorConfigs(
@@ -199,7 +207,7 @@ class VideoEditorService {
       audioService.initialize(),
     ]);
 
-    if (!mounted()) {
+    if (!context.mounted) {
       Log.warning(
         '🎬 VideoEditorService.initializePlayer() - Widget unmounted after initialization',
         category: LogCategory.video,
@@ -225,12 +233,72 @@ class VideoEditorService {
     );
     videoController!.addListener(_onDurationChange);
 
+    // Initialize audio player
+    _audioPlayer = AudioPlayer();
+
     onStateChanged();
 
     Log.info(
       '🎬 VideoEditorService.initializePlayer() COMPLETE - Video ready',
       category: LogCategory.video,
     );
+  }
+
+  /// Select a sound for the video
+  void selectSound(String? soundId) {
+    selectedSoundId = soundId;
+    onStateChanged();
+  }
+
+  /// Load and play the selected sound, synced with video
+  Future<void> loadAndPlaySound(String? soundId) async {
+    if (soundId == _currentSoundId) return;
+    _currentSoundId = soundId;
+
+    // Stop current audio
+    await _audioPlayer?.stop();
+
+    if (soundId == null) {
+      // No sound selected - unmute video
+      await videoController?.setVolume(1.0);
+      return;
+    }
+
+    // Mute video's original audio when playing selected sound
+    await videoController?.setVolume(0.0);
+
+    // For now, we'll need to pass in the sound service from outside
+    // This will be called from the screen with the sound object
+    Log.info('Loading sound: $soundId', category: LogCategory.video);
+  }
+
+  /// Actually play the sound file
+  Future<void> playSound(String filePath, String soundTitle) async {
+    try {
+      await _audioPlayer?.setSourceDeviceFile(filePath);
+
+      // Set looping to match video
+      await _audioPlayer?.setReleaseMode(ReleaseMode.loop);
+
+      // Play the audio
+      await _audioPlayer?.resume();
+
+      Log.info('Playing sound: $soundTitle', category: LogCategory.video);
+    } catch (e) {
+      Log.error('Failed to play sound: $e', category: LogCategory.video);
+      // Unmute video on error
+      await videoController?.setVolume(1.0);
+    }
+  }
+
+  /// Stop the audio player
+  Future<void> stopAudio() async {
+    await _audioPlayer?.stop();
+  }
+
+  /// Pause the audio player
+  Future<void> pauseAudio() async {
+    await _audioPlayer?.pause();
   }
 
   void dispose() {
@@ -241,6 +309,7 @@ class VideoEditorService {
     videoController?.removeListener(_onDurationChange);
     videoController?.dispose();
     audioService.dispose();
+    _audioPlayer?.dispose();
     Log.info(
       '🎬 VideoEditorService.dispose() COMPLETE',
       category: LogCategory.video,
@@ -260,7 +329,7 @@ class VideoEditorService {
     );
 
     // User cancelled picker
-    if (!mounted() || result == null || result.files.isEmpty) {
+    if (!context.mounted || result == null || result.files.isEmpty) {
       Log.info(
         '🎬 VideoEditorService.addClip() - User cancelled or no file selected',
         category: LogCategory.video,
@@ -349,7 +418,7 @@ class VideoEditorService {
         }).toList(),
       ),
     );
-    if (!mounted()) {
+    if (!context.mounted) {
       Log.warning(
         '🎬 VideoEditorService.mergeClips() - Widget unmounted during merge',
         category: LogCategory.video,
@@ -394,7 +463,7 @@ class VideoEditorService {
     await controller.initialize();
     LoadingDialog.instance.hide();
 
-    if (!mounted()) return;
+    if (!context.mounted) return;
 
     videoController = controller;
     videoController!.addListener(_onDurationChange);
@@ -560,7 +629,7 @@ class VideoEditorService {
       category: LogCategory.video,
     );
 
-    if (!mounted()) {
+    if (!context.mounted) {
       Log.warning(
         '🎬 VideoEditorService._generateThumbnails() - Widget unmounted',
         category: LogCategory.video,
@@ -618,6 +687,7 @@ class VideoEditorService {
     var cacheList = temporaryThumbnails.map(
       (item) => precacheImage(item, context),
     );
+    if (!context.mounted) return;
     await Future.wait(cacheList);
     _thumbnails = temporaryThumbnails;
 

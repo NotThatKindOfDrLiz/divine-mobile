@@ -2,14 +2,17 @@
 // ABOUTME: Dark-themed interface with video preview, text editing, and sound selection
 
 import 'dart:async';
+import 'dart:math';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/platform_io.dart';
+import 'package:openvine/widgets/sound_picker/sound_picker_modal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
+import 'package:pro_image_editor/shared/widgets/editor_scrollbar.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openvine/models/vine_draft.dart';
@@ -18,8 +21,10 @@ import 'package:openvine/screens/pure/video_metadata_screen_pure.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 
+import '../providers/sound_library_service_provider.dart';
 import '../services/video_editor/video_editor_service.dart';
 
+// TODO(@hm21): Write widget-tests
 class VideoEditorScreen extends ConsumerStatefulWidget {
   const VideoEditorScreen({
     super.key,
@@ -40,8 +45,8 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
   late final VideoEditorService _videoEditorService;
 
   bool _isVideoInitialized = false;
-  AudioPlayer? _audioPlayer;
-  String? _currentSoundId;
+
+  VideoRenderData? _task;
 
   @override
   void initState() {
@@ -57,11 +62,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       onStateChanged: () {
         if (mounted) setState(() {});
       },
-      mounted: () => mounted,
     );
 
     _videoEditorService.initializePlayer();
-    _audioPlayer = AudioPlayer();
     Log.info(
       '📹 VideoEditorScreen.initState() END',
       category: LogCategory.video,
@@ -71,26 +74,14 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
   @override
   void dispose() {
     _videoEditorService.dispose();
-    _audioPlayer?.dispose();
     super.dispose();
   }
-  /* 
+
   /// Load and play the selected sound, synced with video
   Future<void> _loadAndPlaySound(String? soundId) async {
-    if (soundId == _currentSoundId) return;
-    _currentSoundId = soundId;
+    await _videoEditorService.loadAndPlaySound(soundId);
 
-    // Stop current audio
-    await _audioPlayer?.stop();
-
-    if (soundId == null) {
-      // No sound selected - unmute video
-      await _videoController?.setVolume(1.0);
-      return;
-    }
-
-    // Mute video's original audio when playing selected sound
-    await _videoController?.setVolume(0.0);
+    if (soundId == null) return;
 
     // Get the sound's asset path
     final soundService = await ref.read(soundLibraryServiceProvider.future);
@@ -122,26 +113,16 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
         }
       }
 
-      await _audioPlayer?.setFilePath(filePath);
-
-      // Set looping to match video
-      await _audioPlayer?.setLoopMode(LoopMode.one);
-
-      // Play the audio
-      await _audioPlayer?.play();
-
-      Log.info('Playing sound: ${sound.title}', category: LogCategory.video);
+      await _videoEditorService.playSound(filePath, sound.title);
     } catch (e) {
-      Log.error('Failed to play sound: $e', category: LogCategory.video);
-      // Unmute video on error
-      await _videoController?.setVolume(1.0);
+      Log.error('Failed to load sound: $e', category: LogCategory.video);
     }
   }
 
   void _handleAddSound() async {
     // Pause video and audio while selecting sound
-    await _videoController?.pause();
-    await _audioPlayer?.pause();
+    await _videoEditorService.videoController?.pause();
+    await _videoEditorService.pauseAudio();
 
     // Wait for sounds to load
     final soundServiceAsync = await ref.read(
@@ -154,13 +135,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       MaterialPageRoute(
         builder: (context) => SoundPickerModal(
           sounds: soundServiceAsync.sounds,
-          selectedSoundId: ref
-              .read(videoEditorProvider(widget.videoPath))
-              .selectedSoundId,
+          selectedSoundId: _videoEditorService.selectedSoundId,
           onSoundSelected: (soundId) {
-            ref
-                .read(videoEditorProvider(widget.videoPath).notifier)
-                .selectSound(soundId);
+            _videoEditorService.selectSound(soundId);
             // Play the selected sound in preview
             _loadAndPlaySound(soundId);
             Navigator.of(context).pop();
@@ -171,188 +148,72 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
     // Resume video after returning from sound picker
     if (mounted) {
-      await _videoController?.play();
+      await _videoEditorService.videoController?.play();
       // Audio will resume via _loadAndPlaySound if a sound is selected
     }
   }
 
-  Future<void> _handleDone() async {
-    // Stop audio preview before processing
-    await _audioPlayer?.stop();
+  Future<void> _createDraft(String draftId, String outputPath) async {
+    // Get the aspect ratio from recording state
+    final recordingState = ref.read(vineRecordingProvider);
+    final aspectRatio = recordingState.aspectRatio;
+    // TODO(@hm21): Only create a draft if one does not already exist.
 
-    try {
-      Log.info(
-        '📹 VideoEditorScreen: Creating draft for video: ${widget.videoPath}',
-        category: LogCategory.video,
-      );
+    // Create a draft for the edited video (with overlays burned in)
+    final draft = VineDraft.create(
+      id: draftId,
+      videoFile: File(outputPath),
+      title: '',
+      description: '',
+      hashtags: [],
+      frameCount: 0,
+      selectedApproach: 'video',
+      aspectRatio: aspectRatio,
+    );
 
-      // Get the current editor state for text overlays
-      final editorState = ref.read(videoEditorProvider(widget.videoPath));
-      String finalVideoPath = widget.videoPath;
+    // Create draft storage service
+    final prefs = await SharedPreferences.getInstance();
+    final draftService = DraftStorageService(prefs);
 
-      // Apply text overlays if any exist
-      if (editorState.textOverlays.isNotEmpty &&
-          _isVideoInitialized &&
-          _videoController != null) {
-        Log.info(
-          '📹 Burning ${editorState.textOverlays.length} text overlays into video',
-          category: LogCategory.video,
-        );
-
-        // Use the actual video resolution for rendering overlays
-        final videoSize = _videoController!.value.size;
-
-        // Render text overlays to PNG, scaling fonts from preview to video size
-        final renderer = TextOverlayRenderer();
-        final overlayImage = await renderer.renderOverlays(
-          editorState.textOverlays,
-          videoSize,
-          previewSize: _lastPreviewSize,
-        );
-
-        // Apply overlay to video using FFmpeg
-        final exportService = VideoExportService();
-        finalVideoPath = await exportService.applyTextOverlay(
-          widget.videoPath,
-          overlayImage,
-        );
-
-        Log.info(
-          '📹 Text overlays burned into video: $finalVideoPath',
-          category: LogCategory.video,
-        );
-      }
-
-      // Apply sound overlay if one is selected
-      if (editorState.selectedSoundId != null) {
-        Log.info(
-          '📹 Mixing sound: ${editorState.selectedSoundId}',
-          category: LogCategory.video,
-        );
-
-        // Look up the sound's asset path from the sound library
-        final soundService = await ref.read(soundLibraryServiceProvider.future);
-        final sound = soundService.getSoundById(editorState.selectedSoundId!);
-
-        if (sound != null) {
-          final exportService = VideoExportService();
-          final previousPath = finalVideoPath;
-          finalVideoPath = await exportService.mixAudio(
-            finalVideoPath,
-            sound.assetPath,
-          );
-
-          // Clean up previous temp file if it was a temp file (not original)
-          if (previousPath != widget.videoPath) {
-            try {
-              await File(previousPath).delete();
-            } catch (e) {
-              Log.warning(
-                'Failed to delete temp file: $previousPath',
-                category: LogCategory.video,
-              );
-            }
-          }
-
-          Log.info(
-            '📹 Sound mixed into video: $finalVideoPath',
-            category: LogCategory.video,
-          );
-        } else {
-          Log.warning(
-            '📹 Sound not found: ${editorState.selectedSoundId}',
-            category: LogCategory.video,
-          );
-        }
-      }
-
-      // Create draft storage service
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-
-      // Get the aspect ratio from recording state
-      final recordingState = ref.read(vineRecordingProvider);
-      final aspectRatio = recordingState.aspectRatio;
-
-      // Create a draft for the edited video (with overlays burned in)
-      final draft = VineDraft.create(
-        videoFile: File(finalVideoPath),
-        title: '',
-        description: '',
-        hashtags: [],
-        frameCount: 0,
-        selectedApproach: 'video',
-        aspectRatio: aspectRatio,
-      );
-
-      await draftService.saveDraft(draft);
-
-      Log.info(
-        '📹 Created draft with ID: ${draft.id}',
-        category: LogCategory.video,
-      );
-
-      if (mounted) {
-        // Dispose video controller to free memory before navigating
-        // The metadata screen will create its own player
-        _videoController?.dispose();
-        //TODO:    _videoController = null;
-        _audioPlayer?.dispose();
-        _audioPlayer = null;
-        setState(() {
-          _isVideoInitialized = false;
-        });
-
-        // Navigate to metadata screen
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => VideoMetadataScreenPure(draftId: draft.id),
-          ),
-        );
-
-        // Re-initialize video when returning from metadata screen
-        if (mounted) {
-          _audioPlayer = AudioPlayer();
-          await _initializeVideo();
-          // Re-apply sound if one was selected
-          if (_currentSoundId != null) {
-            await _loadAndPlaySound(_currentSoundId);
-          }
-        }
-      }
-
-      // Call original callback if exists
-      widget.onExport?.call();
-    } catch (e) {
-      Log.error('Failed to create draft: $e', category: LogCategory.video);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to save video: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    await draftService.saveDraft(draft);
+    Log.info(
+      '📹 Created draft with ID: ${draft.id}',
+      category: LogCategory.video,
+    );
   }
 
- */
+  void _openMetadataScreen(String draftId) async {
+    // Navigate to metadata screen
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => VideoMetadataScreenPure(draftId: draftId),
+      ),
+    );
+
+    if (_task == null) return;
+
+    await ProVideoEditor.instance.cancel(_task!.id);
+  }
 
   /// Generates the final video based on the given [parameters].
   ///
   /// Applies blur, color filters, cropping, rotation, flipping, and trimming
   /// before exporting using FFmpeg. Measures and stores the generation time.
   Future<void> _generateVideo(CompleteParameters parameters) async {
-    final stopwatch = Stopwatch()..start();
-
     Log.info(
       '📹 VideoEditorScreen: Creating draft for video: ${widget.videoPath}',
       category: LogCategory.video,
     );
 
+    final directory = await getTemporaryDirectory();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final outputPath = '${directory.path}/video_$now.mp4';
+    final draftId = 'draft_${now}';
+
+    _openMetadataScreen(draftId);
+
     unawaited(_videoEditorService.videoController?.pause());
     unawaited(_videoEditorService.audioService.pause());
-    final directory = await getTemporaryDirectory();
 
     final AudioTrack? customAudioTrack = parameters.customAudioTrack;
     final double volumeBalance = customAudioTrack?.volumeBalance ?? 0;
@@ -364,7 +225,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       originalVolume -= volumeBalance;
     }
 
-    final exportModel = VideoRenderData(
+    _task = VideoRenderData(
       id: _videoEditorService.taskId,
       video: _videoEditorService.video,
       outputFormat: _videoEditorService.outputFormat,
@@ -393,70 +254,36 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       // bitrate: _videoMetadata.bitrate,
     );
 
-    final now = DateTime.now().millisecondsSinceEpoch;
     try {
-      final finalVideoPath = await ProVideoEditor.instance.renderVideoToFile(
-        '${directory.path}/my_video_$now.mp4',
-        exportModel,
-      );
+      await ProVideoEditor.instance.renderVideoToFile(outputPath, _task!);
 
-      // Get the aspect ratio from recording state
-      final recordingState = ref.read(vineRecordingProvider);
-      final aspectRatio = recordingState.aspectRatio;
-
-      // Create a draft for the edited video (with overlays burned in)
-      final draft = VineDraft.create(
-        videoFile: File(finalVideoPath),
-        title: '',
-        description: '',
-        hashtags: [],
-        frameCount: 0,
-        selectedApproach: 'video',
-        aspectRatio: aspectRatio,
-      );
-
-      // Create draft storage service
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-      await draftService.saveDraft(draft);
-      Log.info(
-        '📹 Created draft with ID: ${draft.id}',
-        category: LogCategory.video,
-      );
+      await _createDraft(draftId, outputPath);
 
       if (mounted) {
         // Dispose video controller to free memory before navigating
         // The metadata screen will create its own player
         _videoEditorService.videoController?.dispose();
-        _audioPlayer?.dispose();
-        _audioPlayer = null;
+        _videoEditorService.stopAudio();
         setState(() {
           _isVideoInitialized = false;
         });
-
-        // Navigate to metadata screen
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => VideoMetadataScreenPure(draftId: draft.id),
-          ),
-        );
-
-        // Re-initialize video when returning from metadata screen
-        if (mounted) {
-          _audioPlayer = AudioPlayer();
-          await _videoEditorService.initializePlayer();
-          // Re-apply sound if one was selected
-          if (_currentSoundId != null) {
-            // TODO:  await _loadAndPlaySound(_currentSoundId);
-          }
-        }
       }
 
       // Call original callback if exists
       widget.onExport?.call();
     } on RenderCanceledException {
-      stopwatch.stop();
+      // TODO(@hm21): Handle cancel-task
       return;
+    } catch (e) {
+      Log.error('Failed to create draft: $e', category: LogCategory.video);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save video: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -491,7 +318,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       }
     } */
 
-    _audioPlayer?.stop();
+    _videoEditorService.stopAudio();
 
     if (widget.onBack != null) {
       widget.onBack!();
@@ -520,11 +347,264 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     return ProImageEditor.video(
       _videoEditorService.proVideoController!,
       key: _videoEditorService.editorKey,
-      configs: _videoEditorService.configs,
+      configs: _videoEditorService.configs.copyWith(
+        mainEditor: _videoEditorService.configs.mainEditor.copyWith(
+          widgets: _videoEditorService.configs.mainEditor.widgets.copyWith(
+            bottomBar: (editor, rebuildStream, key) => ReactiveWidget(
+              builder: (context) => MainEditorBottomBar(
+                editor: editor,
+                bottomBarKey: key,
+                onOpenAudioEditor: _handleAddSound,
+              ),
+              stream: rebuildStream,
+            ),
+          ),
+        ),
+      ),
       callbacks: _videoEditorService.getEditorCallbacks().copyWith(
         onCompleteWithParameters: _generateVideo,
         onCloseEditor: _handleCloseEditor,
       ),
+    );
+  }
+}
+
+// Only TEMPORARY!
+/// TODO(@hm21): Remove the temporary bottom bar after the UI is planned.
+class MainEditorBottomBar extends StatefulWidget {
+  const MainEditorBottomBar({
+    super.key,
+    required this.editor,
+    required this.bottomBarKey,
+    required this.onOpenAudioEditor,
+  });
+
+  /// Manages the main editor's controllers.
+  final ProImageEditorState editor;
+
+  final Key bottomBarKey;
+
+  final VoidCallback onOpenAudioEditor;
+
+  @override
+  State<MainEditorBottomBar> createState() => _MainEditorBottomBarState();
+}
+
+class _MainEditorBottomBarState extends State<MainEditorBottomBar> {
+  final _scrollCtrl = ScrollController();
+
+  final double _bottomIconSize = 22.0;
+
+  Color get _foregroundColor =>
+      widget.editor.configs.mainEditor.style.bottomBarColor;
+
+  TextStyle get _bottomTextStyle =>
+      TextStyle(fontSize: 10.0, color: _foregroundColor);
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: widget.bottomBarKey,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Theme(
+            data: Theme.of(context),
+            child: EditorScrollbar(
+              controller: _scrollCtrl,
+              child: BottomAppBar(
+                height: kBottomNavigationBarHeight,
+                color:
+                    widget.editor.configs.mainEditor.style.bottomBarBackground,
+                padding: EdgeInsets.zero,
+                child: Center(
+                  child: SingleChildScrollView(
+                    controller: _scrollCtrl,
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: min(
+                          widget.editor.sizesManager.lastScreenSize.width != 0
+                              ? widget.editor.sizesManager.lastScreenSize.width
+                              : constraints.maxWidth,
+                          700,
+                        ),
+                        maxWidth: 700,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisSize: MainAxisSize.min,
+                          children: _buildEditorButtons(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Builds a list of editor action buttons dynamically
+  List<Widget> _buildEditorButtons() {
+    return widget.editor.configs.mainEditor.tools
+        .map((tool) {
+          switch (tool) {
+            case SubEditorMode.paint:
+              return _buildActionButton(
+                key: const ValueKey('open-paint-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .paintEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.paintEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openPaintEditor,
+              );
+
+            case SubEditorMode.text:
+              return _buildActionButton(
+                key: const ValueKey('open-text-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .textEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.textEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openTextEditor,
+              );
+
+            case SubEditorMode.cropRotate:
+              return _buildActionButton(
+                key: const ValueKey('open-crop-rotate-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .cropRotateEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.cropRotateEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openCropRotateEditor,
+              );
+
+            case SubEditorMode.tune:
+              return _buildActionButton(
+                key: const ValueKey('open-tune-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .tuneEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.tuneEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openTuneEditor,
+              );
+
+            case SubEditorMode.filter:
+              return _buildActionButton(
+                key: const ValueKey('open-filter-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .filterEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.filterEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openFilterEditor,
+              );
+
+            case SubEditorMode.blur:
+              return _buildActionButton(
+                key: const ValueKey('open-blur-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .blurEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.blurEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openBlurEditor,
+              );
+
+            case SubEditorMode.emoji:
+              return _buildActionButton(
+                key: const ValueKey('open-emoji-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .emojiEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.emojiEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openEmojiEditor,
+              );
+
+            case SubEditorMode.sticker:
+              return _buildActionButton(
+                key: const ValueKey('open-sticker-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .stickerEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.stickerEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openStickerEditor,
+              );
+            case SubEditorMode.audio:
+              return _buildActionButton(
+                key: const ValueKey('open-audio-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .audioEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.audioEditor.icons.bottomNavBar,
+                onPressed: widget.onOpenAudioEditor,
+              );
+            case SubEditorMode.videoClips:
+              return _buildActionButton(
+                key: const ValueKey('open-clips-editor-btn'),
+                label: widget
+                    .editor
+                    .configs
+                    .i18n
+                    .clipsEditor
+                    .bottomNavigationBarText,
+                icon: widget.editor.configs.clipsEditor.icons.bottomNavBar,
+                onPressed: widget.editor.openClipsEditor,
+              );
+          }
+        })
+        .whereType<Widget>()
+        .toList();
+  }
+
+  /// Helper to build a single action button
+  Widget _buildActionButton({
+    required ValueKey<String> key,
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return FlatIconTextButton(
+      key: key,
+      label: Text(label, style: _bottomTextStyle),
+      icon: Icon(icon, size: _bottomIconSize, color: _foregroundColor),
+      onPressed: onPressed,
     );
   }
 }
