@@ -290,38 +290,8 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     }
   }
 
-  /// Closes the video editor and opens a preview screen if a video was
-  /// exported.
-  ///
-  /// If [_outputPath] is available, it navigates to [PreviewVideo].
-  /// Afterwards, it pops the current editor page.
   void _handleCloseEditor(EditorMode editorMode) async {
     if (editorMode != EditorMode.main) return Navigator.pop(context);
-    /* 
-    if (_outputPath != null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PreviewVideo(
-            filePath: _outputPath!,
-            generationTime: _videoGenerationTime,
-          ),
-        ),
-      );
-      _outputPath = null;
-    } else {
-      // Stop audio preview when going back
-      _audioPlayer?.stop();
-
-      if (widget.onBack != null) {
-        widget.onBack!();
-      } else {
-        // Pop back to ClipManager since we got here via push
-        context.pop();
-      }
-    } */
-
-    _videoEditorService.stopAudio();
 
     if (widget.onBack != null) {
       widget.onBack!();

@@ -1,3 +1,6 @@
+// ABOUTME: Widget for previewing individual video clips with playback and trimming controls
+// ABOUTME: Manages video player initialization and synchronization for clip editing interface
+
 import 'package:flutter/material.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:path_provider/path_provider.dart';

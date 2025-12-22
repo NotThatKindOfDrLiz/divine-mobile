@@ -1,7 +1,8 @@
-import 'package:audioplayers/audioplayers.dart';
+// ABOUTME: Main service for video editing operations including player, audio, and clip management
+// ABOUTME: Handles video initialization, thumbnail generation, trimming, and export functionality
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -12,6 +13,7 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:video_player/video_player.dart';
 
 import 'video_editor_audio_service.dart';
+import 'video_editor_thumbnail_service.dart';
 
 // TODO(@hm21): Write unit-tests
 class VideoEditorService {
@@ -28,8 +30,6 @@ class VideoEditorService {
   final _proVideoEditor = ProVideoEditor.instance;
   final editorKey = GlobalKey<ProImageEditorState>();
   final _updateClipsNotifier = ValueNotifier(false);
-  final Map<String, Uint8List> cachedKeyFrames = {};
-  final Map<String, List<Uint8List>> cachedKeyFrameList = {};
   final taskId = DateTime.now().microsecondsSinceEpoch.toString();
 
   /// The target format for the exported video.
@@ -46,15 +46,7 @@ class VideoEditorService {
 
   VideoPlayerController? videoController;
   late VideoEditorAudioService audioService;
-
-  /// Audio player for sound preview
-  AudioPlayer? _audioPlayer;
-
-  /// The ID of the currently selected sound for the video
-  String? selectedSoundId;
-
-  /// The ID of the currently playing sound
-  String? _currentSoundId;
+  late VideoEditorThumbnailService thumbnailService;
 
   /// Stores generated thumbnails for the trimmer bar and filter background.
   List<ImageProvider>? _thumbnails;
@@ -209,50 +201,8 @@ class VideoEditorService {
           );
         },
         onMergeClips: mergeClips,
-        onReadKeyFrame: (source) async {
-          if (cachedKeyFrames.containsKey(source.id)) {
-            return cachedKeyFrames[source.id]!;
-          }
-
-          final result = await _proVideoEditor.getKeyFrames(
-            KeyFramesConfigs(
-              video: EditorVideo.autoSource(
-                assetPath: source.clip.assetPath,
-                byteArray: source.clip.bytes,
-                file: source.clip.file,
-                networkUrl: source.clip.networkUrl,
-              ),
-              outputSize: const Size.square(200),
-              boxFit: ThumbnailBoxFit.cover,
-              maxOutputFrames: 1,
-              outputFormat: ThumbnailFormat.jpeg,
-            ),
-          );
-          cachedKeyFrames[source.id] = result.first;
-          return result.first;
-        },
-        onReadKeyFrames: (source) async {
-          if (cachedKeyFrameList.containsKey(source.id)) {
-            return cachedKeyFrameList[source.id]!;
-          }
-
-          final result = await _proVideoEditor.getKeyFrames(
-            KeyFramesConfigs(
-              video: EditorVideo.autoSource(
-                assetPath: source.clip.assetPath,
-                byteArray: source.clip.bytes,
-                file: source.clip.file,
-                networkUrl: source.clip.networkUrl,
-              ),
-              outputSize: const Size.square(200),
-              boxFit: ThumbnailBoxFit.cover,
-              maxOutputFrames: 7,
-              outputFormat: ThumbnailFormat.jpeg,
-            ),
-          );
-          cachedKeyFrameList[source.id] = result;
-          return result;
-        },
+        onReadKeyFrame: (source) => thumbnailService.getKeyFrame(source),
+        onReadKeyFrames: (source) => thumbnailService.getKeyFrames(source),
         onAddClip: addClip,
       ),
     );
@@ -269,6 +219,13 @@ class VideoEditorService {
     configs.clipsEditor.clips.first = configs.clipsEditor.clips.first.copyWith(
       duration: _videoMetadata.duration,
     );
+
+    // Initialize services
+    thumbnailService = VideoEditorThumbnailService(
+      context: context,
+      thumbnailCount: _thumbnailCount,
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _generateThumbnails();
     });
@@ -283,7 +240,10 @@ class VideoEditorService {
       '🎬 VideoEditorService.initializePlayer() - Creating AudioService...',
       category: LogCategory.video,
     );
-    audioService = VideoEditorAudioService(videoController: videoController!);
+    audioService = VideoEditorAudioService(
+      videoController: videoController!,
+      onStateChanged: onStateChanged,
+    );
 
     Log.info(
       '🎬 VideoEditorService.initializePlayer() - Initializing player and audio...',
@@ -325,9 +285,6 @@ class VideoEditorService {
     );
     videoController!.addListener(_onDurationChange);
 
-    // Initialize audio player
-    _audioPlayer = AudioPlayer();
-
     onStateChanged();
 
     Log.info(
@@ -337,61 +294,24 @@ class VideoEditorService {
   }
 
   /// Select a sound for the video
-  void selectSound(String? soundId) {
-    selectedSoundId = soundId;
-    onStateChanged();
-  }
+  void selectSound(String? soundId) => audioService.selectSound(soundId);
 
   /// Load and play the selected sound, synced with video
-  Future<void> loadAndPlaySound(String? soundId) async {
-    if (soundId == _currentSoundId) return;
-    _currentSoundId = soundId;
-
-    // Stop current audio
-    await _audioPlayer?.stop();
-
-    if (soundId == null) {
-      // No sound selected - unmute video
-      await videoController?.setVolume(1.0);
-      return;
-    }
-
-    // Mute video's original audio when playing selected sound
-    await videoController?.setVolume(0.0);
-
-    // For now, we'll need to pass in the sound service from outside
-    // This will be called from the screen with the sound object
-    Log.info('Loading sound: $soundId', category: LogCategory.video);
-  }
+  Future<void> loadAndPlaySound(String? soundId) =>
+      audioService.loadAndPlaySound(soundId);
 
   /// Actually play the sound file
-  Future<void> playSound(String filePath, String soundTitle) async {
-    try {
-      await _audioPlayer?.setSourceDeviceFile(filePath);
-
-      // Set looping to match video
-      await _audioPlayer?.setReleaseMode(ReleaseMode.loop);
-
-      // Play the audio
-      await _audioPlayer?.resume();
-
-      Log.info('Playing sound: $soundTitle', category: LogCategory.video);
-    } catch (e) {
-      Log.error('Failed to play sound: $e', category: LogCategory.video);
-      // Unmute video on error
-      await videoController?.setVolume(1.0);
-    }
-  }
+  Future<void> playSound(String filePath, String soundTitle) =>
+      audioService.playSound(filePath, soundTitle);
 
   /// Stop the audio player
-  Future<void> stopAudio() async {
-    await _audioPlayer?.stop();
-  }
+  Future<void> stopAudio() => audioService.stopAudio();
 
   /// Pause the audio player
-  Future<void> pauseAudio() async {
-    await _audioPlayer?.pause();
-  }
+  Future<void> pauseAudio() => audioService.pauseAudio();
+
+  /// Get the currently selected sound ID
+  String? get selectedSoundId => audioService.selectedSoundId;
 
   void dispose() {
     Log.info(
@@ -401,7 +321,6 @@ class VideoEditorService {
     videoController?.removeListener(_onDurationChange);
     videoController?.dispose();
     audioService.dispose();
-    _audioPlayer?.dispose();
     Log.info(
       '🎬 VideoEditorService.dispose() COMPLETE',
       category: LogCategory.video,
@@ -530,6 +449,7 @@ class VideoEditorService {
       category: LogCategory.video,
     );
     await _setMetadata();
+    thumbnailService.clearCache();
     await _generateThumbnails(updateClipThumbnails: false);
     await initializePlayer();
 
@@ -624,81 +544,23 @@ class VideoEditorService {
 
   /// Generates thumbnails for the given [video].
   Future<void> _generateThumbnails({bool updateClipThumbnails = true}) async {
-    Log.info(
-      '🎬 VideoEditorService._generateThumbnails() START - Generating $_thumbnailCount thumbnails',
-      category: LogCategory.video,
+    final temporaryThumbnails = await thumbnailService.generateThumbnails(
+      video: video,
+      videoMetadata: _videoMetadata,
     );
 
-    if (!context.mounted) {
-      Log.warning(
-        '🎬 VideoEditorService._generateThumbnails() - Widget unmounted',
-        category: LogCategory.video,
-      );
-      return;
-    }
-
-    var imageWidth =
-        MediaQuery.sizeOf(context).width /
-        _thumbnailCount *
-        MediaQuery.devicePixelRatioOf(context);
-    Log.info(
-      '🎬 VideoEditorService._generateThumbnails() - Image width: $imageWidth',
-      category: LogCategory.video,
-    );
-
-    List<Uint8List> thumbnailList = [];
-
-    /// On android `getKeyFrames` is a way faster than `getThumbnails` but
-    /// the timestamps are more "random". If you want the best results i
-    /// recommend you to use only `getThumbnails`.
-    final duration = _videoMetadata.duration;
-    final segmentDuration = duration.inMilliseconds / _thumbnailCount;
-    Log.info(
-      '🎬 VideoEditorService._generateThumbnails() - Generating thumbnails...',
-      category: LogCategory.video,
-    );
-    thumbnailList = await _proVideoEditor.getThumbnails(
-      ThumbnailConfigs(
-        video: video,
-        outputSize: Size.square(imageWidth),
-        boxFit: ThumbnailBoxFit.cover,
-        timestamps: List.generate(_thumbnailCount, (i) {
-          final midpointMs = (i + 0.5) * segmentDuration;
-          return Duration(milliseconds: midpointMs.round());
-        }),
-        outputFormat: ThumbnailFormat.jpeg,
-      ),
-    );
-
-    List<ImageProvider> temporaryThumbnails = thumbnailList
-        .map(MemoryImage.new)
-        .toList();
+    if (temporaryThumbnails == null) return;
 
     if (updateClipThumbnails) {
       configs.clipsEditor.clips.first = configs.clipsEditor.clips.first
           .copyWith(thumbnails: temporaryThumbnails);
     }
 
-    /// Optional precache every thumbnail
-    Log.info(
-      '🎬 VideoEditorService._generateThumbnails() - Precaching ${temporaryThumbnails.length} thumbnails...',
-      category: LogCategory.video,
-    );
-    var cacheList = temporaryThumbnails.map(
-      (item) => precacheImage(item, context),
-    );
-    if (!context.mounted) return;
-    await Future.wait(cacheList);
     _thumbnails = temporaryThumbnails;
 
     if (proVideoController != null) {
       proVideoController!.thumbnails = _thumbnails;
     }
-
-    Log.info(
-      '🎬 VideoEditorService._generateThumbnails() COMPLETE',
-      category: LogCategory.video,
-    );
   }
 
   Widget _buildVideoPlayer() {

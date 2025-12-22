@@ -1,14 +1,23 @@
+// ABOUTME: Audio service for managing sound selection, overlay tracks, and volume balancing
+// ABOUTME: Handles audio playback synchronization with video and custom sound integration
+
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:video_player/video_player.dart';
 
-/// A helper service that manages audio playback alongside video playback.
+/// A helper service that manages audio playback alongside video playback,
+/// including sound selection and overlay audio tracks.
 class VideoEditorAudioService {
   /// Creates an instance of [VideoEditorAudioService] for the
   /// given [videoController].
-  VideoEditorAudioService({required this.videoController});
+  VideoEditorAudioService({
+    required this.videoController,
+    required this.onStateChanged,
+  });
 
   /// The internal audio player used to handle audio playback.
   final _audioPlayer = AudioPlayer();
@@ -16,8 +25,17 @@ class VideoEditorAudioService {
   /// The controller managing video playback.
   final VideoPlayerController videoController;
 
+  /// Callback when state changes (for sound selection)
+  final VoidCallback onStateChanged;
+
   /// Stores the last applied audio balance between video and overlay.
   double _lastVolumeBalance = 0;
+
+  /// The ID of the currently selected sound for the video
+  String? selectedSoundId;
+
+  /// The ID of the currently playing sound
+  String? _currentSoundId;
 
   /// Initializes the audio player with platform-specific audio context
   /// settings.
@@ -45,6 +63,68 @@ class VideoEditorAudioService {
   /// Disposes of the audio player and releases resources.
   Future<void> dispose() async {
     await _audioPlayer.dispose();
+  }
+
+  /// Select a sound for the video
+  void selectSound(String? soundId) {
+    selectedSoundId = soundId;
+    onStateChanged();
+  }
+
+  /// Load and play the selected sound, synced with video
+  Future<void> loadAndPlaySound(String? soundId) async {
+    if (soundId == _currentSoundId) return;
+    _currentSoundId = soundId;
+
+    // Stop current audio
+    await _audioPlayer.stop();
+
+    if (soundId == null) {
+      // No sound selected - unmute video
+      await videoController.setVolume(1.0);
+      return;
+    }
+
+    // Mute video's original audio when playing selected sound
+    await videoController.setVolume(0.0);
+
+    // For now, we'll need to pass in the sound service from outside
+    // This will be called from the screen with the sound object
+    Log.info('Loading sound: $soundId', category: LogCategory.video);
+  }
+
+  /// Actually play the sound file
+  Future<void> playSound(String filePath, String soundTitle) async {
+    try {
+      await _audioPlayer.setSourceDeviceFile(filePath);
+
+      // Set looping to match video
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+
+      // Play the audio
+      await _audioPlayer.resume();
+
+      Log.info('Playing sound: $soundTitle', category: LogCategory.video);
+    } catch (e) {
+      Log.error('Failed to play sound: $e', category: LogCategory.video);
+      // Unmute video on error
+      await videoController.setVolume(1.0);
+    }
+  }
+
+  /// Stop the audio player
+  Future<void> stopAudio() async {
+    await _audioPlayer.stop();
+  }
+
+  /// Pause the audio player
+  Future<void> pauseAudio() async {
+    await _audioPlayer.pause();
+  }
+
+  /// Resume the audio player
+  Future<void> resumeAudio() async {
+    await _audioPlayer.resume();
   }
 
   /// Plays the given [AudioTrack] with looping enabled.
