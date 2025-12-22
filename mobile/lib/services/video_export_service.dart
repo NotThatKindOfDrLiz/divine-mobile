@@ -1,14 +1,9 @@
-// ABOUTME: Service for exporting video clips with FFmpeg operations
+// ABOUTME: Service for exporting video clips with native operations
 // ABOUTME: Handles concatenation, text overlays, audio mixing, and thumbnail generation
 
-import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
-import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/utils/ffmpeg_encoder.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -36,7 +31,7 @@ class ExportResult {
   final Duration duration;
 }
 
-/// Service for exporting video clips with FFmpeg operations
+/// Service for exporting video clips with native operations
 class VideoExportService {
   /// Concatenates multiple video segments into a single video with optional aspect ratio crop
   ///
@@ -185,100 +180,6 @@ class VideoExportService {
     } catch (e, stackTrace) {
       Log.error(
         'Failed to process clips: $e',
-        name: 'VideoExportService',
-        category: LogCategory.system,
-        error: e,
-        stackTrace: stackTrace,
-      );
-      rethrow;
-    }
-  }
-
-  /// Mixes background audio with video
-  ///
-  /// For bundled assets, copies from Flutter assets to temp file.
-  /// For custom sounds (file paths), uses the file directly.
-  /// Runs: `ffmpeg -i video.mp4 -i audio.mp3 -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 -shortest output.mp4`
-  Future<String> mixAudio(String videoPath, String audioPath) async {
-    // TODO(@hm21): Replace with pro_video_editor
-
-    try {
-      Log.info(
-        'Mixing audio: $audioPath with video: $videoPath',
-        name: 'VideoExportService',
-        category: LogCategory.system,
-      );
-
-      // Get temp directory for output
-      final tempDir = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final outputPath = '${tempDir.path}/with_audio_$timestamp.mp4';
-
-      String audioFilePath;
-
-      // Check if it's a file path (custom sound) or asset path (bundled sound)
-      if (audioPath.startsWith('/') || audioPath.startsWith('file://')) {
-        // Custom sound - use file path directly
-        audioFilePath = audioPath.replaceFirst('file://', '');
-        Log.info(
-          'Using custom sound file: $audioFilePath',
-          name: 'VideoExportService',
-          category: LogCategory.system,
-        );
-      } else {
-        // Bundled asset - copy to temp file
-        audioFilePath = '${tempDir.path}/audio_$timestamp.mp3';
-        final audioBytes = await rootBundle.load(audioPath);
-        await File(audioFilePath).writeAsBytes(audioBytes.buffer.asUint8List());
-        Log.info(
-          'Copied asset to: $audioFilePath',
-          name: 'VideoExportService',
-          category: LogCategory.system,
-        );
-      }
-
-      // Run FFmpeg audio mixing command
-      // -y = overwrite output file
-      // -c:v copy = copy video codec (no re-encoding)
-      // -c:a aac = encode audio to AAC
-      // -map 0:v:0 = use video from first input
-      // -map 1:a:0 = use audio from second input
-      // -shortest = finish when shortest stream ends
-      final command =
-          '-y -i "$videoPath" -i "$audioFilePath" -c:v copy -c:a aac -map 0:v:0 -map 1:a:0 -shortest "$outputPath"';
-
-      Log.info(
-        'Running FFmpeg audio mix: $command',
-        name: 'VideoExportService',
-        category: LogCategory.system,
-      );
-
-      final session = await FFmpegKit.execute(command);
-      final returnCode = await session.getReturnCode();
-
-      // Clear sessions to free memory
-      await FFmpegEncoder.clearSessions();
-
-      if (ReturnCode.isSuccess(returnCode)) {
-        Log.info(
-          'Successfully mixed audio to: $outputPath',
-          name: 'VideoExportService',
-          category: LogCategory.system,
-        );
-
-        // Clean up temp audio file only if we copied from assets
-        if (!audioPath.startsWith('/') && !audioPath.startsWith('file://')) {
-          await File(audioFilePath).delete();
-        }
-
-        return outputPath;
-      } else {
-        final output = await session.getOutput();
-        throw Exception('FFmpeg audio mix failed: $output');
-      }
-    } catch (e, stackTrace) {
-      Log.error(
-        'Failed to mix audio: $e',
         name: 'VideoExportService',
         category: LogCategory.system,
         error: e,

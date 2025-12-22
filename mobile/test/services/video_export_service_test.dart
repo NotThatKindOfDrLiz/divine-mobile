@@ -40,14 +40,6 @@ void main() {
       // Integration tests would be needed for that
     });
 
-    group('mixAudio', () {
-      // Note: Cannot test actual FFmpeg execution in unit tests
-      // The method requires real video/audio files and FFmpeg binary
-      test('method signature accepts correct parameters', () {
-        expect(service.mixAudio, isA<Function>());
-      });
-    });
-
     group('generateThumbnail', () {
       // Note: Cannot test actual thumbnail generation in unit tests
       // The method requires real video files and video_thumbnail plugin

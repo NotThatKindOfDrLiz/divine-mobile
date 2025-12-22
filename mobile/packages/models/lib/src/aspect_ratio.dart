@@ -1,5 +1,5 @@
 // ABOUTME: Aspect ratio options for video recording
-// ABOUTME: Used to configure camera preview and FFmpeg crop filters
+// ABOUTME: Used to configure camera preview and pro_video_editor crop filters
 
 /// Aspect ratio options for video recording
 enum AspectRatio {
