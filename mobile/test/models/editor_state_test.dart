@@ -3,14 +3,12 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/editor_state.dart';
-import 'package:openvine/models/text_overlay.dart';
 
 void main() {
   group('EditorState', () {
     test('should create with default values', () {
       final state = EditorState();
 
-      expect(state.textOverlays, isEmpty);
       expect(state.selectedTextId, isNull);
       expect(state.selectedSoundId, isNull);
       expect(state.isProcessing, isFalse);
@@ -19,49 +17,7 @@ void main() {
       expect(state.errorMessage, isNull);
     });
 
-    test('should create with provided values', () {
-      final overlay = TextOverlay(
-        id: 'text1',
-        text: 'Hello',
-        normalizedPosition: const Offset(0.5, 0.5),
-      );
-
-      final state = EditorState(
-        textOverlays: [overlay],
-        selectedTextId: 'text1',
-        selectedSoundId: 'sound1',
-        isProcessing: true,
-        exportStage: ExportStage.concatenating,
-        exportProgress: 0.5,
-        errorMessage: 'Test error',
-      );
-
-      expect(state.textOverlays, hasLength(1));
-      expect(state.textOverlays.first.id, 'text1');
-      expect(state.selectedTextId, 'text1');
-      expect(state.selectedSoundId, 'sound1');
-      expect(state.isProcessing, isTrue);
-      expect(state.exportStage, ExportStage.concatenating);
-      expect(state.exportProgress, 0.5);
-      expect(state.errorMessage, 'Test error');
-    });
-
     group('copyWith', () {
-      test('should copy with new text overlays', () {
-        final state = EditorState();
-        final overlay = TextOverlay(
-          id: 'text1',
-          text: 'Hello',
-          normalizedPosition: const Offset(0.5, 0.5),
-        );
-
-        final newState = state.copyWith(textOverlays: [overlay]);
-
-        expect(newState.textOverlays, hasLength(1));
-        expect(newState.textOverlays.first.id, 'text1');
-        expect(state.textOverlays, isEmpty); // Original unchanged
-      });
-
       test('should copy with new selected text id', () {
         final state = EditorState();
         final newState = state.copyWith(selectedTextId: 'text1');
@@ -116,47 +72,9 @@ void main() {
         expect(newState.errorMessage, 'Error occurred');
         expect(state.errorMessage, isNull);
       });
-
-      test('should copy multiple properties at once', () {
-        final state = EditorState();
-        final overlay = TextOverlay(
-          id: 'text1',
-          text: 'Hello',
-          normalizedPosition: const Offset(0.5, 0.5),
-        );
-
-        final newState = state.copyWith(
-          textOverlays: [overlay],
-          selectedTextId: 'text1',
-          isProcessing: true,
-          exportStage: ExportStage.applyingTextOverlay,
-          exportProgress: 0.33,
-        );
-
-        expect(newState.textOverlays, hasLength(1));
-        expect(newState.selectedTextId, 'text1');
-        expect(newState.isProcessing, isTrue);
-        expect(newState.exportStage, ExportStage.applyingTextOverlay);
-        expect(newState.exportProgress, 0.33);
-      });
     });
 
     group('computed properties', () {
-      test('hasTextOverlays should return false when empty', () {
-        final state = EditorState();
-        expect(state.hasTextOverlays, isFalse);
-      });
-
-      test('hasTextOverlays should return true when overlays exist', () {
-        final overlay = TextOverlay(
-          id: 'text1',
-          text: 'Hello',
-          normalizedPosition: const Offset(0.5, 0.5),
-        );
-        final state = EditorState(textOverlays: [overlay]);
-        expect(state.hasTextOverlays, isTrue);
-      });
-
       test('hasSound should return false when no sound selected', () {
         final state = EditorState();
         expect(state.hasSound, isFalse);

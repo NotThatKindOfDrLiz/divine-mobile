@@ -8,8 +8,6 @@ import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/text_overlay.dart';
-import 'package:openvine/services/text_overlay_renderer.dart';
 import 'package:openvine/utils/ffmpeg_encoder.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -551,7 +549,7 @@ class VideoExportService {
   /// Progress is reported through [onProgress] callback with stage and progress (0.0-1.0)
   Future<ExportResult> export({
     required List<RecordingClip> clips,
-    List<TextOverlay>? textOverlays,
+    List<dynamic>? textOverlays, // TODO(@hm21): Remove
     String? soundId,
     required void Function(ExportStage, double) onProgress,
   }) async {
@@ -578,7 +576,8 @@ class VideoExportService {
         onProgress(ExportStage.applyingTextOverlay, 0.0);
 
         // Render text overlays to PNG
-        final renderer = TextOverlayRenderer();
+        /* TODO(@hm21): replace logic 
+       final renderer = TextOverlayRenderer();
         final overlayImage = await renderer.renderOverlays(
           textOverlays,
           const Size(1080, 1920), // Standard 9:16 vertical video
@@ -593,7 +592,7 @@ class VideoExportService {
         // Clean up previous file if it was a temp file
         if (previousPath != clips.first.filePath) {
           await File(previousPath).delete();
-        }
+        } */
 
         onProgress(ExportStage.applyingTextOverlay, 1.0);
       }

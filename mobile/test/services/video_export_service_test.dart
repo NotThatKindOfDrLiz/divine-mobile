@@ -3,7 +3,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/text_overlay.dart';
 import 'package:openvine/services/video_export_service.dart';
 
 void main() {
@@ -78,20 +77,11 @@ void main() {
           ),
         ];
 
-        final textOverlays = [
-          TextOverlay(
-            id: 'text1',
-            text: 'Hello World',
-            normalizedPosition: const Offset(0.5, 0.5),
-          ),
-        ];
-
         void onProgress(ExportStage stage, double progress) {}
 
         // Just verify method returns a future - actual execution requires real files
         final result = service.export(
           clips: clips,
-          textOverlays: textOverlays,
           soundId: 'sound1',
           onProgress: onProgress,
         );

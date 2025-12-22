@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openvine/models/text_overlay.dart';
 import 'package:openvine/models/vine_sound.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/sound_library_service_provider.dart';
@@ -222,32 +221,6 @@ void main() {
 
       // Should navigate to sound picker screen
       expect(find.text('Select Sound'), findsOneWidget);
-    });
-
-    testWidgets('displays text overlays on video preview', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            videoEditorProvider('/test/video.mp4').overrideWith((ref) {
-              return VideoEditorNotifier(videoPath: '/test/video.mp4')
-                ..addTextOverlay(
-                  TextOverlay(
-                    id: 'text1',
-                    text: 'Test Overlay',
-                    normalizedPosition: const Offset(0.5, 0.5),
-                  ),
-                );
-            }),
-          ],
-          child: MaterialApp(
-            home: VideoEditorScreen(videoPath: '/test/video.mp4'),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Should display the text overlay
-      expect(find.text('Test Overlay'), findsOneWidget);
     });
 
     testWidgets('displays selected sound name when sound is chosen', (

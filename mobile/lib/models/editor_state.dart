@@ -1,8 +1,6 @@
 // ABOUTME: Immutable state model for video editor managing text overlays, sound, and export progress
 // ABOUTME: Tracks editing state with export stages and computed properties for UI state
 
-import 'package:openvine/models/text_overlay.dart';
-
 enum ExportStage {
   concatenating,
   applyingTextOverlay,
@@ -13,7 +11,6 @@ enum ExportStage {
 }
 
 class EditorState {
-  final List<TextOverlay> textOverlays;
   final String? selectedTextId;
   final String? selectedSoundId;
   final bool isProcessing;
@@ -22,21 +19,18 @@ class EditorState {
   final String? errorMessage;
 
   EditorState({
-    List<TextOverlay>? textOverlays,
     this.selectedTextId,
     this.selectedSoundId,
     this.isProcessing = false,
     this.exportStage,
     this.exportProgress = 0.0,
     this.errorMessage,
-  }) : textOverlays = textOverlays ?? [];
+  });
 
-  bool get hasTextOverlays => textOverlays.isNotEmpty;
   bool get hasSound => selectedSoundId != null;
   bool get canExport => !isProcessing;
 
   EditorState copyWith({
-    List<TextOverlay>? textOverlays,
     Object? selectedTextId = _notProvided,
     Object? selectedSoundId = _notProvided,
     bool? isProcessing,
@@ -45,7 +39,6 @@ class EditorState {
     Object? errorMessage = _notProvided,
   }) {
     return EditorState(
-      textOverlays: textOverlays ?? this.textOverlays,
       selectedTextId: selectedTextId == _notProvided
           ? this.selectedTextId
           : selectedTextId as String?,

@@ -132,6 +132,7 @@ dependencies:
       ref: master
   convert: ^3.1.2
   just_audio: ^0.10.5
+  audioplayers: ^5.2.1 # TODO(@hm21): Replace with just_audio
   pro_video_editor: ^0.5.0-beta.1
   pro_image_editor: ^12.0.0-beta.5
   flutter_colorpicker: ^1.1.0

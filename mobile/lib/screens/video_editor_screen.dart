@@ -1,27 +1,24 @@
 // ABOUTME: Video editor screen for adding text overlays and sound to recorded videos
 // ABOUTME: Dark-themed interface with video preview, text editing, and sound selection
 
+import 'dart:async';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:just_audio/just_audio.dart';
+import 'package:openvine/platform_io.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/providers/sound_library_service_provider.dart';
-import 'package:openvine/widgets/text_overlay/text_overlay_editor.dart';
-import 'package:openvine/widgets/text_overlay/draggable_text_overlay.dart';
-import 'package:openvine/widgets/sound_picker/sound_picker_modal.dart';
-import 'package:video_player/video_player.dart';
-import 'dart:io';
+import 'package:pro_image_editor/pro_image_editor.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/services/draft_storage_service.dart';
-import 'package:openvine/services/video_export_service.dart';
-import 'package:openvine/services/text_overlay_renderer.dart';
 import 'package:openvine/screens/pure/video_metadata_screen_pure.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
+
+import '../services/video_editor/video_editor_service.dart';
 
 class VideoEditorScreen extends ConsumerStatefulWidget {
   const VideoEditorScreen({
@@ -40,11 +37,11 @@ class VideoEditorScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
-  VideoPlayerController? _videoController;
+  late final VideoEditorService _videoEditorService;
+
   bool _isVideoInitialized = false;
   AudioPlayer? _audioPlayer;
   String? _currentSoundId;
-  Size? _lastPreviewSize; // Store preview size for text overlay scaling
 
   @override
   void initState() {
@@ -53,7 +50,17 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       '📹 VideoEditorScreen.initState() START - videoPath: ${widget.videoPath}',
       category: LogCategory.video,
     );
-    _initializeVideo();
+
+    _videoEditorService = VideoEditorService(
+      videoPath: widget.videoPath,
+      context: context,
+      onStateChanged: () {
+        if (mounted) setState(() {});
+      },
+      mounted: () => mounted,
+    );
+
+    _videoEditorService.initializePlayer();
     _audioPlayer = AudioPlayer();
     Log.info(
       '📹 VideoEditorScreen.initState() END',
@@ -61,57 +68,13 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     );
   }
 
-  Future<void> _initializeVideo() async {
-    Log.info('📹 _initializeVideo() START', category: LogCategory.video);
-    try {
-      final file = File(widget.videoPath);
-      Log.info(
-        '📹 Video file exists: ${file.existsSync()}, path: ${widget.videoPath}',
-        category: LogCategory.video,
-      );
-
-      final controller = VideoPlayerController.file(file);
-      Log.info(
-        '📹 VideoPlayerController created, calling initialize()...',
-        category: LogCategory.video,
-      );
-
-      await controller.initialize();
-      Log.info(
-        '📹 VideoPlayerController initialized, size: ${controller.value.size}',
-        category: LogCategory.video,
-      );
-
-      await controller.setLooping(true);
-      await controller.play();
-      Log.info('📹 Video started playing', category: LogCategory.video);
-
-      if (mounted) {
-        setState(() {
-          _videoController = controller;
-          _isVideoInitialized = true;
-        });
-        Log.info(
-          '📹 _initializeVideo() COMPLETE - video is ready',
-          category: LogCategory.video,
-        );
-      }
-    } catch (e, stackTrace) {
-      Log.error(
-        '📹 _initializeVideo() FAILED: $e',
-        category: LogCategory.video,
-      );
-      Log.error('📹 Stack trace: $stackTrace', category: LogCategory.video);
-    }
-  }
-
   @override
   void dispose() {
-    _videoController?.dispose();
+    _videoEditorService.dispose();
     _audioPlayer?.dispose();
     super.dispose();
   }
-
+  /* 
   /// Load and play the selected sound, synced with video
   Future<void> _loadAndPlaySound(String? soundId) async {
     if (soundId == _currentSoundId) return;
@@ -173,23 +136,6 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       // Unmute video on error
       await _videoController?.setVolume(1.0);
     }
-  }
-
-  void _handleAddText() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => TextOverlayEditor(
-        onSave: (overlay) {
-          ref
-              .read(videoEditorProvider(widget.videoPath).notifier)
-              .addTextOverlay(overlay);
-          Navigator.of(context).pop();
-        },
-        onCancel: () => Navigator.of(context).pop(),
-      ),
-    );
   }
 
   void _handleAddSound() async {
@@ -350,7 +296,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
         // Dispose video controller to free memory before navigating
         // The metadata screen will create its own player
         _videoController?.dispose();
-        _videoController = null;
+        //TODO:    _videoController = null;
         _audioPlayer?.dispose();
         _audioPlayer = null;
         setState(() {
@@ -390,8 +336,161 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     }
   }
 
-  void _handleBack() {
-    // Stop audio preview when going back
+ */
+
+  /// Generates the final video based on the given [parameters].
+  ///
+  /// Applies blur, color filters, cropping, rotation, flipping, and trimming
+  /// before exporting using FFmpeg. Measures and stores the generation time.
+  Future<void> _generateVideo(CompleteParameters parameters) async {
+    final stopwatch = Stopwatch()..start();
+
+    Log.info(
+      '📹 VideoEditorScreen: Creating draft for video: ${widget.videoPath}',
+      category: LogCategory.video,
+    );
+
+    unawaited(_videoEditorService.videoController?.pause());
+    unawaited(_videoEditorService.audioService.pause());
+    final directory = await getTemporaryDirectory();
+
+    final AudioTrack? customAudioTrack = parameters.customAudioTrack;
+    final double volumeBalance = customAudioTrack?.volumeBalance ?? 0;
+    double overlayVolume = 1;
+    double originalVolume = 1;
+    if (volumeBalance < 0) {
+      overlayVolume += volumeBalance;
+    } else {
+      originalVolume -= volumeBalance;
+    }
+
+    final exportModel = VideoRenderData(
+      id: _videoEditorService.taskId,
+      video: _videoEditorService.video,
+      outputFormat: _videoEditorService.outputFormat,
+      enableAudio:
+          _videoEditorService.proVideoController?.isAudioEnabled ?? true,
+      imageBytes: parameters.layers.isNotEmpty ? parameters.image : null,
+      blur: parameters.blur,
+      colorMatrixList: parameters.colorFilters,
+      startTime: parameters.startTime,
+      endTime: parameters.endTime,
+      transform: parameters.isTransformed
+          ? ExportTransform(
+              width: parameters.cropWidth,
+              height: parameters.cropHeight,
+              rotateTurns: parameters.rotateTurns,
+              x: parameters.cropX,
+              y: parameters.cropY,
+              flipX: parameters.flipX,
+              flipY: parameters.flipY,
+            )
+          : null,
+      customAudioPath: await _videoEditorService.audioService
+          .safeCustomAudioPath(customAudioTrack),
+      originalAudioVolume: originalVolume,
+      customAudioVolume: overlayVolume,
+      // bitrate: _videoMetadata.bitrate,
+    );
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      final finalVideoPath = await ProVideoEditor.instance.renderVideoToFile(
+        '${directory.path}/my_video_$now.mp4',
+        exportModel,
+      );
+
+      // Get the aspect ratio from recording state
+      final recordingState = ref.read(vineRecordingProvider);
+      final aspectRatio = recordingState.aspectRatio;
+
+      // Create a draft for the edited video (with overlays burned in)
+      final draft = VineDraft.create(
+        videoFile: File(finalVideoPath),
+        title: '',
+        description: '',
+        hashtags: [],
+        frameCount: 0,
+        selectedApproach: 'video',
+        aspectRatio: aspectRatio,
+      );
+
+      // Create draft storage service
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+      await draftService.saveDraft(draft);
+      Log.info(
+        '📹 Created draft with ID: ${draft.id}',
+        category: LogCategory.video,
+      );
+
+      if (mounted) {
+        // Dispose video controller to free memory before navigating
+        // The metadata screen will create its own player
+        _videoEditorService.videoController?.dispose();
+        _audioPlayer?.dispose();
+        _audioPlayer = null;
+        setState(() {
+          _isVideoInitialized = false;
+        });
+
+        // Navigate to metadata screen
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => VideoMetadataScreenPure(draftId: draft.id),
+          ),
+        );
+
+        // Re-initialize video when returning from metadata screen
+        if (mounted) {
+          _audioPlayer = AudioPlayer();
+          await _videoEditorService.initializePlayer();
+          // Re-apply sound if one was selected
+          if (_currentSoundId != null) {
+            // TODO:  await _loadAndPlaySound(_currentSoundId);
+          }
+        }
+      }
+
+      // Call original callback if exists
+      widget.onExport?.call();
+    } on RenderCanceledException {
+      stopwatch.stop();
+      return;
+    }
+  }
+
+  /// Closes the video editor and opens a preview screen if a video was
+  /// exported.
+  ///
+  /// If [_outputPath] is available, it navigates to [PreviewVideo].
+  /// Afterwards, it pops the current editor page.
+  void _handleCloseEditor(EditorMode editorMode) async {
+    if (editorMode != EditorMode.main) return Navigator.pop(context);
+    /* 
+    if (_outputPath != null) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PreviewVideo(
+            filePath: _outputPath!,
+            generationTime: _videoGenerationTime,
+          ),
+        ),
+      );
+      _outputPath = null;
+    } else {
+      // Stop audio preview when going back
+      _audioPlayer?.stop();
+
+      if (widget.onBack != null) {
+        widget.onBack!();
+      } else {
+        // Pop back to ClipManager since we got here via push
+        context.pop();
+      }
+    } */
+
     _audioPlayer?.stop();
 
     if (widget.onBack != null) {
@@ -402,147 +501,29 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     }
   }
 
-  void _updateTextOverlayPosition(String id, Offset normalizedPosition) {
-    final state = ref.read(videoEditorProvider(widget.videoPath));
-    final overlay = state.textOverlays.firstWhere((o) => o.id == id);
-    final updatedOverlay = overlay.copyWith(
-      normalizedPosition: normalizedPosition,
-    );
-    ref
-        .read(videoEditorProvider(widget.videoPath).notifier)
-        .updateTextOverlay(id, updatedOverlay);
-  }
-
   @override
   Widget build(BuildContext context) {
     Log.info(
       '📹 VideoEditorScreen.build() START - isVideoInitialized: $_isVideoInitialized',
       category: LogCategory.video,
     );
-    final editorState = ref.watch(videoEditorProvider(widget.videoPath));
-    final soundServiceAsync = ref.watch(soundLibraryServiceProvider);
-    final soundService = soundServiceAsync.value;
 
-    Log.info(
-      '📹 VideoEditorScreen.build() returning Scaffold',
-      category: LogCategory.video,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: _videoEditorService.proVideoController == null
+          ? const Center(child: CircularProgressIndicator())
+          : _buildEditor(),
     );
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: _handleBack,
-        ),
-        title: const Text('Edit Video', style: TextStyle(color: Colors.white)),
-        actions: [
-          TextButton(
-            onPressed: _handleDone,
-            child: const Text(
-              'Done',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-            ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Video preview area
-          Expanded(
-            child: Container(
-              color: Colors.black,
-              child: Center(
-                child: _isVideoInitialized && _videoController != null
-                    ? AspectRatio(
-                        aspectRatio: _videoController!.value.aspectRatio,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            // Use actual rendered size, not native video resolution
-                            final renderedSize = Size(
-                              constraints.maxWidth,
-                              constraints.maxHeight,
-                            );
-                            // Store preview size for text overlay scaling during export
-                            _lastPreviewSize = renderedSize;
-                            return Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                VideoPlayer(_videoController!),
-                                // Text overlays
-                                ...editorState.textOverlays.map((overlay) {
-                                  return DraggableTextOverlay(
-                                    overlay: overlay,
-                                    videoSize: renderedSize,
-                                    onPositionChanged: (position) =>
-                                        _updateTextOverlayPosition(
-                                          overlay.id,
-                                          position,
-                                        ),
-                                  );
-                                }),
-                              ],
-                            );
-                          },
-                        ),
-                      )
-                    : const CircularProgressIndicator(color: Colors.white),
-              ),
-            ),
-          ),
+  }
 
-          // Selected sound indicator
-          if (editorState.selectedSoundId != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: Colors.grey[900],
-              child: Row(
-                children: [
-                  const Icon(Icons.music_note, color: Colors.white, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Sound: ${soundService?.getSoundById(editorState.selectedSoundId!)?.title ?? 'Loading...'}',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-
-          // Bottom action buttons
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.grey[900],
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _handleAddText,
-                    icon: const Icon(Icons.text_fields),
-                    label: const Text('Add Text'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _handleAddSound,
-                    icon: const Icon(Icons.volume_up),
-                    label: const Text('Add Sound'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  Widget _buildEditor() {
+    return ProImageEditor.video(
+      _videoEditorService.proVideoController!,
+      key: _videoEditorService.editorKey,
+      configs: _videoEditorService.configs,
+      callbacks: _videoEditorService.getEditorCallbacks().copyWith(
+        onCompleteWithParameters: _generateVideo,
+        onCloseEditor: _handleCloseEditor,
       ),
     );
   }
