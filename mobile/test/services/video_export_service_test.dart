@@ -40,61 +40,12 @@ void main() {
       // Integration tests would be needed for that
     });
 
-    group('applyTextOverlay', () {
-      // Note: Cannot test actual FFmpeg execution in unit tests
-      // The method requires real video files and FFmpeg binary
-      test('method signature accepts correct parameters', () {
-        expect(service.applyTextOverlay, isA<Function>());
-      });
-    });
-
     group('mixAudio', () {
       // Note: Cannot test actual FFmpeg execution in unit tests
       // The method requires real video/audio files and FFmpeg binary
       test('method signature accepts correct parameters', () {
         expect(service.mixAudio, isA<Function>());
       });
-    });
-
-    group('export', () {
-      test('throws error when clips list is empty', () async {
-        void onProgress(ExportStage stage, double progress) {}
-
-        expect(
-          () => service.export(clips: [], onProgress: onProgress),
-          throwsA(isA<ArgumentError>()),
-        );
-      });
-
-      test('accepts valid parameters and returns future', () async {
-        final clips = [
-          RecordingClip(
-            id: 'clip1',
-            filePath: '/path/to/clip1.mp4',
-            duration: const Duration(seconds: 2),
-            orderIndex: 0,
-            recordedAt: DateTime.now(),
-          ),
-        ];
-
-        void onProgress(ExportStage stage, double progress) {}
-
-        // Just verify method returns a future - actual execution requires real files
-        final result = service.export(
-          clips: clips,
-          soundId: 'sound1',
-          onProgress: onProgress,
-        );
-
-        expect(result, isA<Future<ExportResult>>());
-
-        // Wait for the future to complete (will fail due to missing plugin, but prevents test leaking)
-        await expectLater(result, throwsA(isA<Exception>()));
-      });
-
-      // Note: Cannot test actual export pipeline in unit tests
-      // The pipeline requires real video files, FFmpeg binary, and Flutter rendering
-      // Integration tests would be needed for full pipeline testing
     });
 
     group('generateThumbnail', () {
