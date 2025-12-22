@@ -63,10 +63,9 @@ class VideoThumbnailService {
           category: LogCategory.video,
         );
 
-        // TODO(@hm21): pro_video_editor currently returns thumbnails only as
-        // in-memory Uint8List and does not create thumbnail files internally.
-        // Until native file output is supported directly by pro_video_editor,
-        // we persist the thumbnails to disk here as a temporary workaround.
+        // The pro_video_editor returns thumbnails only as in-memory Uint8List
+        // and does not write files to disk.
+        // Therefore, we persist the thumbnails to disk here.
         final thumbnail = await extractThumbnailBytes(
           videoPath: videoPath,
           timestamp: timestamp,
@@ -139,8 +138,7 @@ class VideoThumbnailService {
           outputSize: _thumbnailSize,
           timestamps: [timestamp],
           outputFormat: .jpeg,
-          // TODO(@hm21): Add an option to set a quality for thumbnails in
-          // the pro_video_editor.
+          jpegQuality: quality,
         ),
       );
 
@@ -184,6 +182,7 @@ class VideoThumbnailService {
   static Future<List<Uint8List>> extractMultipleThumbnails({
     required String videoPath,
     List<Duration>? timestamps,
+    int quality = _thumbnailQuality,
   }) async {
     final timesToExtract =
         timestamps ??
@@ -199,6 +198,7 @@ class VideoThumbnailService {
         outputSize: _thumbnailSize,
         timestamps: timesToExtract,
         outputFormat: .jpeg,
+        jpegQuality: quality,
       ),
     );
 
