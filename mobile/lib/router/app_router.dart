@@ -37,6 +37,8 @@ import 'package:openvine/services/video_stop_navigator_observer.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../screens/video_recorder_screen.dart';
+
 // Navigator keys for per-tab state preservation
 final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _homeKey = GlobalKey<NavigatorState>(debugLabel: 'home');
@@ -471,7 +473,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/camera',
         name: 'camera',
-        builder: (_, __) => const UniversalCameraScreenPure(),
+        builder: (_, __) => const VideoRecorderScreen(),
       ),
       GoRoute(
         path: '/clip-manager',

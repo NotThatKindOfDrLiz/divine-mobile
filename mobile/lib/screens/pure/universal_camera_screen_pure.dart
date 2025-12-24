@@ -29,6 +29,7 @@ import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
 
+// TODO(@hm21): Delete that file and all depending
 /// Pure universal camera screen using revolutionary single-controller Riverpod architecture
 class UniversalCameraScreenPure extends ConsumerStatefulWidget {
   const UniversalCameraScreenPure({super.key});

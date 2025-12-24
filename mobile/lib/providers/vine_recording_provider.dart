@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:camera/camera.dart' show FlashMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:riverpod/riverpod.dart' show Ref;
@@ -22,6 +23,9 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
+
+/// Timer duration options for delayed recording
+enum TimerDuration { off, three, ten }
 
 /// Result returned from stopRecording containing video file, draft ID, and native proof
 class RecordingResult {
@@ -51,6 +55,11 @@ class VineRecordingUIState {
     required this.canSwitchCamera,
     required this.aspectRatio,
     this.cameraSwitchCount = 0,
+    this.flashMode = FlashMode.off,
+    this.timerDuration = TimerDuration.off,
+    this.showGrid = true,
+    this.countdownValue,
+    this.searchQuery = '',
   });
 
   final VineRecordingState recordingState;
@@ -68,6 +77,13 @@ class VineRecordingUIState {
   final model.AspectRatio aspectRatio;
   final int
   cameraSwitchCount; // Increments each time camera switches to force UI rebuild
+
+  // UI control states
+  final FlashMode flashMode;
+  final TimerDuration timerDuration;
+  final bool showGrid;
+  final int? countdownValue;
+  final String searchQuery;
 
   // Convenience getters used by UI
   bool get isRecording => recordingState == VineRecordingState.recording;
@@ -92,6 +108,11 @@ class VineRecordingUIState {
     bool? canSwitchCamera,
     model.AspectRatio? aspectRatio,
     int? cameraSwitchCount,
+    FlashMode? flashMode,
+    TimerDuration? timerDuration,
+    bool? showGrid,
+    int? countdownValue,
+    String? searchQuery,
   }) {
     return VineRecordingUIState(
       recordingState: recordingState ?? this.recordingState,
@@ -107,6 +128,11 @@ class VineRecordingUIState {
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
+      flashMode: flashMode ?? this.flashMode,
+      timerDuration: timerDuration ?? this.timerDuration,
+      showGrid: showGrid ?? this.showGrid,
+      countdownValue: countdownValue ?? this.countdownValue,
+      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 }
@@ -173,7 +199,61 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       aspectRatio: _controller.aspectRatio,
       cameraSwitchCount:
           state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
+      flashMode: state.flashMode,
+      timerDuration: state.timerDuration,
+      showGrid: state.showGrid,
+      countdownValue: state.countdownValue,
+      searchQuery: state.searchQuery,
     );
+  }
+
+  // UI control methods
+
+  /// Toggle flash mode between off, on, and auto
+  void toggleFlash() {
+    final newMode = switch (state.flashMode) {
+      FlashMode.off => FlashMode.always,
+      FlashMode.always => FlashMode.auto,
+      FlashMode.auto => FlashMode.off,
+      _ => FlashMode.off,
+    };
+    state = state.copyWith(flashMode: newMode);
+    // TODO: Apply flash mode to camera controller
+  }
+
+  /// Cycle timer duration
+  void cycleTimer() {
+    final newTimer = switch (state.timerDuration) {
+      TimerDuration.off => TimerDuration.three,
+      TimerDuration.three => TimerDuration.ten,
+      TimerDuration.ten => TimerDuration.off,
+    };
+    state = state.copyWith(timerDuration: newTimer);
+  }
+
+  /// Toggle grid overlay
+  void toggleGrid() {
+    state = state.copyWith(showGrid: !state.showGrid);
+  }
+
+  /// Start countdown for timer
+  void startCountdown(int value) {
+    state = state.copyWith(countdownValue: value);
+  }
+
+  /// Update countdown value
+  void updateCountdown(int value) {
+    state = state.copyWith(countdownValue: value);
+  }
+
+  /// Clear countdown
+  void clearCountdown() {
+    state = state.copyWith(countdownValue: null);
+  }
+
+  /// Update search query
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
   }
 
   // Delegate methods to the controller
@@ -325,6 +405,14 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   void setAspectRatio(model.AspectRatio ratio) {
     _controller.setAspectRatio(ratio);
     updateState();
+  }
+
+  void toggleAspectRatio() {
+    final model.AspectRatio newRatio = state.aspectRatio == .square
+        ? .vertical
+        : .square;
+
+    setAspectRatio(newRatio);
   }
 
   /// Set the duration of previously recorded clips from ClipManager

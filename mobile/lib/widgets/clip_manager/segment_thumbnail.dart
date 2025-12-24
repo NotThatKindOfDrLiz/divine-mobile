@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:openvine/models/recording_clip.dart';
 
+// TODO(#hm21): Delete
 class SegmentThumbnail extends StatelessWidget {
   const SegmentThumbnail({
     super.key,
