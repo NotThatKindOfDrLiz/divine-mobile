@@ -4,7 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:camera/camera.dart' show FlashMode;
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:riverpod/riverpod.dart' show Ref;
@@ -55,7 +55,7 @@ class VineRecordingUIState {
     required this.canSwitchCamera,
     required this.aspectRatio,
     this.cameraSwitchCount = 0,
-    this.flashMode = FlashMode.off,
+    this.flashMode = FlashMode.auto,
     this.timerDuration = TimerDuration.off,
     this.showGrid = true,
     this.countdownValue,
@@ -218,7 +218,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       _ => FlashMode.off,
     };
     state = state.copyWith(flashMode: newMode);
-    // TODO: Apply flash mode to camera controller
+    _controller.setFlashMode(newMode);
   }
 
   /// Cycle timer duration

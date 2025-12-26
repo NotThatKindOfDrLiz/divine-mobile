@@ -4,6 +4,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:camera/camera.dart';
+import 'package:camera_macos/camera_macos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 // camera_macos removed - using NativeMacOSCamera for both preview and recording
@@ -12,12 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/services/camera/native_macos_camera.dart';
-import 'package:openvine/services/camera/enhanced_mobile_camera_interface.dart';
-import 'package:openvine/services/camera/camerawesome_mobile_camera_interface.dart';
 import 'package:openvine/services/video_export_service.dart';
-import 'package:openvine/services/web_camera_service_stub.dart'
-    if (dart.library.html) 'web_camera_service.dart'
-    as camera_service;
 import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:models/models.dart' show NativeProofData;
 import 'package:openvine/utils/async_utils.dart';
@@ -81,6 +78,7 @@ abstract class CameraPlatformInterface {
   Future<void> startRecordingSegment(String filePath);
   Future<String?> stopRecordingSegment();
   Future<void> switchCamera();
+  Future<void> setFlashMode(FlashMode mode);
   Widget get previewWidget;
   bool get canSwitchCamera;
   void dispose();
@@ -128,12 +126,18 @@ class MacOSCameraInterface extends CameraPlatformInterface
     // Start native preview
     await NativeMacOSCamera.startPreview();
 
-    // Complete initialization now that native camera is ready for recording
-    completeInitialization();
-
     // Create the camera widget using native frame stream (single AVCaptureSession)
-    _previewWidget = SizedBox.expand(
-      child: _NativeFramePreview(key: _cameraKey),
+    _previewWidget = CameraMacOSView(
+      videoFormat: .mp4,
+      // optional camera parameter, defaults to the Mac primary camera
+      // deviceId: deviceId,
+      // optional microphone parameter, defaults to the Mac primary microphone
+      // audioDeviceId: audioDeviceId,
+      cameraMode: CameraMacOSMode.video,
+      onCameraInizialized: (CameraMacOSController controller) {
+        // Complete initialization now that native camera is ready for recording
+        completeInitialization();
+      },
     );
 
     Log.info(
@@ -412,6 +416,17 @@ class MacOSCameraInterface extends CameraPlatformInterface
   }
 
   @override
+  Future<void> setFlashMode(FlashMode mode) async {
+    Log.debug(
+      'Flash mode not supported on macOS cameras',
+      name: 'VineRecordingController',
+      category: LogCategory.system,
+    );
+    // macOS cameras typically don't have flash/torch functionality
+    // This is a no-op to maintain interface compatibility
+  }
+
+  @override
   void dispose() {
     _maxDurationTimer?.cancel();
     // Stop any active recording
@@ -441,209 +456,7 @@ class MacOSCameraInterface extends CameraPlatformInterface
   }
 }
 
-/// Native frame preview widget for macOS using NativeMacOSCamera.frameStream
-/// Uses a single AVCaptureSession for both preview and recording
-class _NativeFramePreview extends StatefulWidget {
-  const _NativeFramePreview({super.key});
-
-  @override
-  State<_NativeFramePreview> createState() => _NativeFramePreviewState();
-}
-
-class _NativeFramePreviewState extends State<_NativeFramePreview> {
-  Uint8List? _lastFrame;
-  StreamSubscription<Uint8List>? _frameSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _frameSubscription = NativeMacOSCamera.frameStream.listen((frameData) {
-      if (mounted) {
-        setState(() {
-          _lastFrame = frameData;
-        });
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _frameSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_lastFrame == null) {
-      return const ColoredBox(
-        color: Colors.black,
-        child: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-          ),
-        ),
-      );
-    }
-
-    return Image.memory(_lastFrame!, fit: BoxFit.cover, gaplessPlayback: true);
-  }
-}
-
-/// Web camera implementation (using getUserMedia)
-/// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod
-class WebCameraInterface extends CameraPlatformInterface {
-  camera_service.WebCameraService? _webCameraService;
-  Widget? _previewWidget;
-
-  @override
-  Future<void> initialize() async {
-    if (!kIsWeb) throw Exception('WebCameraInterface only works on web');
-
-    try {
-      _webCameraService = camera_service.WebCameraService();
-      await _webCameraService!.initialize();
-
-      // Create preview widget with the initialized camera service
-      _previewWidget = camera_service.WebCameraPreview(
-        cameraService: _webCameraService!,
-      );
-
-      Log.info(
-        '📱 Web camera interface initialized successfully',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-    } catch (e) {
-      Log.error(
-        'Web camera interface initialization failed: $e',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-
-      // Provide more specific error messages
-      if (e.toString().contains('NotFoundError')) {
-        throw Exception(
-          'No camera found. Please ensure a camera is connected and accessible.',
-        );
-      } else if (e.toString().contains('NotAllowedError') ||
-          e.toString().contains('PermissionDeniedError')) {
-        throw Exception(
-          'Camera access denied. Please allow camera permissions and try again.',
-        );
-      } else if (e.toString().contains('NotReadableError')) {
-        throw Exception('Camera is already in use by another application.');
-      } else if (e.toString().contains('MediaDevices API not available')) {
-        throw Exception(
-          'Camera API not available. Please ensure you are using HTTPS.',
-        );
-      }
-
-      rethrow;
-    }
-  }
-
-  @override
-  Future<void> startRecordingSegment(String filePath) async {
-    if (_webCameraService == null) {
-      throw Exception('Web camera service not initialized');
-    }
-
-    await _webCameraService!.startRecording();
-  }
-
-  @override
-  Future<String?> stopRecordingSegment() async {
-    if (_webCameraService == null) {
-      throw Exception('Web camera service not initialized');
-    }
-
-    try {
-      final blobUrl = await _webCameraService!.stopRecording();
-      Log.info(
-        '📱 Web recording completed: $blobUrl',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-      return blobUrl;
-    } catch (e) {
-      Log.error(
-        'Failed to stop web recording: $e',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-      rethrow;
-    }
-  }
-
-  @override
-  Future<void> switchCamera() async {
-    if (_webCameraService == null) {
-      Log.warning(
-        'Web camera service not initialized',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-      return;
-    }
-
-    try {
-      await _webCameraService!.switchCamera();
-      Log.info(
-        '📱 Web camera switched successfully',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-    } catch (e) {
-      Log.error(
-        'Camera switching failed on web: $e',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-    }
-  }
-
-  @override
-  Widget get previewWidget =>
-      _previewWidget ??
-      const ColoredBox(
-        color: Colors.black,
-        child: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-          ),
-        ),
-      );
-
-  @override
-  bool get canSwitchCamera {
-    // For web, hide camera switch button as it's less common and
-    // can cause confusion. Most users have only one camera.
-    return false;
-  }
-
-  /// Clean up a blob URL (internal method for cleanup)
-  void _cleanupBlobUrl(String blobUrl) {
-    if (kIsWeb && _webCameraService != null) {
-      try {
-        // Call the static method through the service
-        camera_service.WebCameraService.revokeBlobUrl(blobUrl);
-      } catch (e) {
-        Log.error(
-          'Error revoking blob URL: $e',
-          name: 'VineRecordingController',
-          category: LogCategory.system,
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _webCameraService?.dispose();
-    _webCameraService = null;
-    _previewWidget = null;
-  }
-}
+// TODO(@hm21): Implement new CameraService and remove useless old code
 
 /// Universal Vine recording controller that works across all platforms
 /// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod
@@ -740,9 +553,10 @@ class VineRecordingController {
     bool isCameraReadyToRecord = true;
     final cameraInterface = _cameraInterface;
 
+    /* TODO(@hm21): fix 
     if (cameraInterface is CamerAwesomeMobileCameraInterface) {
       isCameraReadyToRecord = cameraInterface.isReadyToRecord;
-    }
+    } */
     return _cameraInitialized &&
         isCameraReadyToRecord &&
         remainingDuration > minSegmentDuration &&
@@ -843,6 +657,25 @@ class VineRecordingController {
     _onStateChanged?.call();
   }
 
+  void setFlashMode(FlashMode mode) {
+    if (state == VineRecordingState.recording) {
+      Log.warning(
+        'Cannot change flash mode while recording',
+        name: 'VineRecordingController',
+        category: LogCategory.system,
+      );
+      return;
+    }
+
+    _cameraInterface?.setFlashMode(mode);
+    Log.info(
+      '💡 Flash mode changed to: $mode',
+      name: 'VineRecordingController',
+      category: LogCategory.system,
+    );
+    _onStateChanged?.call();
+  }
+
   /// Switch between front and rear cameras
   Future<void> switchCamera() async {
     Log.info(
@@ -921,59 +754,7 @@ class VineRecordingController {
       _cleanupRecordings();
 
       // Create platform-specific camera interface
-      if (kIsWeb) {
-        _cameraInterface = WebCameraInterface();
-      } else if (Platform.isMacOS) {
-        _cameraInterface = MacOSCameraInterface();
-      } else if (Platform.isIOS || Platform.isAndroid) {
-        // Use CamerAwesome for iOS with physical sensor switching support
-        if (Platform.isIOS) {
-          final camerAwesome = CamerAwesomeMobileCameraInterface();
-          // Wire up callback to notify provider when camera becomes ready
-          camerAwesome.onCameraReady = () {
-            _onStateChanged?.call();
-          };
-          _cameraInterface = camerAwesome;
-          await _cameraInterface!.initialize();
-          Log.info(
-            'Using CamerAwesome camera with physical sensor switching',
-            name: 'VineRecordingController',
-            category: LogCategory.system,
-          );
-        } else {
-          // Android: Try CamerAwesome, fallback to enhanced camera if needed
-          try {
-            final camerAwesome = CamerAwesomeMobileCameraInterface();
-            // Wire up callback to notify provider when camera becomes ready
-            camerAwesome.onCameraReady = () {
-              _onStateChanged?.call();
-            };
-            _cameraInterface = camerAwesome;
-            await _cameraInterface!.initialize();
-            Log.info(
-              'Using CamerAwesome camera for Android',
-              name: 'VineRecordingController',
-              category: LogCategory.system,
-            );
-          } catch (cameraAwesomeError) {
-            Log.warning(
-              'CamerAwesome failed, falling back to enhanced camera: $cameraAwesomeError',
-              name: 'VineRecordingController',
-              category: LogCategory.system,
-            );
-            _cameraInterface?.dispose();
-            _cameraInterface = EnhancedMobileCameraInterface();
-            await _cameraInterface!.initialize();
-            Log.info(
-              'Using enhanced mobile camera interface as fallback',
-              name: 'VineRecordingController',
-              category: LogCategory.system,
-            );
-          }
-        }
-      } else {
-        throw Exception('Platform not supported: ${Platform.operatingSystem}');
-      }
+      // TODO:
 
       // For non-mobile platforms, initialize here (mobile initialization handled above)
       if (!Platform.isIOS && !Platform.isAndroid) {
@@ -1935,42 +1716,6 @@ class VineRecordingController {
           throw Exception('No valid video segments found for compilation');
         }
 
-        // For web platform, handle blob URLs
-        if (kIsWeb &&
-            _segments.length == 1 &&
-            _segments.first.filePath != null) {
-          final filePath = _segments.first.filePath!;
-          if (filePath.startsWith('blob:')) {
-            // For web, we can't return a File object from blob URL
-            // Instead, we'll create a temporary file representation
-            try {
-              // Use the standalone blobUrlToBytes function
-              final bytes = await camera_service.blobUrlToBytes(filePath);
-              if (bytes.isNotEmpty) {
-                // Create a temporary file with the blob data
-                final tempDir = await getTemporaryDirectory();
-                final tempFile = File(
-                  '${tempDir.path}/web_recording_${DateTime.now().millisecondsSinceEpoch}.mp4',
-                );
-                await tempFile.writeAsBytes(bytes);
-
-                _setState(VineRecordingState.completed);
-
-                // Generate native ProofMode proof
-                final nativeProof = await _generateNativeProof(tempFile);
-
-                return (tempFile, nativeProof);
-              }
-            } catch (e) {
-              Log.error(
-                'Failed to convert blob to file: $e',
-                name: 'VineRecordingController',
-                category: LogCategory.system,
-              );
-            }
-          }
-        }
-
         // For other platforms (iOS, Android), handle single segment with aspect ratio crop
         if (!kIsWeb &&
             _segments.length == 1 &&
@@ -2099,38 +1844,6 @@ class VineRecordingController {
     // Reset state
     _setState(VineRecordingState.idle);
 
-    // If was in error state and on web, reinitialize the camera
-    if (wasInError && kIsWeb) {
-      Log.error(
-        'Reinitializing web camera after error...',
-        name: 'VineRecordingController',
-        category: LogCategory.system,
-      );
-      if (_cameraInterface is WebCameraInterface) {
-        final webInterface = _cameraInterface as WebCameraInterface;
-        webInterface.dispose();
-      }
-      // Create new camera interface and initialize
-      _cameraInterface = WebCameraInterface();
-      initialize()
-          .then((_) {
-            Log.info(
-              'Web camera reinitialized successfully',
-              name: 'VineRecordingController',
-              category: LogCategory.system,
-            );
-            _setState(VineRecordingState.idle);
-          })
-          .catchError((e) {
-            Log.error(
-              'Failed to reinitialize web camera: $e',
-              name: 'VineRecordingController',
-              category: LogCategory.system,
-            );
-            _setState(VineRecordingState.error);
-          });
-    }
-
     Log.debug(
       'Recording session reset',
       name: 'VineRecordingController',
@@ -2142,9 +1855,7 @@ class VineRecordingController {
   void _cleanupRecordings() {
     try {
       // Clean up platform-specific resources
-      if (kIsWeb && _cameraInterface is WebCameraInterface) {
-        _cleanupWebRecordings();
-      } else if (!kIsWeb &&
+      if (!kIsWeb &&
           Platform.isMacOS &&
           _cameraInterface is MacOSCameraInterface) {
         _cleanupMacOSRecording();
@@ -2163,32 +1874,6 @@ class VineRecordingController {
         name: 'VineRecordingController',
         category: LogCategory.system,
       );
-    }
-  }
-
-  /// Clean up web recordings (blob URLs)
-  void _cleanupWebRecordings() {
-    // Clean up through the web camera interface
-    if (_cameraInterface is WebCameraInterface) {
-      final webInterface = _cameraInterface as WebCameraInterface;
-
-      // Clean up blob URLs through the service
-      for (final segment in _segments) {
-        if (segment.filePath != null && segment.filePath!.startsWith('blob:')) {
-          try {
-            webInterface._cleanupBlobUrl(segment.filePath!);
-          } catch (e) {
-            Log.error(
-              'Error cleaning up blob URL: $e',
-              name: 'VineRecordingController',
-              category: LogCategory.system,
-            );
-          }
-        }
-      }
-
-      // Dispose the service
-      webInterface._webCameraService?.dispose();
     }
   }
 

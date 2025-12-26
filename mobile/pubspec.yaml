@@ -126,10 +126,6 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.40
   video_player_web_hls: ^1.3.0
   firebase_performance: ^0.11.1+1
-  camerawesome:
-    git:
-      url: https://github.com/VGVentures/CamerAwesome.git
-      ref: master
   convert: ^3.1.2
   audioplayers: ^5.2.1 
   pro_video_editor: 0.5.0-beta.3

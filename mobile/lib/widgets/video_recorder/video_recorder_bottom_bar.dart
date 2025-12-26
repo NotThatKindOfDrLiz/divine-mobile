@@ -1,9 +1,9 @@
 // ABOUTME: Bottom bar widget for video recorder screen
 // ABOUTME: Contains flash, timer, record button, camera flip, and more options
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:camera/camera.dart' show FlashMode;
 import 'package:openvine/providers/vine_recording_provider.dart';
 
 class VideoRecorderBottomBar extends ConsumerWidget {

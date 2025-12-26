@@ -3,7 +3,7 @@
 
 import 'dart:io';
 
-import 'package:camera/camera.dart' show FlashMode;
+import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,10 +12,8 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:models/models.dart' as vine show AspectRatio;
 import 'package:openvine/providers/vine_recording_provider.dart';
-import 'package:openvine/services/camera/camerawesome_mobile_camera_interface.dart';
 import 'package:openvine/services/vine_recording_controller.dart'
     show ExtractedSegment;
-import 'package:openvine/services/camera/enhanced_mobile_camera_interface.dart';
 import 'package:openvine/services/camera/native_macos_camera.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -31,7 +29,7 @@ import 'package:openvine/services/video_thumbnail_service.dart';
 
 // TODO(@hm21): Delete that file and all depending
 /// Pure universal camera screen using revolutionary single-controller Riverpod architecture
-class UniversalCameraScreenPure extends ConsumerStatefulWidget {
+/* class UniversalCameraScreenPure extends ConsumerStatefulWidget {
   const UniversalCameraScreenPure({super.key});
 
   @override
@@ -1250,9 +1248,9 @@ class _UniversalCameraScreenPureState
 
   IconData _getFlashIcon() {
     switch (_flashMode) {
-      case FlashMode.off:
+      case FlashMode.none:
         return Icons.flash_off;
-      case FlashMode.torch:
+      case FlashMode.on:
         return Icons.flashlight_on;
       case FlashMode.auto:
       case FlashMode.always:
@@ -1467,13 +1465,13 @@ class _UniversalCameraScreenPureState
     // For video, we use torch mode (continuous light) instead of flash
     setState(() {
       switch (_flashMode) {
-        case FlashMode.off:
-          _flashMode = FlashMode.torch;
+        case FlashMode.none:
+          _flashMode = FlashMode.none;
           break;
-        case FlashMode.torch:
+        case FlashMode.on:
         case FlashMode.auto:
         case FlashMode.always:
-          _flashMode = FlashMode.off;
+          _flashMode = FlashMode.auto;
           break;
       }
     });
@@ -1853,3 +1851,4 @@ class _UniversalCameraScreenPureState
 
 /// Timer duration options for delayed recording
 enum TimerDuration { off, threeSeconds, tenSeconds }
+ */

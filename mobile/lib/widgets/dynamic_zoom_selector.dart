@@ -1,6 +1,8 @@
 // ABOUTME: Dynamic zoom selector that shows buttons for each physical camera
 // ABOUTME: Detects actual zoom factors (0.5x, 1x, 3x, etc.) instead of hardcoded values
 
+/* TODO(@hm21): Remove?
+
 import 'package:flutter/material.dart';
 import 'package:openvine/services/camera/camerawesome_mobile_camera_interface.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -134,3 +136,4 @@ class _ZoomButton extends StatelessWidget {
     );
   }
 }
+ */
