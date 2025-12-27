@@ -7,9 +7,12 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:go_router/go_router.dart';
+import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_macos_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_mobile_service.dart';
+import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 import 'package:riverpod/riverpod.dart' show Ref;
 import 'package:openvine/services/vine_recording_controller.dart'
     show
@@ -195,14 +198,25 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   bool _isDestroyed = false;
 
   // Delegate methods to the controller
-  Future<void> initialize() async {
+  Future<bool> initialize({BuildContext? context}) async {
     _isDestroyed = false;
+
+    // Check permissions using the dedicated service
+    final hasPermissions = context != null
+        ? await CameraPermissionService.ensurePermissionsWithDialog(context)
+        : await CameraPermissionService.ensurePermissions();
+    if (!hasPermissions) {
+      return false;
+    }
+
     await _cameraService.initialize();
     state = state.copyWith(
       cameraSwitchCount: state.cameraSwitchCount + 1,
       countdownValue: 0,
     );
     updateState();
+
+    return true;
   }
 
   void handleAppLifecycleState(AppLifecycleState appState) async {
@@ -496,6 +510,27 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   double get cameraAspectRatio {
     // Default fallback for macOS/web or uninitialized cameras
     return 3.0 / 4.0;
+  }
+
+  void openVideoEditor() {
+    if (!state.hasSegments) return;
+
+    /// TODO: navigate to new video-editor
+  }
+
+  void closeVideoRecorder(BuildContext context) {
+    Log.info(
+      '📹 X CANCEL - navigating away from camera',
+      category: LogCategory.video,
+    );
+    // Try to pop if possible, otherwise go home.
+    final router = GoRouter.of(context);
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      // No screen to pop to (navigated via go), go home instead.
+      context.goHome();
+    }
   }
 
   //// ----------------- DELETE FIXME:

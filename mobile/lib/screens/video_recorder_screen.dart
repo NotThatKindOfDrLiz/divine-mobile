@@ -30,9 +30,23 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     WidgetsBinding.instance.addObserver(this);
 
     // Initialize camera when screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _notifier = ref.read(vineRecordingProvider.notifier);
-      _notifier!.initialize();
+      final success = await _notifier!.initialize(context: context);
+      // If the user didn't give permission, we close the video recorder
+      // screen because the user can't do anything anyway.
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Camera and microphone permissions are required to record videos.',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        _notifier!.closeVideoRecorder(context);
+      }
     });
   }
 
@@ -64,13 +78,13 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
             VideoRecorderCameraPreview(previewWidgetRadius: _previewRadius),
 
             // Top bar with close-button, clip-duration, and confirm-button
-            VideoRecorderTopBar(),
+            const VideoRecorderTopBar(),
 
             // Bottom controls
             VideoRecorderBottomBar(previewWidgetRadius: _previewRadius),
 
             // Countdown overlay
-            VideoRecorderCountdownOverlay(),
+            const VideoRecorderCountdownOverlay(),
           ],
         ),
       ),

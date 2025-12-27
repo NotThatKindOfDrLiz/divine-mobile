@@ -3,36 +3,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
-import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
 class VideoRecorderTopBar extends ConsumerWidget {
   const VideoRecorderTopBar({super.key});
 
   final Color _buttonColor = const Color(0xFF101111);
-
-  void _closeVideoRecorder(BuildContext context) {
-    Log.info(
-      '📹 X CANCEL - navigating away from camera',
-      category: LogCategory.video,
-    );
-    // Try to pop if possible, otherwise go home.
-    final router = GoRouter.of(context);
-    if (router.canPop()) {
-      router.pop();
-    } else {
-      // No screen to pop to (navigated via go), go home instead.
-      context.goHome();
-    }
-  }
-
-  void _openVideoEditor() {
-    /// TODO: navigate to new video-editor
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -58,7 +36,9 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 icon: Icons.close,
                 hidden: isRecording,
                 backgroundColor: _buttonColor,
-                onPressed: () => _closeVideoRecorder(context),
+                onPressed: () => ref
+                    .read(vineRecordingProvider.notifier)
+                    .closeVideoRecorder(context),
               ),
 
               // Segment bar
@@ -71,7 +51,9 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 backgroundColor: hasSegments
                     ? VineTheme.vineGreen
                     : _buttonColor,
-                onPressed: hasSegments ? _openVideoEditor : null,
+                onPressed: hasSegments
+                    ? ref.read(vineRecordingProvider.notifier).openVideoEditor
+                    : null,
               ),
             ],
           ),
