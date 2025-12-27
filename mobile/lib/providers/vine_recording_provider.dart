@@ -77,7 +77,6 @@ class VineRecordingUIState {
     this.countdownValue = 0,
     this.zoomLevel = 1.0,
     this.focusPoint = Offset.zero,
-    this.searchQuery = '',
   });
 
   final VineRecordingState recordingState;
@@ -103,7 +102,6 @@ class VineRecordingUIState {
   final FlashMode flashMode;
   final TimerDuration timerDuration;
   final int countdownValue;
-  final String searchQuery;
 
   // Convenience getters used by UI
   bool get isRecording => recordingState == .recording;
@@ -134,7 +132,6 @@ class VineRecordingUIState {
     FlashMode? flashMode,
     TimerDuration? timerDuration,
     int? countdownValue,
-    String? searchQuery,
   }) {
     return VineRecordingUIState(
       recordingState: recordingState ?? this.recordingState,
@@ -157,7 +154,6 @@ class VineRecordingUIState {
       flashMode: flashMode ?? this.flashMode,
       timerDuration: timerDuration ?? this.timerDuration,
       countdownValue: countdownValue ?? this.countdownValue,
-      searchQuery: searchQuery ?? this.searchQuery,
     );
   }
 }
@@ -528,7 +524,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       flashMode: state.flashMode,
       timerDuration: state.timerDuration,
       countdownValue: state.countdownValue,
-      searchQuery: state.searchQuery,
       zoomLevel: state.zoomLevel,
       focusPoint: state.focusPoint,
     );
@@ -549,11 +544,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   /// Update countdown value
   void updateCountdown(int value) {
     state = state.copyWith(countdownValue: value);
-  }
-
-  /// Update search query
-  void setSearchQuery(String query) {
-    state = state.copyWith(searchQuery: query);
   }
 
   /// Stop the current segment without finishing the recording.

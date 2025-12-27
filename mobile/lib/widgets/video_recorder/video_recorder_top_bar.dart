@@ -6,24 +6,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
-import 'package:openvine/services/vine_recording_controller.dart';
+import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
 class VideoRecorderTopBar extends ConsumerWidget {
   const VideoRecorderTopBar({super.key});
+
+  final Color _buttonColor = const Color(0xFF101111);
 
   void _closeVideoRecorder(BuildContext context) {
     Log.info(
       '📹 X CANCEL - navigating away from camera',
       category: LogCategory.video,
     );
-    // Try to pop if possible, otherwise go home
-    // Camera can be reached via push (from FAB) or go (from ClipManager)
+    // Try to pop if possible, otherwise go home.
     final router = GoRouter.of(context);
     if (router.canPop()) {
       router.pop();
     } else {
-      // No screen to pop to (navigated via go), go home instead
+      // No screen to pop to (navigated via go), go home instead.
       context.goHome();
     }
   }
@@ -34,8 +36,8 @@ class VideoRecorderTopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final segments = ref.watch(
-      vineRecordingProvider.select((state) => state.segments),
+    final hasSegments = ref.watch(
+      vineRecordingProvider.select((state) => state.hasSegments),
     );
     final isRecording = ref.watch(
       vineRecordingProvider.select((state) => state.isRecording),
@@ -55,87 +57,23 @@ class VideoRecorderTopBar extends ConsumerWidget {
               _buildActionButton(
                 icon: Icons.close,
                 hidden: isRecording,
+                backgroundColor: _buttonColor,
                 onPressed: () => _closeVideoRecorder(context),
               ),
 
               // Segment bar
-              _buildSegmentBar(segments),
+              const VideoRecorderSegmentBar(),
 
               // Confirm button
               _buildActionButton(
                 icon: Icons.arrow_forward,
                 hidden: isRecording,
-                onPressed: segments.isNotEmpty ? _openVideoEditor : null,
+                backgroundColor: hasSegments
+                    ? VineTheme.vineGreen
+                    : _buttonColor,
+                onPressed: hasSegments ? _openVideoEditor : null,
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSegmentBar(List<RecordingSegment> recordSegments) {
-    const maxDuration = Duration(milliseconds: 6300);
-    const dividerWidth = 2.0;
-
-    // Track used duration to ignore overflow segments
-    Duration used = Duration.zero;
-
-    final segments = <Widget>[];
-
-    for (int i = 0; i < recordSegments.length; i++) {
-      final segment = recordSegments[i];
-
-      if (used >= maxDuration) break;
-
-      final remaining = maxDuration - used;
-      final segmentDuration = segment.duration > remaining
-          ? remaining
-          : segment.duration;
-
-      used += segmentDuration;
-
-      final fraction =
-          segmentDuration.inMilliseconds / maxDuration.inMilliseconds;
-
-      segments.add(
-        Expanded(
-          flex: (fraction * 1000).round(),
-          child: Container(color: Colors.green),
-        ),
-      );
-
-      // Divider (only if not at the end and more segments follow)
-      if (i < recordSegments.length - 1 && used < maxDuration) {
-        segments.add(
-          SizedBox(
-            width: dividerWidth,
-            child: Container(color: Colors.white),
-          ),
-        );
-      }
-    }
-
-    // Add remaining empty space if not filled
-    if (used < maxDuration) {
-      final remainingFraction =
-          (maxDuration - used).inMilliseconds / maxDuration.inMilliseconds;
-      segments.add(
-        Expanded(
-          flex: (remainingFraction * 1000).round(),
-          child: Container(color: Colors.transparent),
-        ),
-      );
-    }
-
-    return Expanded(
-      child: SizedBox(
-        height: 20,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            color: const Color(0xBEFFFFFF), // background
-            child: Row(children: segments),
           ),
         ),
       ),
@@ -145,6 +83,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
   /// Build action button for top bar
   Widget _buildActionButton({
     required IconData icon,
+    required Color backgroundColor,
     bool hidden = false,
     VoidCallback? onPressed,
   }) {
@@ -163,7 +102,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Color(0xFF101111).withAlpha(enabled ? 255 : 166),
+              color: backgroundColor.withAlpha(enabled ? 255 : 166),
               borderRadius: .circular(20),
             ),
             child: IconButton(
