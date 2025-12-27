@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
@@ -38,6 +39,9 @@ class _VideoRecorderCameraPreviewState
     final targetAspectRatio = ref.watch(
       vineRecordingProvider.select((state) => state.aspectRatio.value),
     );
+    final cameraSensorAspectRatio = ref.watch(
+      vineRecordingProvider.select((state) => state.cameraSensorAspectRatio),
+    );
     final showGrid = ref.watch(
       vineRecordingProvider.select((state) => !state.isRecording),
     );
@@ -46,7 +50,6 @@ class _VideoRecorderCameraPreviewState
     );
 
     final previewWidget = notifier.previewWidget;
-    final cameraAspectRatio = notifier.cameraAspectRatio;
 
     return Center(
       child: TweenAnimationBuilder<double>(
@@ -70,9 +73,17 @@ class _VideoRecorderCameraPreviewState
                         key: ValueKey(
                           'Video-Recorder-Camera-$cameraSwitchCount',
                         ),
-                        width: 100,
-                        height: 100 / cameraAspectRatio,
-                        child: previewWidget,
+                        width: 100 / cameraSensorAspectRatio,
+                        height: 100,
+                        child: Stack(
+                          children: [
+                            // TODO (@hm21): Add a skeleton to the camera view
+                            // that appears when the user switches cameras until
+                            // the other camera loads.
+                            Container(color: const Color(0xFF141414)),
+                            ?previewWidget,
+                          ],
+                        ),
                       ),
                     ),
                   ),
