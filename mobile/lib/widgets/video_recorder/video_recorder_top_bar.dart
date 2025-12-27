@@ -72,7 +72,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
     final bool enabled = onPressed != null;
 
     return AnimatedOpacity(
-      duration: Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 200),
       opacity: hidden ? 0 : 1,
       curve: Curves.ease,
       child: ClipRRect(

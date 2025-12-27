@@ -29,7 +29,7 @@ class _VideoRecorderMoreSheetState
   /// When a clip is selected, it is imported into the current recording.
   Future<void> _showClipLibrary() async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => ClipLibraryScreen(
           selectionMode: true,
           onClipSelected: (clip) async {
@@ -116,14 +116,14 @@ class _VideoRecorderMoreSheetState
             title: 'Remove last clip',
             enabled: hasSegments,
             onTap: clipsNotifier.removeLastClip,
-            color: Color(0xFFF44336),
+            color: const Color(0xFFF44336),
           ),
           _buildMenuItem(
             icon: Icons.delete_outline,
             title: 'Clear all clips',
             enabled: hasSegments,
             onTap: clipsNotifier.clearAll,
-            color: Color(0xFFF44336),
+            color: const Color(0xFFF44336),
           ),
         ],
       ),
@@ -147,7 +147,10 @@ class _VideoRecorderMoreSheetState
       enabled: enabled,
       minTileHeight: 64.0,
       leading: Icon(icon, size: 32),
-      title: Text(title, style: TextStyle(fontSize: 22, fontWeight: .w600)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 22, fontWeight: .w600),
+      ),
       onTap: () {
         Navigator.pop(context);
         onTap?.call();

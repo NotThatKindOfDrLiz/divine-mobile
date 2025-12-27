@@ -65,7 +65,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
+      value: const SystemUiOverlayStyle(
         statusBarColor: Colors.black,
         statusBarIconBrightness: .light,
       ),

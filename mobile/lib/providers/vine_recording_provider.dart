@@ -202,7 +202,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     _isDestroyed = false;
 
     // Check permissions using the dedicated service
-    final hasPermissions = context != null
+    final hasPermissions = context != null && context.mounted
         ? await CameraPermissionService.ensurePermissionsWithDialog(context)
         : await CameraPermissionService.ensurePermissions();
     if (!hasPermissions) {
@@ -356,7 +356,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       for (int i = seconds; i > 0; i--) {
         if (_isDestroyed) return; // Stop countdown if disposed
         state = state.copyWith(countdownValue: i);
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
       }
       if (_isDestroyed) return; // Stop before starting recording if disposed
       state = state.copyWith(countdownValue: 0);

@@ -16,15 +16,15 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   /// Show more options menu
   void _showMoreOptions(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Color(0xFF101111),
+      backgroundColor: const Color(0xFF101111),
       enableDrag: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: .vertical(top: .circular(32)),
       ),
-      builder: (context) => VideoRecorderMoreSheet(),
+      builder: (context) => const VideoRecorderMoreSheet(),
     );
   }
 
@@ -51,7 +51,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
               clipBehavior: .none,
               children: [
                 AnimatedSwitcher(
-                  duration: Duration(milliseconds: 150),
+                  duration: const Duration(milliseconds: 150),
                   transitionBuilder: (child, animation) => FadeTransition(
                     opacity: animation,
                     child: SizeTransition(
@@ -61,7 +61,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                     ),
                   ),
                   child: isRecording
-                      ? SizedBox.shrink()
+                      ? const SizedBox.shrink()
                       : _buildActionButtons(context, ref),
                 ),
 
@@ -101,8 +101,8 @@ class VideoRecorderBottomBar extends ConsumerWidget {
             : null,
         onLongPressUp: ref.read(vineRecordingProvider.notifier).stopRecording,
         child: AnimatedContainer(
-          duration: Duration(milliseconds: 100),
-          margin: EdgeInsets.only(bottom: _bottomBarHeight + 20),
+          duration: const Duration(milliseconds: 100),
+          margin: const .only(bottom: _bottomBarHeight + 20),
           width: 96,
           height: 96,
           decoration: BoxDecoration(
@@ -111,7 +111,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           ),
           child: Center(
             child: AnimatedContainer(
-              duration: Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 250),
               curve: Curves.ease,
               width: isRecording ? 32 : 64,
               height: isRecording ? 32 : 64,

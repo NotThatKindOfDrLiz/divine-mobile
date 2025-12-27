@@ -22,7 +22,7 @@ class VideoRecorderCountdownOverlay extends ConsumerWidget {
     return IgnorePointer(
       ignoring: !isActive,
       child: AnimatedOpacity(
-        duration: Duration(milliseconds: 100),
+        duration: const Duration(milliseconds: 100),
         opacity: isActive ? 1 : 0,
         child: Container(
           color: const Color(0xB3000000),
