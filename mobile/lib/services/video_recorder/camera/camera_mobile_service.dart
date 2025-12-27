@@ -1,8 +1,14 @@
+// ABOUTME: Mobile platform implementation of camera service using the camera package
+// ABOUTME: Handles camera initialization, switching, recording, and lifecycle management on mobile devices
+
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
 
 import 'camera_base_service.dart';
 
+/// Mobile implementation of [CameraBaseService] using the camera package.
+///
+/// Manages camera initialization, recording, and switching between front/back cameras.
 class CameraMobileService extends CameraBaseService {
   late CameraController _controller;
 
@@ -33,6 +39,9 @@ class CameraMobileService extends CameraBaseService {
     await _controller.dispose();
   }
 
+  /// Finds the first camera matching the specified [direction].
+  ///
+  /// Returns the camera index or 0 if no matching camera is found.
   int _findPreferredCamera(CameraLensDirection direction) {
     // Get first camera with correct direction
     final index = _cameras!.indexWhere(
@@ -42,6 +51,9 @@ class CameraMobileService extends CameraBaseService {
     return index != -1 ? index : 0;
   }
 
+  /// Initializes the camera controller with the given [description].
+  ///
+  /// Sets up the controller with maximum resolution and retrieves zoom limits.
   Future<void> _initializeCameraController(
     CameraDescription description,
   ) async {

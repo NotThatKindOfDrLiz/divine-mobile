@@ -1,8 +1,14 @@
+// ABOUTME: Camera preview widget with animated aspect ratio transitions and grid overlay
+// ABOUTME: Handles tap-to-focus and displays rule-of-thirds grid during non-recording state
+
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 
+/// Displays the camera preview with animated aspect ratio changes.
+///
+/// Includes a grid overlay for composition guidance and tap-to-focus functionality.
 class VideoRecorderCameraPreview extends ConsumerStatefulWidget {
   const VideoRecorderCameraPreview({
     super.key,
@@ -18,6 +24,9 @@ class VideoRecorderCameraPreview extends ConsumerStatefulWidget {
 
 class _VideoRecorderCameraPreviewState
     extends ConsumerState<VideoRecorderCameraPreview> {
+  /// Handles tap gestures to set camera focus point.
+  ///
+  /// Converts tap position to normalized coordinates (0.0-1.0) for the camera.
   void _handleTapFocus(TapUpDetails details) {
     // TODO: Fix below
     final renderBox = context.findRenderObject() as RenderBox;

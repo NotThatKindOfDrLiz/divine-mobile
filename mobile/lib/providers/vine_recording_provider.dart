@@ -1,7 +1,6 @@
 // ABOUTME: Riverpod state management for VineRecordingController
 // ABOUTME: Provides reactive state updates for recording UI without ChangeNotifier
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:camera/camera.dart';

@@ -1,8 +1,15 @@
+// ABOUTME: Widget that displays recording progress as a segmented bar
+// ABOUTME: Shows filled segments for recorded clips with remaining space for more recording
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 
+/// Displays a horizontal bar showing recording segments.
+///
+/// Each segment represents a recorded clip, with dividers between them.
+/// Remaining space is shown as transparent, indicating available recording time.
 class VideoRecorderSegmentBar extends ConsumerWidget {
   const VideoRecorderSegmentBar({super.key});
 

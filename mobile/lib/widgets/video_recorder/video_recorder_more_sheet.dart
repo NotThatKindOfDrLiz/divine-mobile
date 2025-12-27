@@ -1,3 +1,6 @@
+// ABOUTME: Bottom sheet for clip management options during video recording
+// ABOUTME: Provides actions to add, save, remove, and clear recording clips
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/saved_clip.dart';
@@ -8,6 +11,9 @@ import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
+/// Bottom sheet for managing recording clips.
+///
+/// Allows users to add clips from library, save current clips, or remove/clear clips.
 class VideoRecorderMoreSheet extends ConsumerStatefulWidget {
   const VideoRecorderMoreSheet({super.key});
 
@@ -18,6 +24,9 @@ class VideoRecorderMoreSheet extends ConsumerStatefulWidget {
 
 class _VideoRecorderMoreSheetState
     extends ConsumerState<VideoRecorderMoreSheet> {
+  /// Opens the clip library screen in selection mode.
+  ///
+  /// When a clip is selected, it is imported into the current recording.
   Future<void> _showClipLibrary() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -31,6 +40,9 @@ class _VideoRecorderMoreSheetState
     );
   }
 
+  /// Imports a saved [clip] from the library into the current recording.
+  ///
+  /// Verifies the file exists, adds it to the clip manager, and shows a confirmation.
   Future<void> _importClipFromLibrary(SavedClip clip) async {
     try {
       Log.info('📹 Importing clip from library: ${clip.id}', category: .video);
@@ -118,6 +130,10 @@ class _VideoRecorderMoreSheetState
     );
   }
 
+  /// Builds a styled menu item with consistent appearance.
+  ///
+  /// Returns a [ListTile] with the specified [icon], [title], and [onTap] callback.
+  /// The item can be disabled with [enabled] and colored with [color].
   Widget _buildMenuItem({
     required IconData icon,
     required String title,

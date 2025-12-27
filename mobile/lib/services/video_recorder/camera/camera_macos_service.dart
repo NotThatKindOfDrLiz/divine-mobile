@@ -1,9 +1,15 @@
+// ABOUTME: macOS platform implementation of camera service using the camera_macos package
+// ABOUTME: Handles camera and audio device management, recording, and torch control on macOS
+
 import 'package:camera/camera.dart';
 import 'package:camera_macos/camera_macos.dart';
 import 'package:flutter/widgets.dart';
 
 import 'camera_base_service.dart';
 
+/// macOS implementation of [CameraBaseService] using the camera_macos package.
+///
+/// Manages video and audio devices, recording, and camera switching on macOS.
 class CameraMacOSService extends CameraBaseService {
   late final List<CameraMacOSDevice> _videoDevices;
   late final List<CameraMacOSDevice> _audioDevices;
@@ -35,6 +41,9 @@ class CameraMacOSService extends CameraBaseService {
     await _initializeCameraController();
   }
 
+  /// Initializes the camera with the current video and audio device.
+  ///
+  /// Sets up the camera in video mode with the selected devices.
   Future<void> _initializeCameraController() async {
     await CameraMacOS.instance.initialize(
       cameraMacOSMode: CameraMacOSMode.video,
@@ -96,6 +105,9 @@ class CameraMacOSService extends CameraBaseService {
     }
   }
 
+  /// Converts [FlashMode] to macOS [Torch] mode.
+  ///
+  /// Maps camera package flash modes to camera_macos torch settings.
   Torch _getTorchMode(FlashMode mode) {
     return switch (mode) {
       .always => .on,
