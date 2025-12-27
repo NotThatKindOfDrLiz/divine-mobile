@@ -59,48 +59,54 @@ class RecordingResult {
 class VineRecordingUIState {
   const VineRecordingUIState({
     required this.recordingState,
-    required this.progress,
+    required this.zoomLevel,
+    required this.cameraSensorAspectRatio,
+    required this.focusPoint,
     required this.totalRecordedDuration,
     required this.remainingDuration,
     required this.canRecord,
-    required this.segments,
     required this.hasSegments,
-    required this.segmentCount,
     required this.isCameraInitialized,
     required this.canSwitchCamera,
+    required this.segments,
+    required this.cameraSwitchCount,
+    required this.countdownValue,
     required this.aspectRatio,
-    this.cameraSwitchCount = 0,
-    this.cameraSensorAspectRatio = 1,
-    this.flashMode = FlashMode.auto,
-    this.timerDuration = TimerDuration.off,
-    this.countdownValue = 0,
-    this.zoomLevel = 1.0,
-    this.focusPoint = Offset.zero,
+    required this.flashMode,
+    required this.timerDuration,
   });
 
-  final VineRecordingState recordingState;
-  final double progress;
-  final double zoomLevel;
-  final double cameraSensorAspectRatio;
+  // Offset
   final Offset focusPoint;
+
+  // Durations
   final Duration totalRecordedDuration;
   final Duration remainingDuration;
+
+  // Booleans
   final bool canRecord;
-  final List<RecordingSegment> segments;
   // From controller.hasSegments - includes virtual segments for macOS
   final bool hasSegments;
-  // From controller.segmentCount - includes virtual segments for macOS
-  final int segmentCount;
   final bool isCameraInitialized;
   final bool canSwitchCamera;
-  final model.AspectRatio aspectRatio;
+
+  // Double values
+  final double zoomLevel;
+  final double cameraSensorAspectRatio;
+
+  // List
+  final List<RecordingSegment> segments;
+
+  // Integers
+  final int countdownValue;
   // Increments each time camera switches to force UI rebuild
   final int cameraSwitchCount;
 
-  // UI control states
+  // Custom types
+  final model.AspectRatio aspectRatio;
   final FlashMode flashMode;
   final TimerDuration timerDuration;
-  final int countdownValue;
+  final VineRecordingState recordingState;
 
   // Convenience getters used by UI
   bool get isRecording => recordingState == .recording;
@@ -114,45 +120,41 @@ class VineRecordingUIState {
 
   VineRecordingUIState copyWith({
     VineRecordingState? recordingState,
-    double? progress,
     double? zoomLevel,
+    double? cameraSensorAspectRatio,
     Offset? focusPoint,
     Duration? totalRecordedDuration,
     Duration? remainingDuration,
     bool? canRecord,
-    List<RecordingSegment>? segments,
     bool? hasSegments,
-    int? segmentCount,
     bool? isCameraInitialized,
     bool? canSwitchCamera,
-    model.AspectRatio? aspectRatio,
+    List<RecordingSegment>? segments,
     int? cameraSwitchCount,
-    double? cameraSensorAspectRatio,
+    int? countdownValue,
+    model.AspectRatio? aspectRatio,
     FlashMode? flashMode,
     TimerDuration? timerDuration,
-    int? countdownValue,
   }) {
     return VineRecordingUIState(
       recordingState: recordingState ?? this.recordingState,
-      progress: progress ?? this.progress,
       zoomLevel: zoomLevel ?? this.zoomLevel,
+      cameraSensorAspectRatio:
+          cameraSensorAspectRatio ?? this.cameraSensorAspectRatio,
       focusPoint: focusPoint ?? this.focusPoint,
       totalRecordedDuration:
           totalRecordedDuration ?? this.totalRecordedDuration,
       remainingDuration: remainingDuration ?? this.remainingDuration,
       canRecord: canRecord ?? this.canRecord,
-      segments: segments ?? this.segments,
       hasSegments: hasSegments ?? this.hasSegments,
-      segmentCount: segmentCount ?? this.segmentCount,
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
-      aspectRatio: aspectRatio ?? this.aspectRatio,
+      segments: segments ?? this.segments,
       cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
-      cameraSensorAspectRatio:
-          cameraSensorAspectRatio ?? this.cameraSensorAspectRatio,
+      countdownValue: countdownValue ?? this.countdownValue,
+      aspectRatio: aspectRatio ?? this.aspectRatio,
       flashMode: flashMode ?? this.flashMode,
       timerDuration: timerDuration ?? this.timerDuration,
-      countdownValue: countdownValue ?? this.countdownValue,
     );
   }
 }
@@ -163,16 +165,21 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     : super(
         VineRecordingUIState(
           recordingState: _controller.state,
-          progress: _controller.progress,
+          zoomLevel: 1.0,
+          cameraSensorAspectRatio: 1.0,
+          focusPoint: Offset.zero,
           totalRecordedDuration: _controller.totalRecordedDuration,
           remainingDuration: _controller.remainingDuration,
           canRecord: _controller.canRecord,
-          segments: _controller.segments,
           hasSegments: _controller.hasSegments,
-          segmentCount: _controller.segmentCount,
           isCameraInitialized: _controller.isCameraInitialized,
           canSwitchCamera: _controller.canSwitchCamera,
+          segments: _controller.segments,
+          cameraSwitchCount: 0,
+          countdownValue: 0,
           aspectRatio: _controller.aspectRatio,
+          flashMode: FlashMode.auto,
+          timerDuration: TimerDuration.off,
         ),
       ) {
     // Set up callback for recording progress updates
@@ -505,26 +512,23 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   void updateState() {
     state = VineRecordingUIState(
       recordingState: state.recordingState,
-      progress: _controller.progress,
+      zoomLevel: state.zoomLevel,
+      cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
+      focusPoint: state.focusPoint,
       totalRecordedDuration: _controller.totalRecordedDuration,
       remainingDuration: _controller.remainingDuration,
       canRecord: _cameraService.canRecord,
-      segments: _controller.segments,
       hasSegments: _controller
           .hasSegments, // CRITICAL: Use controller's hasSegments which includes virtual segments for macOS
-      segmentCount: _controller
-          .segmentCount, // CRITICAL: Use controller's segmentCount which includes virtual segments for macOS
       isCameraInitialized: _cameraService.isInitialized,
       canSwitchCamera: _cameraService.canSwitchCamera,
-      cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
-      aspectRatio: state.aspectRatio,
+      segments: _controller.segments,
       cameraSwitchCount:
           state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
+      countdownValue: state.countdownValue,
+      aspectRatio: state.aspectRatio,
       flashMode: state.flashMode,
       timerDuration: state.timerDuration,
-      countdownValue: state.countdownValue,
-      zoomLevel: state.zoomLevel,
-      focusPoint: state.focusPoint,
     );
   }
 
