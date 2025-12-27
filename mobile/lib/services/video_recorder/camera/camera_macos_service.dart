@@ -8,6 +8,8 @@ class CameraMacOSService extends CameraBaseService {
   late final List<CameraMacOSDevice> _videoDevices;
   late final List<CameraMacOSDevice> _audioDevices;
   int _currentCameraIndex = 0;
+  bool _isRecording = false;
+  bool _isInitialized = false;
 
   @override
   Future<void> dispose() async {
@@ -16,6 +18,7 @@ class CameraMacOSService extends CameraBaseService {
 
   @override
   Future<void> initialize() async {
+    if (_isInitialized) return;
     _videoDevices = await CameraMacOS.instance.listDevices(
       deviceType: CameraMacOSDeviceType.video,
     );
@@ -76,11 +79,13 @@ class CameraMacOSService extends CameraBaseService {
   @override
   Future<void> startRecording() async {
     await CameraMacOS.instance.startVideoRecording();
+    _isRecording = true;
   }
 
   @override
   Future<void> stopRecording() async {
     final result = await CameraMacOS.instance.stopVideoRecording();
+    _isRecording = false;
 
     if (result == null) {
       return;
@@ -102,7 +107,22 @@ class CameraMacOSService extends CameraBaseService {
   Widget get previewWidget {
     return CameraMacOSView(
       cameraMode: CameraMacOSMode.video,
-      onCameraInizialized: (CameraMacOSController controller) {},
+      onCameraInizialized: (CameraMacOSController controller) {
+        _isInitialized = true;
+      },
     );
   }
+
+  /// TODO(@hm21): Maybe extend with native code?
+  @override
+  double get cameraAspectRatio => 4.0 / 3.0;
+
+  @override
+  bool get isInitialized => _isInitialized;
+
+  @override
+  bool get canRecord => _isInitialized && !_isRecording;
+
+  @override
+  bool get canSwitchCamera => _videoDevices.length > 1;
 }

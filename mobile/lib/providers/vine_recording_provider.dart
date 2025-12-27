@@ -5,8 +5,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
+import 'package:openvine/services/video_recorder/camera/camera_macos_service.dart';
+import 'package:openvine/services/video_recorder/camera/camera_mobile_service.dart';
 import 'package:riverpod/riverpod.dart' show Ref;
 import 'package:openvine/services/vine_recording_controller.dart'
     show
@@ -25,7 +29,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 /// Timer duration options for delayed recording
-enum TimerDuration { off, three, ten }
+enum TimerDuration {
+  off,
+  three,
+  ten;
+
+  IconData get icon {
+    return switch (this) {
+      .off => Icons.timer,
+      .three => Icons.timer_3,
+      .ten => Icons.timer_10,
+    };
+  }
+}
 
 /// Result returned from stopRecording containing video file, draft ID, and native proof
 class RecordingResult {
@@ -58,7 +74,7 @@ class VineRecordingUIState {
     this.flashMode = FlashMode.auto,
     this.timerDuration = TimerDuration.off,
     this.showGrid = true,
-    this.countdownValue,
+    this.countdownValue = 0,
     this.searchQuery = '',
   });
 
@@ -82,7 +98,7 @@ class VineRecordingUIState {
   final FlashMode flashMode;
   final TimerDuration timerDuration;
   final bool showGrid;
-  final int? countdownValue;
+  final int countdownValue;
   final String searchQuery;
 
   // Convenience getters used by UI
@@ -157,8 +173,114 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       ) {
     // Set up callback for recording progress updates
     _controller.setStateChangeCallback(updateState);
+
+    _cameraService = !kIsWeb && Platform.isMacOS
+        ? CameraMacOSService()
+        : CameraMobileService();
   }
 
+  late final CameraBaseService _cameraService;
+
+  // Delegate methods to the controller
+  Future<void> initialize() async {
+    clearCountdown();
+
+    await _cameraService.initialize();
+
+    updateState();
+  }
+
+  /// Toggle flash mode between off, on, and auto
+  void toggleFlash() {
+    final FlashMode newMode = switch (state.flashMode) {
+      .off => .torch,
+      .torch => .auto,
+      .auto => .off,
+      _ => .off,
+    };
+    state = state.copyWith(flashMode: newMode);
+    _cameraService.setFlashMode(newMode);
+  }
+
+  void toggleAspectRatio() {
+    final model.AspectRatio newRatio = state.aspectRatio == .square
+        ? .vertical
+        : .square;
+
+    setAspectRatio(newRatio);
+  }
+
+  /// Set aspect ratio for recording
+  void setAspectRatio(model.AspectRatio ratio) {
+    _controller.setAspectRatio(ratio);
+    updateState();
+  }
+
+  Future<void> switchCamera() async {
+    await _cameraService.switchCamera();
+
+    // Force state update to rebuild UI with new camera preview
+    // Increment camera switch count to ensure state object changes and triggers UI rebuild
+    state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
+    updateState();
+  }
+
+  Future<void> startRecording() async {
+    // Handle timer countdown
+    if (state.timerDuration != TimerDuration.off) {
+      final seconds = state.timerDuration == .three ? 3 : 10;
+
+      for (int i = seconds; i > 0; i--) {
+        startCountdown(i);
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      clearCountdown();
+    }
+
+    await _controller.startRecording();
+    updateState();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    // Auto-save as draft if recording completed but not published
+    // Note: We can't await in dispose(), so we use unawaited future
+    // The controller cleanup will be delayed until save completes via the future chain
+    /* TODO: _autoSaveDraftBeforeDispose()
+        .then((_) {
+          // Clear callback to prevent memory leaks
+          _controller.setStateChangeCallback(null);
+          _controller.dispose();
+        })
+        .catchError((e) {
+          Log.error(
+            'Error during auto-save, proceeding with cleanup: $e',
+            name: 'VineRecordingProvider',
+            category: LogCategory.system,
+          );
+          // Ensure cleanup happens even if save fails
+          _controller.setStateChangeCallback(null);
+          _controller.dispose();
+        })
+        .whenComplete(() {
+          super.dispose();
+        }); */
+  }
+
+  /// Get the camera preview widget from the controller
+  Widget? get previewWidget =>
+      _cameraService.isInitialized ? _cameraService.previewWidget : null;
+
+  /// Get the actual camera preview aspect ratio to prevent distortion
+  /// Returns the real camera sensor aspect ratio, or defaults to 3:4 if unavailable
+  double get cameraAspectRatio {
+    // Default fallback for macOS/web or uninitialized cameras
+    return 3.0 / 4.0;
+  }
+
+  //// ----------------- DELETE FIXME:
   final VineRecordingController _controller;
   final Ref _ref;
 
@@ -167,19 +289,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   // Track the draft ID we created in stopRecording to prevent duplicate drafts
   String? _currentDraftId;
-
-  /// Get the camera preview widget from the controller
-  Widget get previewWidget => _controller.previewWidget;
-
-  /// Get the underlying camera interface for advanced controls
-  CameraPlatformInterface? get cameraInterface => _controller.cameraInterface;
-
-  /// Get the actual camera preview aspect ratio to prevent distortion
-  /// Returns the real camera sensor aspect ratio, or defaults to 3:4 if unavailable
-  double get cameraPreviewAspectRatio {
-    // Default fallback for macOS/web or uninitialized cameras
-    return 3.0 / 4.0;
-  }
 
   /// Update the state based on the current controller state
   void updateState() {
@@ -209,18 +318,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   // UI control methods
 
-  /// Toggle flash mode between off, on, and auto
-  void toggleFlash() {
-    final newMode = switch (state.flashMode) {
-      FlashMode.off => FlashMode.always,
-      FlashMode.always => FlashMode.auto,
-      FlashMode.auto => FlashMode.off,
-      _ => FlashMode.off,
-    };
-    state = state.copyWith(flashMode: newMode);
-    _controller.setFlashMode(newMode);
-  }
-
   /// Cycle timer duration
   void cycleTimer() {
     final newTimer = switch (state.timerDuration) {
@@ -248,23 +345,12 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   /// Clear countdown
   void clearCountdown() {
-    state = state.copyWith(countdownValue: null);
+    state = state.copyWith(countdownValue: 0);
   }
 
   /// Update search query
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
-  }
-
-  // Delegate methods to the controller
-  Future<void> initialize() async {
-    await _controller.initialize();
-    updateState();
-  }
-
-  Future<void> startRecording() async {
-    await _controller.startRecording();
-    updateState();
   }
 
   Future<RecordingResult> stopRecording() async {
@@ -392,29 +478,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     return result;
   }
 
-  Future<void> switchCamera() async {
-    await _controller.switchCamera();
-
-    // Force state update to rebuild UI with new camera preview
-    // Increment camera switch count to ensure state object changes and triggers UI rebuild
-    state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
-    updateState();
-  }
-
-  /// Set aspect ratio for recording
-  void setAspectRatio(model.AspectRatio ratio) {
-    _controller.setAspectRatio(ratio);
-    updateState();
-  }
-
-  void toggleAspectRatio() {
-    final model.AspectRatio newRatio = state.aspectRatio == .square
-        ? .vertical
-        : .square;
-
-    setAspectRatio(newRatio);
-  }
-
   /// Set the duration of previously recorded clips from ClipManager
   /// Call this when returning to camera to record additional segments
   void setPreviouslyRecordedDuration(Duration duration) {
@@ -479,35 +542,9 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     updateState();
   }
 
-  @override
-  void dispose() {
-    // Auto-save as draft if recording completed but not published
-    // Note: We can't await in dispose(), so we use unawaited future
-    // The controller cleanup will be delayed until save completes via the future chain
-    _autoSaveDraftBeforeDispose()
-        .then((_) {
-          // Clear callback to prevent memory leaks
-          _controller.setStateChangeCallback(null);
-          _controller.dispose();
-        })
-        .catchError((e) {
-          Log.error(
-            'Error during auto-save, proceeding with cleanup: $e',
-            name: 'VineRecordingProvider',
-            category: LogCategory.system,
-          );
-          // Ensure cleanup happens even if save fails
-          _controller.setStateChangeCallback(null);
-          _controller.dispose();
-        })
-        .whenComplete(() {
-          super.dispose();
-        });
-  }
-
   /// Auto-save recording as draft if completed but not published
   Future<void> _autoSaveDraftBeforeDispose() async {
-    try {
+    /* TODO:   try {
       // Skip auto-save if video was successfully published
       if (_wasPublished) {
         Log.info(
@@ -568,7 +605,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
         category: LogCategory.system,
       );
       // Don't rethrow - ensure cleanup continues
-    }
+    } */
   }
 
   /// Save draft from video file path
@@ -631,7 +668,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   // Getters that delegate to controller
   VineRecordingController get controller => _controller;
-  CameraPlatformInterface? getCameraInterface() => _controller.cameraInterface;
 }
 
 /// Provider for VineRecordingController with reactive state management

@@ -10,12 +10,8 @@ enum AspectRatio {
   vertical
   ;
 
-  double get value {
-    switch (this) {
-      case .square:
-        return 1;
-      case .vertical:
-        return 9 / 16;
-    }
-  }
+  double get value => switch (this) {
+    .square => 1,
+    .vertical => 9 / 16,
+  };
 }

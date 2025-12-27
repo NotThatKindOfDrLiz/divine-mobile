@@ -16,5 +16,11 @@ abstract class CameraBaseService {
 
   Future<void> handleAppLifecycleState(AppLifecycleState state);
 
+  double get cameraAspectRatio;
+
+  bool get isInitialized;
+  bool get canRecord;
+  bool get canSwitchCamera;
+
   Widget get previewWidget;
 }

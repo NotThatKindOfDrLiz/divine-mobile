@@ -7,14 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 
 class VideoRecorderBottomBar extends ConsumerWidget {
-  const VideoRecorderBottomBar({
-    super.key,
-    required this.onStartRecording,
-    required this.onStopRecording,
-  });
+  const VideoRecorderBottomBar({super.key, required this.previewWidgetRadius});
 
-  final VoidCallback onStartRecording;
-  final VoidCallback onStopRecording;
+  final double previewWidgetRadius;
+
+  final double _bottomBarHeight = 64;
 
   /// Show more options menu
   void _showMoreOptions() {
@@ -47,6 +44,18 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     ); */
   }
 
+  /// Start recording with optional timer
+  Future<void> _startRecording(WidgetRef ref) async {
+    final notifier = ref.read(vineRecordingProvider.notifier);
+    await notifier.startRecording();
+  }
+
+  /// Stop recording
+  Future<void> _stopRecording(WidgetRef ref) async {
+    final notifier = ref.read(vineRecordingProvider.notifier);
+    await notifier.stopSegment();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(vineRecordingProvider);
@@ -56,27 +65,46 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       left: 0,
       right: 0,
       child: SafeArea(
-        child: Column(
-          spacing: 20,
+        child: Stack(
+          alignment: .bottomCenter,
           children: [
-            // Record button
-            _buildRecordButton(state),
-            SizedBox(
-              height: 68,
-              child: AnimatedSwitcher(
-                duration: Duration(milliseconds: 150),
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SizeTransition(
-                    sizeFactor: animation,
-                    axisAlignment: -1,
-                    child: child,
+            /// Record button
+            _buildRecordButton(ref, state),
+
+            /// BottomBar
+            Stack(
+              alignment: .bottomCenter,
+              clipBehavior: .none,
+              children: [
+                AnimatedSwitcher(
+                  duration: Duration(milliseconds: 150),
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: SizeTransition(
+                      sizeFactor: animation,
+                      axisAlignment: -1,
+                      child: child,
+                    ),
+                  ),
+                  child: state.isRecording
+                      ? SizedBox.shrink()
+                      : _buildActionButtons(ref, state),
+                ),
+
+                /// Helper widget which create a inner radius for the camera
+                /// preview so long it's not recording.
+                Positioned(
+                  top: -previewWidgetRadius,
+                  left: 0,
+                  right: 0,
+                  child: CustomPaint(
+                    painter: _InvertedRadiusPainter(
+                      color: Colors.black,
+                      radius: previewWidgetRadius,
+                    ),
                   ),
                 ),
-                child: state.isRecording
-                    ? SizedBox.shrink()
-                    : _buildActionButtons(ref, state),
-              ),
+              ],
             ),
           ],
         ),
@@ -85,27 +113,31 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   }
 
   /// Build record button
-  Widget _buildRecordButton(VineRecordingUIState state) {
-    return GestureDetector(
-      onTapDown: (_) => onStartRecording(),
-      onTapUp: (_) => onStopRecording(),
-      onTapCancel: () => onStopRecording(),
-      child: Container(
-        width: 96,
-        height: 96,
-        decoration: BoxDecoration(
-          border: .all(color: Colors.white, width: 4),
-          borderRadius: .circular(36),
-        ),
-        child: Center(
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: 250),
-            curve: Curves.ease,
-            width: state.isRecording ? 32 : 64,
-            height: state.isRecording ? 32 : 64,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF44336),
-              borderRadius: .circular(state.isRecording ? 6 : 20),
+  Widget _buildRecordButton(WidgetRef ref, VineRecordingUIState state) {
+    return Align(
+      alignment: .bottomCenter,
+      child: GestureDetector(
+        onTapDown: (_) => _startRecording(ref),
+        onTapUp: (_) => _stopRecording(ref),
+        onTapCancel: () => _stopRecording(ref),
+        child: Container(
+          margin: EdgeInsets.only(bottom: _bottomBarHeight + 20),
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            border: .all(color: Colors.white, width: 4),
+            borderRadius: .circular(36),
+          ),
+          child: Center(
+            child: AnimatedContainer(
+              duration: Duration(milliseconds: 250),
+              curve: Curves.ease,
+              width: state.isRecording ? 32 : 64,
+              height: state.isRecording ? 32 : 64,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF44336),
+                borderRadius: .circular(state.isRecording ? 6 : 20),
+              ),
             ),
           ),
         ),
@@ -113,10 +145,11 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     );
   }
 
+  /// Build the action buttons
   Widget _buildActionButtons(WidgetRef ref, VineRecordingUIState state) {
     return Container(
       color: Colors.black,
-      height: .infinity,
+      height: _bottomBarHeight,
       child: Row(
         crossAxisAlignment: .center,
         mainAxisAlignment: .spaceAround,
@@ -129,7 +162,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
           // Timer toggle
           _buildControlButton(
-            icon: _getTimerIcon(state.timerDuration),
+            icon: state.timerDuration.icon,
             onPressed: ref.read(vineRecordingProvider.notifier).cycleTimer,
           ),
 
@@ -146,10 +179,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flip camera
           _buildControlButton(
             icon: Icons.cached_rounded,
-            onPressed: () async {
-              final notifier = ref.read(vineRecordingProvider.notifier);
-              await notifier.switchCamera();
-            },
+            onPressed: ref.read(vineRecordingProvider.notifier).switchCamera,
           ),
 
           // More options
@@ -182,12 +212,50 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       .auto => Icons.flash_auto,
     };
   }
+}
 
-  IconData _getTimerIcon(TimerDuration mode) {
-    return switch (mode) {
-      .off => Icons.timer,
-      .three => Icons.timer_3,
-      .ten => Icons.timer_10,
-    };
+/// Custom painter for inverted radius at top-left and top-right corners
+class _InvertedRadiusPainter extends CustomPainter {
+  _InvertedRadiusPainter({required this.radius, required this.color});
+
+  final double radius;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+
+    // Start from left side
+    path.moveTo(0, 0);
+    path.lineTo(0, radius);
+    path.lineTo(radius, radius);
+
+    // Draw left inverted corner (concave inward)
+    path.quadraticBezierTo(0, radius, 0, 0);
+
+    canvas.drawPath(path, paint);
+
+    // Right side path
+    final rightPath = Path();
+    rightPath.moveTo(size.width, 0);
+    rightPath.lineTo(size.width, radius);
+    rightPath.lineTo(size.width - radius, radius);
+
+    // Draw right inverted corner (concave inward)
+    rightPath.quadraticBezierTo(size.width, radius, size.width, 0);
+
+    canvas.drawPath(rightPath, paint);
+
+    // Important to draw bottom 2px black rectangle which ensure there is no gap
+    // to the bottom bar.
+    final bottomRect = Rect.fromLTWH(0, radius, size.width, 2);
+    canvas.drawRect(bottomRect, paint);
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

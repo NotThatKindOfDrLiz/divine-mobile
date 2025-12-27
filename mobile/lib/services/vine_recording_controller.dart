@@ -480,8 +480,7 @@ class VineRecordingController {
 
   // Getter for camera preview widget
   Widget get previewWidget =>
-      _cameraInterface?.previewWidget ??
-      const SizedBox(child: Center(child: CircularProgressIndicator()));
+      _cameraInterface?.previewWidget ?? SizedBox.shrink();
 
   // Callback for notifying UI of state changes during recording
   VoidCallback? _onStateChanged;
@@ -626,11 +625,11 @@ class VineRecordingController {
         ),
       );
 
+  bool get isRecording => _state == .recording;
+
   /// Check if camera switching is available on current platform
-  bool get canSwitchCamera {
-    if (_state == VineRecordingState.recording) return false;
-    return _cameraInterface?.canSwitchCamera ?? false;
-  }
+  bool get canSwitchCamera =>
+      !isRecording && _cameraInterface?.canSwitchCamera == true;
 
   /// Set callback for state change notifications during recording
   void setStateChangeCallback(VoidCallback? callback) {

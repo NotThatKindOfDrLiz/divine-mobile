@@ -8,20 +8,18 @@ class CameraMobileService extends CameraBaseService {
 
   late final List<CameraDescription> _cameras;
   int _currentCameraIndex = 0;
+  bool _isInitialized = false;
 
   @override
   Future<void> initialize() async {
+    if (_isInitialized) return;
     _cameras = await availableCameras();
 
     // Find the preferred back camera.
     _currentCameraIndex = _findPreferredCamera(.back);
 
-    _controller = CameraController(
-      _cameras[_currentCameraIndex],
-      ResolutionPreset.max,
-    );
-
-    await _controller.initialize();
+    await _initializeCameraController(_cameras[_currentCameraIndex]);
+    _isInitialized = true;
   }
 
   @override
@@ -30,17 +28,7 @@ class CameraMobileService extends CameraBaseService {
   }
 
   int _findPreferredCamera(CameraLensDirection direction) {
-    // First pass: try to find a wide angle lens with standard orientation
-    for (var i = 0; i < _cameras.length; i++) {
-      if (_cameras[i].lensDirection == direction) {
-        if (_cameras[i].sensorOrientation == 90 ||
-            _cameras[i].sensorOrientation == 270) {
-          return i;
-        }
-      }
-    }
-
-    // Second pass: just get first with correct direction
+    // Get first camera with correct direction
     final index = _cameras.indexWhere(
       (camera) => camera.lensDirection == direction,
     );
@@ -51,13 +39,15 @@ class CameraMobileService extends CameraBaseService {
   Future<void> _initializeCameraController(
     CameraDescription description,
   ) async {
-    _controller = CameraController(description, ResolutionPreset.max);
+    _controller = CameraController(description, .max);
 
     await _controller.initialize();
   }
 
   @override
   Future<void> setFlashMode(FlashMode mode) async {
+    if (!isInitialized) return;
+
     await _controller.setFlashMode(mode);
   }
 
@@ -115,7 +105,7 @@ class CameraMobileService extends CameraBaseService {
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
     // App state changed before we got the chance to initialize.
-    if (!_controller.value.isInitialized) {
+    if (!isInitialized) {
       return;
     }
 
@@ -129,5 +119,21 @@ class CameraMobileService extends CameraBaseService {
   @override
   Widget get previewWidget {
     return CameraPreview(_controller);
+  }
+
+  @override
+  double get cameraAspectRatio => _controller.value.aspectRatio;
+
+  @override
+  bool get isInitialized => _isInitialized;
+
+  @override
+  bool get canRecord => isInitialized && !_controller.value.isRecordingVideo;
+
+  @override
+  bool get canSwitchCamera {
+    final hasFront = _cameras.any((c) => c.lensDirection == .front);
+    final hasBack = _cameras.any((c) => c.lensDirection == .back);
+    return hasFront && hasBack;
   }
 }
