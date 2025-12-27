@@ -87,9 +87,19 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
     state = state.copyWith(muteOriginalAudio: mute);
   }
 
+  void removeLastClip() {
+    final lastClip = _service.clips.last;
+    _service.deleteClip(lastClip.id);
+  }
+
   void clearAll() {
     _service.clearAll();
     state = ClipManagerState();
+  }
+
+  void saveClipToLibrary() {
+    // TODO(@hm21): Implement save to Library feature.
+    // Ask design-team first if only the last clip or all clips?
   }
 
   @override
