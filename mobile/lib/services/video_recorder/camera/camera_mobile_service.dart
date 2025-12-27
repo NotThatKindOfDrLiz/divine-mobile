@@ -3,6 +3,7 @@
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
+import 'package:openvine/utils/unified_logger.dart';
 
 import 'camera_base_service.dart';
 
@@ -24,6 +25,13 @@ class CameraMobileService extends CameraBaseService {
   @override
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    Log.info(
+      '📷 Initializing mobile camera',
+      name: 'CameraMobileService',
+      category: .video,
+    );
+
     _cameras ??= await availableCameras();
 
     // Find the preferred back camera.
@@ -31,10 +39,22 @@ class CameraMobileService extends CameraBaseService {
 
     await _initializeCameraController(_cameras![_currentCameraIndex]);
     _isInitialized = true;
+
+    Log.info(
+      '📷 Mobile camera initialized (${_cameras!.length} cameras available)',
+      name: 'CameraMobileService',
+      category: .video,
+    );
   }
 
   @override
   Future<void> dispose() async {
+    Log.info(
+      '📷 Disposing mobile camera',
+      name: 'CameraMobileService',
+      category: .video,
+    );
+
     _isInitialized = false;
     await _controller.dispose();
   }
@@ -103,6 +123,12 @@ class CameraMobileService extends CameraBaseService {
     if (_cameras!.length <= 1) return false;
 
     try {
+      Log.info(
+        '📷 Switching camera',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+
       await _controller.dispose();
 
       // Switch between front and back camera
@@ -118,6 +144,12 @@ class CameraMobileService extends CameraBaseService {
         // No alternative camera found, reinitialize current
         _controller = CameraController(_cameras![_currentCameraIndex], .max);
         await _controller.initialize();
+
+        Log.warning(
+          '📷 No alternative camera found',
+          name: 'CameraMobileService',
+          category: .video,
+        );
         return false;
       }
 
@@ -126,8 +158,19 @@ class CameraMobileService extends CameraBaseService {
       await _initializeCameraController(_cameras![_currentCameraIndex]);
 
       await _controller.initialize();
+
+      Log.info(
+        '📷 Camera switched to ${targetDirection.name}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to switch camera: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -135,20 +178,56 @@ class CameraMobileService extends CameraBaseService {
   @override
   Future<void> startRecording() async {
     try {
+      Log.info(
+        '📷 Starting video recording',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+
       await _controller.startVideoRecording();
-    } catch (e) {}
+    } catch (e) {
+      Log.error(
+        '📷 Failed to start recording: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+    }
   }
 
   @override
   Future<void> stopRecording() async {
     try {
+      Log.info(
+        '📷 Stopping video recording',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+
       final result = await _controller.stopVideoRecording();
-    } catch (e) {}
+
+      Log.info(
+        '📷 Video recording stopped',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+    } catch (e) {
+      Log.error(
+        '📷 Failed to stop recording: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+    }
     // TODO: Return Result as File or uint8list for the web
   }
 
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
+    Log.info(
+      '📷 App lifecycle state changed to ${state.name}',
+      name: 'CameraMobileService',
+      category: .video,
+    );
+
     switch (state) {
       case .inactive:
         if (isInitialized) await dispose();
@@ -156,6 +235,12 @@ class CameraMobileService extends CameraBaseService {
       case .resumed:
         await _initializeCameraController(_controller.description);
         _isInitialized = true;
+
+        Log.info(
+          '📷 Camera reinitialized after resume',
+          name: 'CameraMobileService',
+          category: .video,
+        );
         break;
       default:
         break;

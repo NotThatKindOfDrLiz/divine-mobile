@@ -4,6 +4,7 @@
 import 'package:camera/camera.dart';
 import 'package:camera_macos/camera_macos.dart';
 import 'package:flutter/widgets.dart';
+import 'package:openvine/utils/unified_logger.dart';
 
 import 'camera_base_service.dart';
 
@@ -25,12 +26,25 @@ class CameraMacOSService extends CameraBaseService {
 
   @override
   Future<void> dispose() async {
+    Log.info(
+      '📷 Disposing macOS camera',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+
     await CameraMacOS.instance.destroy();
   }
 
   @override
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    Log.info(
+      '📷 Initializing macOS camera',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+
     _videoDevices = await CameraMacOS.instance.listDevices(
       deviceType: CameraMacOSDeviceType.video,
     );
@@ -39,6 +53,12 @@ class CameraMacOSService extends CameraBaseService {
     );
 
     await _initializeCameraController();
+
+    Log.info(
+      '📷 macOS camera initialized (${_videoDevices.length} video, ${_audioDevices.length} audio devices)',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
   }
 
   /// Initializes the camera with the current video and audio device.
@@ -90,6 +110,12 @@ class CameraMacOSService extends CameraBaseService {
     if (_videoDevices.length <= 1) return false;
 
     try {
+      Log.info(
+        '📷 Switching macOS camera',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+
       await CameraMacOS.instance.destroy();
 
       _currentCameraIndex = (_currentCameraIndex + 1) % _videoDevices.length;
@@ -99,8 +125,19 @@ class CameraMacOSService extends CameraBaseService {
         deviceId: _videoDevices[_currentCameraIndex].deviceId,
         audioDeviceId: _audioDevices.first.deviceId,
       );
+
+      Log.info(
+        '📷 macOS camera switched to device ${_currentCameraIndex}',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to switch macOS camera: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -119,28 +156,63 @@ class CameraMacOSService extends CameraBaseService {
 
   @override
   Future<void> startRecording() async {
+    Log.info(
+      '📷 Starting macOS video recording',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+
     await CameraMacOS.instance.startVideoRecording();
     _isRecording = true;
   }
 
   @override
   Future<void> stopRecording() async {
+    Log.info(
+      '📷 Stopping macOS video recording',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+
     final result = await CameraMacOS.instance.stopVideoRecording();
     _isRecording = false;
 
     if (result == null) {
+      Log.warning(
+        '📷 macOS video recording stopped with null result',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       return;
     }
+
+    Log.info(
+      '📷 macOS video recording stopped',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
 
     // TODO: Handle Result
   }
 
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
+    Log.info(
+      '📷 macOS app lifecycle state changed to ${state.name}',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+
     if (state == AppLifecycleState.inactive) {
       CameraMacOS.instance.destroy();
     } else if (state == AppLifecycleState.resumed) {
       await _initializeCameraController();
+
+      Log.info(
+        '📷 macOS camera reinitialized after resume',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
     }
   }
 
