@@ -7,7 +7,13 @@ import 'camera_base_service.dart';
 class CameraMacOSService extends CameraBaseService {
   late final List<CameraMacOSDevice> _videoDevices;
   late final List<CameraMacOSDevice> _audioDevices;
+
   int _currentCameraIndex = 0;
+
+  /// TODO(@hm21): read from native?
+  double _minZoomLevel = 1;
+  double _maxZoomLevel = 10;
+
   bool _isRecording = false;
   bool _isInitialized = false;
 
@@ -38,33 +44,56 @@ class CameraMacOSService extends CameraBaseService {
   }
 
   @override
-  Future<void> setFlashMode(FlashMode mode) async {
-    await CameraMacOS.instance.toggleTorch(_getTorchMode(mode));
+  Future<bool> setFlashMode(FlashMode mode) async {
+    if (!isInitialized) return false;
+    try {
+      await CameraMacOS.instance.toggleTorch(_getTorchMode(mode));
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
-  Future<void> setFocusPoint(Offset offset) async {
-    await CameraMacOS.instance.setFocusPoint(offset);
+  Future<bool> setFocusPoint(Offset offset) async {
+    if (!isInitialized) return false;
+    try {
+      await CameraMacOS.instance.setFocusPoint(offset);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
-  Future<void> setZoomLevel(double value) async {
-    await CameraMacOS.instance.setZoomLevel(value);
+  Future<bool> setZoomLevel(double value) async {
+    if (!isInitialized) return false;
+    try {
+      await CameraMacOS.instance.setZoomLevel(value);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
-  Future<void> switchCamera() async {
-    if (_videoDevices.length <= 1) return;
+  Future<bool> switchCamera() async {
+    if (_videoDevices.length <= 1) return false;
 
-    await CameraMacOS.instance.destroy();
+    try {
+      await CameraMacOS.instance.destroy();
 
-    _currentCameraIndex = (_currentCameraIndex + 1) % _videoDevices.length;
+      _currentCameraIndex = (_currentCameraIndex + 1) % _videoDevices.length;
 
-    await CameraMacOS.instance.initialize(
-      cameraMacOSMode: CameraMacOSMode.video,
-      deviceId: _videoDevices[_currentCameraIndex].deviceId,
-      audioDeviceId: _audioDevices.first.deviceId,
-    );
+      await CameraMacOS.instance.initialize(
+        cameraMacOSMode: CameraMacOSMode.video,
+        deviceId: _videoDevices[_currentCameraIndex].deviceId,
+        audioDeviceId: _audioDevices.first.deviceId,
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Torch _getTorchMode(FlashMode mode) {
@@ -104,21 +133,43 @@ class CameraMacOSService extends CameraBaseService {
   }
 
   @override
-  Widget get previewWidget {
-    return CameraMacOSView(
-      cameraMode: CameraMacOSMode.video,
-      onCameraInizialized: (CameraMacOSController controller) {
-        _isInitialized = true;
+  Widget buildPreviewWidget({
+    required Function(ScaleStartDetails details) onScaleStart,
+    required Function(ScaleUpdateDetails details) onScaleUpdate,
+    required Function(TapDownDetails details) onTapDown,
+  }) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return GestureDetector(
+          behavior: .opaque,
+          onScaleStart: onScaleStart,
+          onScaleUpdate: onScaleUpdate,
+          onTapDown: onTapDown,
+          child: CameraMacOSView(
+            cameraMode: .video,
+            onCameraInizialized: (CameraMacOSController controller) {
+              _isInitialized = true;
+            },
+          ),
+        );
       },
     );
   }
 
   /// TODO(@hm21): Maybe extend with native code?
   @override
-  double get cameraAspectRatio => 4.0 / 3.0;
+  double get cameraAspectRatio => 16.0 / 9.0;
+
+  @override
+  double get minZoomLevel => _minZoomLevel;
+  @override
+  double get maxZoomLevel => _maxZoomLevel;
 
   @override
   bool get isInitialized => _isInitialized;
+
+  @override
+  bool get isFocusPointSupported => true;
 
   @override
   bool get canRecord => _isInitialized && !_isRecording;

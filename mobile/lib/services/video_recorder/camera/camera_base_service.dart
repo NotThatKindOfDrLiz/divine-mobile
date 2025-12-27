@@ -5,11 +5,11 @@ abstract class CameraBaseService {
   Future<void> initialize();
   Future<void> dispose();
 
-  Future<void> setFlashMode(FlashMode mode);
-  Future<void> setFocusPoint(Offset offset);
-  Future<void> setZoomLevel(double value);
+  Future<bool> setFlashMode(FlashMode mode);
+  Future<bool> setFocusPoint(Offset offset);
+  Future<bool> setZoomLevel(double value);
 
-  Future<void> switchCamera();
+  Future<bool> switchCamera();
 
   Future<void> startRecording();
   Future<void> stopRecording();
@@ -17,10 +17,17 @@ abstract class CameraBaseService {
   Future<void> handleAppLifecycleState(AppLifecycleState state);
 
   double get cameraAspectRatio;
+  double get minZoomLevel;
+  double get maxZoomLevel;
 
   bool get isInitialized;
+  bool get isFocusPointSupported;
   bool get canRecord;
   bool get canSwitchCamera;
 
-  Widget get previewWidget;
+  Widget buildPreviewWidget({
+    required Function(ScaleStartDetails details) onScaleStart,
+    required Function(ScaleUpdateDetails details) onScaleUpdate,
+    required Function(TapDownDetails details) onTapDown,
+  });
 }

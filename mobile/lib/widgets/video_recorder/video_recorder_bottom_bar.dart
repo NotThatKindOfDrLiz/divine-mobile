@@ -10,11 +10,10 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   const VideoRecorderBottomBar({super.key, required this.previewWidgetRadius});
 
   final double previewWidgetRadius;
-
-  final double _bottomBarHeight = 64;
+  static const double _bottomBarHeight = 64;
 
   /// Show more options menu
-  void _showMoreOptions() {
+  void _showMoreOptions(WidgetRef ref) {
     /* TODO: Implement more options
      showModalBottomSheet(
       context: context,
@@ -42,18 +41,6 @@ class VideoRecorderBottomBar extends ConsumerWidget {
         ),
       ),
     ); */
-  }
-
-  /// Start recording with optional timer
-  Future<void> _startRecording(WidgetRef ref) async {
-    final notifier = ref.read(vineRecordingProvider.notifier);
-    await notifier.startRecording();
-  }
-
-  /// Stop recording
-  Future<void> _stopRecording(WidgetRef ref) async {
-    final notifier = ref.read(vineRecordingProvider.notifier);
-    await notifier.stopSegment();
   }
 
   @override
@@ -117,10 +104,17 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     return Align(
       alignment: .bottomCenter,
       child: GestureDetector(
-        onTapDown: (_) => _startRecording(ref),
-        onTapUp: (_) => _stopRecording(ref),
-        onTapCancel: () => _stopRecording(ref),
-        child: Container(
+        onTap: ref.read(vineRecordingProvider.notifier).toggleRecording,
+        onLongPressStart: (_) =>
+            ref.read(vineRecordingProvider.notifier).startRecording(),
+        onLongPressMoveUpdate: state.isRecording
+            ? (details) => ref
+                  .read(vineRecordingProvider.notifier)
+                  .zoomByLongPressMove(details.localOffsetFromOrigin)
+            : null,
+        onLongPressUp: ref.read(vineRecordingProvider.notifier).stopRecording,
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 100),
           margin: EdgeInsets.only(bottom: _bottomBarHeight + 20),
           width: 96,
           height: 96,
@@ -185,7 +179,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // More options
           _buildControlButton(
             icon: Icons.more_horiz,
-            onPressed: _showMoreOptions,
+            onPressed: () => _showMoreOptions(ref),
           ),
         ],
       ),

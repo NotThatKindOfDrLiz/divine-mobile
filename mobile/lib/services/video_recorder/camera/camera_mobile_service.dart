@@ -6,30 +6,36 @@ import 'camera_base_service.dart';
 class CameraMobileService extends CameraBaseService {
   late CameraController _controller;
 
-  late final List<CameraDescription> _cameras;
+  List<CameraDescription>? _cameras;
+
   int _currentCameraIndex = 0;
+
+  double _minZoomLevel = 1;
+  double _maxZoomLevel = 1;
+
   bool _isInitialized = false;
 
   @override
   Future<void> initialize() async {
     if (_isInitialized) return;
-    _cameras = await availableCameras();
+    _cameras ??= await availableCameras();
 
     // Find the preferred back camera.
     _currentCameraIndex = _findPreferredCamera(.back);
 
-    await _initializeCameraController(_cameras[_currentCameraIndex]);
+    await _initializeCameraController(_cameras![_currentCameraIndex]);
     _isInitialized = true;
   }
 
   @override
   Future<void> dispose() async {
-    _controller.dispose();
+    _isInitialized = false;
+    await _controller.dispose();
   }
 
   int _findPreferredCamera(CameraLensDirection direction) {
     // Get first camera with correct direction
-    final index = _cameras.indexWhere(
+    final index = _cameras!.indexWhere(
       (camera) => camera.lensDirection == direction,
     );
 
@@ -42,98 +48,150 @@ class CameraMobileService extends CameraBaseService {
     _controller = CameraController(description, .max);
 
     await _controller.initialize();
+
+    _minZoomLevel = await _controller.getMinZoomLevel();
+    _maxZoomLevel = await _controller.getMaxZoomLevel();
   }
 
   @override
-  Future<void> setFlashMode(FlashMode mode) async {
-    if (!isInitialized) return;
-
-    await _controller.setFlashMode(mode);
-  }
-
-  @override
-  Future<void> setFocusPoint(Offset offset) async {
-    await _controller.setFocusPoint(offset);
-  }
-
-  @override
-  Future<void> setZoomLevel(double value) async {
-    await _controller.setZoomLevel(value);
-  }
-
-  @override
-  Future<void> switchCamera() async {
-    if (_cameras.length <= 1) return;
-
-    await _controller.dispose();
-
-    // Switch between front and back camera
-    final currentDirection = _cameras[_currentCameraIndex].lensDirection;
-
-    final CameraLensDirection targetDirection = currentDirection == .back
-        ? .front
-        : .back;
-
-    final targetCameraIndex = _findPreferredCamera(targetDirection);
-
-    if (targetCameraIndex == _currentCameraIndex) {
-      // No alternative camera found, reinitialize current
-      _controller = CameraController(_cameras[_currentCameraIndex], .max);
-      await _controller.initialize();
-      return;
+  Future<bool> setFlashMode(FlashMode mode) async {
+    if (!isInitialized) return false;
+    try {
+      await _controller.setFlashMode(mode);
+      return true;
+    } catch (e) {
+      return false;
     }
+  }
 
-    _currentCameraIndex = targetCameraIndex;
+  @override
+  Future<bool> setFocusPoint(Offset offset) async {
+    if (!isInitialized) return false;
+    try {
+      await _controller.setFocusPoint(offset);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
-    await _initializeCameraController(_cameras[_currentCameraIndex]);
+  @override
+  Future<bool> setZoomLevel(double value) async {
+    if (!isInitialized) return false;
+    try {
+      await _controller.setZoomLevel(value);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
-    await _controller.initialize();
+  @override
+  Future<bool> switchCamera() async {
+    if (_cameras!.length <= 1) return false;
+
+    try {
+      await _controller.dispose();
+
+      // Switch between front and back camera
+      final currentDirection = _cameras![_currentCameraIndex].lensDirection;
+
+      final CameraLensDirection targetDirection = currentDirection == .back
+          ? .front
+          : .back;
+
+      final targetCameraIndex = _findPreferredCamera(targetDirection);
+
+      if (targetCameraIndex == _currentCameraIndex) {
+        // No alternative camera found, reinitialize current
+        _controller = CameraController(_cameras![_currentCameraIndex], .max);
+        await _controller.initialize();
+        return false;
+      }
+
+      _currentCameraIndex = targetCameraIndex;
+
+      await _initializeCameraController(_cameras![_currentCameraIndex]);
+
+      await _controller.initialize();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
   Future<void> startRecording() async {
-    await _controller.startVideoRecording();
+    try {
+      await _controller.startVideoRecording();
+    } catch (e) {}
   }
 
   @override
   Future<void> stopRecording() async {
-    final result = await _controller.stopVideoRecording();
-
+    try {
+      final result = await _controller.stopVideoRecording();
+    } catch (e) {}
     // TODO: Return Result as File or uint8list for the web
   }
 
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
-    // App state changed before we got the chance to initialize.
-    if (!isInitialized) {
-      return;
-    }
-
-    if (state == AppLifecycleState.inactive) {
-      _controller.dispose();
-    } else if (state == AppLifecycleState.resumed) {
-      await _initializeCameraController(_controller.description);
+    switch (state) {
+      case .inactive:
+        if (isInitialized) await dispose();
+        break;
+      case .resumed:
+        await _initializeCameraController(_controller.description);
+        _isInitialized = true;
+        break;
+      default:
+        break;
     }
   }
 
   @override
-  Widget get previewWidget {
-    return CameraPreview(_controller);
+  Widget buildPreviewWidget({
+    required Function(ScaleStartDetails details) onScaleStart,
+    required Function(ScaleUpdateDetails details) onScaleUpdate,
+    required Function(TapDownDetails details) onTapDown,
+  }) {
+    return CameraPreview(
+      _controller,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          return GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onScaleStart: onScaleStart,
+            onScaleUpdate: onScaleUpdate,
+            onTapDown: onTapDown,
+          );
+        },
+      ),
+    );
   }
 
   @override
   double get cameraAspectRatio => _controller.value.aspectRatio;
 
   @override
+  double get minZoomLevel => _minZoomLevel;
+  @override
+  double get maxZoomLevel => _maxZoomLevel;
+
+  @override
   bool get isInitialized => _isInitialized;
+
+  @override
+  bool get isFocusPointSupported => _controller.value.focusPointSupported;
 
   @override
   bool get canRecord => isInitialized && !_controller.value.isRecordingVideo;
 
   @override
   bool get canSwitchCamera {
-    final hasFront = _cameras.any((c) => c.lensDirection == .front);
-    final hasBack = _cameras.any((c) => c.lensDirection == .back);
+    final hasFront = _cameras!.any((c) => c.lensDirection == .front);
+    final hasBack = _cameras!.any((c) => c.lensDirection == .back);
     return hasFront && hasBack;
   }
 }

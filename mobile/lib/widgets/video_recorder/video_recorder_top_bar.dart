@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
+import 'package:openvine/services/vine_recording_controller.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 class VideoRecorderTopBar extends ConsumerWidget {
@@ -33,8 +34,12 @@ class VideoRecorderTopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(vineRecordingProvider);
-    final hasSegments = state.hasSegments;
+    final segments = ref.watch(
+      vineRecordingProvider.select((state) => state.segments),
+    );
+    final isRecording = ref.watch(
+      vineRecordingProvider.select((state) => state.isRecording),
+    );
 
     return Positioned(
       top: 0,
@@ -49,16 +54,18 @@ class VideoRecorderTopBar extends ConsumerWidget {
               // Close button
               _buildActionButton(
                 icon: Icons.close,
+                hidden: isRecording,
                 onPressed: () => _closeVideoRecorder(context),
               ),
 
               // Segment bar
-              _buildSegmentBar(state),
+              _buildSegmentBar(segments),
 
               // Confirm button
               _buildActionButton(
                 icon: Icons.arrow_forward,
-                onPressed: hasSegments ? _openVideoEditor : null,
+                hidden: isRecording,
+                onPressed: segments.isNotEmpty ? _openVideoEditor : null,
               ),
             ],
           ),
@@ -67,7 +74,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
     );
   }
 
-  Widget _buildSegmentBar(VineRecordingUIState state) {
+  Widget _buildSegmentBar(List<RecordingSegment> recordSegments) {
     const maxDuration = Duration(milliseconds: 6300);
     const dividerWidth = 2.0;
 
@@ -76,8 +83,8 @@ class VideoRecorderTopBar extends ConsumerWidget {
 
     final segments = <Widget>[];
 
-    for (int i = 0; i < state.segments.length; i++) {
-      final segment = state.segments[i];
+    for (int i = 0; i < recordSegments.length; i++) {
+      final segment = recordSegments[i];
 
       if (used >= maxDuration) break;
 
@@ -99,7 +106,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
       );
 
       // Divider (only if not at the end and more segments follow)
-      if (i < state.segments.length - 1 && used < maxDuration) {
+      if (i < recordSegments.length - 1 && used < maxDuration) {
         segments.add(
           SizedBox(
             width: dividerWidth,
@@ -136,29 +143,38 @@ class VideoRecorderTopBar extends ConsumerWidget {
   }
 
   /// Build action button for top bar
-  Widget _buildActionButton({required IconData icon, VoidCallback? onPressed}) {
+  Widget _buildActionButton({
+    required IconData icon,
+    bool hidden = false,
+    VoidCallback? onPressed,
+  }) {
     final bool enabled = onPressed != null;
 
-    return ClipRRect(
-      borderRadius: .circular(20),
-      child: BackdropFilter(
-        enabled: !enabled,
-        filter: .blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.black.withAlpha(enabled ? 255 : 166),
-            borderRadius: .circular(20),
-          ),
-          child: IconButton(
-            icon: Icon(
-              icon,
-              color: Colors.white.withAlpha(enabled ? 255 : 64),
-              size: 32,
+    return AnimatedOpacity(
+      duration: Duration(milliseconds: 200),
+      opacity: hidden ? 0 : 1,
+      curve: Curves.ease,
+      child: ClipRRect(
+        borderRadius: .circular(20),
+        child: BackdropFilter(
+          enabled: !enabled,
+          filter: .blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Color(0xFF101111).withAlpha(enabled ? 255 : 166),
+              borderRadius: .circular(20),
             ),
-            onPressed: onPressed,
-            padding: .zero,
+            child: IconButton(
+              icon: Icon(
+                icon,
+                color: Colors.white.withAlpha(enabled ? 255 : 64),
+                size: 32,
+              ),
+              onPressed: onPressed,
+              padding: .zero,
+            ),
           ),
         ),
       ),

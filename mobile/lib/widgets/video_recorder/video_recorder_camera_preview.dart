@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
 
-class VideoRecorderCameraPreview extends ConsumerWidget {
+class VideoRecorderCameraPreview extends ConsumerStatefulWidget {
   const VideoRecorderCameraPreview({
     super.key,
     required this.previewWidgetRadius,
@@ -11,7 +11,27 @@ class VideoRecorderCameraPreview extends ConsumerWidget {
   final double previewWidgetRadius;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConsumerStatefulWidget> createState() =>
+      _VideoRecorderCameraPreviewState();
+}
+
+class _VideoRecorderCameraPreviewState
+    extends ConsumerState<VideoRecorderCameraPreview> {
+  void _handleTapFocus(TapUpDetails details) {
+    // TODO: Fix below
+    final renderBox = context.findRenderObject() as RenderBox;
+    final localPosition = renderBox.globalToLocal(details.globalPosition);
+    final size = renderBox.size;
+
+    // Convert to normalized coordinates (0.0 - 1.0)
+    final dx = (localPosition.dx / size.width).clamp(0.0, 1.0);
+    final dy = (localPosition.dy / size.height).clamp(0.0, 1.0);
+
+    ref.read(vineRecordingProvider.notifier).setFocusPoint(Offset(dx, dy));
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final notifier = ref.read(vineRecordingProvider.notifier);
 
     // Only rebuild when aspectRatio, showGrid or cameraSwitchCount changes
@@ -19,7 +39,7 @@ class VideoRecorderCameraPreview extends ConsumerWidget {
       vineRecordingProvider.select((state) => state.aspectRatio.value),
     );
     final showGrid = ref.watch(
-      vineRecordingProvider.select((state) => state.showGrid),
+      vineRecordingProvider.select((state) => !state.isRecording),
     );
     final cameraSwitchCount = ref.watch(
       vineRecordingProvider.select((state) => state.cameraSwitchCount),
@@ -38,18 +58,33 @@ class VideoRecorderCameraPreview extends ConsumerWidget {
             aspectRatio: animatedAspectRatio,
             child: ClipRRect(
               clipBehavior: .hardEdge,
-              borderRadius: .circular(previewWidgetRadius),
-              child: CustomPaint(
-                foregroundPainter: showGrid ? _GridPainter() : null,
-                child: FittedBox(
-                  fit: .cover,
-                  child: SizedBox(
-                    key: ValueKey('Video-Recorder-Camera-$cameraSwitchCount'),
-                    width: 100,
-                    height: 100 / cameraAspectRatio,
-                    child: previewWidget,
+              borderRadius: .circular(widget.previewWidgetRadius),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GestureDetector(
+                    onTapUp: _handleTapFocus,
+                    child: FittedBox(
+                      fit: .cover,
+                      child: SizedBox(
+                        key: ValueKey(
+                          'Video-Recorder-Camera-$cameraSwitchCount',
+                        ),
+                        width: 100,
+                        height: 100 / cameraAspectRatio,
+                        child: previewWidget,
+                      ),
+                    ),
                   ),
-                ),
+                  IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: showGrid ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 100),
+                      curve: Curves.easeInOut,
+                      child: CustomPaint(painter: _GridPainter()),
+                    ),
+                  ),
+                ],
               ),
             ),
           );

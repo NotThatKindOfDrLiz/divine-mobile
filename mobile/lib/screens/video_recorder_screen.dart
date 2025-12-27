@@ -19,16 +19,33 @@ class VideoRecorderScreen extends ConsumerStatefulWidget {
       _VideoRecorderScreenState();
 }
 
-class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen> {
+class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
+    with WidgetsBindingObserver {
   final double _previewRadius = 16.0;
+  VineRecordingNotifier? _notifier;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     // Initialize camera when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(vineRecordingProvider.notifier).initialize();
+      _notifier = ref.read(vineRecordingProvider.notifier);
+      _notifier!.initialize();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    ref.read(vineRecordingProvider.notifier).handleAppLifecycleState(state);
+  }
+
+  @override
+  void dispose() {
+    _notifier?.destroy();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override

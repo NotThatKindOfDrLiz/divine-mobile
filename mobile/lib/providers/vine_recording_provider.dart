@@ -73,47 +73,51 @@ class VineRecordingUIState {
     this.cameraSwitchCount = 0,
     this.flashMode = FlashMode.auto,
     this.timerDuration = TimerDuration.off,
-    this.showGrid = true,
     this.countdownValue = 0,
+    this.zoomLevel = 1.0,
+    this.focusPoint = Offset.zero,
     this.searchQuery = '',
   });
 
   final VineRecordingState recordingState;
   final double progress;
+  final double zoomLevel;
+  final Offset focusPoint;
   final Duration totalRecordedDuration;
   final Duration remainingDuration;
   final bool canRecord;
   final List<RecordingSegment> segments;
-  final bool
-  hasSegments; // From controller.hasSegments - includes virtual segments for macOS
-  final int
-  segmentCount; // From controller.segmentCount - includes virtual segments for macOS
+  // From controller.hasSegments - includes virtual segments for macOS
+  final bool hasSegments;
+  // From controller.segmentCount - includes virtual segments for macOS
+  final int segmentCount;
   final bool isCameraInitialized;
   final bool canSwitchCamera;
   final model.AspectRatio aspectRatio;
-  final int
-  cameraSwitchCount; // Increments each time camera switches to force UI rebuild
+  // Increments each time camera switches to force UI rebuild
+  final int cameraSwitchCount;
 
   // UI control states
   final FlashMode flashMode;
   final TimerDuration timerDuration;
-  final bool showGrid;
   final int countdownValue;
   final String searchQuery;
 
   // Convenience getters used by UI
-  bool get isRecording => recordingState == VineRecordingState.recording;
+  bool get isRecording => recordingState == .recording;
   bool get isInitialized =>
       isCameraInitialized &&
-      recordingState != VineRecordingState.processing &&
-      recordingState != VineRecordingState.error;
-  bool get isError => recordingState == VineRecordingState.error;
+      recordingState != .processing &&
+      recordingState != .error;
+  bool get isError => recordingState == .error;
   Duration get recordingDuration => totalRecordedDuration;
   String? get errorMessage => isError ? 'Recording error occurred' : null;
 
   VineRecordingUIState copyWith({
     VineRecordingState? recordingState,
     double? progress,
+    double? zoomLevel,
+    Offset? focusPoint,
     Duration? totalRecordedDuration,
     Duration? remainingDuration,
     bool? canRecord,
@@ -126,13 +130,14 @@ class VineRecordingUIState {
     int? cameraSwitchCount,
     FlashMode? flashMode,
     TimerDuration? timerDuration,
-    bool? showGrid,
     int? countdownValue,
     String? searchQuery,
   }) {
     return VineRecordingUIState(
       recordingState: recordingState ?? this.recordingState,
       progress: progress ?? this.progress,
+      zoomLevel: zoomLevel ?? this.zoomLevel,
+      focusPoint: focusPoint ?? this.focusPoint,
       totalRecordedDuration:
           totalRecordedDuration ?? this.totalRecordedDuration,
       remainingDuration: remainingDuration ?? this.remainingDuration,
@@ -146,7 +151,6 @@ class VineRecordingUIState {
       cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
       flashMode: flashMode ?? this.flashMode,
       timerDuration: timerDuration ?? this.timerDuration,
-      showGrid: showGrid ?? this.showGrid,
       countdownValue: countdownValue ?? this.countdownValue,
       searchQuery: searchQuery ?? this.searchQuery,
     );
@@ -180,70 +184,37 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   }
 
   late final CameraBaseService _cameraService;
+  double _baseZoomLevel = 1.0;
+  bool _isDestroyed = false;
 
   // Delegate methods to the controller
   Future<void> initialize() async {
-    clearCountdown();
-
+    _isDestroyed = false;
     await _cameraService.initialize();
-
+    state = state.copyWith(
+      cameraSwitchCount: state.cameraSwitchCount + 1,
+      countdownValue: 0,
+    );
     updateState();
   }
 
-  /// Toggle flash mode between off, on, and auto
-  void toggleFlash() {
-    final FlashMode newMode = switch (state.flashMode) {
-      .off => .torch,
-      .torch => .auto,
-      .auto => .off,
-      _ => .off,
-    };
-    state = state.copyWith(flashMode: newMode);
-    _cameraService.setFlashMode(newMode);
-  }
+  void handleAppLifecycleState(AppLifecycleState appState) async {
+    await _cameraService.handleAppLifecycleState(appState);
 
-  void toggleAspectRatio() {
-    final model.AspectRatio newRatio = state.aspectRatio == .square
-        ? .vertical
-        : .square;
-
-    setAspectRatio(newRatio);
-  }
-
-  /// Set aspect ratio for recording
-  void setAspectRatio(model.AspectRatio ratio) {
-    _controller.setAspectRatio(ratio);
-    updateState();
-  }
-
-  Future<void> switchCamera() async {
-    await _cameraService.switchCamera();
-
-    // Force state update to rebuild UI with new camera preview
-    // Increment camera switch count to ensure state object changes and triggers UI rebuild
-    state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
-    updateState();
-  }
-
-  Future<void> startRecording() async {
-    // Handle timer countdown
-    if (state.timerDuration != TimerDuration.off) {
-      final seconds = state.timerDuration == .three ? 3 : 10;
-
-      for (int i = seconds; i > 0; i--) {
-        startCountdown(i);
-        await Future.delayed(const Duration(seconds: 1));
-      }
-
-      clearCountdown();
+    if (appState == .resumed) {
+      state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
+      updateState();
     }
+  }
 
-    await _controller.startRecording();
-    updateState();
+  void destroy() async {
+    _isDestroyed = true;
+    _cameraService.dispose();
   }
 
   @override
   void dispose() {
+    _cameraService.dispose();
     super.dispose();
     // Auto-save as draft if recording completed but not published
     // Note: We can't await in dispose(), so we use unawaited future
@@ -269,95 +240,123 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
         }); */
   }
 
-  /// Get the camera preview widget from the controller
-  Widget? get previewWidget =>
-      _cameraService.isInitialized ? _cameraService.previewWidget : null;
-
-  /// Get the actual camera preview aspect ratio to prevent distortion
-  /// Returns the real camera sensor aspect ratio, or defaults to 3:4 if unavailable
-  double get cameraAspectRatio {
-    // Default fallback for macOS/web or uninitialized cameras
-    return 3.0 / 4.0;
-  }
-
-  //// ----------------- DELETE FIXME:
-  final VineRecordingController _controller;
-  final Ref _ref;
-
-  // Track whether video was successfully published to prevent auto-save
-  bool _wasPublished = false;
-
-  // Track the draft ID we created in stopRecording to prevent duplicate drafts
-  String? _currentDraftId;
-
-  /// Update the state based on the current controller state
-  void updateState() {
-    state = VineRecordingUIState(
-      recordingState: _controller.state,
-      progress: _controller.progress,
-      totalRecordedDuration: _controller.totalRecordedDuration,
-      remainingDuration: _controller.remainingDuration,
-      canRecord: _controller.canRecord,
-      segments: _controller.segments,
-      hasSegments: _controller
-          .hasSegments, // CRITICAL: Use controller's hasSegments which includes virtual segments for macOS
-      segmentCount: _controller
-          .segmentCount, // CRITICAL: Use controller's segmentCount which includes virtual segments for macOS
-      isCameraInitialized: _controller.isCameraInitialized,
-      canSwitchCamera: _controller.canSwitchCamera,
-      aspectRatio: _controller.aspectRatio,
-      cameraSwitchCount:
-          state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
-      flashMode: state.flashMode,
-      timerDuration: state.timerDuration,
-      showGrid: state.showGrid,
-      countdownValue: state.countdownValue,
-      searchQuery: state.searchQuery,
-    );
-  }
-
-  // UI control methods
-
-  /// Cycle timer duration
-  void cycleTimer() {
-    final newTimer = switch (state.timerDuration) {
-      TimerDuration.off => TimerDuration.three,
-      TimerDuration.three => TimerDuration.ten,
-      TimerDuration.ten => TimerDuration.off,
+  /// Toggle flash mode between off, on, and auto
+  void toggleFlash() async {
+    final FlashMode newMode = switch (state.flashMode) {
+      .off => .torch,
+      .torch => .auto,
+      .auto => .off,
+      _ => .off,
     };
-    state = state.copyWith(timerDuration: newTimer);
+    final success = await _cameraService.setFlashMode(newMode);
+    if (!success) {
+      return;
+    }
+    state = state.copyWith(flashMode: newMode);
   }
 
-  /// Toggle grid overlay
-  void toggleGrid() {
-    state = state.copyWith(showGrid: !state.showGrid);
+  void toggleAspectRatio() {
+    final model.AspectRatio newRatio = state.aspectRatio == .square
+        ? .vertical
+        : .square;
+
+    setAspectRatio(newRatio);
   }
 
-  /// Start countdown for timer
-  void startCountdown(int value) {
-    state = state.copyWith(countdownValue: value);
+  /// Set aspect ratio for recording
+  void setAspectRatio(model.AspectRatio ratio) {
+    _controller.setAspectRatio(ratio);
+    state = state.copyWith(aspectRatio: ratio);
+    updateState();
   }
 
-  /// Update countdown value
-  void updateCountdown(int value) {
-    state = state.copyWith(countdownValue: value);
+  Future<void> switchCamera() async {
+    final success = await _cameraService.switchCamera();
+
+    if (!success) {
+      return;
+    }
+    _baseZoomLevel = 1;
+
+    // Force state update to rebuild UI with new camera preview
+    // Increment camera switch count to ensure state object changes and triggers UI rebuild
+    state = state.copyWith(
+      cameraSwitchCount: state.cameraSwitchCount + 1,
+      zoomLevel: 1,
+    );
+    updateState();
   }
 
-  /// Clear countdown
-  void clearCountdown() {
-    state = state.copyWith(countdownValue: 0);
+  Future<void> setZoomLevel(double value) async {
+    if (value > _cameraService.maxZoomLevel ||
+        value < _cameraService.minZoomLevel) {
+      return;
+    }
+
+    final success = await _cameraService.setZoomLevel(value);
+    if (!success) {
+      return;
+    }
+    state = state.copyWith(zoomLevel: value);
+    updateState();
   }
 
-  /// Update search query
-  void setSearchQuery(String query) {
-    state = state.copyWith(searchQuery: query);
+  Future<void> setFocusPoint(Offset value) async {
+    final success = await _cameraService.setFocusPoint(value);
+    if (!success) {
+      return;
+    }
+    state = state.copyWith(focusPoint: value);
+    updateState();
   }
 
-  Future<RecordingResult> stopRecording() async {
-    await _controller.stopRecording();
+  Future<void> toggleRecording() async {
+    switch (state.recordingState) {
+      case .idle:
+        startRecording();
+        break;
+      case .recording:
+        stopRecording();
+        break;
+      default:
+        // TODO: Handle other cases
+        break;
+    }
+  }
+
+  Future<void> startRecording() async {
+    _baseZoomLevel = state.zoomLevel;
+    state = state.copyWith(recordingState: .recording);
+
+    // Handle timer countdown
+    if (state.timerDuration != .off) {
+      final seconds = state.timerDuration == .three ? 3 : 10;
+
+      for (int i = seconds; i > 0; i--) {
+        if (_isDestroyed) return; // Stop countdown if disposed
+        state = state.copyWith(countdownValue: i);
+        await Future.delayed(const Duration(seconds: 1));
+      }
+      if (_isDestroyed) return; // Stop before starting recording if disposed
+      state = state.copyWith(countdownValue: 0);
+    }
+
+    if (_isDestroyed) return; // Don't start recording if disposed
+    await _cameraService.startRecording();
+    updateState();
+  }
+
+  Future<void> stopRecording() async {
+    if (!state.isRecording) return;
+
+    await _cameraService.stopRecording();
+
+    state = state.copyWith(recordingState: .idle);
+    updateState();
+    /* 
+
     final result = await _controller.finishRecording();
     updateState();
-
     Log.info(
       '🔍 PROOFMODE DEBUG: stopRecording() called',
       category: LogCategory.video,
@@ -370,7 +369,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       '🔍 Native proof: ${result.$2?.toString() ?? "NULL"}',
       category: LogCategory.video,
     );
-
     // Auto-create draft immediately after recording finishes
     if (result.$1 != null) {
       try {
@@ -450,7 +448,106 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       videoFile: null,
       draftId: null,
       nativeProof: result.$2,
+    ); */
+  }
+
+  void zoomByLongPressMove(Offset offsetFromOrigin) {
+    // Calculate upward drag distance (negative Y = upward)
+    final dragDistance = (-offsetFromOrigin.dy).clamp(-160.0, 400.0);
+
+    final zoomLevel = _baseZoomLevel + (dragDistance / 80);
+    setZoomLevel(zoomLevel);
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    _baseZoomLevel = state.zoomLevel;
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    final newZoom = (_baseZoomLevel * details.scale).clamp(
+      _cameraService.minZoomLevel,
+      _cameraService.maxZoomLevel,
     );
+
+    // Only update if change is significant to avoid excessive updates
+    if ((state.zoomLevel - newZoom).abs() > 0.01) {
+      setZoomLevel(newZoom);
+    }
+  }
+
+  /// Get the camera preview widget from the controller
+  Widget? get previewWidget => _cameraService.isInitialized
+      ? _cameraService.buildPreviewWidget(
+          onScaleStart: _handleScaleStart,
+          onScaleUpdate: _handleScaleUpdate,
+          onTapDown: (details) {},
+        )
+      : null;
+
+  /// Get the actual camera preview aspect ratio to prevent distortion
+  /// Returns the real camera sensor aspect ratio, or defaults to 3:4 if unavailable
+  double get cameraAspectRatio {
+    // Default fallback for macOS/web or uninitialized cameras
+    return 3.0 / 4.0;
+  }
+
+  //// ----------------- DELETE FIXME:
+  final VineRecordingController _controller;
+  final Ref _ref;
+
+  // Track whether video was successfully published to prevent auto-save
+  bool _wasPublished = false;
+
+  // Track the draft ID we created in stopRecording to prevent duplicate drafts
+  String? _currentDraftId;
+
+  /// Update the state based on the current controller state
+  void updateState() {
+    state = VineRecordingUIState(
+      recordingState: state.recordingState,
+      progress: _controller.progress,
+      totalRecordedDuration: _controller.totalRecordedDuration,
+      remainingDuration: _controller.remainingDuration,
+      canRecord: _cameraService.canRecord,
+      segments: _controller.segments,
+      hasSegments: _controller
+          .hasSegments, // CRITICAL: Use controller's hasSegments which includes virtual segments for macOS
+      segmentCount: _controller
+          .segmentCount, // CRITICAL: Use controller's segmentCount which includes virtual segments for macOS
+      isCameraInitialized: _cameraService.isInitialized,
+      canSwitchCamera: _cameraService.canSwitchCamera,
+      aspectRatio: state.aspectRatio,
+      cameraSwitchCount:
+          state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
+      flashMode: state.flashMode,
+      timerDuration: state.timerDuration,
+      countdownValue: state.countdownValue,
+      searchQuery: state.searchQuery,
+      zoomLevel: state.zoomLevel,
+      focusPoint: state.focusPoint,
+    );
+  }
+
+  // UI control methods
+
+  /// Cycle timer duration
+  void cycleTimer() {
+    final TimerDuration newTimer = switch (state.timerDuration) {
+      .off => .three,
+      .three => .ten,
+      .ten => .off,
+    };
+    state = state.copyWith(timerDuration: newTimer);
+  }
+
+  /// Update countdown value
+  void updateCountdown(int value) {
+    state = state.copyWith(countdownValue: value);
+  }
+
+  /// Update search query
+  void setSearchQuery(String query) {
+    state = state.copyWith(searchQuery: query);
   }
 
   /// Stop the current segment without finishing the recording.

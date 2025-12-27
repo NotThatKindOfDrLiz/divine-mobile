@@ -19,7 +19,6 @@ import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/circular_icon_button.dart';
-import 'package:openvine/widgets/dynamic_zoom_selector.dart';
 import 'package:openvine/widgets/macos_camera_preview.dart'
     show CameraPreviewPlaceholder;
 import 'package:permission_handler/permission_handler.dart';
