@@ -5,6 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:camera_macos/camera_macos.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 import 'camera_base_service.dart';
 
@@ -209,7 +210,7 @@ class CameraMacOSService extends CameraBaseService {
   }
 
   @override
-  Future<void> stopRecording() async {
+  Future<EditorVideo?> stopRecording() async {
     Log.info(
       '📷 Stopping macOS video recording',
       name: 'CameraMacOSService',
@@ -219,13 +220,13 @@ class CameraMacOSService extends CameraBaseService {
     final result = await CameraMacOS.instance.stopVideoRecording();
     _isRecording = false;
 
-    if (result == null) {
+    if (result?.bytes == null) {
       Log.warning(
         '📷 macOS video recording stopped with null result',
         name: 'CameraMacOSService',
         category: .video,
       );
-      return;
+      return null;
     }
 
     Log.info(
@@ -234,7 +235,7 @@ class CameraMacOSService extends CameraBaseService {
       category: .video,
     );
 
-    // TODO: Handle Result
+    return EditorVideo.memory(result!.bytes!);
   }
 
   @override

@@ -2,8 +2,10 @@
 // ABOUTME: Handles camera initialization, switching, recording, and lifecycle management on mobile devices
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 import 'camera_base_service.dart';
 
@@ -246,7 +248,7 @@ class CameraMobileService extends CameraBaseService {
   }
 
   @override
-  Future<void> stopRecording() async {
+  Future<EditorVideo?> stopRecording() async {
     try {
       Log.info(
         '📷 Stopping video recording',
@@ -261,14 +263,18 @@ class CameraMobileService extends CameraBaseService {
         name: 'CameraMobileService',
         category: .video,
       );
+      return EditorVideo.autoSource(
+        file: result.path,
+        byteArray: kIsWeb ? await result.readAsBytes() : null,
+      );
     } catch (e) {
       Log.error(
         '📷 Failed to stop recording: $e',
         name: 'CameraMobileService',
         category: .video,
       );
+      return null;
     }
-    // TODO: Return Result as File or uint8list for the web
   }
 
   @override

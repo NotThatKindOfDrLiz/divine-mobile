@@ -35,7 +35,7 @@ class _SegmentPreviewModalState extends State<SegmentPreviewModal> {
 
   Future<void> _initializePlayer() async {
     try {
-      final file = File(widget.clip.filePath);
+      final file = File(widget.clip.video.file!.path);
       if (!file.existsSync()) {
         setState(() {
           _errorMessage = 'Video file not found';

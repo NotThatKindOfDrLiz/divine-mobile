@@ -3,6 +3,7 @@
 
 import 'package:camera/camera.dart';
 import 'package:flutter/widgets.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 /// Base service for camera operations across different platforms.
 /// Provides a unified API for camera control, recording, and preview.
@@ -32,7 +33,7 @@ abstract class CameraBaseService {
   Future<void> startRecording();
 
   /// Stops video recording.
-  Future<void> stopRecording();
+  Future<EditorVideo?> stopRecording();
 
   /// Handles app lifecycle changes (pause, resume, etc.).
   Future<void> handleAppLifecycleState(AppLifecycleState state);

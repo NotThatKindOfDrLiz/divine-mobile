@@ -14,6 +14,8 @@ import 'package:openvine/services/video_recorder/camera/camera_base_service.dart
 import 'package:openvine/services/video_recorder/camera/camera_macos_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_mobile_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
+import 'package:openvine/services/video_thumbnail_service.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:riverpod/riverpod.dart' show Ref;
 import 'package:openvine/services/vine_recording_controller.dart'
     show
@@ -27,6 +29,7 @@ import 'package:openvine/models/vine_draft.dart';
 import 'package:models/models.dart' show NativeProofData;
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -44,19 +47,39 @@ enum TimerDuration {
       .ten => Icons.timer_10,
     };
   }
+
+  Duration get duration {
+    return switch (this) {
+      .off => Duration.zero,
+      .three => Duration(seconds: 3),
+      .ten => Duration(seconds: 10),
+    };
+  }
 }
 
 /// Result returned from stopRecording containing video file, draft ID, and native proof
 class RecordingResult {
-  const RecordingResult({
-    required this.videoFile,
-    required this.draftId,
+  RecordingResult({
+    required this.video,
+    required this.aspectRatio,
+    required this.duration,
     this.nativeProof,
+    this.draftId,
   });
 
-  final File? videoFile;
+  /// Video file (null on web platform where File is not supported)
+  final EditorVideo video;
+
+  /// Draft ID if the recording was saved as a draft
   final String? draftId;
+
+  // TODO(@hm21): Remove the native proof here. We do that after the editing
+  // is finished cuz the hash will change if anything is changed.
   final NativeProofData? nativeProof;
+
+  final model.AspectRatio? aspectRatio;
+
+  Duration duration;
 }
 
 /// State class for VineRecording that captures all necessary UI state
@@ -69,10 +92,8 @@ class VineRecordingUIState {
     required this.totalRecordedDuration,
     required this.remainingDuration,
     required this.canRecord,
-    required this.hasSegments,
     required this.isCameraInitialized,
     required this.canSwitchCamera,
-    required this.segments,
     required this.cameraSwitchCount,
     required this.countdownValue,
     required this.aspectRatio,
@@ -89,17 +110,12 @@ class VineRecordingUIState {
 
   // Booleans
   final bool canRecord;
-  // From controller.hasSegments - includes virtual segments for macOS
-  final bool hasSegments;
   final bool isCameraInitialized;
   final bool canSwitchCamera;
 
   // Double values
   final double zoomLevel;
   final double cameraSensorAspectRatio;
-
-  // List
-  final List<RecordingSegment> segments;
 
   // Integers
   final int countdownValue;
@@ -133,7 +149,6 @@ class VineRecordingUIState {
     bool? hasSegments,
     bool? isCameraInitialized,
     bool? canSwitchCamera,
-    List<RecordingSegment>? segments,
     int? cameraSwitchCount,
     int? countdownValue,
     model.AspectRatio? aspectRatio,
@@ -150,10 +165,8 @@ class VineRecordingUIState {
           totalRecordedDuration ?? this.totalRecordedDuration,
       remainingDuration: remainingDuration ?? this.remainingDuration,
       canRecord: canRecord ?? this.canRecord,
-      hasSegments: hasSegments ?? this.hasSegments,
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
-      segments: segments ?? this.segments,
       cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
       countdownValue: countdownValue ?? this.countdownValue,
       aspectRatio: aspectRatio ?? this.aspectRatio,
@@ -175,10 +188,8 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
           totalRecordedDuration: _controller.totalRecordedDuration,
           remainingDuration: _controller.remainingDuration,
           canRecord: _controller.canRecord,
-          hasSegments: _controller.hasSegments,
           isCameraInitialized: _controller.isCameraInitialized,
           canSwitchCamera: _controller.canSwitchCamera,
-          segments: _controller.segments,
           cameraSwitchCount: 0,
           countdownValue: 0,
           aspectRatio: _controller.aspectRatio,
@@ -198,6 +209,8 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   double _baseZoomLevel = 1.0;
   bool _isDestroyed = false;
   Timer? _focusPointTimer;
+  Stopwatch _recordStopwatch = Stopwatch();
+  final List<RecordingResult> _segments = [];
 
   // Delegate methods to the controller
   Future<bool> initialize({BuildContext? context}) async {
@@ -232,14 +245,17 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   void destroy() async {
     _isDestroyed = true;
+    _segments.clear();
     _focusPointTimer?.cancel();
     _cameraService.dispose();
+    _recordStopwatch.stop();
   }
 
   @override
   void dispose() {
     _focusPointTimer?.cancel();
     _cameraService.dispose();
+    _recordStopwatch.stop();
     super.dispose();
     // Auto-save as draft if recording completed but not published
     // Note: We can't await in dispose(), so we use unawaited future
@@ -374,7 +390,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
     // Handle timer countdown
     if (state.timerDuration != .off) {
-      final seconds = state.timerDuration == .three ? 3 : 10;
+      final seconds = state.timerDuration.duration.inSeconds;
 
       for (int i = seconds; i > 0; i--) {
         if (_isDestroyed) return; // Stop countdown if disposed
@@ -387,17 +403,165 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
     if (_isDestroyed) return; // Don't start recording if disposed
     await _cameraService.startRecording();
+    _recordStopwatch
+      ..reset()
+      ..start();
     updateState();
   }
 
   Future<void> stopRecording() async {
     if (!state.isRecording) return;
 
+    _recordStopwatch.stop();
+    final videoResult = await _cameraService.stopRecording();
+
+    if (videoResult == null) {
+      return;
+    }
+
+    state = state.copyWith(recordingState: .idle);
+    updateState();
+
+    final clipProvider = _ref.read(clipManagerProvider.notifier);
+
+    /// Add the recorded clip to ClipManager
+    final clip = clipProvider.addClip(
+      video: videoResult,
+      duration: Duration(microseconds: _recordStopwatch.elapsedMicroseconds),
+      aspectRatio: state.aspectRatio,
+    );
+    _recordStopwatch.reset();
+
+    /// We used the stopwatch as a temporary timer to set an expected duration.
+    /// However, we now read the exact video duration in the background and
+    /// update it.
+    final metadata = await ProVideoEditor.instance.getMetadata(videoResult);
+    clipProvider.updateClipDuration(clip.id, metadata.duration);
+
+    final thumbnailPath = await VideoThumbnailService.extractThumbnail(
+      videoPath: await videoResult.safeFilePath(),
+    );
+    if (thumbnailPath != null) {
+      clipProvider.updateThumbnail(clip.id, thumbnailPath);
+    }
+  }
+
+  void zoomByLongPressMove(Offset offsetFromOrigin) {
+    // Calculate upward drag distance (negative Y = upward)
+    final dragDistance = (-offsetFromOrigin.dy).clamp(-160.0, 400.0);
+
+    final zoomLevel = _baseZoomLevel + (dragDistance / 80);
+    setZoomLevel(zoomLevel);
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    _baseZoomLevel = state.zoomLevel;
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    final newZoom = (_baseZoomLevel * details.scale).clamp(
+      _cameraService.minZoomLevel,
+      _cameraService.maxZoomLevel,
+    );
+
+    // Only update if change is significant to avoid excessive updates
+    if ((state.zoomLevel - newZoom).abs() > 0.01) {
+      setZoomLevel(newZoom);
+    }
+  }
+
+  void _handleTapDown(
+    TapDownDetails details,
+    BoxConstraints constraints,
+  ) async {
+    final offset = Offset(
+      details.localPosition.dx / constraints.maxWidth,
+      details.localPosition.dy / constraints.maxHeight,
+    );
+    await setFocusPoint(offset);
+    await setExposurePoint(offset);
+  }
+
+  /// Get the camera preview widget from the controller
+  Widget? get previewWidget => _cameraService.isInitialized
+      ? _cameraService.buildPreviewWidget(
+          onScaleStart: _handleScaleStart,
+          onScaleUpdate: _handleScaleUpdate,
+          onTapDown: _handleTapDown,
+        )
+      : null;
+
+  void openVideoEditor() {
+    // if (!state.hasSegments) return;
+
+    /// TODO: navigate to new video-editor
+  }
+
+  void closeVideoRecorder(BuildContext context) {
+    Log.info(
+      '📹 X CANCEL - navigating away from camera',
+      category: LogCategory.video,
+    );
+    // Try to pop if possible, otherwise go home.
+    final router = GoRouter.of(context);
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      // No screen to pop to (navigated via go), go home instead.
+      context.goHome();
+    }
+  }
+
+  /// Update the state based on the current controller state
+  void updateState() {
+    state = VineRecordingUIState(
+      recordingState: state.recordingState,
+      zoomLevel: state.zoomLevel,
+      cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
+      focusPoint: state.focusPoint,
+      totalRecordedDuration: _controller.totalRecordedDuration,
+      remainingDuration: _controller.remainingDuration,
+      canRecord: _cameraService.canRecord,
+      isCameraInitialized: _cameraService.isInitialized,
+      canSwitchCamera: _cameraService.canSwitchCamera,
+      cameraSwitchCount:
+          state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
+      countdownValue: state.countdownValue,
+      aspectRatio: state.aspectRatio,
+      flashMode: state.flashMode,
+      timerDuration: state.timerDuration,
+    );
+  }
+
+  /// Cycle timer duration
+  void cycleTimer() {
+    final TimerDuration newTimer = switch (state.timerDuration) {
+      .off => .three,
+      .three => .ten,
+      .ten => .off,
+    };
+    state = state.copyWith(timerDuration: newTimer);
+  }
+
+  //// ----------------- DELETE Below FIXME: ----------------------
+  final VineRecordingController _controller;
+  final Ref _ref;
+
+  // Track whether video was successfully published to prevent auto-save
+  bool _wasPublished = false;
+
+  // Track the draft ID we created in stopRecording to prevent duplicate drafts
+  String? _currentDraftId;
+
+  // UI control methods
+
+  Future<void> oldStopRecording() async {
+    /*  if (!state.isRecording) return;
+
     await _cameraService.stopRecording();
 
     state = state.copyWith(recordingState: .idle);
     updateState();
-    /* 
 
     final result = await _controller.finishRecording();
     updateState();
@@ -493,130 +657,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       draftId: null,
       nativeProof: result.$2,
     ); */
-  }
-
-  void zoomByLongPressMove(Offset offsetFromOrigin) {
-    // Calculate upward drag distance (negative Y = upward)
-    final dragDistance = (-offsetFromOrigin.dy).clamp(-160.0, 400.0);
-
-    final zoomLevel = _baseZoomLevel + (dragDistance / 80);
-    setZoomLevel(zoomLevel);
-  }
-
-  void _handleScaleStart(ScaleStartDetails details) {
-    _baseZoomLevel = state.zoomLevel;
-  }
-
-  void _handleScaleUpdate(ScaleUpdateDetails details) {
-    final newZoom = (_baseZoomLevel * details.scale).clamp(
-      _cameraService.minZoomLevel,
-      _cameraService.maxZoomLevel,
-    );
-
-    // Only update if change is significant to avoid excessive updates
-    if ((state.zoomLevel - newZoom).abs() > 0.01) {
-      setZoomLevel(newZoom);
-    }
-  }
-
-  void _handleTapDown(
-    TapDownDetails details,
-    BoxConstraints constraints,
-  ) async {
-    final offset = Offset(
-      details.localPosition.dx / constraints.maxWidth,
-      details.localPosition.dy / constraints.maxHeight,
-    );
-    await setFocusPoint(offset);
-    await setExposurePoint(offset);
-  }
-
-  /// Get the camera preview widget from the controller
-  Widget? get previewWidget => _cameraService.isInitialized
-      ? _cameraService.buildPreviewWidget(
-          onScaleStart: _handleScaleStart,
-          onScaleUpdate: _handleScaleUpdate,
-          onTapDown: _handleTapDown,
-        )
-      : null;
-
-  /// Get the actual camera preview aspect ratio to prevent distortion
-  /// Returns the real camera sensor aspect ratio, or defaults to 3:4 if unavailable
-  double get cameraAspectRatio {
-    // Default fallback for macOS/web or uninitialized cameras
-    return 3.0 / 4.0;
-  }
-
-  void openVideoEditor() {
-    if (!state.hasSegments) return;
-
-    /// TODO: navigate to new video-editor
-  }
-
-  void closeVideoRecorder(BuildContext context) {
-    Log.info(
-      '📹 X CANCEL - navigating away from camera',
-      category: LogCategory.video,
-    );
-    // Try to pop if possible, otherwise go home.
-    final router = GoRouter.of(context);
-    if (router.canPop()) {
-      router.pop();
-    } else {
-      // No screen to pop to (navigated via go), go home instead.
-      context.goHome();
-    }
-  }
-
-  //// ----------------- DELETE FIXME:
-  final VineRecordingController _controller;
-  final Ref _ref;
-
-  // Track whether video was successfully published to prevent auto-save
-  bool _wasPublished = false;
-
-  // Track the draft ID we created in stopRecording to prevent duplicate drafts
-  String? _currentDraftId;
-
-  /// Update the state based on the current controller state
-  void updateState() {
-    state = VineRecordingUIState(
-      recordingState: state.recordingState,
-      zoomLevel: state.zoomLevel,
-      cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
-      focusPoint: state.focusPoint,
-      totalRecordedDuration: _controller.totalRecordedDuration,
-      remainingDuration: _controller.remainingDuration,
-      canRecord: _cameraService.canRecord,
-      hasSegments: _controller
-          .hasSegments, // CRITICAL: Use controller's hasSegments which includes virtual segments for macOS
-      isCameraInitialized: _cameraService.isInitialized,
-      canSwitchCamera: _cameraService.canSwitchCamera,
-      segments: _controller.segments,
-      cameraSwitchCount:
-          state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
-      countdownValue: state.countdownValue,
-      aspectRatio: state.aspectRatio,
-      flashMode: state.flashMode,
-      timerDuration: state.timerDuration,
-    );
-  }
-
-  // UI control methods
-
-  /// Cycle timer duration
-  void cycleTimer() {
-    final TimerDuration newTimer = switch (state.timerDuration) {
-      .off => .three,
-      .three => .ten,
-      .ten => .off,
-    };
-    state = state.copyWith(timerDuration: newTimer);
-  }
-
-  /// Update countdown value
-  void updateCountdown(int value) {
-    state = state.copyWith(countdownValue: value);
   }
 
   /// Stop the current segment without finishing the recording.

@@ -2,11 +2,12 @@
 // ABOUTME: Supports ordering, thumbnails, crop metadata, and JSON serialization
 
 import 'package:models/models.dart' as model show AspectRatio;
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 class RecordingClip {
   RecordingClip({
     required this.id,
-    required this.filePath,
+    required this.video,
     required this.duration,
     required this.orderIndex,
     required this.recordedAt,
@@ -16,7 +17,7 @@ class RecordingClip {
   });
 
   final String id;
-  final String filePath;
+  final EditorVideo video;
   final Duration duration;
   final int orderIndex;
   final DateTime recordedAt;
@@ -33,7 +34,7 @@ class RecordingClip {
 
   RecordingClip copyWith({
     String? id,
-    String? filePath,
+    EditorVideo? video,
     Duration? duration,
     int? orderIndex,
     DateTime? recordedAt,
@@ -43,7 +44,7 @@ class RecordingClip {
   }) {
     return RecordingClip(
       id: id ?? this.id,
-      filePath: filePath ?? this.filePath,
+      video: video ?? this.video,
       duration: duration ?? this.duration,
       orderIndex: orderIndex ?? this.orderIndex,
       recordedAt: recordedAt ?? this.recordedAt,
@@ -56,7 +57,7 @@ class RecordingClip {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'filePath': filePath,
+      'filePath': video.file?.path,
       'durationMs': duration.inMilliseconds,
       'orderIndex': orderIndex,
       'recordedAt': recordedAt.toIso8601String(),
@@ -70,7 +71,7 @@ class RecordingClip {
     final aspectRatioName = json['aspectRatio'] as String?;
     return RecordingClip(
       id: json['id'] as String,
-      filePath: json['filePath'] as String,
+      video: EditorVideo.file(json['filePath'] as String),
       duration: Duration(milliseconds: json['durationMs'] as int),
       orderIndex: json['orderIndex'] as int,
       recordedAt: DateTime.parse(json['recordedAt'] as String),

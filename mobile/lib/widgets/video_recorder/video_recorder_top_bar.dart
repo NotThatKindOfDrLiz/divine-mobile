@@ -7,6 +7,8 @@ import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
+import '../../providers/clip_manager_provider.dart';
+
 class VideoRecorderTopBar extends ConsumerWidget {
   const VideoRecorderTopBar({super.key});
 
@@ -15,7 +17,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasSegments = ref.watch(
-      vineRecordingProvider.select((state) => state.hasSegments),
+      clipManagerProvider.select((state) => state.hasClips),
     );
     final isRecording = ref.watch(
       vineRecordingProvider.select((state) => state.isRecording),

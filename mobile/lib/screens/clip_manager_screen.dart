@@ -16,6 +16,7 @@ import 'package:openvine/screens/video_editor_screen.dart';
 import 'package:openvine/services/video_export_service.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:video_player/video_player.dart';
 
 class ClipManagerScreen extends ConsumerStatefulWidget {
@@ -60,7 +61,7 @@ class _ClipManagerScreenState extends ConsumerState<ClipManagerScreen> {
 
     oldController?.dispose();
 
-    final controller = VideoPlayerController.file(File(clip.filePath));
+    final controller = VideoPlayerController.file(File(clip.video.file!.path));
     await controller.initialize();
     await controller.setLooping(true);
 
@@ -511,7 +512,7 @@ class _ClipManagerScreenState extends ConsumerState<ClipManagerScreen> {
       ref
           .read(clipManagerProvider.notifier)
           .addClip(
-            filePath: clip.filePath,
+            video: EditorVideo.file(clip.filePath),
             duration: clip.duration,
             thumbnailPath: clip.thumbnailPath,
           );
@@ -567,7 +568,7 @@ class _ClipManagerScreenState extends ConsumerState<ClipManagerScreen> {
       for (final clip in state.sortedClips) {
         final savedClip = SavedClip(
           id: clip.id,
-          filePath: clip.filePath,
+          filePath: clip.video.file!.path,
           thumbnailPath: clip.thumbnailPath,
           duration: clip.duration,
           createdAt: DateTime.now(),

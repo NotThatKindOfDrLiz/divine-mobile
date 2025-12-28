@@ -6,10 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 /// Bottom sheet for managing recording clips.
 ///
@@ -59,7 +59,7 @@ class _VideoRecorderMoreSheetState
       ref
           .read(clipManagerProvider.notifier)
           .addClip(
-            filePath: clip.filePath,
+            video: EditorVideo.file(clip.filePath),
             duration: clip.duration,
             thumbnailPath: clip.thumbnailPath,
           );
@@ -91,9 +91,7 @@ class _VideoRecorderMoreSheetState
 
   @override
   Widget build(BuildContext context) {
-    final hasSegments = ref.watch(
-      vineRecordingProvider.select((p) => p.hasSegments),
-    );
+    final hasClips = ref.watch(clipManagerProvider.select((p) => p.hasClips));
     final clipsNotifier = ref.read(clipManagerProvider.notifier);
 
     return SafeArea(
@@ -108,20 +106,20 @@ class _VideoRecorderMoreSheetState
           _buildMenuItem(
             icon: Icons.download,
             title: 'Save clip to Library',
-            enabled: hasSegments,
+            enabled: hasClips,
             onTap: clipsNotifier.saveClipToLibrary,
           ),
           _buildMenuItem(
             icon: Icons.undo,
             title: 'Remove last clip',
-            enabled: hasSegments,
+            enabled: hasClips,
             onTap: clipsNotifier.removeLastClip,
             color: const Color(0xFFF44336),
           ),
           _buildMenuItem(
             icon: Icons.delete_outline,
             title: 'Clear all clips',
-            enabled: hasSegments,
+            enabled: hasClips,
             onTap: clipsNotifier.clearAll,
             color: const Color(0xFFF44336),
           ),

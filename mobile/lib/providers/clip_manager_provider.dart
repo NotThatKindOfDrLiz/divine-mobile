@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/clip_manager_state.dart';
+import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/services/clip_manager_service.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 final clipManagerServiceProvider = Provider<ClipManagerService>((ref) {
   final service = ClipManagerService();
@@ -31,15 +33,15 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
     state = state.copyWith(clips: _service.clips);
   }
 
-  void addClip({
-    required String filePath,
+  RecordingClip addClip({
+    required EditorVideo video,
     required Duration duration,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
     bool needsCrop = false,
   }) {
-    _service.addClip(
-      filePath: filePath,
+    return _service.addClip(
+      video: video,
       duration: duration,
       thumbnailPath: thumbnailPath,
       aspectRatio: aspectRatio,
@@ -57,6 +59,10 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
 
   void updateThumbnail(String clipId, String thumbnailPath) {
     _service.updateThumbnail(clipId, thumbnailPath);
+  }
+
+  void updateClipDuration(String clipId, Duration duration) {
+    _service.updateClipDuration(clipId, duration);
   }
 
   void selectClip(String? clipId) {

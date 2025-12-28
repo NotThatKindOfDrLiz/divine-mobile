@@ -75,7 +75,7 @@ class VideoExportService {
         name: 'VideoExportService',
         category: LogCategory.system,
       );
-      return clips.first.filePath;
+      return await clips.first.video.safeFilePath();
     }
 
     try {
@@ -95,7 +95,7 @@ class VideoExportService {
         ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
       final videoSegments = sortedClips.map((clip) {
-        return VideoSegment(video: EditorVideo.file(clip.filePath));
+        return VideoSegment(video: clip.video);
       }).toList();
 
       ExportTransform? renderTransform;

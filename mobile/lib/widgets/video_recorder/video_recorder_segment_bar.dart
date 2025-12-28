@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 
 /// Displays a horizontal bar showing recording segments.
@@ -16,10 +16,10 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final recordSegments = ref.watch(
-      vineRecordingProvider.select((state) => state.segments),
+      clipManagerProvider.select((state) => state.clips),
     );
 
-    const maxDuration = Duration(milliseconds: 6300);
+    const maxDuration = Duration(milliseconds: 6_300);
     const dividerWidth = 2.0;
 
     // Track used duration to ignore overflow segments

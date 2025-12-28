@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 class ClipManagerService extends ChangeNotifier {
   final List<RecordingClip> _clips = [];
@@ -29,8 +30,8 @@ class ClipManagerService extends ChangeNotifier {
 
   bool get canRecordMore => remainingDuration > Duration.zero;
 
-  void addClip({
-    required String filePath,
+  RecordingClip addClip({
+    required EditorVideo video,
     required Duration duration,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
@@ -38,7 +39,7 @@ class ClipManagerService extends ChangeNotifier {
   }) {
     final clip = RecordingClip(
       id: 'clip_${DateTime.now().millisecondsSinceEpoch}_${_clipCounter++}',
-      filePath: filePath,
+      video: video,
       duration: duration,
       orderIndex: _clips.length,
       recordedAt: DateTime.now(),
@@ -53,6 +54,8 @@ class ClipManagerService extends ChangeNotifier {
       name: 'ClipManagerService',
     );
     notifyListeners();
+
+    return clip;
   }
 
   void deleteClip(String clipId) {
@@ -92,6 +95,14 @@ class ClipManagerService extends ChangeNotifier {
     final index = _clips.indexWhere((c) => c.id == clipId);
     if (index != -1) {
       _clips[index] = _clips[index].copyWith(thumbnailPath: thumbnailPath);
+      notifyListeners();
+    }
+  }
+
+  void updateClipDuration(String clipId, Duration duration) {
+    final index = _clips.indexWhere((c) => c.id == clipId);
+    if (index != -1) {
+      _clips[index] = _clips[index].copyWith(duration: duration);
       notifyListeners();
     }
   }

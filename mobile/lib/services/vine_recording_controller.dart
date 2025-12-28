@@ -1554,7 +1554,7 @@ class VineRecordingController {
           final exportService = VideoExportService();
           final tempClip = RecordingClip(
             id: 'temp_segment_$i',
-            filePath: segment.filePath!,
+            video: EditorVideo.file(segment.filePath!),
             duration: segment.duration,
             orderIndex: 0,
             recordedAt: segment.startTime,
@@ -1648,7 +1648,7 @@ class VineRecordingController {
               final exportService = VideoExportService();
               final tempClip = RecordingClip(
                 id: 'temp_macos_fallback',
-                filePath: recordingPath,
+                video: EditorVideo.file(recordingPath),
                 duration: Duration.zero, // Unknown duration
                 orderIndex: 0,
                 recordedAt: DateTime.now(),
@@ -1725,7 +1725,7 @@ class VineRecordingController {
             final exportService = VideoExportService();
             final tempClip = RecordingClip(
               id: 'temp_single_segment',
-              filePath: file.path,
+              video: EditorVideo.file(file.path),
               duration: _segments.first.duration,
               orderIndex: 0,
               recordedAt: _segments.first.startTime,
@@ -1762,7 +1762,7 @@ class VineRecordingController {
               .map(
                 (entry) => RecordingClip(
                   id: 'segment_${entry.key}',
-                  filePath: entry.value.filePath!,
+                  video: EditorVideo.file(entry.value.filePath!),
                   duration: entry.value.duration,
                   orderIndex: entry.key,
                   recordedAt: entry.value.startTime,
