@@ -5,14 +5,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
-import 'package:openvine/services/video_recorder/camera/camera_macos_service.dart';
-import 'package:openvine/services/video_recorder/camera/camera_mobile_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -40,23 +37,20 @@ enum TimerDuration {
   three,
   ten;
 
-  IconData get icon {
-    return switch (this) {
-      .off => Icons.timer,
-      .three => Icons.timer_3,
-      .ten => Icons.timer_10,
-    };
-  }
+  IconData get icon => switch (this) {
+    .off => Icons.timer,
+    .three => Icons.timer_3,
+    .ten => Icons.timer_10,
+  };
 
-  Duration get duration {
-    return switch (this) {
-      .off => Duration.zero,
-      .three => Duration(seconds: 3),
-      .ten => Duration(seconds: 10),
-    };
-  }
+  Duration get duration => switch (this) {
+    .off => Duration.zero,
+    .three => Duration(seconds: 3),
+    .ten => Duration(seconds: 10),
+  };
 }
 
+// TODO(@hm21): Delete class below
 /// Result returned from stopRecording containing video file, draft ID, and native proof
 class RecordingResult {
   RecordingResult({
@@ -73,8 +67,6 @@ class RecordingResult {
   /// Draft ID if the recording was saved as a draft
   final String? draftId;
 
-  // TODO(@hm21): Remove the native proof here. We do that after the editing
-  // is finished cuz the hash will change if anything is changed.
   final NativeProofData? nativeProof;
 
   final model.AspectRatio? aspectRatio;
@@ -85,28 +77,22 @@ class RecordingResult {
 /// State class for VineRecording that captures all necessary UI state
 class VineRecordingUIState {
   const VineRecordingUIState({
-    required this.recordingState,
-    required this.zoomLevel,
-    required this.cameraSensorAspectRatio,
-    required this.focusPoint,
-    required this.totalRecordedDuration,
-    required this.remainingDuration,
-    required this.canRecord,
-    required this.isCameraInitialized,
-    required this.canSwitchCamera,
-    required this.cameraSwitchCount,
-    required this.countdownValue,
-    required this.aspectRatio,
-    required this.flashMode,
-    required this.timerDuration,
+    this.recordingState = .idle,
+    this.zoomLevel = 1.0,
+    this.cameraSensorAspectRatio = 1.0,
+    this.focusPoint = .zero,
+    this.canRecord = false,
+    this.isCameraInitialized = false,
+    this.canSwitchCamera = false,
+    this.cameraSwitchCount = 0,
+    this.countdownValue = 0,
+    this.aspectRatio = .vertical,
+    this.flashMode = .auto,
+    this.timerDuration = .off,
   });
 
   // Offset
   final Offset focusPoint;
-
-  // Durations
-  final Duration totalRecordedDuration;
-  final Duration remainingDuration;
 
   // Booleans
   final bool canRecord;
@@ -135,7 +121,6 @@ class VineRecordingUIState {
       recordingState != .processing &&
       recordingState != .error;
   bool get isError => recordingState == .error;
-  Duration get recordingDuration => totalRecordedDuration;
   String? get errorMessage => isError ? 'Recording error occurred' : null;
 
   VineRecordingUIState copyWith({
@@ -143,8 +128,6 @@ class VineRecordingUIState {
     double? zoomLevel,
     double? cameraSensorAspectRatio,
     Offset? focusPoint,
-    Duration? totalRecordedDuration,
-    Duration? remainingDuration,
     bool? canRecord,
     bool? hasSegments,
     bool? isCameraInitialized,
@@ -161,9 +144,6 @@ class VineRecordingUIState {
       cameraSensorAspectRatio:
           cameraSensorAspectRatio ?? this.cameraSensorAspectRatio,
       focusPoint: focusPoint ?? this.focusPoint,
-      totalRecordedDuration:
-          totalRecordedDuration ?? this.totalRecordedDuration,
-      remainingDuration: remainingDuration ?? this.remainingDuration,
       canRecord: canRecord ?? this.canRecord,
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
@@ -178,39 +158,15 @@ class VineRecordingUIState {
 
 /// StateNotifier that wraps VineRecordingController and provides reactive updates
 class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
-  VineRecordingNotifier(this._controller, this._ref)
-    : super(
-        VineRecordingUIState(
-          recordingState: _controller.state,
-          zoomLevel: 1.0,
-          cameraSensorAspectRatio: 1.0,
-          focusPoint: Offset.zero,
-          totalRecordedDuration: _controller.totalRecordedDuration,
-          remainingDuration: _controller.remainingDuration,
-          canRecord: _controller.canRecord,
-          isCameraInitialized: _controller.isCameraInitialized,
-          canSwitchCamera: _controller.canSwitchCamera,
-          cameraSwitchCount: 0,
-          countdownValue: 0,
-          aspectRatio: _controller.aspectRatio,
-          flashMode: FlashMode.auto,
-          timerDuration: TimerDuration.off,
-        ),
-      ) {
-    // Set up callback for recording progress updates
-    _controller.setStateChangeCallback(updateState);
-
-    _cameraService = !kIsWeb && Platform.isMacOS
-        ? CameraMacOSService()
-        : CameraMobileService();
+  VineRecordingNotifier(this._ref) : super(VineRecordingUIState()) {
+    _cameraService = CameraService.create();
   }
 
-  late final CameraBaseService _cameraService;
+  late final CameraService _cameraService;
+  Timer? _focusPointTimer;
+
   double _baseZoomLevel = 1.0;
   bool _isDestroyed = false;
-  Timer? _focusPointTimer;
-  Stopwatch _recordStopwatch = Stopwatch();
-  final List<RecordingResult> _segments = [];
 
   // Delegate methods to the controller
   Future<bool> initialize({BuildContext? context}) async {
@@ -229,7 +185,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       cameraSwitchCount: state.cameraSwitchCount + 1,
       countdownValue: 0,
     );
-    updateState();
 
     return true;
   }
@@ -239,23 +194,19 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
     if (appState == .resumed) {
       state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
-      updateState();
     }
   }
 
   void destroy() async {
     _isDestroyed = true;
-    _segments.clear();
     _focusPointTimer?.cancel();
     _cameraService.dispose();
-    _recordStopwatch.stop();
   }
 
   @override
   void dispose() {
     _focusPointTimer?.cancel();
     _cameraService.dispose();
-    _recordStopwatch.stop();
     super.dispose();
     // Auto-save as draft if recording completed but not published
     // Note: We can't await in dispose(), so we use unawaited future
@@ -311,7 +262,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   void setAspectRatio(model.AspectRatio ratio) {
     _controller.setAspectRatio(ratio);
     state = state.copyWith(aspectRatio: ratio);
-    updateState();
   }
 
   Future<void> switchCamera() async {
@@ -328,7 +278,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       cameraSwitchCount: state.cameraSwitchCount + 1,
       zoomLevel: 1,
     );
-    updateState();
   }
 
   Future<void> setZoomLevel(double value) async {
@@ -342,7 +291,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       return;
     }
     state = state.copyWith(zoomLevel: value);
-    updateState();
   }
 
   Future<void> setFocusPoint(Offset value) async {
@@ -355,7 +303,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     _focusPointTimer?.cancel();
 
     state = state.copyWith(focusPoint: value);
-    updateState();
 
     // Hide focus point after 1.5 seconds
     _focusPointTimer = Timer(const Duration(milliseconds: 800), () {
@@ -403,34 +350,29 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
     if (_isDestroyed) return; // Don't start recording if disposed
     await _cameraService.startRecording();
-    _recordStopwatch
-      ..reset()
-      ..start();
-    updateState();
+    _ref.read(clipManagerProvider.notifier)..startRecording();
   }
 
   Future<void> stopRecording() async {
     if (!state.isRecording) return;
 
-    _recordStopwatch.stop();
+    final clipProvider = _ref.read(clipManagerProvider.notifier);
+
+    clipProvider.stopRecording();
     final videoResult = await _cameraService.stopRecording();
 
     if (videoResult == null) {
       return;
     }
 
+    clipProvider.resetRecording();
     state = state.copyWith(recordingState: .idle);
-    updateState();
-
-    final clipProvider = _ref.read(clipManagerProvider.notifier);
 
     /// Add the recorded clip to ClipManager
     final clip = clipProvider.addClip(
       video: videoResult,
-      duration: Duration(microseconds: _recordStopwatch.elapsedMicroseconds),
       aspectRatio: state.aspectRatio,
     );
-    _recordStopwatch.reset();
 
     /// We used the stopwatch as a temporary timer to set an expected duration.
     /// However, we now read the exact video duration in the background and
@@ -519,8 +461,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       zoomLevel: state.zoomLevel,
       cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
       focusPoint: state.focusPoint,
-      totalRecordedDuration: _controller.totalRecordedDuration,
-      remainingDuration: _controller.remainingDuration,
       canRecord: _cameraService.canRecord,
       isCameraInitialized: _cameraService.isInitialized,
       canSwitchCamera: _cameraService.canSwitchCamera,
@@ -544,7 +484,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   }
 
   //// ----------------- DELETE Below FIXME: ----------------------
-  final VineRecordingController _controller;
+  VineRecordingController _controller = VineRecordingController();
   final Ref _ref;
 
   // Track whether video was successfully published to prevent auto-save
@@ -880,8 +820,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 final vineRecordingProvider =
     StateNotifierProvider<VineRecordingNotifier, VineRecordingUIState>((ref) {
       // Create recording controller (ProofMode handled by Guardian Project native library)
-      final controller = VineRecordingController();
-      final notifier = VineRecordingNotifier(controller, ref);
+      final notifier = VineRecordingNotifier(ref);
 
       ref.onDispose(() {
         notifier.dispose();

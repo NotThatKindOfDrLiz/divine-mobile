@@ -9,10 +9,10 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 
 import 'camera_base_service.dart';
 
-/// Mobile implementation of [CameraBaseService] using the camera package.
+/// Mobile implementation of [CameraService] using the camera package.
 ///
 /// Manages camera initialization, recording, and switching between front/back cameras.
-class CameraMobileService extends CameraBaseService {
+class CameraMobileService extends CameraService {
   late CameraController _controller;
 
   List<CameraDescription>? _cameras;

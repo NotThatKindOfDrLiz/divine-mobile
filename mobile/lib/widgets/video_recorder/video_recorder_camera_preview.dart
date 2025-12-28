@@ -70,7 +70,7 @@ class _VideoRecorderCameraPreviewState
                           // TODO (@hm21): Add a skeleton to the camera view
                           // that appears when the user switches cameras until
                           // the other camera loads.
-                          ColoredBox(color: const Color(0xFF141414)),
+                          Container(color: const Color(0xFF141414)),
                           ?previewWidget,
                           const VideoRecorderFocusPoint(),
                         ],

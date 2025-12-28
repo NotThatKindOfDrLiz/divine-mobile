@@ -1,13 +1,30 @@
 // ABOUTME: Base service for camera operations across different platforms
 // ABOUTME: Provides unified API for camera control, recording, and preview
 
+import 'dart:io';
+
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:openvine/services/video_recorder/camera/camera_macos_service.dart';
+import 'package:openvine/services/video_recorder/camera/camera_mobile_service.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
 /// Base service for camera operations across different platforms.
 /// Provides a unified API for camera control, recording, and preview.
-abstract class CameraBaseService {
+abstract class CameraService {
+  /// Factory constructor that returns the appropriate camera service
+  /// implementation based on the current platform.
+  factory CameraService.create() {
+    if (!kIsWeb && Platform.isMacOS) {
+      return CameraMacOSService();
+    }
+    return CameraMobileService();
+  }
+
+  /// Protected constructor for subclasses
+  CameraService();
+
   /// Initializes the camera and prepares it for use.
   Future<void> initialize();
 

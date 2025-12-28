@@ -9,10 +9,10 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 
 import 'camera_base_service.dart';
 
-/// macOS implementation of [CameraBaseService] using the camera_macos package.
+/// macOS implementation of [CameraService] using the camera_macos package.
 ///
 /// Manages video and audio devices, recording, and camera switching on macOS.
-class CameraMacOSService extends CameraBaseService {
+class CameraMacOSService extends CameraService {
   late final List<CameraMacOSDevice> _videoDevices;
   late final List<CameraMacOSDevice> _audioDevices;
 

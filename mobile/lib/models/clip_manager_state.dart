@@ -12,6 +12,7 @@ class ClipManagerState {
     this.isProcessing = false,
     this.errorMessage,
     this.muteOriginalAudio = false,
+    this.activeRecordingDuration = .zero,
   });
 
   final List<RecordingClip> clips;
@@ -21,8 +22,9 @@ class ClipManagerState {
   final bool isProcessing;
   final String? errorMessage;
   final bool muteOriginalAudio;
+  final Duration activeRecordingDuration;
 
-  static const Duration maxDuration = Duration(milliseconds: 6300);
+  static const Duration maxDuration = Duration(milliseconds: 6_300);
 
   Duration get totalDuration {
     return clips.fold(Duration.zero, (sum, clip) => sum + clip.duration);
@@ -74,6 +76,7 @@ class ClipManagerState {
     bool clearSelection = false,
     bool clearPreview = false,
     bool clearError = false,
+    Duration? activeRecordingDuration,
   }) {
     return ClipManagerState(
       clips: clips ?? this.clips,
@@ -87,6 +90,8 @@ class ClipManagerState {
       isProcessing: isProcessing ?? this.isProcessing,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       muteOriginalAudio: muteOriginalAudio ?? this.muteOriginalAudio,
+      activeRecordingDuration:
+          activeRecordingDuration ?? this.activeRecordingDuration,
     );
   }
 }

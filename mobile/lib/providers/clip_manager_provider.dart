@@ -1,6 +1,8 @@
 // ABOUTME: Riverpod provider for Clip Manager state management
 // ABOUTME: Wraps ClipManagerService with reactive state updates
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:models/models.dart' as model show AspectRatio;
@@ -27,22 +29,57 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
     _updateState();
   }
 
+  Timer? _recordingDurationTimer;
+  Stopwatch _recordStopwatch = Stopwatch();
+
   final ClipManagerService _service;
 
+  void startRecording() {
+    _recordStopwatch
+      ..reset()
+      ..start();
+
+    // Start timer to update activeRecordingDuration
+    _recordingDurationTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) {
+        if (_recordStopwatch.isRunning) {
+          state = state.copyWith(
+            activeRecordingDuration: _recordStopwatch.elapsed,
+          );
+        }
+      },
+    );
+  }
+
+  void stopRecording() {
+    _recordStopwatch.stop();
+    _recordingDurationTimer?.cancel();
+  }
+
+  void resetRecording() {
+    _recordStopwatch.reset();
+  }
+
   void _updateState() {
-    state = state.copyWith(clips: _service.clips);
+    state = state.copyWith(
+      clips: _service.clips,
+      activeRecordingDuration: .zero,
+    );
   }
 
   RecordingClip addClip({
     required EditorVideo video,
-    required Duration duration,
+    Duration? duration,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
     bool needsCrop = false,
   }) {
     return _service.addClip(
       video: video,
-      duration: duration,
+      duration:
+          duration ??
+          Duration(microseconds: _recordStopwatch.elapsedMicroseconds),
       thumbnailPath: thumbnailPath,
       aspectRatio: aspectRatio,
       needsCrop: needsCrop,
@@ -110,7 +147,9 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
 
   @override
   void dispose() {
+    _recordStopwatch.stop();
     _service.removeListener(_updateState);
+    _recordingDurationTimer?.cancel();
     super.dispose();
   }
 }
