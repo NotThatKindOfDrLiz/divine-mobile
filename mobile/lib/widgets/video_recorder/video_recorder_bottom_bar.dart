@@ -30,6 +30,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(vineRecordingProvider.notifier);
     final isRecording = ref.watch(
       vineRecordingProvider.select((p) => p.isRecording),
     );
@@ -43,7 +44,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           alignment: .bottomCenter,
           children: [
             /// Record button
-            _buildRecordButton(ref, isRecording),
+            _buildRecordButton(notifier, isRecording),
 
             /// BottomBar
             Stack(
@@ -62,7 +63,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                   ),
                   child: isRecording
                       ? const SizedBox.shrink()
-                      : _buildActionButtons(context, ref),
+                      : _buildActionButtons(context, notifier, ref),
                 ),
 
                 /// Helper widget which create a inner radius for the camera
@@ -87,19 +88,17 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   }
 
   /// Build record button
-  Widget _buildRecordButton(WidgetRef ref, bool isRecording) {
+  Widget _buildRecordButton(VineRecordingNotifier notifier, bool isRecording) {
     return Align(
       alignment: .bottomCenter,
       child: GestureDetector(
-        onTap: ref.read(vineRecordingProvider.notifier).toggleRecording,
-        onLongPressStart: (_) =>
-            ref.read(vineRecordingProvider.notifier).startRecording(),
+        onTap: notifier.toggleRecording,
+        onLongPressStart: (_) => notifier.startRecording(),
         onLongPressMoveUpdate: isRecording
-            ? (details) => ref
-                  .read(vineRecordingProvider.notifier)
-                  .zoomByLongPressMove(details.localOffsetFromOrigin)
+            ? (details) =>
+                  notifier.zoomByLongPressMove(details.localOffsetFromOrigin)
             : null,
-        onLongPressUp: ref.read(vineRecordingProvider.notifier).stopRecording,
+        onLongPressUp: notifier.stopRecording,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
           margin: const .only(bottom: _bottomBarHeight + 20),
@@ -127,7 +126,11 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   }
 
   /// Build the action buttons
-  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+  Widget _buildActionButtons(
+    BuildContext context,
+    VineRecordingNotifier notifier,
+    WidgetRef ref,
+  ) {
     final flashMode = ref.watch(
       vineRecordingProvider.select((p) => p.flashMode),
     );
@@ -148,13 +151,13 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flash toggle
           _buildControlButton(
             icon: _getFlashIcon(flashMode),
-            onPressed: ref.read(vineRecordingProvider.notifier).toggleFlash,
+            onPressed: notifier.toggleFlash,
           ),
 
           // Timer toggle
           _buildControlButton(
             icon: timerDuration.icon,
-            onPressed: ref.read(vineRecordingProvider.notifier).cycleTimer,
+            onPressed: notifier.cycleTimer,
           ),
 
           // Aspect-Ratio
@@ -170,7 +173,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flip camera
           _buildControlButton(
             icon: Icons.cached_rounded,
-            onPressed: ref.read(vineRecordingProvider.notifier).switchCamera,
+            onPressed: notifier.switchCamera,
           ),
 
           // More options

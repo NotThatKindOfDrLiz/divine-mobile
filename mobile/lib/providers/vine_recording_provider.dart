@@ -265,8 +265,10 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
         }); */
   }
 
-  /// Toggle flash mode between off, on, and auto
-  void toggleFlash() async {
+  /// Toggle flash mode between `off`, `torch`, and `auto`.
+  ///
+  /// Returns `true` if flash mode was successfully changed, `false` otherwise.
+  Future<bool> toggleFlash() async {
     final FlashMode newMode = switch (state.flashMode) {
       .off => .torch,
       .torch => .auto,
@@ -275,9 +277,10 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     };
     final success = await _cameraService.setFlashMode(newMode);
     if (!success) {
-      return;
+      return false;
     }
     state = state.copyWith(flashMode: newMode);
+    return true;
   }
 
   void toggleAspectRatio() {
