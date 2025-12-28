@@ -44,7 +44,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           alignment: .bottomCenter,
           children: [
             /// Record button
-            _buildRecordButton(notifier, isRecording),
+            _buildRecordButton(ref, isRecording),
 
             /// BottomBar
             Stack(
@@ -88,17 +88,25 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   }
 
   /// Build record button
-  Widget _buildRecordButton(VineRecordingNotifier notifier, bool isRecording) {
+  Widget _buildRecordButton(WidgetRef ref, bool isRecording) {
+    final notifier = ref.read(vineRecordingProvider.notifier);
+    final timerDuration = ref.watch(
+      vineRecordingProvider.select((p) => p.timerDuration),
+    );
+    final isLongPressSupported = timerDuration == .off;
+
     return Align(
       alignment: .bottomCenter,
       child: GestureDetector(
         onTap: notifier.toggleRecording,
-        onLongPressStart: (_) => notifier.startRecording(),
-        onLongPressMoveUpdate: isRecording
+        onLongPressStart: isLongPressSupported
+            ? (_) => notifier.startRecording()
+            : null,
+        onLongPressMoveUpdate: isRecording && isLongPressSupported
             ? (details) =>
                   notifier.zoomByLongPressMove(details.localOffsetFromOrigin)
             : null,
-        onLongPressUp: notifier.stopRecording,
+        onLongPressUp: isLongPressSupported ? notifier.stopRecording : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 100),
           margin: const .only(bottom: _bottomBarHeight + 20),
