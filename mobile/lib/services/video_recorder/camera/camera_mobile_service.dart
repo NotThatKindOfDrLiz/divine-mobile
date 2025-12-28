@@ -89,9 +89,19 @@ class CameraMobileService extends CameraBaseService {
   Future<bool> setFlashMode(FlashMode mode) async {
     if (!isInitialized) return false;
     try {
+      Log.info(
+        '📷 Setting flash mode to ${mode.name}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       await _controller.setFlashMode(mode);
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to set flash mode: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -100,9 +110,40 @@ class CameraMobileService extends CameraBaseService {
   Future<bool> setFocusPoint(Offset offset) async {
     if (!isInitialized) return false;
     try {
+      Log.info(
+        '📷 Setting focus point to (${offset.dx}, ${offset.dy})',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       await _controller.setFocusPoint(offset);
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to set focus point: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> setExposurePoint(Offset offset) async {
+    if (!isInitialized) return false;
+    try {
+      Log.info(
+        '📷 Setting exposure point to (${offset.dx}, ${offset.dy})',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      await _controller.setExposurePoint(offset);
+      return true;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to set exposure point: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -111,9 +152,19 @@ class CameraMobileService extends CameraBaseService {
   Future<bool> setZoomLevel(double value) async {
     if (!isInitialized) return false;
     try {
+      Log.info(
+        '📷 Setting zoom level to $value',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       await _controller.setZoomLevel(value);
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to set zoom level: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -251,7 +302,8 @@ class CameraMobileService extends CameraBaseService {
   Widget buildPreviewWidget({
     required Function(ScaleStartDetails details) onScaleStart,
     required Function(ScaleUpdateDetails details) onScaleUpdate,
-    required Function(TapDownDetails details) onTapDown,
+    required Function(TapDownDetails details, BoxConstraints constraints)
+    onTapDown,
   }) {
     return CameraPreview(
       _controller,
@@ -261,7 +313,7 @@ class CameraMobileService extends CameraBaseService {
             behavior: HitTestBehavior.translucent,
             onScaleStart: onScaleStart,
             onScaleUpdate: onScaleUpdate,
-            onTapDown: onTapDown,
+            onTapDown: (details) => onTapDown(details, constraints),
           );
         },
       ),

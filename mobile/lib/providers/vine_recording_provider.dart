@@ -1,6 +1,7 @@
 // ABOUTME: Riverpod state management for VineRecordingController
 // ABOUTME: Provides reactive state updates for recording UI without ChangeNotifier
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
@@ -196,6 +197,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   late final CameraBaseService _cameraService;
   double _baseZoomLevel = 1.0;
   bool _isDestroyed = false;
+  Timer? _focusPointTimer;
 
   // Delegate methods to the controller
   Future<bool> initialize({BuildContext? context}) async {
@@ -230,11 +232,13 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   void destroy() async {
     _isDestroyed = true;
+    _focusPointTimer?.cancel();
     _cameraService.dispose();
   }
 
   @override
   void dispose() {
+    _focusPointTimer?.cancel();
     _cameraService.dispose();
     super.dispose();
     // Auto-save as draft if recording completed but not published
@@ -327,8 +331,24 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     if (!success) {
       return;
     }
+
+    // Cancel previous timer if exists
+    _focusPointTimer?.cancel();
+
     state = state.copyWith(focusPoint: value);
     updateState();
+
+    // Hide focus point after 1.5 seconds
+    _focusPointTimer = Timer(const Duration(milliseconds: 800), () {
+      if (!_isDestroyed && mounted) {
+        state = state.copyWith(focusPoint: .zero);
+        _focusPointTimer = null;
+      }
+    });
+  }
+
+  Future<void> setExposurePoint(Offset value) async {
+    await _cameraService.setExposurePoint(value);
   }
 
   Future<void> toggleRecording() async {
@@ -496,12 +516,24 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     }
   }
 
+  void _handleTapDown(
+    TapDownDetails details,
+    BoxConstraints constraints,
+  ) async {
+    final offset = Offset(
+      details.localPosition.dx / constraints.maxWidth,
+      details.localPosition.dy / constraints.maxHeight,
+    );
+    await setFocusPoint(offset);
+    await setExposurePoint(offset);
+  }
+
   /// Get the camera preview widget from the controller
   Widget? get previewWidget => _cameraService.isInitialized
       ? _cameraService.buildPreviewWidget(
           onScaleStart: _handleScaleStart,
           onScaleUpdate: _handleScaleUpdate,
-          onTapDown: (details) {},
+          onTapDown: _handleTapDown,
         )
       : null;
 

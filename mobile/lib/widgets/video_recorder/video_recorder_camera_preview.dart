@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
 /// Displays the camera preview with animated aspect ratio changes.
 ///
@@ -24,22 +25,6 @@ class VideoRecorderCameraPreview extends ConsumerStatefulWidget {
 
 class _VideoRecorderCameraPreviewState
     extends ConsumerState<VideoRecorderCameraPreview> {
-  /// Handles tap gestures to set camera focus point.
-  ///
-  /// Converts tap position to normalized coordinates (0.0-1.0) for the camera.
-  void _handleTapFocus(TapUpDetails details) {
-    // TODO: Fix below
-    final renderBox = context.findRenderObject() as RenderBox;
-    final localPosition = renderBox.globalToLocal(details.globalPosition);
-    final size = renderBox.size;
-
-    // Convert to normalized coordinates (0.0 - 1.0)
-    final dx = (localPosition.dx / size.width).clamp(0.0, 1.0);
-    final dy = (localPosition.dy / size.height).clamp(0.0, 1.0);
-
-    ref.read(vineRecordingProvider.notifier).setFocusPoint(Offset(dx, dy));
-  }
-
   @override
   Widget build(BuildContext context) {
     final notifier = ref.read(vineRecordingProvider.notifier);
@@ -74,25 +59,21 @@ class _VideoRecorderCameraPreviewState
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  GestureDetector(
-                    onTapUp: _handleTapFocus,
-                    child: FittedBox(
-                      fit: .cover,
-                      child: SizedBox(
-                        key: ValueKey(
-                          'Video-Recorder-Camera-$cameraSwitchCount',
-                        ),
-                        width: 100 / cameraSensorAspectRatio,
-                        height: 100,
-                        child: Stack(
-                          children: [
-                            // TODO (@hm21): Add a skeleton to the camera view
-                            // that appears when the user switches cameras until
-                            // the other camera loads.
-                            Container(color: const Color(0xFF141414)),
-                            ?previewWidget,
-                          ],
-                        ),
+                  FittedBox(
+                    fit: .cover,
+                    child: SizedBox(
+                      key: ValueKey('Video-Recorder-Camera-$cameraSwitchCount'),
+                      width: 100 / cameraSensorAspectRatio,
+                      height: 100,
+                      child: Stack(
+                        children: [
+                          // TODO (@hm21): Add a skeleton to the camera view
+                          // that appears when the user switches cameras until
+                          // the other camera loads.
+                          ColoredBox(color: const Color(0xFF141414)),
+                          ?previewWidget,
+                          const VideoRecorderFocusPoint(),
+                        ],
                       ),
                     ),
                   ),

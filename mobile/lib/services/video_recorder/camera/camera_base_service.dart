@@ -19,6 +19,9 @@ abstract class CameraBaseService {
   /// Sets the focus point in normalized coordinates (0.0-1.0).
   Future<bool> setFocusPoint(Offset offset);
 
+  /// Sets the exposure point in normalized coordinates (0.0-1.0).
+  Future<bool> setExposurePoint(Offset offset);
+
   /// Sets the zoom level. Returns true if successful.
   Future<bool> setZoomLevel(double value);
 
@@ -59,6 +62,7 @@ abstract class CameraBaseService {
   Widget buildPreviewWidget({
     required Function(ScaleStartDetails details) onScaleStart,
     required Function(ScaleUpdateDetails details) onScaleUpdate,
-    required Function(TapDownDetails details) onTapDown,
+    required Function(TapDownDetails details, BoxConstraints constraints)
+    onTapDown,
   });
 }

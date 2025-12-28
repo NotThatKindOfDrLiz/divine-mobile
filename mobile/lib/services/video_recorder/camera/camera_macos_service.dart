@@ -53,6 +53,7 @@ class CameraMacOSService extends CameraBaseService {
     );
 
     await _initializeCameraController();
+    _isInitialized = true;
 
     Log.info(
       '📷 macOS camera initialized (${_videoDevices.length} video, ${_audioDevices.length} audio devices)',
@@ -76,9 +77,19 @@ class CameraMacOSService extends CameraBaseService {
   Future<bool> setFlashMode(FlashMode mode) async {
     if (!isInitialized) return false;
     try {
+      Log.info(
+        '📷 Setting torch mode to ${mode.name}',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       await CameraMacOS.instance.toggleTorch(_getTorchMode(mode));
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to set torch mode: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -87,20 +98,51 @@ class CameraMacOSService extends CameraBaseService {
   Future<bool> setFocusPoint(Offset offset) async {
     if (!isInitialized) return false;
     try {
+      Log.info(
+        '📷 Setting focus point to (${offset.dx}, ${offset.dy})',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       await CameraMacOS.instance.setFocusPoint(offset);
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to set focus point: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       return false;
     }
+  }
+
+  @override
+  Future<bool> setExposurePoint(Offset offset) async {
+    /// Currently not supported on macos.
+    Log.info(
+      '📷 Exposure point not supported on macOS',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+    return true;
   }
 
   @override
   Future<bool> setZoomLevel(double value) async {
     if (!isInitialized) return false;
     try {
+      Log.info(
+        '📷 Setting zoom level to $value',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       await CameraMacOS.instance.setZoomLevel(value);
       return true;
     } catch (e) {
+      Log.error(
+        '📷 Failed to set zoom level: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
       return false;
     }
   }
@@ -220,7 +262,8 @@ class CameraMacOSService extends CameraBaseService {
   Widget buildPreviewWidget({
     required Function(ScaleStartDetails details) onScaleStart,
     required Function(ScaleUpdateDetails details) onScaleUpdate,
-    required Function(TapDownDetails details) onTapDown,
+    required Function(TapDownDetails details, BoxConstraints constraints)
+    onTapDown,
   }) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -228,7 +271,7 @@ class CameraMacOSService extends CameraBaseService {
           behavior: .opaque,
           onScaleStart: onScaleStart,
           onScaleUpdate: onScaleUpdate,
-          onTapDown: onTapDown,
+          onTapDown: (details) => onTapDown(details, constraints),
           child: CameraMacOSView(
             cameraMode: .video,
             onCameraInizialized: (CameraMacOSController controller) {
