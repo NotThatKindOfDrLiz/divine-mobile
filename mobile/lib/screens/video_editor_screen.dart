@@ -131,6 +131,8 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
     if (!mounted) return;
 
+    String? selectedSoundId;
+
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => SoundPickerModal(
@@ -146,7 +148,8 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       ),
     );
 
-    // Resume video after returning from sound picker
+    // Load and play sound after returning from sound picker
+    // This ensures the navigation is complete before we start playing
     if (mounted) {
       await _videoEditorService.videoController?.play();
       // Audio will resume via _loadAndPlaySound if a sound is selected
