@@ -185,6 +185,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       cameraSwitchCount: state.cameraSwitchCount + 1,
       countdownValue: 0,
     );
+    updateState();
 
     return true;
   }
@@ -278,6 +279,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       cameraSwitchCount: state.cameraSwitchCount + 1,
       zoomLevel: 1,
     );
+    updateState();
   }
 
   Future<void> setZoomLevel(double value) async {
@@ -365,7 +367,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       return;
     }
 
-    clipProvider.resetRecording();
     state = state.copyWith(recordingState: .idle);
 
     /// Add the recorded clip to ClipManager

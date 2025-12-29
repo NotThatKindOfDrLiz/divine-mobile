@@ -3,8 +3,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 
 /// Displays a horizontal bar showing recording segments.
@@ -14,7 +14,7 @@ import 'package:openvine/theme/vine_theme.dart';
 class VideoRecorderSegmentBar extends ConsumerWidget {
   const VideoRecorderSegmentBar({super.key});
 
-  final _maxDuration = const Duration(milliseconds: 6_300);
+  final _maxDuration = ClipManagerState.maxDuration;
   final _dividerWidth = 2.0;
 
   @override
@@ -30,13 +30,13 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       child: SizedBox(
         height: 20,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: .circular(8),
           child: Container(
             color: const Color(0xBEFFFFFF),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 // Track used duration to ignore overflow segments
-                Duration used = Duration.zero;
+                Duration used = .zero;
                 final segments = <Widget>[];
 
                 // First pass: count dividers
@@ -52,7 +52,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
                   used += segmentDuration;
 
                   if ((i < recordSegments.length - 1 ||
-                          activeRecordingDuration > Duration.zero) &&
+                          activeRecordingDuration > .zero) &&
                       used < _maxDuration) {
                     dividerCount++;
                   }
@@ -64,7 +64,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
                     constraints.maxWidth - totalDividerWidth;
 
                 // Reset and build actual segments
-                used = Duration.zero;
+                used = .zero;
                 segments.clear();
 
                 for (int i = 0; i < recordSegments.length; i++) {
@@ -92,7 +92,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
 
                   // Divider (only if not at the end and more segments follow or if recording)
                   if ((i < recordSegments.length - 1 ||
-                          activeRecordingDuration > Duration.zero) &&
+                          activeRecordingDuration > .zero) &&
                       used < _maxDuration) {
                     segments.add(
                       SizedBox(
@@ -104,8 +104,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
                 }
 
                 // Add active recording segment with smooth animation
-                if (activeRecordingDuration > Duration.zero &&
-                    used < _maxDuration) {
+                if (activeRecordingDuration > .zero && used < _maxDuration) {
                   final remaining = _maxDuration - used;
                   final activeDuration = activeRecordingDuration > remaining
                       ? remaining
@@ -123,9 +122,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
                       builder: (context, value, child) {
                         return SizedBox(
                           width: availableWidthForSegments * value,
-                          child: Container(
-                            color: VineTheme.vineGreen.withOpacity(0.8),
-                          ),
+                          child: Container(color: VineTheme.vineGreen),
                         );
                       },
                     ),

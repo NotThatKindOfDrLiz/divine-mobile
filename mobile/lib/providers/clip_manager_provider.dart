@@ -75,7 +75,7 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
     model.AspectRatio? aspectRatio,
     bool needsCrop = false,
   }) {
-    return _service.addClip(
+    final clip = _service.addClip(
       video: video,
       duration:
           duration ??
@@ -84,6 +84,10 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
       aspectRatio: aspectRatio,
       needsCrop: needsCrop,
     );
+    if (duration == null) {
+      resetRecording();
+    }
+    return clip;
   }
 
   void deleteClip(String clipId) {
