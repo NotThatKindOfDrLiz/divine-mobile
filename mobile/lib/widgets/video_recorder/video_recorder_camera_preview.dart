@@ -67,11 +67,13 @@ class _VideoRecorderCameraPreviewState
                       height: 100,
                       child: Stack(
                         children: [
-                          // TODO (@hm21): Add a skeleton to the camera view
-                          // that appears when the user switches cameras until
-                          // the other camera loads.
+                          /// Skeleton when switching camera
                           Container(color: const Color(0xFF141414)),
+
+                          /// Preview widget
                           ?previewWidget,
+
+                          /// Focus Point
                           const VideoRecorderFocusPoint(),
                         ],
                       ),

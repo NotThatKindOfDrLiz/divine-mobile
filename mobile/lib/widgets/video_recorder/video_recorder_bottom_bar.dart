@@ -118,13 +118,29 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           ),
           child: Center(
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.ease,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
               width: isRecording ? 32 : 64,
               height: isRecording ? 32 : 64,
-              decoration: BoxDecoration(
+              decoration: ShapeDecoration(
                 color: const Color(0xFFF44336),
-                borderRadius: .circular(isRecording ? 6 : 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: .circular(isRecording ? 6 : 20),
+                ),
+                shadows: [
+                  BoxShadow(
+                    color: Color(0x19000000),
+                    blurRadius: 1,
+                    offset: Offset(1, 1),
+                    spreadRadius: 0,
+                  ),
+                  BoxShadow(
+                    color: Color(0x19000000),
+                    blurRadius: 0.60,
+                    offset: Offset(0.40, 0.40),
+                    spreadRadius: 0,
+                  ),
+                ],
               ),
             ),
           ),

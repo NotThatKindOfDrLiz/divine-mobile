@@ -147,7 +147,7 @@ class _VideoRecorderMoreSheetState
       leading: Icon(icon, size: 32),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 22, fontWeight: .w600),
+        style: const TextStyle(fontSize: 24, fontWeight: .w700, height: 1.33),
       ),
       onTap: () {
         Navigator.pop(context);

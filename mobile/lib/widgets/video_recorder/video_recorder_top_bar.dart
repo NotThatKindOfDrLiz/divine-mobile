@@ -77,28 +77,35 @@ class VideoRecorderTopBar extends ConsumerWidget {
       duration: const Duration(milliseconds: 200),
       opacity: hidden ? 0 : 1,
       curve: Curves.ease,
-      child: ClipRRect(
-        borderRadius: .circular(20),
-        child: BackdropFilter(
-          enabled: !enabled,
-          filter: .blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: backgroundColor.withAlpha(enabled ? 255 : 166),
-              borderRadius: .circular(20),
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: ShapeDecoration(
+          color: backgroundColor.withAlpha(enabled ? 255 : 166),
+          shape: RoundedRectangleBorder(borderRadius: .circular(20)),
+          shadows: [
+            BoxShadow(
+              color: Color(0x19000000),
+              blurRadius: 1,
+              offset: Offset(1, 1),
+              spreadRadius: 0,
             ),
-            child: IconButton(
-              icon: Icon(
-                icon,
-                color: Colors.white.withAlpha(enabled ? 255 : 64),
-                size: 32,
-              ),
-              onPressed: onPressed,
-              padding: .zero,
+            BoxShadow(
+              color: Color(0x19000000),
+              blurRadius: 0.60,
+              offset: Offset(0.40, 0.40),
+              spreadRadius: 0,
             ),
+          ],
+        ),
+        child: IconButton(
+          icon: Icon(
+            icon,
+            color: Colors.white.withAlpha(enabled ? 255 : 64),
+            size: 32,
           ),
+          onPressed: onPressed,
+          padding: .zero,
         ),
       ),
     );
