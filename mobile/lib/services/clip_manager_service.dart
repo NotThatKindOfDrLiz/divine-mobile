@@ -35,17 +35,14 @@ class ClipManagerService extends ChangeNotifier {
     required Duration duration,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
-    bool needsCrop = false,
   }) {
     final clip = RecordingClip(
       id: 'clip_${DateTime.now().millisecondsSinceEpoch}_${_clipCounter++}',
       video: video,
       duration: duration,
-      orderIndex: _clips.length,
       recordedAt: DateTime.now(),
       thumbnailPath: thumbnailPath,
       aspectRatio: aspectRatio,
-      needsCrop: needsCrop,
     );
 
     _clips.add(clip);
@@ -69,7 +66,6 @@ class ClipManagerService extends ChangeNotifier {
     }
 
     _clips.removeAt(index);
-    _reindexClips();
     Log.info(
       '📎 Deleted clip: $clipId, remaining: ${_clips.length}',
       name: 'ClipManagerService',
@@ -78,12 +74,14 @@ class ClipManagerService extends ChangeNotifier {
   }
 
   void reorderClips(List<String> orderedIds) {
-    for (var i = 0; i < orderedIds.length; i++) {
-      final clipIndex = _clips.indexWhere((c) => c.id == orderedIds[i]);
-      if (clipIndex != -1) {
-        _clips[clipIndex] = _clips[clipIndex].copyWith(orderIndex: i);
-      }
+    final reorderedClips = <RecordingClip>[];
+    for (final id in orderedIds) {
+      final clip = _clips.firstWhere((c) => c.id == id);
+      reorderedClips.add(clip);
     }
+    _clips
+      ..clear()
+      ..addAll(reorderedClips);
     Log.info(
       '📎 Reordered ${orderedIds.length} clips',
       name: 'ClipManagerService',
@@ -111,18 +109,6 @@ class ClipManagerService extends ChangeNotifier {
     _clips.clear();
     Log.info('📎 Cleared all clips', name: 'ClipManagerService');
     notifyListeners();
-  }
-
-  void _reindexClips() {
-    for (var i = 0; i < _clips.length; i++) {
-      _clips[i] = _clips[i].copyWith(orderIndex: i);
-    }
-  }
-
-  List<RecordingClip> get sortedClips {
-    final sorted = List<RecordingClip>.from(_clips);
-    sorted.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-    return sorted;
   }
 
   @override

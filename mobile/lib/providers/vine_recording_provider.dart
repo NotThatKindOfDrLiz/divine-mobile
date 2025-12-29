@@ -2,34 +2,23 @@
 // ABOUTME: Provides reactive state updates for recording UI without ChangeNotifier
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
+import 'package:models/models.dart' as model show AspectRatio;
+import 'package:models/models.dart' show NativeProofData;
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
+import 'package:openvine/services/vine_recording_controller.dart'
+    show VineRecordingState;
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:riverpod/riverpod.dart' show Ref;
-import 'package:openvine/services/vine_recording_controller.dart'
-    show
-        ExtractedSegment,
-        VineRecordingController,
-        VineRecordingState,
-        RecordingSegment,
-        MacOSCameraInterface,
-        CameraPlatformInterface;
-import 'package:openvine/models/vine_draft.dart';
-import 'package:models/models.dart' show NativeProofData;
-import 'package:models/models.dart' as model show AspectRatio;
-import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/utils/unified_logger.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 
 /// Timer duration options for delayed recording
 enum TimerDuration {
@@ -158,10 +147,12 @@ class VineRecordingUIState {
 
 /// StateNotifier that wraps VineRecordingController and provides reactive updates
 class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
-  VineRecordingNotifier(this._ref) : super(VineRecordingUIState()) {
-    _cameraService = CameraService.create();
+  VineRecordingNotifier(this._ref, [CameraService? cameraService])
+    : super(VineRecordingUIState()) {
+    _cameraService = cameraService ?? CameraService.create();
   }
 
+  final Ref _ref;
   late final CameraService _cameraService;
   Timer? _focusPointTimer;
 
@@ -206,8 +197,19 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   @override
   void dispose() {
-    _focusPointTimer?.cancel();
-    _cameraService.dispose();
+    if (!_isDestroyed) {
+      _focusPointTimer?.cancel();
+      try {
+        _cameraService.dispose();
+      } catch (e) {
+        // Ignore camera disposal errors during cleanup
+        Log.warning(
+          'Failed to dispose camera service: $e',
+          name: 'VineRecordingNotifier',
+          category: LogCategory.system,
+        );
+      }
+    }
     super.dispose();
     // Auto-save as draft if recording completed but not published
     // Note: We can't await in dispose(), so we use unawaited future
@@ -261,7 +263,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   /// Set aspect ratio for recording
   void setAspectRatio(model.AspectRatio ratio) {
-    _controller.setAspectRatio(ratio);
     state = state.copyWith(aspectRatio: ratio);
   }
 
@@ -484,9 +485,8 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
     state = state.copyWith(timerDuration: newTimer);
   }
 
-  //// ----------------- DELETE Below FIXME: ----------------------
-  VineRecordingController _controller = VineRecordingController();
-  final Ref _ref;
+  /// TODO(@hm21): DELETE Below ----------------------
+  /*  VineRecordingController _controller = VineRecordingController();
 
   // Track whether video was successfully published to prevent auto-save
   bool _wasPublished = false;
@@ -497,7 +497,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   // UI control methods
 
   Future<void> oldStopRecording() async {
-    /*  if (!state.isRecording) return;
+    if (!state.isRecording) return;
 
     await _cameraService.stopRecording();
 
@@ -597,7 +597,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       videoFile: null,
       draftId: null,
       nativeProof: result.$2,
-    ); */
+    );
   }
 
   /// Stop the current segment without finishing the recording.
@@ -691,7 +691,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
   /// Auto-save recording as draft if completed but not published
   Future<void> _autoSaveDraftBeforeDispose() async {
-    /* TODO:   try {
+      try {
       // Skip auto-save if video was successfully published
       if (_wasPublished) {
         Log.info(
@@ -752,7 +752,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
         category: LogCategory.system,
       );
       // Don't rethrow - ensure cleanup continues
-    } */
+    } 
   }
 
   /// Save draft from video file path
@@ -814,7 +814,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   }
 
   // Getters that delegate to controller
-  VineRecordingController get controller => _controller;
+  VineRecordingController get controller => _controller; */
 }
 
 /// Provider for VineRecordingController with reactive state management
@@ -822,10 +822,6 @@ final vineRecordingProvider =
     StateNotifierProvider<VineRecordingNotifier, VineRecordingUIState>((ref) {
       // Create recording controller (ProofMode handled by Guardian Project native library)
       final notifier = VineRecordingNotifier(ref);
-
-      ref.onDispose(() {
-        notifier.dispose();
-      });
 
       return notifier;
     });

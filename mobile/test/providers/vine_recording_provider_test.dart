@@ -1,11 +1,11 @@
 // ABOUTME: TDD test for VineRecordingUIState convenience getters used by universal_camera_screen_pure.dart
-// ABOUTME: Tests isRecording, isInitialized, isError, recordingDuration, and errorMessage getters
+// ABOUTME: Tests isRecording, isInitialized, isError, and errorMessage getters
 
-import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/services/vine_recording_controller.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 void main() {
   group('VineRecordingUIState Convenience Getters (TDD)', () {
@@ -13,29 +13,13 @@ void main() {
       test('VineRecordingUIState isRecording should work correctly', () {
         const recordingState = VineRecordingUIState(
           recordingState: VineRecordingState.recording,
-          progress: 0.5,
-          totalRecordedDuration: Duration(seconds: 3),
-          remainingDuration: Duration(seconds: 3),
-          canRecord: true,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
           aspectRatio: AspectRatio.square,
         );
 
         const idleState = VineRecordingUIState(
           recordingState: VineRecordingState.idle,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: true,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
           aspectRatio: AspectRatio.square,
         );
 
@@ -46,77 +30,50 @@ void main() {
       test('VineRecordingUIState isInitialized should work correctly', () {
         const idleState = VineRecordingUIState(
           recordingState: VineRecordingState.idle,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: true,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: true,
           aspectRatio: AspectRatio.square,
         );
 
         const errorState = VineRecordingUIState(
           recordingState: VineRecordingState.error,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: false,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
         const processingState = VineRecordingUIState(
           recordingState: VineRecordingState.processing,
-          progress: 1.0,
-          totalRecordedDuration: Duration(seconds: 6),
-          remainingDuration: Duration.zero,
-          canRecord: false,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: false,
+          aspectRatio: AspectRatio.square,
+        );
+
+        const notInitializedState = VineRecordingUIState(
+          recordingState: VineRecordingState.idle,
+          isCameraInitialized: false,
+          canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
         expect(idleState.isInitialized, true);
         expect(errorState.isInitialized, false);
         expect(processingState.isInitialized, false);
+        expect(notInitializedState.isInitialized, false);
       });
 
       test('VineRecordingUIState isError should work correctly', () {
         const errorState = VineRecordingUIState(
           recordingState: VineRecordingState.error,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: false,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
         const idleState = VineRecordingUIState(
           recordingState: VineRecordingState.idle,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: true,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: true,
           aspectRatio: AspectRatio.square,
         );
 
@@ -124,50 +81,18 @@ void main() {
         expect(idleState.isError, false);
       });
 
-      test('VineRecordingUIState recordingDuration should work correctly', () {
-        const state = VineRecordingUIState(
-          recordingState: VineRecordingState.recording,
-          progress: 0.5,
-          totalRecordedDuration: Duration(seconds: 3),
-          remainingDuration: Duration(seconds: 3),
-          canRecord: true,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
-          isCameraInitialized: true,
-          canSwitchCamera: false,
-          aspectRatio: AspectRatio.square,
-        );
-
-        expect(state.recordingDuration, Duration(seconds: 3));
-      });
-
       test('VineRecordingUIState errorMessage should work correctly', () {
         const errorState = VineRecordingUIState(
           recordingState: VineRecordingState.error,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: false,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
         const idleState = VineRecordingUIState(
           recordingState: VineRecordingState.idle,
-          progress: 0.0,
-          totalRecordedDuration: Duration.zero,
-          remainingDuration: Duration(seconds: 6),
-          canRecord: true,
-          segments: [],
-          hasSegments: false,
-          segmentCount: 0,
           isCameraInitialized: true,
-          canSwitchCamera: false,
+          canRecord: true,
           aspectRatio: AspectRatio.square,
         );
 
@@ -175,27 +100,56 @@ void main() {
         expect(errorState.errorMessage, isNotNull);
         expect(idleState.errorMessage, null);
       });
+
+      test('VineRecordingUIState copyWith preserves values correctly', () {
+        const initialState = VineRecordingUIState(
+          recordingState: VineRecordingState.idle,
+          zoomLevel: 1.5,
+          isCameraInitialized: true,
+          aspectRatio: AspectRatio.square,
+        );
+
+        final updatedState = initialState.copyWith(
+          recordingState: VineRecordingState.recording,
+        );
+
+        expect(updatedState.recordingState, VineRecordingState.recording);
+        expect(updatedState.zoomLevel, 1.5); // Preserved
+        expect(updatedState.isCameraInitialized, true); // Preserved
+        expect(updatedState.aspectRatio, AspectRatio.square); // Preserved
+      });
+
+      test('VineRecordingUIState default values are correct', () {
+        const state = VineRecordingUIState();
+
+        expect(state.recordingState, VineRecordingState.idle);
+        expect(state.zoomLevel, 1.0);
+        expect(state.cameraSensorAspectRatio, 1.0);
+        expect(state.canRecord, false);
+        expect(state.isCameraInitialized, false);
+        expect(state.canSwitchCamera, false);
+        expect(state.cameraSwitchCount, 0);
+        expect(state.countdownValue, 0);
+        expect(state.aspectRatio, AspectRatio.vertical);
+      });
     });
   });
 
   group('RecordingResult return type (TDD)', () {
-    test(
-      'stopRecording should return RecordingResult with video and optional native proof',
-      () async {
-        // This test will guide implementation
-        // Note: We can't fully test this without a real controller setup
-        // This is a structural test to verify the API exists
+    test('RecordingResult should have correct fields', () {
+      final result = RecordingResult(
+        video: EditorVideo.file('/path/to/video.mp4'),
+        aspectRatio: AspectRatio.square,
+        duration: const Duration(seconds: 5),
+        draftId: 'test_draft_123',
+        nativeProof: null,
+      );
 
-        // For now, just verify the RecordingResult class exists and has the right fields
-        final result = RecordingResult(
-          videoFile: File('/path/to/video.mp4'),
-          draftId: 'test_draft_123',
-          nativeProof: null,
-        );
-
-        expect(result.videoFile, isNotNull);
-        expect(result.nativeProof, isNull);
-      },
-    );
+      expect(result.video, isNotNull);
+      expect(result.aspectRatio, AspectRatio.square);
+      expect(result.duration, const Duration(seconds: 5));
+      expect(result.draftId, 'test_draft_123');
+      expect(result.nativeProof, isNull);
+    });
   });
 }

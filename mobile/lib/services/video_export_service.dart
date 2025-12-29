@@ -50,7 +50,7 @@ class VideoExportService {
     }
 
     // Check if any clip needs deferred cropping (Android deferred encoding)
-    final clipsNeedingCrop = clips.where((c) => c.needsCrop).toList();
+    final clipsNeedingCrop = clips.toList();
     AspectRatio? effectiveAspectRatio = aspectRatio;
 
     if (effectiveAspectRatio == null && clipsNeedingCrop.isNotEmpty) {
@@ -91,8 +91,7 @@ class VideoExportService {
       final outputPath = '${tempDir.path}/concatenated_$timestamp.mp4';
 
       // Create concat list file
-      final sortedClips = List<RecordingClip>.from(clips)
-        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      final sortedClips = List<RecordingClip>.from(clips);
 
       final videoSegments = sortedClips.map((clip) {
         return VideoSegment(video: clip.video);

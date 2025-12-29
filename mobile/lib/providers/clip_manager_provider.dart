@@ -73,7 +73,6 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
     Duration? duration,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
-    bool needsCrop = false,
   }) {
     final clip = _service.addClip(
       video: video,
@@ -82,7 +81,6 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
           Duration(microseconds: _recordStopwatch.elapsedMicroseconds),
       thumbnailPath: thumbnailPath,
       aspectRatio: aspectRatio,
-      needsCrop: needsCrop,
     );
     if (duration == null) {
       resetRecording();

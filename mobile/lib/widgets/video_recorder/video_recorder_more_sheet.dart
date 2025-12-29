@@ -28,6 +28,8 @@ class _VideoRecorderMoreSheetState
   ///
   /// When a clip is selected, it is imported into the current recording.
   Future<void> _showClipLibrary() async {
+    Log.info('📹 Opening clip library in selection mode', category: .video);
+
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (context) => ClipLibraryScreen(
@@ -38,6 +40,8 @@ class _VideoRecorderMoreSheetState
         ),
       ),
     );
+
+    Log.info('📹 Closed clip library', category: .video);
   }
 
   /// Imports a saved [clip] from the library into the current recording.

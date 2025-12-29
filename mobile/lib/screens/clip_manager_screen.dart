@@ -1,23 +1,8 @@
 // ABOUTME: Main screen for managing recorded video clips before editing
 // ABOUTME: Horizontal timeline at bottom, video preview at top, swipe gestures
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:models/models.dart' as vine show AspectRatio;
-import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/saved_clip.dart';
-import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
-import 'package:openvine/screens/clip_library_screen.dart';
-import 'package:openvine/screens/video_editor_screen.dart';
-import 'package:openvine/services/video_export_service.dart';
-import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/utils/unified_logger.dart';
-import 'package:pro_video_editor/pro_video_editor.dart';
-import 'package:video_player/video_player.dart';
 
 class ClipManagerScreen extends ConsumerStatefulWidget {
   const ClipManagerScreen({
@@ -36,6 +21,12 @@ class ClipManagerScreen extends ConsumerStatefulWidget {
 }
 
 class _ClipManagerScreenState extends ConsumerState<ClipManagerScreen> {
+  @override
+  Widget build(BuildContext context) {
+    throw UnimplementedError();
+  }
+
+  /* TODO(@hm21): Delete below 
   bool _isProcessing = false;
   bool _isNavigatingAway = false;
   VideoPlayerController? _previewController;
@@ -862,4 +853,5 @@ class _TimelineSegmentState extends State<_TimelineSegment> {
       ),
     );
   }
+ */
 }

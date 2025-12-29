@@ -96,6 +96,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     final isLongPressSupported = timerDuration == .off;
 
     return Align(
+      key: ValueKey('divine-camera-record-button'),
       alignment: .bottomCenter,
       child: GestureDetector(
         onTap: notifier.toggleRecording,

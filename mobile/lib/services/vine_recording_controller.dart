@@ -22,6 +22,8 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/macos_camera_preview.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
+// TODO(@hm21): Delete all of it
+
 /// Represents a single recording segment in the Vine-style recording
 /// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod
 class RecordingSegment {
@@ -88,7 +90,6 @@ abstract class CameraPlatformInterface {
 /// Uses single AVCaptureSession for both preview and recording via NativeMacOSCamera
 class MacOSCameraInterface extends CameraPlatformInterface
     with AsyncInitialization {
-  final GlobalKey _cameraKey = GlobalKey(debugLabel: 'vineCamera');
   Widget? _previewWidget;
   String? currentRecordingPath;
   bool isRecording = false;
@@ -456,8 +457,6 @@ class MacOSCameraInterface extends CameraPlatformInterface
   }
 }
 
-// TODO(@hm21): Implement new CameraService and remove useless old code
-
 /// Universal Vine recording controller that works across all platforms
 /// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod
 class VineRecordingController {
@@ -550,9 +549,9 @@ class VineRecordingController {
 
   bool get canRecord {
     bool isCameraReadyToRecord = true;
+    /* TODO(@hm21): fix 
     final cameraInterface = _cameraInterface;
 
-    /* TODO(@hm21): fix 
     if (cameraInterface is CamerAwesomeMobileCameraInterface) {
       isCameraReadyToRecord = cameraInterface.isReadyToRecord;
     } */
@@ -1556,7 +1555,6 @@ class VineRecordingController {
             id: 'temp_segment_$i',
             video: EditorVideo.file(segment.filePath!),
             duration: segment.duration,
-            orderIndex: 0,
             recordedAt: segment.startTime,
           );
           final croppedPath = await exportService.concatenateSegments(
@@ -1650,7 +1648,6 @@ class VineRecordingController {
                 id: 'temp_macos_fallback',
                 video: EditorVideo.file(recordingPath),
                 duration: Duration.zero, // Unknown duration
-                orderIndex: 0,
                 recordedAt: DateTime.now(),
               );
               final croppedPath = await exportService.concatenateSegments(
@@ -1727,7 +1724,6 @@ class VineRecordingController {
               id: 'temp_single_segment',
               video: EditorVideo.file(file.path),
               duration: _segments.first.duration,
-              orderIndex: 0,
               recordedAt: _segments.first.startTime,
             );
             final croppedPath = await exportService.concatenateSegments(
@@ -1764,10 +1760,8 @@ class VineRecordingController {
                   id: 'segment_${entry.key}',
                   video: EditorVideo.file(entry.value.filePath!),
                   duration: entry.value.duration,
-                  orderIndex: entry.key,
                   recordedAt: entry.value.startTime,
                   aspectRatio: _aspectRatio,
-                  needsCrop: false, // Segments are already processed
                 ),
               )
               .toList();

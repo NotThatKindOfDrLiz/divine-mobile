@@ -1,0 +1,103 @@
+// ABOUTME: Tests for VideoRecorderSegmentBar widget
+// ABOUTME: Validates segment bar rendering, duration display, and clip visualization
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:openvine/models/clip_manager_state.dart';
+import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/services/clip_manager_service.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
+import 'package:pro_video_editor/core/models/video/editor_video_model.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('VideoRecorderSegmentBar Widget Tests', () {
+    testWidgets('renders segment bar widget', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+          ),
+        ),
+      );
+
+      expect(find.byType(VideoRecorderSegmentBar), findsOneWidget);
+    });
+
+    testWidgets('uses Expanded to fill available space', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+          ),
+        ),
+      );
+
+      expect(find.byType(Expanded), findsOneWidget);
+    });
+
+    testWidgets('initially shows empty bar with no segments', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+          ),
+        ),
+      );
+
+      // Bar should render but without segment content
+      expect(find.byType(VideoRecorderSegmentBar), findsOneWidget);
+      expect(find.byType(LayoutBuilder), findsOneWidget);
+    });
+
+    testWidgets('displays clips as colored segments', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            clipManagerProvider.overrideWith((ref) {
+              return ClipManagerNotifier(ClipManagerService())
+                ..state = ClipManagerState(
+                  clips: [
+                    RecordingClip(
+                      id: 'clip1',
+                      video: EditorVideo.file('/test/clip1.mp4'),
+                      duration: Duration(seconds: 2),
+                      recordedAt: DateTime.now(),
+                    ),
+                    RecordingClip(
+                      id: 'clip2',
+                      video: EditorVideo.file('/test/clip2.mp4'),
+                      duration: Duration(seconds: 3),
+                      recordedAt: DateTime.now(),
+                    ),
+                  ],
+                );
+            }),
+          ],
+          child: MaterialApp(
+            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      // Should render segment bar with clips
+      expect(find.byType(VideoRecorderSegmentBar), findsOneWidget);
+
+      // Row contains the segments as children
+      final row = tester.widget<Row>(
+        find.descendant(
+          of: find.byType(VideoRecorderSegmentBar),
+          matching: find.byType(Row),
+        ),
+      );
+
+      // Should have 2 clip segments + 1 divider + 1 remaining space = 4 children
+      expect(row.children.length, equals(4));
+    });
+  });
+}

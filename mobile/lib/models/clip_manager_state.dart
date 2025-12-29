@@ -41,12 +41,6 @@ class ClipManagerState {
 
   int get clipCount => clips.length;
 
-  List<RecordingClip> get sortedClips {
-    final sorted = List<RecordingClip>.from(clips);
-    sorted.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-    return sorted;
-  }
-
   RecordingClip? get selectedClip {
     if (selectedClipId == null) return null;
     try {

@@ -13,8 +13,8 @@ import 'camera_base_service.dart';
 ///
 /// Manages video and audio devices, recording, and camera switching on macOS.
 class CameraMacOSService extends CameraService {
-  late final List<CameraMacOSDevice> _videoDevices;
-  late final List<CameraMacOSDevice> _audioDevices;
+  List<CameraMacOSDevice>? _videoDevices;
+  List<CameraMacOSDevice>? _audioDevices;
 
   int _currentCameraIndex = 0;
 
@@ -57,7 +57,7 @@ class CameraMacOSService extends CameraService {
     _isInitialized = true;
 
     Log.info(
-      '📷 macOS camera initialized (${_videoDevices.length} video, ${_audioDevices.length} audio devices)',
+      '📷 macOS camera initialized (${_videoDevices!.length} video, ${_audioDevices!.length} audio devices)',
       name: 'CameraMacOSService',
       category: .video,
     );
@@ -69,8 +69,8 @@ class CameraMacOSService extends CameraService {
   Future<void> _initializeCameraController() async {
     await CameraMacOS.instance.initialize(
       cameraMacOSMode: CameraMacOSMode.video,
-      deviceId: _videoDevices[_currentCameraIndex].deviceId,
-      audioDeviceId: _audioDevices.first.deviceId,
+      deviceId: _videoDevices?[_currentCameraIndex].deviceId,
+      audioDeviceId: _audioDevices?.first.deviceId,
     );
   }
 
@@ -150,7 +150,7 @@ class CameraMacOSService extends CameraService {
 
   @override
   Future<bool> switchCamera() async {
-    if (_videoDevices.length <= 1) return false;
+    if (_videoDevices != null && _videoDevices!.length <= 1) return false;
 
     try {
       Log.info(
@@ -161,12 +161,12 @@ class CameraMacOSService extends CameraService {
 
       await CameraMacOS.instance.destroy();
 
-      _currentCameraIndex = (_currentCameraIndex + 1) % _videoDevices.length;
+      _currentCameraIndex = (_currentCameraIndex + 1) % _videoDevices!.length;
 
       await CameraMacOS.instance.initialize(
         cameraMacOSMode: CameraMacOSMode.video,
-        deviceId: _videoDevices[_currentCameraIndex].deviceId,
-        audioDeviceId: _audioDevices.first.deviceId,
+        deviceId: _videoDevices![_currentCameraIndex].deviceId,
+        audioDeviceId: _audioDevices?.first.deviceId,
       );
 
       Log.info(
@@ -303,5 +303,6 @@ class CameraMacOSService extends CameraService {
   bool get canRecord => _isInitialized && !_isRecording;
 
   @override
-  bool get canSwitchCamera => _videoDevices.length > 1;
+  bool get canSwitchCamera =>
+      _videoDevices != null && _videoDevices!.length > 1;
 }

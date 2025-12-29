@@ -13,7 +13,7 @@ import 'camera_base_service.dart';
 ///
 /// Manages camera initialization, recording, and switching between front/back cameras.
 class CameraMobileService extends CameraService {
-  late CameraController _controller;
+  CameraController? _controller;
 
   List<CameraDescription>? _cameras;
 
@@ -58,7 +58,8 @@ class CameraMobileService extends CameraService {
     );
 
     _isInitialized = false;
-    await _controller.dispose();
+    // Only dispose if controller was initialized
+    await _controller?.dispose();
   }
 
   /// Finds the first camera matching the specified [direction].
@@ -81,10 +82,10 @@ class CameraMobileService extends CameraService {
   ) async {
     _controller = CameraController(description, .max);
 
-    await _controller.initialize();
+    await _controller!.initialize();
 
-    _minZoomLevel = await _controller.getMinZoomLevel();
-    _maxZoomLevel = await _controller.getMaxZoomLevel();
+    _minZoomLevel = await _controller!.getMinZoomLevel();
+    _maxZoomLevel = await _controller!.getMaxZoomLevel();
   }
 
   @override
@@ -96,7 +97,7 @@ class CameraMobileService extends CameraService {
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller.setFlashMode(mode);
+      await _controller!.setFlashMode(mode);
       return true;
     } catch (e) {
       Log.error(
@@ -117,7 +118,7 @@ class CameraMobileService extends CameraService {
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller.setFocusPoint(offset);
+      await _controller!.setFocusPoint(offset);
       return true;
     } catch (e) {
       Log.error(
@@ -138,7 +139,7 @@ class CameraMobileService extends CameraService {
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller.setExposurePoint(offset);
+      await _controller!.setExposurePoint(offset);
       return true;
     } catch (e) {
       Log.error(
@@ -159,7 +160,7 @@ class CameraMobileService extends CameraService {
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller.setZoomLevel(value);
+      await _controller!.setZoomLevel(value);
       return true;
     } catch (e) {
       Log.error(
@@ -173,7 +174,7 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<bool> switchCamera() async {
-    if (_cameras!.length <= 1) return false;
+    if (_cameras == null || _cameras!.length <= 1) return false;
 
     try {
       Log.info(
@@ -182,7 +183,7 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
 
-      await _controller.dispose();
+      await _controller!.dispose();
 
       // Switch between front and back camera
       final currentDirection = _cameras![_currentCameraIndex].lensDirection;
@@ -196,7 +197,7 @@ class CameraMobileService extends CameraService {
       if (targetCameraIndex == _currentCameraIndex) {
         // No alternative camera found, reinitialize current
         _controller = CameraController(_cameras![_currentCameraIndex], .max);
-        await _controller.initialize();
+        await _controller!.initialize();
 
         Log.warning(
           '📷 No alternative camera found',
@@ -210,7 +211,7 @@ class CameraMobileService extends CameraService {
 
       await _initializeCameraController(_cameras![_currentCameraIndex]);
 
-      await _controller.initialize();
+      await _controller!.initialize();
 
       Log.info(
         '📷 Camera switched to ${targetDirection.name}',
@@ -237,7 +238,7 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
 
-      await _controller.startVideoRecording();
+      await _controller!.startVideoRecording();
     } catch (e) {
       Log.error(
         '📷 Failed to start recording: $e',
@@ -256,7 +257,7 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
 
-      final result = await _controller.stopVideoRecording();
+      final result = await _controller!.stopVideoRecording();
 
       Log.info(
         '📷 Video recording stopped',
@@ -290,7 +291,7 @@ class CameraMobileService extends CameraService {
         if (isInitialized) await dispose();
         break;
       case .resumed:
-        await _initializeCameraController(_controller.description);
+        await _initializeCameraController(_controller!.description);
         _isInitialized = true;
 
         Log.info(
@@ -312,7 +313,7 @@ class CameraMobileService extends CameraService {
     onTapDown,
   }) {
     return CameraPreview(
-      _controller,
+      _controller!,
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           return GestureDetector(
@@ -327,7 +328,8 @@ class CameraMobileService extends CameraService {
   }
 
   @override
-  double get cameraAspectRatio => _controller.value.aspectRatio;
+  double get cameraAspectRatio =>
+      _controller != null ? _controller!.value.aspectRatio : 1;
 
   @override
   double get minZoomLevel => _minZoomLevel;
@@ -338,13 +340,16 @@ class CameraMobileService extends CameraService {
   bool get isInitialized => _isInitialized;
 
   @override
-  bool get isFocusPointSupported => _controller.value.focusPointSupported;
+  bool get isFocusPointSupported =>
+      _controller != null && _controller!.value.focusPointSupported;
 
   @override
-  bool get canRecord => isInitialized && !_controller.value.isRecordingVideo;
+  bool get canRecord => isInitialized && !_controller!.value.isRecordingVideo;
 
   @override
   bool get canSwitchCamera {
+    if (_cameras == null) return false;
+
     final hasFront = _cameras!.any((c) => c.lensDirection == .front);
     final hasBack = _cameras!.any((c) => c.lensDirection == .back);
     return hasFront && hasBack;

@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
-/// FIXME(@hm21): Required? Why not use the already implmented package camera_macos?
+/// TODO(@hm21): Required? Why not use the already implmented package camera_macos?
 /// Native macOS camera interface using platform channels
 class NativeMacOSCamera {
   static const MethodChannel _channel = MethodChannel('openvine/native_camera');

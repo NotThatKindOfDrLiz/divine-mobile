@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
@@ -31,6 +33,20 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
     // Initialize camera when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        // Force dispose all video controllers (this also clears active video)
+        disposeAllVideoControllers(ref);
+        Log.info(
+          '🗑️ VideoRecorderScreen: Disposed all video controllers',
+          category: LogCategory.video,
+        );
+      } catch (e) {
+        Log.warning(
+          '📹 Failed to dispose video controllers: $e',
+          category: LogCategory.video,
+        );
+      }
+
       _notifier = ref.read(vineRecordingProvider.notifier);
       final success = await _notifier!.initialize(context: context);
       // If the user didn't give permission, we close the video recorder
@@ -48,6 +64,10 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
         _notifier!.closeVideoRecorder(context);
       }
     });
+    Log.info(
+      '📹 VideoRecorderScreen: Initialized',
+      category: LogCategory.video,
+    );
   }
 
   @override
@@ -58,8 +78,15 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   @override
   void dispose() {
     _notifier?.destroy();
+
     WidgetsBinding.instance.removeObserver(this);
+
     super.dispose();
+
+    Log.info(
+      '📹 UniversalCameraScreenPure: Disposed',
+      category: LogCategory.video,
+    );
   }
 
   @override
