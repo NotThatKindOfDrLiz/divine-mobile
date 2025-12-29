@@ -19,6 +19,9 @@ void main() {
     testWidgets(
       'Record video and generate thumbnail end-to-end',
       (tester) async {
+        // Save ErrorWidget.builder to restore at end of test
+        final originalErrorWidgetBuilder = ErrorWidget.builder;
+
         Log.debug('🎬 Starting real thumbnail integration test...');
 
         // Start the app
@@ -192,17 +195,22 @@ void main() {
         }
 
         Log.debug('\n🎉 Thumbnail integration test completed!');
+
+        // Restore ErrorWidget.builder before test ends to avoid framework assertion
+        ErrorWidget.builder = originalErrorWidgetBuilder;
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );
 
     testWidgets('Test upload manager thumbnail integration', (tester) async {
+      // Save ErrorWidget.builder to restore at end of test
+      final originalErrorWidgetBuilder = ErrorWidget.builder;
+
       Log.debug('\n📋 Testing UploadManager thumbnail integration...');
 
-      // Start the app to get services initialized
-      app.main();
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(seconds: 1));
+      // Note: We don't call app.main() here since:
+      // 1. The app may still be running from the previous test
+      // 2. This test only validates data structures, not app functionality
 
       // Test UploadManager structure supports thumbnails
       Log.debug('🔧 Testing UploadManager with thumbnail data...');
@@ -236,6 +244,9 @@ void main() {
       Log.debug('📸 CDN URL format verified: ${mockUploadResult.cdnUrl}');
 
       Log.debug('🎉 UploadManager thumbnail integration test passed!');
+
+      // Restore ErrorWidget.builder before test ends to avoid framework assertion
+      ErrorWidget.builder = originalErrorWidgetBuilder;
     });
   });
 }

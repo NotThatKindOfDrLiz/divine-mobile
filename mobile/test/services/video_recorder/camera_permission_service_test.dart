@@ -2,6 +2,7 @@
 // ABOUTME: Validates permission checking, requesting, and dialog handling
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 
@@ -9,6 +10,34 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('CameraPermissionService Tests', () {
+    setUp(() {
+      // Register mock handler for permission_handler plugin
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('flutter.baseflow.com/permissions/methods'),
+        (MethodCall methodCall) async {
+          switch (methodCall.method) {
+            case 'checkPermissionStatus':
+              return 1; // PermissionStatus.granted
+            case 'requestPermissions':
+              return <int, int>{0: 1, 1: 1}; // camera and microphone granted
+            case 'openAppSettings':
+              return true;
+            default:
+              return null;
+          }
+        },
+      );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('flutter.baseflow.com/permissions/methods'),
+        null,
+      );
+    });
+
     group('ensurePermissions', () {
       test('returns boolean indicating permission status', () async {
         // Note: Actual permission testing requires platform integration
