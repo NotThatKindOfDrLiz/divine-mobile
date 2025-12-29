@@ -99,9 +99,16 @@ class CameraMobileService extends CameraService {
       );
       await _controller!.setFlashMode(mode);
       return true;
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to set flash mode: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
     } catch (e) {
       Log.error(
-        '📷 Failed to set flash mode: $e',
+        '📷 Failed to set flash mode (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -120,9 +127,16 @@ class CameraMobileService extends CameraService {
       );
       await _controller!.setFocusPoint(offset);
       return true;
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to set focus point: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
     } catch (e) {
       Log.error(
-        '📷 Failed to set focus point: $e',
+        '📷 Failed to set focus point (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -141,9 +155,16 @@ class CameraMobileService extends CameraService {
       );
       await _controller!.setExposurePoint(offset);
       return true;
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to set exposure point: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
     } catch (e) {
       Log.error(
-        '📷 Failed to set exposure point: $e',
+        '📷 Failed to set exposure point (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -162,9 +183,16 @@ class CameraMobileService extends CameraService {
       );
       await _controller!.setZoomLevel(value);
       return true;
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to set zoom level: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
     } catch (e) {
       Log.error(
-        '📷 Failed to set zoom level: $e',
+        '📷 Failed to set zoom level (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -219,9 +247,16 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
       return true;
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to switch camera: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
     } catch (e) {
       Log.error(
-        '📷 Failed to switch camera: $e',
+        '📷 Failed to switch camera (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -239,9 +274,15 @@ class CameraMobileService extends CameraService {
       );
 
       await _controller!.startVideoRecording();
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to start recording: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
     } catch (e) {
       Log.error(
-        '📷 Failed to start recording: $e',
+        '📷 Failed to start recording (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -268,9 +309,16 @@ class CameraMobileService extends CameraService {
         file: result.path,
         byteArray: kIsWeb ? await result.readAsBytes() : null,
       );
+    } on CameraException catch (e) {
+      Log.error(
+        '📷 Failed to stop recording: ${e.code} - ${e.description}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return null;
     } catch (e) {
       Log.error(
-        '📷 Failed to stop recording: $e',
+        '📷 Failed to stop recording (unexpected error): $e',
         name: 'CameraMobileService',
         category: .video,
       );

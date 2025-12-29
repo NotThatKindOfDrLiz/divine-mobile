@@ -95,6 +95,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.black,
         statusBarIconBrightness: .light,
+        statusBarBrightness: .dark,
       ),
       child: Scaffold(
         backgroundColor: Colors.black,
