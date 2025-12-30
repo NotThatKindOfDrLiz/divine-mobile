@@ -76,6 +76,9 @@ abstract class CameraService {
   /// Whether the device has multiple cameras to switch between.
   bool get canSwitchCamera;
 
+  /// Whether the device can active the camera-flash.
+  bool get hasFlash;
+
   /// Builds the camera preview widget with gesture handlers.
   Widget buildPreviewWidget({
     required Function(ScaleStartDetails details) onScaleStart,

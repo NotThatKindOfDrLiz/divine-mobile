@@ -345,14 +345,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.9.22+6"
-  camera_macos:
+  camera_macos_plus:
     dependency: "direct main"
     description:
-      name: camera_macos
-      sha256: a0e15729caf4e7c2831b9cd964e8c2e2ea985cd816e56316be03355de44aa743
+      name: camera_macos_plus
+      sha256: "580282564a190d8c755c80fcde22eae9bfd8ed3c0d534772a7b50d07ab057c3e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.9"
+    version: "0.0.1"
   camera_platform_interface:
     dependency: transitive
     description:

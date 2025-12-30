@@ -73,6 +73,7 @@ class VineRecordingUIState {
     this.canRecord = false,
     this.isCameraInitialized = false,
     this.canSwitchCamera = false,
+    this.hasFlash = false,
     this.cameraSwitchCount = 0,
     this.countdownValue = 0,
     this.aspectRatio = .vertical,
@@ -87,6 +88,7 @@ class VineRecordingUIState {
   final bool canRecord;
   final bool isCameraInitialized;
   final bool canSwitchCamera;
+  final bool hasFlash;
 
   // Double values
   final double zoomLevel;
@@ -121,6 +123,7 @@ class VineRecordingUIState {
     bool? hasSegments,
     bool? isCameraInitialized,
     bool? canSwitchCamera,
+    bool? hasFlash,
     int? cameraSwitchCount,
     int? countdownValue,
     model.AspectRatio? aspectRatio,
@@ -136,6 +139,7 @@ class VineRecordingUIState {
       canRecord: canRecord ?? this.canRecord,
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
+      hasFlash: hasFlash ?? this.hasFlash,
       cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
       countdownValue: countdownValue ?? this.countdownValue,
       aspectRatio: aspectRatio ?? this.aspectRatio,
@@ -184,7 +188,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
   void handleAppLifecycleState(AppLifecycleState appState) async {
     await _cameraService.handleAppLifecycleState(appState);
 
-    if (appState == .resumed) {
+    if (appState == .resumed || appState == .inactive) {
       state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
     }
   }
@@ -329,7 +333,6 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
         stopRecording();
         break;
       default:
-        // TODO: Handle other cases
         break;
     }
   }
@@ -363,12 +366,11 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
 
     clipProvider.stopRecording();
     final videoResult = await _cameraService.stopRecording();
+    state = state.copyWith(recordingState: .idle);
 
     if (videoResult == null) {
       return;
     }
-
-    state = state.copyWith(recordingState: .idle);
 
     /// Add the recorded clip to ClipManager
     final clip = clipProvider.addClip(
@@ -466,6 +468,7 @@ class VineRecordingNotifier extends StateNotifier<VineRecordingUIState> {
       canRecord: _cameraService.canRecord,
       isCameraInitialized: _cameraService.isInitialized,
       canSwitchCamera: _cameraService.canSwitchCamera,
+      hasFlash: _cameraService.hasFlash,
       cameraSwitchCount:
           state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
       countdownValue: state.countdownValue,

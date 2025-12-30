@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_camera_placeholder.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
 /// Displays the camera preview with animated aspect ratio changes.
@@ -29,7 +30,9 @@ class _VideoRecorderCameraPreviewState
   Widget build(BuildContext context) {
     final notifier = ref.read(vineRecordingProvider.notifier);
 
-    // Only rebuild when aspectRatio, showGrid or cameraSwitchCount changes
+    final isCameraInitialized = ref.watch(
+      vineRecordingProvider.select((state) => state.isCameraInitialized),
+    );
     final targetAspectRatio = ref.watch(
       vineRecordingProvider.select((state) => state.aspectRatio.value),
     );
@@ -59,26 +62,31 @@ class _VideoRecorderCameraPreviewState
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  FittedBox(
-                    fit: .cover,
-                    child: SizedBox(
-                      key: ValueKey('Video-Recorder-Camera-$cameraSwitchCount'),
-                      width: 100 / cameraSensorAspectRatio,
-                      height: 100,
-                      child: Stack(
-                        children: [
-                          /// Skeleton when switching camera
-                          Container(color: const Color(0xFF141414)),
+                  if (isCameraInitialized && previewWidget != null)
+                    FittedBox(
+                      fit: .cover,
+                      child: SizedBox(
+                        key: ValueKey(
+                          'Video-Recorder-Camera-$cameraSwitchCount',
+                        ),
+                        width: 100 / cameraSensorAspectRatio,
+                        height: 100,
+                        child: Stack(
+                          children: [
+                            /// Skeleton when switching camera
+                            Container(color: const Color(0xFF141414)),
 
-                          /// Preview widget
-                          ?previewWidget,
+                            /// Preview widget
+                            previewWidget,
 
-                          /// Focus Point
-                          const VideoRecorderFocusPoint(),
-                        ],
+                            /// Focus Point
+                            const VideoRecorderFocusPoint(),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    VideoRecorderCameraPlaceholder(),
                   IgnorePointer(
                     child: AnimatedOpacity(
                       opacity: showGrid ? 1.0 : 0.0,

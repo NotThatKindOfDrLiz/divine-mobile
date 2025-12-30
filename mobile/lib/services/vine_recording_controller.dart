@@ -391,7 +391,7 @@ class MacOSCameraInterface extends CameraPlatformInterface
         category: LogCategory.system,
       );
 
-      final success = await NativeMacOSCamera.switchCamera(nextCameraIndex);
+      /*   final success = await NativeMacOSCamera.switchCamera(nextCameraIndex);
 
       if (success) {
         _currentCameraIndex = nextCameraIndex;
@@ -406,7 +406,7 @@ class MacOSCameraInterface extends CameraPlatformInterface
           name: 'VineRecordingController',
           category: LogCategory.system,
         );
-      }
+      } */
     } catch (e) {
       Log.error(
         'macOS camera switching failed: $e',

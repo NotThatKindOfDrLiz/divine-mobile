@@ -162,6 +162,10 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     final timerDuration = ref.watch(
       vineRecordingProvider.select((p) => p.timerDuration),
     );
+    final canSwitchCamera = ref.watch(
+      vineRecordingProvider.select((p) => p.canSwitchCamera),
+    );
+    final hasFlash = ref.watch(vineRecordingProvider.select((p) => p.hasFlash));
     final aspectRatio = ref.watch(
       vineRecordingProvider.select((p) => p.aspectRatio),
     );
@@ -176,7 +180,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flash toggle
           _buildControlButton(
             icon: _getFlashIcon(flashMode),
-            onPressed: notifier.toggleFlash,
+            onPressed: hasFlash ? notifier.toggleFlash : null,
           ),
 
           // Timer toggle
@@ -198,7 +202,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flip camera
           _buildControlButton(
             icon: Icons.cached_rounded,
-            onPressed: notifier.switchCamera,
+            onPressed: canSwitchCamera ? notifier.switchCamera : null,
           ),
 
           // More options
@@ -214,7 +218,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   /// Build control button with optional label
   Widget _buildControlButton({
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return IconButton(
       onPressed: onPressed,
