@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
+/// TODO(@hm21): delete this file and the native implementation except the permission part
 /// Camera information including resolution, aspect ratio, and capabilities
 class CameraInfo {
   final int width;

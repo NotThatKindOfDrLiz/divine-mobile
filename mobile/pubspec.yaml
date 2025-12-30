@@ -132,7 +132,7 @@ dependencies:
   firebase_performance: ^0.11.1+1
   convert: ^3.1.2
   audioplayers: ^5.2.1 
-  pro_video_editor: 0.5.0-beta.3
+  pro_video_editor: ^1.0.0
   pro_image_editor: ^12.0.0-beta.5
   flutter_colorpicker: ^1.1.0
   file_picker: ^10.3.7

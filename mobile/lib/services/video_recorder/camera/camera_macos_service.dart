@@ -2,9 +2,8 @@
 // ABOUTME: Handles camera and audio device management, recording, and torch control on macOS
 
 import 'package:camera/camera.dart';
-import 'package:camera_macos/camera_macos.dart';
+import 'package:camera_macos_plus/camera_macos.dart';
 import 'package:flutter/widgets.dart';
-import 'package:openvine/services/camera/native_macos_camera.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -21,7 +20,8 @@ class CameraMacOSService extends CameraService {
 
   double _minZoomLevel = 1;
   double _maxZoomLevel = 10;
-  double _cameraAspectRatio = 16 / 9;
+  Size _cameraSensorSize = Size(500, 500);
+  int _textureId = 0;
 
   bool _hasFlash = false;
   bool _isRecording = false;
@@ -72,20 +72,16 @@ class CameraMacOSService extends CameraService {
   /// Sets up the camera in video mode with the selected devices.
   Future<void> _initializeCameraController() async {
     final deviceId = _videoDevices![_currentCameraIndex].deviceId;
-    await CameraMacOS.instance.initialize(
+    final result = await CameraMacOS.instance.initialize(
       cameraMacOSMode: CameraMacOSMode.video,
       deviceId: deviceId,
       audioDeviceId: _audioDevices?.first.deviceId,
     );
 
-    final aspectRatio = await NativeMacOSCamera.getAspectRatio(
-      deviceId: deviceId,
-    );
-    if (aspectRatio != null) {
-      _cameraAspectRatio = aspectRatio;
-    }
+    _textureId = result?.textureId ?? 0;
+    _cameraSensorSize = result?.size ?? Size(500, 500);
 
-    final hasFlash = await NativeMacOSCamera.hasFlash(deviceId: deviceId);
+    final hasFlash = await CameraMacOS.instance.hasFlash(deviceId: deviceId);
     _hasFlash = hasFlash;
   }
 
@@ -133,13 +129,23 @@ class CameraMacOSService extends CameraService {
 
   @override
   Future<bool> setExposurePoint(Offset offset) async {
-    // Currently not supported on macOS
-    Log.info(
-      '📷 Exposure point not supported on macOS',
-      name: 'CameraMacOSService',
-      category: .video,
-    );
-    return true;
+    if (!isInitialized) return false;
+    try {
+      Log.info(
+        '📷 Setting exposure point to (${offset.dx}, ${offset.dy})',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+      await CameraMacOS.instance.setExposurePoint(offset);
+      return true;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to set exposure point: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+      return false;
+    }
   }
 
   @override
@@ -311,11 +317,9 @@ class CameraMacOSService extends CameraService {
           onScaleStart: onScaleStart,
           onScaleUpdate: onScaleUpdate,
           onTapDown: (details) => onTapDown(details, constraints),
-          child: CameraMacOSView(
-            cameraMode: .video,
-            videoFormat: .mp4,
-            onCameraLoading: (_) => SizedBox.shrink(),
-            onCameraInizialized: (_) {},
+          child: CameraMacosRawView(
+            cameraSize: _cameraSensorSize,
+            textureId: _textureId,
           ),
         );
       },
@@ -323,7 +327,7 @@ class CameraMacOSService extends CameraService {
   }
 
   @override
-  double get cameraAspectRatio => 1 / _cameraAspectRatio;
+  double get cameraAspectRatio => 1 / _cameraSensorSize.aspectRatio;
 
   @override
   double get minZoomLevel => _minZoomLevel;
