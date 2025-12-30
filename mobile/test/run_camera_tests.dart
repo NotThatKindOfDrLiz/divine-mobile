@@ -9,10 +9,6 @@ import 'package:openvine/utils/unified_logger.dart';
 // Import all camera test files
 import 'services/video_recorder/camera/camera_base_service_test.dart'
     as base_service_test;
-import 'services/video_recorder/camera/camera_mobile_service_test.dart'
-    as mobile_service_test;
-import 'services/video_recorder/camera/camera_macos_service_test.dart'
-    as macos_service_test;
 import 'services/video_recorder/camera_permission_service_test.dart'
     as permission_test;
 import 'services/video_recorder/video_recorder_proof_service_test.dart'
@@ -106,14 +102,6 @@ void main() async {
   group('Camera Test Suite', () {
     group('Camera Base Service Tests', () {
       base_service_test.main();
-    });
-
-    group('Camera Mobile Service Tests', () {
-      mobile_service_test.main();
-    });
-
-    group('Camera macOS Service Tests', () {
-      macos_service_test.main();
     });
 
     group('Camera Permission Service Tests', () {
