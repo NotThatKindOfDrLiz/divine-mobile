@@ -91,6 +91,9 @@ class MockCameraService extends CameraService {
   bool get canSwitchCamera => true;
 
   @override
+  bool get hasFlash => true;
+
+  @override
   Widget buildPreviewWidget({
     required Function(ScaleStartDetails details) onScaleStart,
     required Function(ScaleUpdateDetails details) onScaleUpdate,
