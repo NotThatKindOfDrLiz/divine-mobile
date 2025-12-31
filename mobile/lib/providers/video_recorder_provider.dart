@@ -4,11 +4,13 @@
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:models/models.dart' show NativeProofData;
+import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
@@ -190,7 +192,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   void handleAppLifecycleState(AppLifecycleState appState) async {
     await _cameraService.handleAppLifecycleState(appState);
 
-    if (appState == .resumed) {
+    if (appState == .resumed || (!kIsWeb && Platform.isMacOS)) {
       state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
     }
   }
