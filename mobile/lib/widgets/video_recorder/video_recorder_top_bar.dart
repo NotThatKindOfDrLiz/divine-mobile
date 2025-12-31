@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
@@ -12,15 +12,13 @@ import '../../providers/clip_manager_provider.dart';
 class VideoRecorderTopBar extends ConsumerWidget {
   const VideoRecorderTopBar({super.key});
 
-  final Color _buttonColor = const Color(0xFF101111);
+  static const Color _buttonColor = Color(0xFF101111);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasSegments = ref.watch(
-      clipManagerProvider.select((state) => state.hasClips),
-    );
+    final hasClips = ref.watch(clipManagerProvider.select((s) => s.hasClips));
     final isRecording = ref.watch(
-      vineRecordingProvider.select((state) => state.isRecording),
+      videoRecordingProvider.select((s) => s.isRecording),
     );
 
     return Positioned(
@@ -36,10 +34,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
               // Close button
               _buildActionButton(
                 icon: Icons.close,
+                label: 'Close video recorder',
                 hidden: isRecording,
                 backgroundColor: _buttonColor,
                 onPressed: () => ref
-                    .read(vineRecordingProvider.notifier)
+                    .read(videoRecordingProvider.notifier)
                     .closeVideoRecorder(context),
               ),
 
@@ -49,12 +48,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
               // Confirm button
               _buildActionButton(
                 icon: Icons.arrow_forward,
+                label: 'Continue to video editor',
                 hidden: isRecording,
-                backgroundColor: hasSegments
-                    ? VineTheme.vineGreen
-                    : _buttonColor,
-                onPressed: hasSegments
-                    ? ref.read(vineRecordingProvider.notifier).openVideoEditor
+                backgroundColor: hasClips ? VineTheme.vineGreen : _buttonColor,
+                onPressed: hasClips
+                    ? ref.read(videoRecordingProvider.notifier).openVideoEditor
                     : null,
               ),
             ],
@@ -70,6 +68,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
     required Color backgroundColor,
     bool hidden = false,
     VoidCallback? onPressed,
+    String? label,
   }) {
     final bool enabled = onPressed != null;
 
@@ -83,18 +82,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
         decoration: ShapeDecoration(
           color: backgroundColor.withAlpha(enabled ? 255 : 166),
           shape: RoundedRectangleBorder(borderRadius: .circular(20)),
-          shadows: [
+          shadows: const [
             BoxShadow(
               color: Color(0x19000000),
               blurRadius: 1,
               offset: Offset(1, 1),
-              spreadRadius: 0,
-            ),
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 0.60,
-              offset: Offset(0.40, 0.40),
-              spreadRadius: 0,
             ),
           ],
         ),
@@ -106,6 +98,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
           ),
           onPressed: onPressed,
           padding: .zero,
+          tooltip: label,
         ),
       ),
     );

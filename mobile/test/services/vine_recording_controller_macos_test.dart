@@ -71,7 +71,7 @@ void main() {
 
           // Start recording
           await controller.startRecording();
-          expect(controller.state, equals(VineRecordingState.recording));
+          expect(controller.state, equals(VideoRecordingState.recording));
 
           // Simulate recording time
           await tester.pump(const Duration(milliseconds: 1200));
@@ -166,7 +166,7 @@ void main() {
           expect(videoFile.path, endsWith('.mov'));
 
           // State should be completed
-          expect(controller.state, equals(VineRecordingState.completed));
+          expect(controller.state, equals(VideoRecordingState.completed));
         } finally {
           controller.dispose();
         }
@@ -323,9 +323,9 @@ void main() {
           expect(
             controller.state,
             anyOf([
-              VineRecordingState.idle,
-              VineRecordingState.paused,
-              VineRecordingState.error,
+              VideoRecordingState.idle,
+              VideoRecordingState.paused,
+              VideoRecordingState.error,
             ]),
           );
         } finally {
@@ -355,7 +355,7 @@ void main() {
           reason: 'AsyncInitialization race condition should be fixed',
         );
 
-        expect(controller.state, equals(VineRecordingState.idle));
+        expect(controller.state, equals(VideoRecordingState.idle));
       } finally {
         controller.dispose();
       }
@@ -378,7 +378,7 @@ void main() {
 
           // Start recording
           await controller.startRecording();
-          expect(controller.state, equals(VineRecordingState.recording));
+          expect(controller.state, equals(VideoRecordingState.recording));
 
           // Verify startRecording was called
           expect(
@@ -412,7 +412,7 @@ void main() {
 
           // Verify we can start a new recording (this was failing before the fix)
           await controller.startRecording();
-          expect(controller.state, equals(VineRecordingState.recording));
+          expect(controller.state, equals(VideoRecordingState.recording));
 
           expect(
             methodCalls.any((call) => call.method == 'startRecording'),

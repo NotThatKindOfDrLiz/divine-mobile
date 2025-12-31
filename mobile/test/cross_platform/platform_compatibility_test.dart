@@ -46,17 +46,17 @@ void main() {
 
       try {
         await controller.initialize();
-        expect(controller.state, equals(VineRecordingState.idle));
+        expect(controller.state, equals(VideoRecordingState.idle));
 
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(Duration(milliseconds: 500));
 
         await controller.stopRecording();
         expect(
           controller.state,
-          anyOf([VineRecordingState.paused, VineRecordingState.completed]),
+          anyOf([VideoRecordingState.paused, VideoRecordingState.completed]),
         );
       } finally {
         controller.dispose();

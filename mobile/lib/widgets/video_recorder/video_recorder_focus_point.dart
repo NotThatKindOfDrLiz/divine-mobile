@@ -3,7 +3,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 
 class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
   const VideoRecorderFocusPoint({super.key});
@@ -15,15 +15,15 @@ class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
 
 class _VideoRecorderFocusPointState
     extends ConsumerState<VideoRecorderFocusPoint> {
-  Offset _lastVisiblePosition = Offset.zero;
+  Offset _lastVisiblePosition = .zero;
 
   @override
   Widget build(BuildContext context) {
     final focusPoint = ref.watch(
-      vineRecordingProvider.select((state) => state.focusPoint),
+      videoRecordingProvider.select((state) => state.focusPoint),
     );
 
-    final isVisible = focusPoint != Offset.zero;
+    final isVisible = focusPoint != .zero;
 
     // Remember the last visible position for smooth fade out
     if (isVisible) {

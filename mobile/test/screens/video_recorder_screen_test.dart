@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_preview.dart';
@@ -102,7 +102,7 @@ void main() {
         await tester.pump(); // Post-frame callback
 
         // Provider should be read during initialization
-        expect(() => container.read(vineRecordingProvider), returnsNormally);
+        expect(() => container.read(videoRecordingProvider), returnsNormally);
       });
 
       testWidgets('registers as WidgetsBindingObserver', (tester) async {
@@ -151,8 +151,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              vineRecordingProvider.overrideWith(
-                (ref) => VineRecordingNotifier(ref, mockCamera),
+              videoRecordingProvider.overrideWith(
+                () => VideoRecordingNotifier(mockCamera),
               ),
             ],
             child: MaterialApp(home: VideoRecorderScreen()),
@@ -257,8 +257,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              vineRecordingProvider.overrideWith(
-                (ref) => VineRecordingNotifier(ref),
+              videoRecordingProvider.overrideWith(
+                () => VideoRecordingNotifier(),
               ),
             ],
             child: MaterialApp(home: VideoRecorderScreen()),
@@ -395,8 +395,8 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              vineRecordingProvider.overrideWith(
-                (ref) => VineRecordingNotifier(ref, mockCamera),
+              videoRecordingProvider.overrideWith(
+                () => VideoRecordingNotifier(mockCamera),
               ),
             ],
             child: MaterialApp(home: VideoRecorderScreen()),

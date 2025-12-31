@@ -4,20 +4,20 @@
 import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/services/vine_recording_controller.dart';
 
 void main() {
   group('VineRecordingUIState Tests', () {
     test('isRecording getter should match recording state', () {
-      const recordingState = VineRecordingUIState(
-        recordingState: VineRecordingState.recording,
+      const recordingState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.recording,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const idleState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const idleState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -27,15 +27,15 @@ void main() {
     });
 
     test('isInitialized should require camera initialization', () {
-      const initializedState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const initializedState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         isCameraInitialized: true,
         canRecord: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const uninitializedState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const uninitializedState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         isCameraInitialized: false,
         canRecord: false,
         aspectRatio: AspectRatio.square,
@@ -46,8 +46,8 @@ void main() {
     });
 
     test('isInitialized should be false during error state', () {
-      const errorState = VineRecordingUIState(
-        recordingState: VineRecordingState.error,
+      const errorState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.error,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -56,8 +56,8 @@ void main() {
     });
 
     test('isInitialized should be false during processing state', () {
-      const processingState = VineRecordingUIState(
-        recordingState: VineRecordingState.processing,
+      const processingState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.processing,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -66,14 +66,14 @@ void main() {
     });
 
     test('isError getter should detect error state', () {
-      const errorState = VineRecordingUIState(
-        recordingState: VineRecordingState.error,
+      const errorState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.error,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const idleState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const idleState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -83,14 +83,14 @@ void main() {
     });
 
     test('errorMessage should be non-null only in error state', () {
-      const errorState = VineRecordingUIState(
-        recordingState: VineRecordingState.error,
+      const errorState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.error,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const idleState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const idleState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -100,15 +100,15 @@ void main() {
     });
 
     test('canRecord should reflect ability to start recording', () {
-      const canRecordState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const canRecordState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         canRecord: true,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const cannotRecordState = VineRecordingUIState(
-        recordingState: VineRecordingState.recording,
+      const cannotRecordState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.recording,
         canRecord: false,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
@@ -119,9 +119,11 @@ void main() {
     });
 
     test('zoomLevel should be customizable', () {
-      const defaultZoom = VineRecordingUIState(aspectRatio: AspectRatio.square);
+      const defaultZoom = VideoRecordingUIState(
+        aspectRatio: AspectRatio.square,
+      );
 
-      const customZoom = VineRecordingUIState(
+      const customZoom = VideoRecordingUIState(
         zoomLevel: 2.5,
         aspectRatio: AspectRatio.square,
       );
@@ -131,11 +133,11 @@ void main() {
     });
 
     test('focusPoint should be settable', () {
-      const defaultFocus = VineRecordingUIState(
+      const defaultFocus = VideoRecordingUIState(
         aspectRatio: AspectRatio.square,
       );
 
-      const customFocus = VineRecordingUIState(
+      const customFocus = VideoRecordingUIState(
         focusPoint: Offset(0.5, 0.5),
         aspectRatio: AspectRatio.square,
       );
@@ -145,9 +147,11 @@ void main() {
     });
 
     test('aspectRatio should be customizable', () {
-      const squareState = VineRecordingUIState(aspectRatio: AspectRatio.square);
+      const squareState = VideoRecordingUIState(
+        aspectRatio: AspectRatio.square,
+      );
 
-      const verticalState = VineRecordingUIState(
+      const verticalState = VideoRecordingUIState(
         aspectRatio: AspectRatio.vertical,
       );
 
@@ -156,17 +160,17 @@ void main() {
     });
 
     test('flashMode should be customizable', () {
-      const autoFlash = VineRecordingUIState(
+      const autoFlash = VideoRecordingUIState(
         flashMode: FlashMode.auto,
         aspectRatio: AspectRatio.square,
       );
 
-      const torchFlash = VineRecordingUIState(
+      const torchFlash = VideoRecordingUIState(
         flashMode: FlashMode.torch,
         aspectRatio: AspectRatio.square,
       );
 
-      const offFlash = VineRecordingUIState(
+      const offFlash = VideoRecordingUIState(
         flashMode: FlashMode.off,
         aspectRatio: AspectRatio.square,
       );
@@ -177,17 +181,17 @@ void main() {
     });
 
     test('timerDuration should be customizable', () {
-      const offTimer = VineRecordingUIState(
+      const offTimer = VideoRecordingUIState(
         timerDuration: TimerDuration.off,
         aspectRatio: AspectRatio.square,
       );
 
-      const threeSecTimer = VineRecordingUIState(
+      const threeSecTimer = VideoRecordingUIState(
         timerDuration: TimerDuration.three,
         aspectRatio: AspectRatio.square,
       );
 
-      const tenSecTimer = VineRecordingUIState(
+      const tenSecTimer = VideoRecordingUIState(
         timerDuration: TimerDuration.ten,
         aspectRatio: AspectRatio.square,
       );
@@ -198,12 +202,12 @@ void main() {
     });
 
     test('countdownValue should be settable', () {
-      const noCountdown = VineRecordingUIState(
+      const noCountdown = VideoRecordingUIState(
         countdownValue: 0,
         aspectRatio: AspectRatio.square,
       );
 
-      const countingDown = VineRecordingUIState(
+      const countingDown = VideoRecordingUIState(
         countdownValue: 3,
         aspectRatio: AspectRatio.square,
       );
@@ -213,31 +217,31 @@ void main() {
     });
 
     test('copyWith should update specific fields', () {
-      const initialState = VineRecordingUIState(
-        recordingState: VineRecordingState.idle,
+      const initialState = VideoRecordingUIState(
+        recordingState: VideoRecordingState.idle,
         zoomLevel: 1.0,
         canRecord: true,
         aspectRatio: AspectRatio.square,
       );
 
       final updatedState = initialState.copyWith(
-        recordingState: VineRecordingState.recording,
+        recordingState: VideoRecordingState.recording,
         zoomLevel: 2.0,
       );
 
-      expect(updatedState.recordingState, VineRecordingState.recording);
+      expect(updatedState.recordingState, VideoRecordingState.recording);
       expect(updatedState.zoomLevel, 2.0);
       expect(updatedState.canRecord, true); // Preserved
       expect(updatedState.aspectRatio, AspectRatio.square); // Preserved
     });
 
     test('cameraSwitchCount should increment on camera switch', () {
-      const initialState = VineRecordingUIState(
+      const initialState = VideoRecordingUIState(
         cameraSwitchCount: 0,
         aspectRatio: AspectRatio.square,
       );
 
-      const switchedState = VineRecordingUIState(
+      const switchedState = VideoRecordingUIState(
         cameraSwitchCount: 1,
         aspectRatio: AspectRatio.square,
       );
@@ -247,12 +251,12 @@ void main() {
     });
 
     test('canSwitchCamera should be configurable', () {
-      const canSwitch = VineRecordingUIState(
+      const canSwitch = VideoRecordingUIState(
         canSwitchCamera: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const cannotSwitch = VineRecordingUIState(
+      const cannotSwitch = VideoRecordingUIState(
         canSwitchCamera: false,
         aspectRatio: AspectRatio.square,
       );
@@ -262,9 +266,9 @@ void main() {
     });
 
     test('default state should have sensible values', () {
-      const state = VineRecordingUIState();
+      const state = VideoRecordingUIState();
 
-      expect(state.recordingState, VineRecordingState.idle);
+      expect(state.recordingState, VideoRecordingState.idle);
       expect(state.zoomLevel, 1.0);
       expect(state.cameraSensorAspectRatio, 1.0);
       expect(state.focusPoint, Offset.zero);

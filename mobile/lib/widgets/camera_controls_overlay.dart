@@ -14,7 +14,7 @@ class CameraControlsOverlay extends StatefulWidget {
   });
 
   final CameraPlatformInterface cameraInterface;
-  final VineRecordingState recordingState;
+  final VideoRecordingState recordingState;
 
   @override
   State<CameraControlsOverlay> createState() => _CameraControlsOverlayState();

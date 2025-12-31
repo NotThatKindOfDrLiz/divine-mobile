@@ -39,29 +39,29 @@ void main() {
         // First segment
         expect(controller.canRecord, isTrue);
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 500));
 
         await controller.stopRecording();
-        expect(controller.state, equals(VineRecordingState.paused));
+        expect(controller.state, equals(VideoRecordingState.paused));
         expect(controller.segments.length, equals(1));
 
         // Second segment
         expect(controller.canRecord, isTrue);
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 500));
 
         await controller.stopRecording();
-        expect(controller.state, equals(VineRecordingState.paused));
+        expect(controller.state, equals(VideoRecordingState.paused));
         expect(controller.segments.length, equals(2));
 
         // Third segment
         expect(controller.canRecord, isTrue);
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 500));
 
@@ -234,21 +234,21 @@ void main() {
     group('State management during multi-segment recording', () {
       test('should transition states correctly', () async {
         await controller.initialize();
-        expect(controller.state, equals(VineRecordingState.idle));
+        expect(controller.state, equals(VideoRecordingState.idle));
 
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 200));
         await controller.stopRecording();
-        expect(controller.state, equals(VineRecordingState.paused));
+        expect(controller.state, equals(VideoRecordingState.paused));
 
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 200));
         await controller.stopRecording();
-        expect(controller.state, equals(VineRecordingState.paused));
+        expect(controller.state, equals(VideoRecordingState.paused));
       });
 
       test('should update progress during recording', () async {

@@ -14,8 +14,8 @@ import 'package:openvine/theme/vine_theme.dart';
 class VideoRecorderSegmentBar extends ConsumerWidget {
   const VideoRecorderSegmentBar({super.key});
 
-  final _maxDuration = ClipManagerState.maxDuration;
-  final _dividerWidth = 2.0;
+  static const _maxDuration = ClipManagerState.maxDuration;
+  static const _dividerWidth = 2.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,19 +37,19 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
   }
 
   Widget _buildSegments(WidgetRef ref, BoxConstraints constraints) {
-    final recordSegments = ref.watch(
-      clipManagerProvider.select((state) => state.clips),
-    );
-    final activeRecordingDuration = ref.watch(
-      clipManagerProvider.select((state) => state.activeRecordingDuration),
+    final state = ref.watch(
+      clipManagerProvider.select(
+        (s) => (clips: s.clips, activeRecording: s.activeRecordingDuration),
+      ),
     );
 
-    // Track used duration to ignore overflow segments
-    Duration used = .zero;
+    final recordSegments = state.clips;
+    final activeRecordingDuration = state.activeRecording;
+
+    var used = Duration.zero;
     final segments = <Widget>[];
 
-    // First pass: count dividers
-    int dividerCount = 0;
+    // Build segments with Flexible based on duration
     for (int i = 0; i < recordSegments.length; i++) {
       if (used >= _maxDuration) break;
 
@@ -58,92 +58,54 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       final segmentDuration = segment.duration > remaining
           ? remaining
           : segment.duration;
-      used += segmentDuration;
-
-      if ((i < recordSegments.length - 1 || activeRecordingDuration > .zero) &&
-          used < _maxDuration) {
-        dividerCount++;
-      }
-    }
-
-    // Calculate available width for segments (excluding dividers)
-    final totalDividerWidth = dividerCount * _dividerWidth;
-    final availableWidthForSegments = constraints.maxWidth - totalDividerWidth;
-
-    // Reset and build actual segments
-    used = .zero;
-    segments.clear();
-
-    for (int i = 0; i < recordSegments.length; i++) {
-      final segment = recordSegments[i];
-
-      if (used >= _maxDuration) break;
-
-      final remaining = _maxDuration - used;
-      final segmentDuration = segment.duration > remaining
-          ? remaining
-          : segment.duration;
 
       used += segmentDuration;
 
-      final widthFraction =
-          segmentDuration.inMilliseconds / _maxDuration.inMilliseconds;
-
+      // Add segment as Flexible with flex based on milliseconds
       segments.add(
-        SizedBox(
-          width: availableWidthForSegments * widthFraction,
-          child: Container(color: VineTheme.vineGreen),
+        Flexible(
+          flex: segmentDuration.inMilliseconds,
+          child: const ColoredBox(color: VineTheme.vineGreen),
         ),
       );
 
-      // Divider (only if not at the end and more segments follow or if recording)
-      if ((i < recordSegments.length - 1 || activeRecordingDuration > .zero) &&
-          used < _maxDuration) {
-        segments.add(
-          SizedBox(
-            width: _dividerWidth,
-            child: Container(color: Colors.white),
-          ),
-        );
+      // Add divider between segments
+      if (i < recordSegments.length - 1 || activeRecordingDuration > .zero) {
+        if (used < _maxDuration) {
+          segments.add(
+            SizedBox(
+              width: _dividerWidth,
+              child: const ColoredBox(color: Colors.white),
+            ),
+          );
+        }
       }
     }
 
-    // Add active recording segment with smooth animation
+    // Add active recording segment
     if (activeRecordingDuration > .zero && used < _maxDuration) {
       final remaining = _maxDuration - used;
       final activeDuration = activeRecordingDuration > remaining
           ? remaining
           : activeRecordingDuration;
 
-      final widthFraction =
-          activeDuration.inMilliseconds / _maxDuration.inMilliseconds;
-
       segments.add(
-        TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 100),
-          curve: Curves.linear,
-          tween: Tween(begin: widthFraction, end: widthFraction),
-          builder: (context, value, child) {
-            return SizedBox(
-              width: availableWidthForSegments * value,
-              child: Container(color: VineTheme.vineGreen),
-            );
-          },
+        Flexible(
+          flex: activeDuration.inMilliseconds,
+          child: const ColoredBox(color: VineTheme.vineGreen),
         ),
       );
 
       used += activeDuration;
     }
 
-    // Add remaining empty space if not filled
-    final usedFraction = used.inMilliseconds / _maxDuration.inMilliseconds;
-    final remainingWidth = availableWidthForSegments * (1 - usedFraction);
-
-    if (remainingWidth > 0) {
+    // Add remaining empty space as Flexible
+    if (used < _maxDuration) {
+      final remaining = _maxDuration - used;
       segments.add(
-        SizedBox(
-          width: remainingWidth,
-          child: Container(color: Colors.transparent),
+        Flexible(
+          flex: remaining.inMilliseconds,
+          child: const ColoredBox(color: Colors.transparent),
         ),
       );
     }

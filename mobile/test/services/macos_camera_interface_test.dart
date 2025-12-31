@@ -79,7 +79,7 @@ void main() {
                 'Initialization should not timeout waiting for preview widget',
           );
 
-          expect(controller.state, equals(VineRecordingState.idle));
+          expect(controller.state, equals(VideoRecordingState.idle));
           expect(controller.cameraInterface, isNotNull);
 
           // Verify native camera methods were called
@@ -110,11 +110,11 @@ void main() {
         try {
           // Initialize
           await controller.initialize();
-          expect(controller.state, equals(VineRecordingState.idle));
+          expect(controller.state, equals(VideoRecordingState.idle));
 
           // Should be able to start recording immediately without waiting
           await controller.startRecording();
-          expect(controller.state, equals(VineRecordingState.recording));
+          expect(controller.state, equals(VideoRecordingState.recording));
 
           // Simulate recording duration
           await tester.pump(const Duration(seconds: 1));
@@ -122,7 +122,7 @@ void main() {
           // Stop recording
           await controller.stopRecording();
           // On macOS, after stopping a single segment, it should be in paused state
-          expect(controller.state, equals(VineRecordingState.paused));
+          expect(controller.state, equals(VideoRecordingState.paused));
 
           // Verify we have segments (macOS creates virtual segments)
           expect(controller.hasSegments, isTrue);
@@ -149,7 +149,7 @@ void main() {
 
         // Start recording
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         // Record for a specific duration
         const recordingDuration = Duration(milliseconds: 1500);
@@ -204,7 +204,7 @@ void main() {
           // Should return the recorded file
           expect(videoFile, isNotNull);
           expect(videoFile!.path, equals('/tmp/openvine_test_recording.mov'));
-          expect(controller.state, equals(VineRecordingState.completed));
+          expect(controller.state, equals(VideoRecordingState.completed));
         } finally {
           controller.dispose();
         }

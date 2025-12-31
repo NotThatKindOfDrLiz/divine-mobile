@@ -65,7 +65,7 @@ class ExtractedSegment {
 }
 
 /// Recording state for Vine-style segmented recording
-enum VineRecordingState {
+enum VideoRecordingState {
   idle, // Camera preview active, not recording
   recording, // Currently recording a segment
   paused, // Between segments, camera preview active
@@ -468,7 +468,7 @@ class VineRecordingController {
   ); // 1 frame at 30fps for stop-motion
 
   CameraPlatformInterface? _cameraInterface;
-  VineRecordingState _state = VineRecordingState.idle;
+  VideoRecordingState _state = VideoRecordingState.idle;
   bool _cameraInitialized = false;
 
   /// Constructor
@@ -500,7 +500,7 @@ class VineRecordingController {
   bool _disposed = false;
 
   // Getters
-  VineRecordingState get state => _state;
+  VideoRecordingState get state => _state;
   bool get isCameraInitialized => _cameraInitialized;
   List<RecordingSegment> get segments => List.unmodifiable(_segments);
 
@@ -558,7 +558,7 @@ class VineRecordingController {
     return _cameraInitialized &&
         isCameraReadyToRecord &&
         remainingDuration > minSegmentDuration &&
-        _state != VineRecordingState.processing;
+        _state != VideoRecordingState.processing;
   }
 
   bool get hasSegments {
@@ -637,7 +637,7 @@ class VineRecordingController {
 
   /// Set aspect ratio (only allowed when not recording)
   void setAspectRatio(model.AspectRatio ratio) {
-    if (state == VineRecordingState.recording) {
+    if (state == VideoRecordingState.recording) {
       Log.warning(
         'Cannot change aspect ratio while recording',
         name: 'VineRecordingController',
@@ -656,7 +656,7 @@ class VineRecordingController {
   }
 
   void setFlashMode(FlashMode mode) {
-    if (state == VineRecordingState.recording) {
+    if (state == VideoRecordingState.recording) {
       Log.warning(
         'Cannot change flash mode while recording',
         name: 'VineRecordingController',
@@ -682,7 +682,7 @@ class VineRecordingController {
       category: LogCategory.system,
     );
 
-    if (_state == VineRecordingState.recording) {
+    if (_state == VideoRecordingState.recording) {
       Log.warning(
         'Cannot switch camera while recording',
         name: 'VineRecordingController',
@@ -740,7 +740,7 @@ class VineRecordingController {
   /// Initialize the recording controller for the current platform
   Future<void> initialize() async {
     try {
-      _setState(VineRecordingState.idle);
+      _setState(VideoRecordingState.idle);
 
       if (_cameraInterface != null) {
         _cameraInterface!.dispose();
@@ -774,7 +774,7 @@ class VineRecordingController {
         category: LogCategory.system,
       );
     } catch (e) {
-      _setState(VineRecordingState.error);
+      _setState(VideoRecordingState.error);
       _cameraInitialized = false;
       Log.error(
         'VineRecordingController initialization failed: $e',
@@ -797,7 +797,7 @@ class VineRecordingController {
     if (!canRecord) return;
 
     // Prevent starting if already recording
-    if (_state == VineRecordingState.recording) {
+    if (_state == VideoRecordingState.recording) {
       Log.warning(
         'Already recording, ignoring start request',
         name: 'VineRecordingController',
@@ -818,7 +818,7 @@ class VineRecordingController {
     }
 
     try {
-      _setState(VineRecordingState.recording);
+      _setState(VideoRecordingState.recording);
       _currentSegmentStartTime = DateTime.now();
 
       // ProofMode proof will be generated after recording using Guardian Project native library
@@ -843,7 +843,7 @@ class VineRecordingController {
       _currentSegmentStartTime = null;
       _stopProgressTimer();
       _stopMaxDurationTimer();
-      _setState(VineRecordingState.error);
+      _setState(VideoRecordingState.error);
       Log.error(
         'Failed to start recording: $e',
         name: 'VineRecordingController',
@@ -865,7 +865,7 @@ class VineRecordingController {
       category: LogCategory.system,
     );
 
-    if (_state != VineRecordingState.recording || segmentStartTime == null) {
+    if (_state != VideoRecordingState.recording || segmentStartTime == null) {
       Log.warning(
         'Not recording or no start time, ignoring stop request. State: $_state, HasStartTime: ${segmentStartTime != null}',
         name: 'VineRecordingController',
@@ -877,7 +877,7 @@ class VineRecordingController {
     // CRITICAL: Set state to paused IMMEDIATELY to prevent race conditions
     // where another stop request comes in while async camera stop is in progress.
     // The state check above will now correctly reject subsequent stop calls.
-    _setState(VineRecordingState.paused);
+    _setState(VideoRecordingState.paused);
 
     // Clear the segment start time immediately to prevent double-stop
     _currentSegmentStartTime = null;
@@ -1050,21 +1050,21 @@ class VineRecordingController {
 
       // Check if we've reached the maximum duration or if on web (single segment only)
       if (_totalRecordedDuration >= maxRecordingDuration || kIsWeb) {
-        _setState(VineRecordingState.completed);
+        _setState(VideoRecordingState.completed);
         Log.info(
           '📱 Recording completed - ${kIsWeb ? "web single segment" : "reached maximum duration"}',
           name: 'VineRecordingController',
           category: LogCategory.system,
         );
       } else {
-        _setState(VineRecordingState.paused);
+        _setState(VideoRecordingState.paused);
       }
     } catch (e) {
       // Reset state and clean up on error
       // Note: _currentSegmentStartTime already cleared at start of method
       _stopProgressTimer();
       _stopMaxDurationTimer();
-      _setState(VineRecordingState.error);
+      _setState(VideoRecordingState.error);
       Log.error(
         'Failed to stop recording: $e',
         name: 'VineRecordingController',
@@ -1593,7 +1593,7 @@ class VineRecordingController {
     final startTime = DateTime.now();
     final returnValue = await (() async {
       try {
-        _setState(VineRecordingState.processing);
+        _setState(VideoRecordingState.processing);
 
         // For macOS single recording mode, handle specially
         if (!kIsWeb &&
@@ -1658,7 +1658,7 @@ class VineRecordingController {
               finalFile = File(croppedPath);
             }
 
-            _setState(VineRecordingState.completed);
+            _setState(VideoRecordingState.completed);
             macOSInterface.isSingleRecordingMode =
                 false; // Clear flag after successful completion
 
@@ -1670,7 +1670,7 @@ class VineRecordingController {
         }
 
         // For non-single recording mode, stop any active recording
-        if (_state == VineRecordingState.recording) {
+        if (_state == VideoRecordingState.recording) {
           await stopRecording();
         }
 
@@ -1733,7 +1733,7 @@ class VineRecordingController {
             );
             final croppedFile = File(croppedPath);
 
-            _setState(VineRecordingState.completed);
+            _setState(VideoRecordingState.completed);
 
             // Generate native ProofMode proof
             final nativeProof = await _generateNativeProof(croppedFile);
@@ -1775,7 +1775,7 @@ class VineRecordingController {
 
           final concatenatedFile = File(outputPath);
           if (await concatenatedFile.exists()) {
-            _setState(VineRecordingState.completed);
+            _setState(VideoRecordingState.completed);
 
             // Generate native ProofMode proof
             final nativeProof = await _generateNativeProof(concatenatedFile);
@@ -1786,7 +1786,7 @@ class VineRecordingController {
 
         throw Exception('No valid video segments found for compilation');
       } catch (e) {
-        _setState(VineRecordingState.error);
+        _setState(VideoRecordingState.error);
         Log.error(
           'Failed to finish recording: $e',
           name: 'VineRecordingController',
@@ -1827,7 +1827,7 @@ class VineRecordingController {
     _currentSegmentStartTime = null;
 
     // Check if we need to reinitialize before resetting state
-    final wasInError = _state == VineRecordingState.error;
+    final wasInError = _state == VideoRecordingState.error;
 
     // Reset camera initialization flag if we're in error state
     if (wasInError) {
@@ -1835,7 +1835,7 @@ class VineRecordingController {
     }
 
     // Reset state
-    _setState(VineRecordingState.idle);
+    _setState(VideoRecordingState.idle);
 
     Log.debug(
       'Recording session reset',
@@ -1972,7 +1972,7 @@ class VineRecordingController {
 
   // Private methods
 
-  void _setState(VineRecordingState newState) {
+  void _setState(VideoRecordingState newState) {
     if (_disposed) return;
     _state = newState;
     // Notify UI of state change
@@ -1982,7 +1982,7 @@ class VineRecordingController {
   void _startProgressTimer() {
     _stopProgressTimer();
     _progressTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!_disposed && _state == VineRecordingState.recording) {
+      if (!_disposed && _state == VideoRecordingState.recording) {
         // Update the total duration based on current segment time
         if (_currentSegmentStartTime != null) {
           final currentSegmentDuration = DateTime.now().difference(
@@ -2026,7 +2026,7 @@ class VineRecordingController {
     final remainingTime = remainingDuration;
     if (remainingTime > Duration.zero) {
       _maxDurationTimer = Timer(remainingTime, () {
-        if (_state == VineRecordingState.recording) {
+        if (_state == VideoRecordingState.recording) {
           Log.info(
             '📱 Recording completed - reached maximum duration',
             name: 'VineRecordingController',
@@ -2094,7 +2094,7 @@ class VineRecordingController {
     _stopMaxDurationTimer();
 
     // Set state to completed since we reached max duration
-    _setState(VineRecordingState.completed);
+    _setState(VideoRecordingState.completed);
   }
 
   void _stopMaxDurationTimer() {

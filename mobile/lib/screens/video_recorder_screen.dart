@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
@@ -24,55 +24,63 @@ class VideoRecorderScreen extends ConsumerStatefulWidget {
 class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     with WidgetsBindingObserver {
   final double _previewRadius = 16.0;
-  VineRecordingNotifier? _notifier;
+  VideoRecordingNotifier? _notifier;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeCamera());
+    Log.info('📹 Initialized', name: 'VideoRecorderScreen', category: .video);
+  }
 
-    // Initialize camera when screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        // Force dispose all video controllers (this also clears active video)
-        disposeAllVideoControllers(ref);
-        Log.info(
-          '🗑️ VideoRecorderScreen: Disposed all video controllers',
-          category: LogCategory.video,
-        );
-      } catch (e) {
-        Log.warning(
-          '📹 Failed to dispose video controllers: $e',
-          category: LogCategory.video,
-        );
-      }
+  /// Initialize camera and handle permission failures
+  Future<void> _initializeCamera() async {
+    _disposeVideoControllers();
 
-      _notifier = ref.read(vineRecordingProvider.notifier);
-      final success = await _notifier!.initialize(context: context);
-      // If the user didn't give permission, we close the video recorder
-      // screen because the user can't do anything anyway.
-      if (!success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Camera and microphone permissions are required to record videos.',
-            ),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        _notifier!.closeVideoRecorder(context);
-      }
-    });
-    Log.info(
-      '📹 VideoRecorderScreen: Initialized',
-      category: LogCategory.video,
+    _notifier = ref.read(videoRecordingProvider.notifier);
+    final success = await _notifier!.initialize(context: context);
+
+    if (!success && mounted) {
+      _showPermissionError();
+      _notifier!.closeVideoRecorder(context);
+    }
+  }
+
+  /// Show error when camera/microphone permissions are denied
+  void _showPermissionError() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Camera and microphone permissions are required to record videos.',
+        ),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 3),
+      ),
     );
+  }
+
+  /// Dispose all video controllers to free resources before recording
+  void _disposeVideoControllers() {
+    try {
+      disposeAllVideoControllers(ref);
+      Log.info(
+        '🗑️ Disposed all video controllers',
+        name: 'VideoRecorderScreen',
+        category: .video,
+      );
+    } catch (e) {
+      Log.warning(
+        '📹 Failed to dispose video controllers: $e',
+        name: 'VideoRecorderScreen',
+        category: .video,
+      );
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    ref.read(vineRecordingProvider.notifier).handleAppLifecycleState(state);
+    ref.read(videoRecordingProvider.notifier).handleAppLifecycleState(state);
   }
 
   @override
@@ -83,10 +91,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
     super.dispose();
 
-    Log.info(
-      '📹 UniversalCameraScreenPure: Disposed',
-      category: LogCategory.video,
-    );
+    Log.info('📹 Disposed', name: 'VideoRecorderScreen', category: .video);
   }
 
   @override

@@ -3,7 +3,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/services/vine_recording_controller.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -11,14 +11,14 @@ void main() {
   group('VineRecordingUIState Convenience Getters (TDD)', () {
     group('GREEN Phase: Tests for working getters', () {
       test('VineRecordingUIState isRecording should work correctly', () {
-        const recordingState = VineRecordingUIState(
-          recordingState: VineRecordingState.recording,
+        const recordingState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.recording,
           isCameraInitialized: true,
           aspectRatio: AspectRatio.square,
         );
 
-        const idleState = VineRecordingUIState(
-          recordingState: VineRecordingState.idle,
+        const idleState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.idle,
           isCameraInitialized: true,
           aspectRatio: AspectRatio.square,
         );
@@ -28,29 +28,29 @@ void main() {
       });
 
       test('VineRecordingUIState isInitialized should work correctly', () {
-        const idleState = VineRecordingUIState(
-          recordingState: VineRecordingState.idle,
+        const idleState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.idle,
           isCameraInitialized: true,
           canRecord: true,
           aspectRatio: AspectRatio.square,
         );
 
-        const errorState = VineRecordingUIState(
-          recordingState: VineRecordingState.error,
+        const errorState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.error,
           isCameraInitialized: true,
           canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
-        const processingState = VineRecordingUIState(
-          recordingState: VineRecordingState.processing,
+        const processingState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.processing,
           isCameraInitialized: true,
           canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
-        const notInitializedState = VineRecordingUIState(
-          recordingState: VineRecordingState.idle,
+        const notInitializedState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.idle,
           isCameraInitialized: false,
           canRecord: false,
           aspectRatio: AspectRatio.square,
@@ -63,15 +63,15 @@ void main() {
       });
 
       test('VineRecordingUIState isError should work correctly', () {
-        const errorState = VineRecordingUIState(
-          recordingState: VineRecordingState.error,
+        const errorState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.error,
           isCameraInitialized: true,
           canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
-        const idleState = VineRecordingUIState(
-          recordingState: VineRecordingState.idle,
+        const idleState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.idle,
           isCameraInitialized: true,
           canRecord: true,
           aspectRatio: AspectRatio.square,
@@ -82,15 +82,15 @@ void main() {
       });
 
       test('VineRecordingUIState errorMessage should work correctly', () {
-        const errorState = VineRecordingUIState(
-          recordingState: VineRecordingState.error,
+        const errorState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.error,
           isCameraInitialized: true,
           canRecord: false,
           aspectRatio: AspectRatio.square,
         );
 
-        const idleState = VineRecordingUIState(
-          recordingState: VineRecordingState.idle,
+        const idleState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.idle,
           isCameraInitialized: true,
           canRecord: true,
           aspectRatio: AspectRatio.square,
@@ -102,27 +102,27 @@ void main() {
       });
 
       test('VineRecordingUIState copyWith preserves values correctly', () {
-        const initialState = VineRecordingUIState(
-          recordingState: VineRecordingState.idle,
+        const initialState = VideoRecordingUIState(
+          recordingState: VideoRecordingState.idle,
           zoomLevel: 1.5,
           isCameraInitialized: true,
           aspectRatio: AspectRatio.square,
         );
 
         final updatedState = initialState.copyWith(
-          recordingState: VineRecordingState.recording,
+          recordingState: VideoRecordingState.recording,
         );
 
-        expect(updatedState.recordingState, VineRecordingState.recording);
+        expect(updatedState.recordingState, VideoRecordingState.recording);
         expect(updatedState.zoomLevel, 1.5); // Preserved
         expect(updatedState.isCameraInitialized, true); // Preserved
         expect(updatedState.aspectRatio, AspectRatio.square); // Preserved
       });
 
       test('VineRecordingUIState default values are correct', () {
-        const state = VineRecordingUIState();
+        const state = VideoRecordingUIState();
 
-        expect(state.recordingState, VineRecordingState.idle);
+        expect(state.recordingState, VideoRecordingState.idle);
         expect(state.zoomLevel, 1.0);
         expect(state.cameraSensorAspectRatio, 1.0);
         expect(state.canRecord, false);

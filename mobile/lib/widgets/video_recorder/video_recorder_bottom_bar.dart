@@ -4,7 +4,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 
 import 'video_recorder_more_sheet.dart';
 
@@ -30,9 +30,8 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(vineRecordingProvider.notifier);
     final isRecording = ref.watch(
-      vineRecordingProvider.select((p) => p.isRecording),
+      videoRecordingProvider.select((p) => p.isRecording),
     );
 
     return Positioned(
@@ -63,7 +62,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                   ),
                   child: isRecording
                       ? const SizedBox.shrink()
-                      : _buildActionButtons(context, notifier, ref),
+                      : _buildActionButtons(context, ref),
                 ),
 
                 /// Helper widget which create a inner radius for the camera
@@ -89,9 +88,9 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   /// Build record button
   Widget _buildRecordButton(WidgetRef ref, bool isRecording) {
-    final notifier = ref.read(vineRecordingProvider.notifier);
+    final notifier = ref.read(videoRecordingProvider.notifier);
     final timerDuration = ref.watch(
-      vineRecordingProvider.select((p) => p.timerDuration),
+      videoRecordingProvider.select((p) => p.timerDuration),
     );
     final isLongPressSupported = timerDuration == .off;
 
@@ -128,18 +127,11 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: .circular(isRecording ? 6 : 20),
                 ),
-                shadows: [
+                shadows: const [
                   BoxShadow(
                     color: Color(0x19000000),
                     blurRadius: 1,
                     offset: Offset(1, 1),
-                    spreadRadius: 0,
-                  ),
-                  BoxShadow(
-                    color: Color(0x19000000),
-                    blurRadius: 0.60,
-                    offset: Offset(0.40, 0.40),
-                    spreadRadius: 0,
                   ),
                 ],
               ),
@@ -151,19 +143,17 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   }
 
   /// Build the action buttons
-  Widget _buildActionButtons(
-    BuildContext context,
-    VineRecordingNotifier notifier,
-    WidgetRef ref,
-  ) {
-    final flashMode = ref.watch(
-      vineRecordingProvider.select((p) => p.flashMode),
-    );
-    final timerDuration = ref.watch(
-      vineRecordingProvider.select((p) => p.timerDuration),
-    );
-    final aspectRatio = ref.watch(
-      vineRecordingProvider.select((p) => p.aspectRatio),
+  Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(videoRecordingProvider.notifier);
+
+    final state = ref.watch(
+      videoRecordingProvider.select(
+        (p) => (
+          flashMode: p.flashMode,
+          timer: p.timerDuration,
+          aspectRatio: p.aspectRatio,
+        ),
+      ),
     );
 
     return Container(
@@ -175,35 +165,38 @@ class VideoRecorderBottomBar extends ConsumerWidget {
         children: [
           // Flash toggle
           _buildControlButton(
-            icon: _getFlashIcon(flashMode),
+            icon: _getFlashIcon(state.flashMode),
+            label: 'Toggle flash',
             onPressed: notifier.toggleFlash,
           ),
 
           // Timer toggle
           _buildControlButton(
-            icon: timerDuration.icon,
+            icon: state.timer.icon,
+            label: 'Cycle timer',
             onPressed: notifier.cycleTimer,
           ),
 
           // Aspect-Ratio
           _buildControlButton(
-            icon: aspectRatio == .square
+            icon: state.aspectRatio == .square
                 ? Icons.crop_square
                 : Icons.crop_portrait,
-            onPressed: ref
-                .read(vineRecordingProvider.notifier)
-                .toggleAspectRatio,
+            label: 'Toggle aspect ratio',
+            onPressed: notifier.toggleAspectRatio,
           ),
 
           // Flip camera
           _buildControlButton(
             icon: Icons.cached_rounded,
+            label: 'Switch camera',
             onPressed: notifier.switchCamera,
           ),
 
           // More options
           _buildControlButton(
             icon: Icons.more_horiz,
+            label: 'More options',
             onPressed: () => _showMoreOptions(context),
           ),
         ],
@@ -215,9 +208,11 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   Widget _buildControlButton({
     required IconData icon,
     required VoidCallback onPressed,
+    String? label,
   }) {
     return IconButton(
       onPressed: onPressed,
+      tooltip: label,
       icon: Icon(icon, color: Colors.white, size: 32),
     );
   }

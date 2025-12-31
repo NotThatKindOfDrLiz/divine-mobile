@@ -13,7 +13,8 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 
 /// Bottom sheet for managing recording clips.
 ///
-/// Allows users to add clips from library, save current clips, or remove/clear clips.
+/// Allows users to add clips from library, save current clips, or
+/// remove/clear clips.
 class VideoRecorderMoreSheet extends ConsumerStatefulWidget {
   const VideoRecorderMoreSheet({super.key});
 
@@ -28,7 +29,11 @@ class _VideoRecorderMoreSheetState
   ///
   /// When a clip is selected, it is imported into the current recording.
   Future<void> _showClipLibrary() async {
-    Log.info('📹 Opening clip library in selection mode', category: .video);
+    Log.info(
+      '📹 Opening clip library in selection mode',
+      name: 'VideoRecorderMoreSheet',
+      category: .video,
+    );
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -41,15 +46,24 @@ class _VideoRecorderMoreSheetState
       ),
     );
 
-    Log.info('📹 Closed clip library', category: .video);
+    Log.info(
+      '📹 Closed clip library',
+      name: 'VideoRecorderMoreSheet',
+      category: .video,
+    );
   }
 
   /// Imports a saved [clip] from the library into the current recording.
   ///
-  /// Verifies the file exists, adds it to the clip manager, and shows a confirmation.
+  /// Verifies the file exists, adds it to the clip manager, and shows a
+  /// confirmation.
   Future<void> _importClipFromLibrary(SavedClip clip) async {
     try {
-      Log.info('📹 Importing clip from library: ${clip.id}', category: .video);
+      Log.info(
+        '📹 Importing clip from library: ${clip.id}',
+        name: 'VideoRecorderMoreSheet',
+        category: .video,
+      );
 
       // Verify the file exists
       final videoFile = File(clip.filePath);
@@ -69,7 +83,9 @@ class _VideoRecorderMoreSheetState
           );
 
       Log.info(
-        '📹 Added clip from library: ${clip.filePath}, duration: ${clip.duration.inMilliseconds}ms',
+        '📹 Added clip from library: ${clip.filePath}, '
+        'duration: ${clip.duration.inMilliseconds}ms',
+        name: 'VideoRecorderMoreSheet',
         category: .video,
       );
 
@@ -80,7 +96,11 @@ class _VideoRecorderMoreSheetState
         ),
       );
     } catch (e) {
-      Log.error('📹 Failed to import clip: $e', category: .video);
+      Log.error(
+        '📹 Failed to import clip: $e',
+        name: 'VideoRecorderMoreSheet',
+        category: .video,
+      );
 
       if (!mounted) return;
 
@@ -134,29 +154,32 @@ class _VideoRecorderMoreSheetState
 
   /// Builds a styled menu item with consistent appearance.
   ///
-  /// Returns a [ListTile] with the specified [icon], [title], and [onTap] callback.
+  /// Returns a [ListTile] with the specified [icon], [title], and [onTap]
+  /// callback.
   /// The item can be disabled with [enabled] and colored with [color].
   Widget _buildMenuItem({
     required IconData icon,
     required String title,
-    required VoidCallback? onTap,
+    required VoidCallback onTap,
     bool enabled = true,
     Color color = Colors.white,
   }) {
-    return ListTile(
-      iconColor: color,
-      textColor: color,
-      enabled: enabled,
-      minTileHeight: 64.0,
-      leading: Icon(icon, size: 32),
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 24, fontWeight: .w700, height: 1.33),
+    return ExcludeSemantics(
+      child: ListTile(
+        iconColor: color,
+        textColor: color,
+        enabled: enabled,
+        minTileHeight: 64.0,
+        leading: Icon(icon, size: 32),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 24, fontWeight: .w700, height: 1.33),
+        ),
+        onTap: () {
+          Navigator.pop(context);
+          onTap.call();
+        },
       ),
-      onTap: () {
-        Navigator.pop(context);
-        onTap?.call();
-      },
     );
   }
 }

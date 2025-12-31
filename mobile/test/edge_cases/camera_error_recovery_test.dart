@@ -122,13 +122,13 @@ void main() {
       await controller.startRecording();
 
       // Simulate app backgrounding
-      expect(controller.state, equals(VineRecordingState.recording));
+      expect(controller.state, equals(VideoRecordingState.recording));
 
       // App goes to background - recording should stop
       await controller.stopRecording();
       expect(
         controller.state,
-        anyOf([VineRecordingState.paused, VineRecordingState.completed]),
+        anyOf([VideoRecordingState.paused, VideoRecordingState.completed]),
       );
 
       controller.dispose();
@@ -224,7 +224,7 @@ void main() {
       // Should have auto-stopped
       expect(
         controller.state,
-        anyOf([VineRecordingState.completed, VineRecordingState.paused]),
+        anyOf([VideoRecordingState.completed, VideoRecordingState.paused]),
       );
 
       controller.dispose();
@@ -271,7 +271,7 @@ void main() {
       }
 
       // Controller should still be functional
-      expect(controller.state, isNot(equals(VineRecordingState.error)));
+      expect(controller.state, isNot(equals(VideoRecordingState.error)));
 
       controller.dispose();
 

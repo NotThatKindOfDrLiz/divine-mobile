@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' show AspectRatio;
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 
 void main() {
   group('VineRecordingNotifier AspectRatio', () {
     test('initial state includes square aspect ratio', () {
       final container = ProviderContainer();
 
-      final state = container.read(vineRecordingProvider);
+      final state = container.read(videoRecordingProvider);
 
       expect(state.aspectRatio, equals(AspectRatio.square));
       // TODO(any): Fix and re-enable this test
@@ -17,11 +17,11 @@ void main() {
     test('setAspectRatio updates state', () {
       final container = ProviderContainer();
 
-      final notifier = container.read(vineRecordingProvider.notifier);
+      final notifier = container.read(videoRecordingProvider.notifier);
 
       notifier.setAspectRatio(AspectRatio.vertical);
 
-      final state = container.read(vineRecordingProvider);
+      final state = container.read(videoRecordingProvider);
       expect(state.aspectRatio, equals(AspectRatio.vertical));
     });
   });

@@ -43,12 +43,12 @@ void main() {
 
         // Web recording flow: start -> stop -> finish
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 200));
 
         await controller.stopRecording();
-        expect(controller.state, isNot(equals(VineRecordingState.recording)));
+        expect(controller.state, isNot(equals(VideoRecordingState.recording)));
         expect(controller.segments.length, equals(1));
 
         // Cannot start another segment
@@ -131,16 +131,16 @@ void main() {
 
         // Start recording
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         // Pause (stop without finishing)
         await controller.stopRecording();
-        expect(controller.state, equals(VineRecordingState.paused));
+        expect(controller.state, equals(VideoRecordingState.paused));
         expect(controller.segments.isNotEmpty, isTrue);
 
         // Resume (start another segment)
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await controller.stopRecording();
         expect(controller.segments.length, greaterThan(1));
@@ -204,20 +204,20 @@ void main() {
         final controller = VineRecordingController();
 
         await controller.initialize();
-        expect(controller.state, equals(VineRecordingState.idle));
+        expect(controller.state, equals(VideoRecordingState.idle));
 
         await controller.startRecording();
-        expect(controller.state, equals(VineRecordingState.recording));
+        expect(controller.state, equals(VideoRecordingState.recording));
 
         await Future.delayed(const Duration(milliseconds: 100));
         await controller.stopRecording();
 
         if (kIsWeb) {
           // Web stays idle after stop
-          expect(controller.state, equals(VineRecordingState.idle));
+          expect(controller.state, equals(VideoRecordingState.idle));
         } else {
           // Mobile goes to paused
-          expect(controller.state, equals(VineRecordingState.paused));
+          expect(controller.state, equals(VideoRecordingState.paused));
         }
 
         controller.dispose();

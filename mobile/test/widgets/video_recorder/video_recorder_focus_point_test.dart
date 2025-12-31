@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
 import '../../mocks/mock_camera_service.dart';
@@ -23,8 +23,8 @@ void main() {
     Widget buildTestWidget() {
       return ProviderScope(
         overrides: [
-          vineRecordingProvider.overrideWith(
-            (ref) => VineRecordingNotifier(ref, mockCamera),
+          videoRecordingProvider.overrideWith(
+            () => VideoRecordingNotifier(mockCamera),
           ),
         ],
         child: MaterialApp(home: Scaffold(body: VideoRecorderFocusPoint())),
@@ -70,8 +70,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            vineRecordingProvider.overrideWith((ref) {
-              final notifier = VineRecordingNotifier(ref, mockCamera);
+            videoRecordingProvider.overrideWith(() {
+              final notifier = VideoRecordingNotifier(mockCamera);
               // Set initial state with a focus point
               Future.microtask(() {
                 notifier.state = notifier.state.copyWith(

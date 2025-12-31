@@ -2,9 +2,8 @@
 // ABOUTME: Handles tap-to-focus and displays rule-of-thirds grid during non-recording state
 
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
+import 'package:openvine/providers/video_recording_provider.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
 /// Displays the camera preview with animated aspect ratio changes.
@@ -27,71 +26,67 @@ class _VideoRecorderCameraPreviewState
     extends ConsumerState<VideoRecorderCameraPreview> {
   @override
   Widget build(BuildContext context) {
-    final notifier = ref.read(vineRecordingProvider.notifier);
-
-    // Only rebuild when aspectRatio, showGrid or cameraSwitchCount changes
-    final targetAspectRatio = ref.watch(
-      vineRecordingProvider.select((state) => state.aspectRatio.value),
-    );
-    final cameraSensorAspectRatio = ref.watch(
-      vineRecordingProvider.select((state) => state.cameraSensorAspectRatio),
-    );
-    final showGrid = ref.watch(
-      vineRecordingProvider.select((state) => !state.isRecording),
-    );
-    final cameraSwitchCount = ref.watch(
-      vineRecordingProvider.select((state) => state.cameraSwitchCount),
+    final state = ref.watch(
+      videoRecordingProvider.select(
+        (s) => (
+          aspectRatio: s.aspectRatio.value,
+          sensorAspectRatio: s.cameraSensorAspectRatio,
+          showGrid: !s.isRecording,
+          cameraSwitchCount: s.cameraSwitchCount,
+        ),
+      ),
     );
 
-    final previewWidget = notifier.previewWidget;
+    final previewWidget = ref
+        .read(videoRecordingProvider.notifier)
+        .previewWidget;
 
     return Center(
-      child: TweenAnimationBuilder<double>(
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeInOut,
-        tween: Tween<double>(begin: targetAspectRatio, end: targetAspectRatio),
-        builder: (context, animatedAspectRatio, child) {
-          return AspectRatio(
-            aspectRatio: animatedAspectRatio,
-            child: ClipRRect(
-              clipBehavior: .hardEdge,
-              borderRadius: .circular(widget.previewWidgetRadius),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  FittedBox(
-                    fit: .cover,
-                    child: SizedBox(
-                      key: ValueKey('Video-Recorder-Camera-$cameraSwitchCount'),
-                      width: 100 / cameraSensorAspectRatio,
-                      height: 100,
-                      child: Stack(
-                        children: [
-                          /// Skeleton when switching camera
-                          Container(color: const Color(0xFF141414)),
+        child: AspectRatio(
+          aspectRatio: state.aspectRatio,
+          child: ClipRRect(
+            clipBehavior: .hardEdge,
+            borderRadius: .circular(widget.previewWidgetRadius),
+            child: Stack(
+              fit: .expand,
+              children: [
+                FittedBox(
+                  fit: .cover,
+                  child: SizedBox(
+                    key: ValueKey(
+                      'Video-Recorder-Camera-${state.cameraSwitchCount}',
+                    ),
+                    width: 100 / state.sensorAspectRatio,
+                    height: 100,
+                    child: Stack(
+                      children: [
+                        /// Skeleton when switching camera
+                        Container(color: const Color(0xFF141414)),
 
-                          /// Preview widget
-                          ?previewWidget,
+                        /// Preview widget
+                        if (previewWidget != null) previewWidget,
 
-                          /// Focus Point
-                          const VideoRecorderFocusPoint(),
-                        ],
-                      ),
+                        /// Focus Point
+                        const VideoRecorderFocusPoint(),
+                      ],
                     ),
                   ),
-                  IgnorePointer(
-                    child: AnimatedOpacity(
-                      opacity: showGrid ? 1.0 : 0.0,
-                      duration: const Duration(milliseconds: 100),
-                      curve: Curves.easeInOut,
-                      child: CustomPaint(painter: _GridPainter()),
-                    ),
+                ),
+                IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: state.showGrid ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 100),
+                    curve: Curves.easeInOut,
+                    child: CustomPaint(painter: _GridPainter()),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }

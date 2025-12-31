@@ -31,7 +31,7 @@ void main() {
       final controller = VineRecordingController();
 
       // Verify we can change aspect ratio when idle
-      expect(controller.state, equals(VineRecordingState.idle));
+      expect(controller.state, equals(VideoRecordingState.idle));
       controller.setAspectRatio(AspectRatio.vertical);
       expect(controller.aspectRatio, equals(AspectRatio.vertical));
 

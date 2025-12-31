@@ -62,9 +62,9 @@ class RecordingResult {
   Duration duration;
 }
 
-/// State class for VineRecording that captures all necessary UI state
-class VineRecordingUIState {
-  const VineRecordingUIState({
+/// State class for VideoRecording that captures all necessary UI state
+class VideoRecordingUIState {
+  const VideoRecordingUIState({
     this.recordingState = .idle,
     this.zoomLevel = 1.0,
     this.cameraSensorAspectRatio = 1.0,
@@ -111,7 +111,7 @@ class VineRecordingUIState {
   bool get isError => recordingState == .error;
   String? get errorMessage => isError ? 'Recording error occurred' : null;
 
-  VineRecordingUIState copyWith({
+  VideoRecordingUIState copyWith({
     VideoRecordingState? recordingState,
     double? zoomLevel,
     double? cameraSensorAspectRatio,
@@ -126,7 +126,7 @@ class VineRecordingUIState {
     FlashMode? flashMode,
     TimerDuration? timerDuration,
   }) {
-    return VineRecordingUIState(
+    return VideoRecordingUIState(
       recordingState: recordingState ?? this.recordingState,
       zoomLevel: zoomLevel ?? this.zoomLevel,
       cameraSensorAspectRatio:
@@ -144,9 +144,9 @@ class VineRecordingUIState {
   }
 }
 
-/// Notifier that wraps VineRecordingController and provides reactive updates
-class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
-  VineRecordingNotifier([CameraService? cameraService])
+/// Notifier that wraps VideoRecordingNotifier and provides reactive updates
+class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
+  VideoRecordingNotifier([CameraService? cameraService])
     : _cameraServiceOverride = cameraService;
 
   final CameraService? _cameraServiceOverride;
@@ -157,7 +157,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
   bool _isDestroyed = false;
 
   @override
-  VineRecordingUIState build() {
+  VideoRecordingUIState build() {
     _cameraService = _cameraServiceOverride ?? CameraService.create();
 
     // Setup cleanup when provider is disposed
@@ -170,14 +170,14 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
           // Ignore camera disposal errors during cleanup
           Log.warning(
             'Failed to dispose camera service: $e',
-            name: 'VineRecordingNotifier',
+            name: 'VideoRecordingNotifier',
             category: LogCategory.system,
           );
         }
       }
     });
 
-    return const VineRecordingUIState();
+    return const VideoRecordingUIState();
   }
 
   // Delegate methods to the controller
@@ -425,6 +425,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
   void closeVideoRecorder(BuildContext context) {
     Log.info(
       '📹 X CANCEL - navigating away from camera',
+      name: 'VideoRecordingNotifier',
       category: LogCategory.video,
     );
     // Try to pop if possible, otherwise go home.
@@ -439,7 +440,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
 
   /// Update the state based on the current controller state
   void updateState() {
-    state = VineRecordingUIState(
+    state = VideoRecordingUIState(
       recordingState: state.recordingState,
       zoomLevel: state.zoomLevel,
       cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
@@ -466,7 +467,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
     state = state.copyWith(timerDuration: newTimer);
   }
 
-  /// TODO(@hm21): DELETE Below ----------------------
+  /// TODO(@hm21): DELETE Deprecated code Below ----------------------
   /*  VineRecordingController _controller = VineRecordingController();
 
   // Track whether video was successfully published to prevent auto-save
@@ -489,14 +490,17 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
     updateState();
     Log.info(
       '🔍 PROOFMODE DEBUG: stopRecording() called',
+      name: 'VideoRecordingNotifier',
       category: LogCategory.video,
     );
     Log.info(
       '🔍 Video file: ${result.$1?.path ?? "NULL"}',
+      name: 'VideoRecordingNotifier',
       category: LogCategory.video,
     );
     Log.info(
       '🔍 Native proof: ${result.$2?.toString() ?? "NULL"}',
+      name: 'VideoRecordingNotifier',
       category: LogCategory.video,
     );
     // Auto-create draft immediately after recording finishes
@@ -513,25 +517,30 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
             proofManifestJson = jsonEncode(result.$2!.toJson());
             Log.info(
               '📜 Native ProofMode data attached to draft',
+              name: 'VideoRecordingNotifier',
               category: LogCategory.video,
             );
             Log.info(
               '🔍 Proof JSON length: ${proofManifestJson.length} chars',
+              name: 'VideoRecordingNotifier',
               category: LogCategory.video,
             );
             Log.info(
               '🔍 Proof verification level: ${result.$2!.verificationLevel}',
+              name: 'VideoRecordingNotifier',
               category: LogCategory.video,
             );
           } catch (e) {
             Log.error(
               'Failed to serialize NativeProofData for draft: $e',
+              name: 'VideoRecordingNotifier',
               category: LogCategory.video,
             );
           }
         } else {
           Log.warning(
             '⚠️ NO NATIVE PROOF DATA FROM RECORDING! ProofMode will not be published.',
+            name: 'VideoRecordingNotifier',
             category: LogCategory.video,
           );
         }
@@ -552,6 +561,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
             draft.id; // Track draft to prevent duplicate on dispose
         Log.info(
           '📹 Auto-created draft: ${draft.id}',
+          name: 'VideoRecordingNotifier',
           category: LogCategory.video,
         );
 
@@ -563,6 +573,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
       } catch (e) {
         Log.error(
           '📹 Failed to auto-create draft: $e',
+          name: 'VideoRecordingNotifier',
           category: LogCategory.video,
         );
         // Still return the video file so user can manually save
@@ -588,6 +599,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
     updateState();
     Log.info(
       '📹 Segment stopped, total segments: ${_controller.segments.length}',
+      name: 'VideoRecordingNotifier',
       category: LogCategory.video,
     );
   }
@@ -632,7 +644,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
     _wasPublished = true;
     Log.info(
       'Recording marked as published - auto-save will be skipped',
-      name: 'VineRecordingProvider',
+      name: 'VideoRecordingProvider',
       category: LogCategory.system,
     );
   }
@@ -649,13 +661,13 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
       updateState();
       Log.info(
         'Cleaned up temp files and reset for new recording',
-        name: 'VineRecordingProvider',
+        name: 'VideoRecordingProvider',
         category: LogCategory.system,
       );
     } catch (e) {
       Log.error(
         'Error during cleanup and reset: $e',
-        name: 'VineRecordingProvider',
+        name: 'VideoRecordingProvider',
         category: LogCategory.system,
       );
     }
@@ -677,7 +689,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
       if (_wasPublished) {
         Log.info(
           'Skipping auto-save - video was published',
-          name: 'VineRecordingProvider',
+          name: 'VideoRecordingProvider',
           category: LogCategory.system,
         );
         return;
@@ -687,14 +699,14 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
       if (_currentDraftId != null) {
         Log.info(
           'Skipping auto-save - draft already created: $_currentDraftId',
-          name: 'VineRecordingProvider',
+          name: 'VideoRecordingProvider',
           category: LogCategory.system,
         );
         return;
       }
 
       // Only auto-save if recording is completed
-      if (_controller.state != VineRecordingState.completed) {
+      if (_controller.state != VideoRecordingState.completed) {
         return;
       }
 
@@ -702,7 +714,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
       if (_controller.segments.isEmpty) {
         Log.debug(
           'No segments to auto-save as draft',
-          name: 'VineRecordingProvider',
+          name: 'VideoRecordingProvider',
           category: LogCategory.system,
         );
         return;
@@ -729,7 +741,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
     } catch (e) {
       Log.error(
         'Failed to auto-save draft on dispose: $e',
-        name: 'VineRecordingProvider',
+        name: 'VideoRecordingProvider',
         category: LogCategory.system,
       );
       // Don't rethrow - ensure cleanup continues
@@ -761,7 +773,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
 
       Log.info(
         '📁 Copied draft video to permanent location: $permanentPath',
-        name: 'VineRecordingProvider',
+        name: 'VideoRecordingProvider',
         category: LogCategory.system,
       );
 
@@ -781,13 +793,13 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
 
       Log.info(
         '✅ Auto-saved recording as draft: ${draft.id}',
-        name: 'VineRecordingProvider',
+        name: 'VideoRecordingProvider',
         category: LogCategory.system,
       );
     } catch (e) {
       Log.error(
         'Failed to save draft: $e',
-        name: 'VineRecordingProvider',
+        name: 'VideoRecordingProvider',
         category: LogCategory.system,
       );
       rethrow;
@@ -798,8 +810,7 @@ class VineRecordingNotifier extends Notifier<VineRecordingUIState> {
   VineRecordingController get controller => _controller; */
 }
 
-/// Provider for VineRecordingController with reactive state management
 final videoRecordingProvider =
-    NotifierProvider<VineRecordingNotifier, VineRecordingUIState>(
-      VineRecordingNotifier.new,
+    NotifierProvider<VideoRecordingNotifier, VideoRecordingUIState>(
+      VideoRecordingNotifier.new,
     );
