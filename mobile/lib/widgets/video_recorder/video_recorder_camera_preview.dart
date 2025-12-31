@@ -39,81 +39,88 @@ class _VideoRecorderCameraPreviewState
       ),
     );
 
+    return Center(
+      child: TweenAnimationBuilder<double>(
+        duration: Duration(milliseconds: 220),
+        curve: Curves.easeInOut,
+        tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
+        builder: (context, aspectRatio, _) {
+          return AspectRatio(
+            aspectRatio: aspectRatio,
+            child: ClipRRect(
+              clipBehavior: .hardEdge,
+              borderRadius: .circular(widget.previewWidgetRadius),
+              child: Stack(
+                key: ValueKey(
+                  'Video-Recorder-Camera-${state.cameraSwitchCount}',
+                ),
+                fit: .expand,
+                children: _buildStackItems(
+                  showGrid: state.showGrid,
+                  isCameraInitialized: state.isCameraInitialized,
+                  sensorAspectRatio: state.sensorAspectRatio,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _buildStackItems({
+    required bool isCameraInitialized,
+    required bool showGrid,
+    required double sensorAspectRatio,
+  }) {
     final previewWidget = ref
         .read(videoRecordingProvider.notifier)
         .previewWidget;
 
-    return Center(
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeInOut,
-        child: AspectRatio(
-          aspectRatio: state.aspectRatio,
-          child: ClipRRect(
-            clipBehavior: .hardEdge,
-            borderRadius: .circular(widget.previewWidgetRadius),
-            child: Stack(
-              fit: .expand,
-              children: [
-                FittedBox(
-                  fit: .cover,
-                  child: SizedBox(
-                    key: ValueKey(
-                      'Video-Recorder-Camera-${state.cameraSwitchCount}',
-                    ),
-                    width: 100 / state.sensorAspectRatio,
-                    height: 100,
-                    child: Stack(
-                      children: [
-                        if (state.isCameraInitialized && previewWidget != null)
-                          FittedBox(
-                            fit: .cover,
-                            child: SizedBox(
-                              key: ValueKey(
-                                'Video-Recorder-Camera-${state.cameraSwitchCount}',
-                              ),
-                              width: 100 / state.sensorAspectRatio,
-                              height: 100,
-                              child: Stack(
-                                children: [
-                                  /// Skeleton when switching camera
-                                  Container(color: const Color(0xFF141414)),
+    return [
+      if (isCameraInitialized && previewWidget != null)
+        _buildCameraPreview(
+          previewWidget: previewWidget,
+          sensorAspectRatio: sensorAspectRatio,
+        )
+      else
+        const VideoRecorderCameraPlaceholder(),
+      _buildOverlayGrid(showGrid),
+    ];
+  }
 
-                                  /// Preview widget
-                                  previewWidget,
+  Widget _buildCameraPreview({
+    required Widget previewWidget,
+    required double sensorAspectRatio,
+  }) {
+    return FittedBox(
+      fit: .cover,
+      child: SizedBox(
+        width: 100 / sensorAspectRatio,
+        height: 100,
+        child: Stack(
+          children: [
+            /// Skeleton when switching camera
+            Container(color: const Color(0xFF141414)),
 
-                                  /// Focus Point
-                                  const VideoRecorderFocusPoint(),
-                                ],
-                              ),
-                            ),
-                          )
-                        else
-                          VideoRecorderCameraPlaceholder(),
-                        IgnorePointer(
-                          child: AnimatedOpacity(
-                            opacity: state.showGrid ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 100),
-                            curve: Curves.easeInOut,
-                            child: CustomPaint(painter: _GridPainter()),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                IgnorePointer(
-                  child: AnimatedOpacity(
-                    opacity: state.showGrid ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 100),
-                    curve: Curves.easeInOut,
-                    child: CustomPaint(painter: _GridPainter()),
-                  ),
-                ),
-              ],
-            ),
-          ),
+            /// Preview widget
+            previewWidget,
+
+            /// Focus Point
+            const VideoRecorderFocusPoint(),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildOverlayGrid(bool showGrid) {
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: showGrid ? 1.0 : 0.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeInOut,
+        child: CustomPaint(painter: _GridPainter()),
       ),
     );
   }

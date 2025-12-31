@@ -39,8 +39,11 @@ class _VideoRecorderFocusPointState
         final x = displayPosition.dx * constraints.maxWidth;
         final y = displayPosition.dy * constraints.maxHeight;
 
-        // Size relative to container (since we're inside FittedBox)
-        final indicatorSize = constraints.maxWidth * 0.08;
+        // Size based on smallest dimension for consistency across aspect ratios
+        final minDimension = constraints.maxWidth < constraints.maxHeight
+            ? constraints.maxWidth
+            : constraints.maxHeight;
+        final indicatorSize = minDimension * 0.08;
 
         return IgnorePointer(
           child: Stack(
