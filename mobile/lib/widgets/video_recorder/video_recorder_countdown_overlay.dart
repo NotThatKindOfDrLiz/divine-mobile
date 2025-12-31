@@ -3,7 +3,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 
 /// Fullscreen overlay displaying countdown before recording starts.
 ///
@@ -14,7 +14,7 @@ class VideoRecorderCountdownOverlay extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final countdownValue = ref.watch(
-      videoRecordingProvider.select((p) => p.countdownValue),
+      videoRecorderProvider.select((p) => p.countdownValue),
     );
 
     final bool isActive = countdownValue > 0;

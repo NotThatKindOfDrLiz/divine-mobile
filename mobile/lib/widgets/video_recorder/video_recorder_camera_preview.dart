@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_placeholder.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
@@ -28,7 +28,7 @@ class _VideoRecorderCameraPreviewState
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(
-      videoRecordingProvider.select(
+      videoRecorderProvider.select(
         (s) => (
           aspectRatio: s.aspectRatio.value,
           sensorAspectRatio: s.cameraSensorAspectRatio,
@@ -74,7 +74,7 @@ class _VideoRecorderCameraPreviewState
     required double sensorAspectRatio,
   }) {
     final previewWidget = ref
-        .read(videoRecordingProvider.notifier)
+        .read(videoRecorderProvider.notifier)
         .previewWidget;
 
     return [

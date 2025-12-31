@@ -3,7 +3,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 
 class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
   const VideoRecorderFocusPoint({super.key});
@@ -20,7 +20,7 @@ class _VideoRecorderFocusPointState
   @override
   Widget build(BuildContext context) {
     final focusPoint = ref.watch(
-      videoRecordingProvider.select((state) => state.focusPoint),
+      videoRecorderProvider.select((state) => state.focusPoint),
     );
 
     final isVisible = focusPoint != .zero;

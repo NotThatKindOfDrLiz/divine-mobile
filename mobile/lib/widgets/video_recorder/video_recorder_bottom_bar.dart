@@ -4,7 +4,7 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 
 import 'video_recorder_more_sheet.dart';
 
@@ -31,7 +31,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isRecording = ref.watch(
-      videoRecordingProvider.select((p) => p.isRecording),
+      videoRecorderProvider.select((p) => p.isRecording),
     );
 
     return Positioned(
@@ -88,9 +88,9 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   /// Build record button
   Widget _buildRecordButton(WidgetRef ref, bool isRecording) {
-    final notifier = ref.read(videoRecordingProvider.notifier);
+    final notifier = ref.read(videoRecorderProvider.notifier);
     final timerDuration = ref.watch(
-      videoRecordingProvider.select((p) => p.timerDuration),
+      videoRecorderProvider.select((p) => p.timerDuration),
     );
     final isLongPressSupported = timerDuration == .off;
 
@@ -144,10 +144,10 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   /// Build the action buttons
   Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(videoRecordingProvider.notifier);
+    final notifier = ref.read(videoRecorderProvider.notifier);
 
     final state = ref.watch(
-      videoRecordingProvider.select(
+      videoRecorderProvider.select(
         (p) => (
           flashMode: p.flashMode,
           timer: p.timerDuration,

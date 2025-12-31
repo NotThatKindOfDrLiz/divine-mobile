@@ -13,7 +13,7 @@ import 'package:openvine/services/video_recorder/camera/camera_permission_servic
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Video Recording Integration Tests', () {
+  group('Video Recorder Integration Tests', () {
     late CameraService cameraService;
 
     setUpAll(() async {
@@ -83,4 +83,6 @@ void main() {
       expect(video, anyOf(isNull, isA<Object>()));
     });
   });
+
+  /// TODO(@hm21) add pinch to zoom test and long press test
 }

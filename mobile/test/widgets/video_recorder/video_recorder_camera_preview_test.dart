@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_placeholder.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_preview.dart';
 
@@ -21,8 +21,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            videoRecordingProvider.overrideWith(
-              () => VideoRecordingNotifier(mockCamera),
+            videoRecorderProvider.overrideWith(
+              () => VideoRecorderNotifier(mockCamera),
             ),
           ],
           child: const MaterialApp(
@@ -45,8 +45,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            videoRecordingProvider.overrideWith(
-              () => VideoRecordingNotifier(mockCamera),
+            videoRecorderProvider.overrideWith(
+              () => VideoRecorderNotifier(mockCamera),
             ),
           ],
           child: const MaterialApp(
@@ -68,8 +68,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            videoRecordingProvider.overrideWith(
-              () => VideoRecordingNotifier(mockCamera),
+            videoRecorderProvider.overrideWith(
+              () => VideoRecorderNotifier(mockCamera),
             ),
           ],
           child: const MaterialApp(
@@ -90,8 +90,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            videoRecordingProvider.overrideWith(
-              () => VideoRecordingNotifier(mockCamera),
+            videoRecorderProvider.overrideWith(
+              () => VideoRecorderNotifier(mockCamera),
             ),
           ],
           child: const MaterialApp(
@@ -112,8 +112,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            videoRecordingProvider.overrideWith(
-              () => VideoRecordingNotifier(mockCamera),
+            videoRecorderProvider.overrideWith(
+              () => VideoRecorderNotifier(mockCamera),
             ),
           ],
           child: const MaterialApp(
@@ -134,8 +134,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            videoRecordingProvider.overrideWith(
-              () => VideoRecordingNotifier(mockCamera),
+            videoRecorderProvider.overrideWith(
+              () => VideoRecorderNotifier(mockCamera),
             ),
           ],
           child: MaterialApp(

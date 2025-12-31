@@ -3,7 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
@@ -18,7 +18,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final hasClips = ref.watch(clipManagerProvider.select((s) => s.hasClips));
     final isRecording = ref.watch(
-      videoRecordingProvider.select((s) => s.isRecording),
+      videoRecorderProvider.select((s) => s.isRecording),
     );
 
     return Positioned(
@@ -38,7 +38,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 hidden: isRecording,
                 backgroundColor: _buttonColor,
                 onPressed: () => ref
-                    .read(videoRecordingProvider.notifier)
+                    .read(videoRecorderProvider.notifier)
                     .closeVideoRecorder(context),
               ),
 
@@ -52,7 +52,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 hidden: isRecording,
                 backgroundColor: hasClips ? VineTheme.vineGreen : _buttonColor,
                 onPressed: hasClips
-                    ? ref.read(videoRecordingProvider.notifier).openVideoEditor
+                    ? ref.read(videoRecorderProvider.notifier).openVideoEditor
                     : null,
               ),
             ],

@@ -22,6 +22,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   Timer? _recordingDurationTimer;
   final _recordStopwatch = Stopwatch();
   final List<RecordingClip> _clips = [];
+  List<RecordingClip> get clips => List.unmodifiable(_clips);
 
   @override
   ClipManagerState build() {

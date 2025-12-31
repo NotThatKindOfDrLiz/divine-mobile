@@ -1,23 +1,60 @@
-// ABOUTME: Unit tests for VineRecordingUIState behavior
+// ABOUTME: Unit tests for VideoRecorderUIState behavior
 // ABOUTME: Tests state getters and properties without requiring camera
 
 import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
-import 'package:openvine/providers/video_recording_provider.dart';
-import 'package:openvine/services/vine_recording_controller.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 
 void main() {
-  group('VineRecordingUIState Tests', () {
+  group('VideoRecorderUIState AspectRatio', () {
+    test('includes aspectRatio in state', () {
+      final state = VideoRecorderUIState(aspectRatio: AspectRatio.vertical);
+
+      expect(state.aspectRatio, equals(AspectRatio.vertical));
+    });
+
+    test('default aspectRatio is vertical', () {
+      final state = VideoRecorderUIState();
+
+      expect(state.aspectRatio, equals(AspectRatio.vertical));
+    });
+
+    test('copyWith updates aspectRatio', () {
+      final state = VideoRecorderUIState(aspectRatio: AspectRatio.square);
+
+      final updated = state.copyWith(aspectRatio: AspectRatio.vertical);
+      expect(updated.aspectRatio, equals(AspectRatio.vertical));
+    });
+
+    test('copyWith preserves aspectRatio when not provided', () {
+      final state = VideoRecorderUIState(aspectRatio: AspectRatio.square);
+
+      final updated = state.copyWith(canRecord: true);
+      expect(updated.aspectRatio, equals(AspectRatio.square));
+    });
+
+    test('all AspectRatio values can be used', () {
+      final squareState = VideoRecorderUIState(aspectRatio: AspectRatio.square);
+      expect(squareState.aspectRatio, equals(AspectRatio.square));
+
+      final verticalState = VideoRecorderUIState(
+        aspectRatio: AspectRatio.vertical,
+      );
+      expect(verticalState.aspectRatio, equals(AspectRatio.vertical));
+    });
+  });
+
+  group('VideoRecorderUIState Tests', () {
     test('isRecording getter should match recording state', () {
-      const recordingState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.recording,
+      const recordingState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.recording,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const idleState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const idleState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -27,15 +64,15 @@ void main() {
     });
 
     test('isInitialized should require camera initialization', () {
-      const initializedState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const initializedState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         isCameraInitialized: true,
         canRecord: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const uninitializedState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const uninitializedState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         isCameraInitialized: false,
         canRecord: false,
         aspectRatio: AspectRatio.square,
@@ -46,8 +83,8 @@ void main() {
     });
 
     test('isInitialized should be false during error state', () {
-      const errorState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.error,
+      const errorState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.error,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -55,25 +92,15 @@ void main() {
       expect(errorState.isInitialized, isFalse);
     });
 
-    test('isInitialized should be false during processing state', () {
-      const processingState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.processing,
-        isCameraInitialized: true,
-        aspectRatio: AspectRatio.square,
-      );
-
-      expect(processingState.isInitialized, isFalse);
-    });
-
     test('isError getter should detect error state', () {
-      const errorState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.error,
+      const errorState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.error,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const idleState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const idleState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -83,14 +110,14 @@ void main() {
     });
 
     test('errorMessage should be non-null only in error state', () {
-      const errorState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.error,
+      const errorState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.error,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const idleState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const idleState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
@@ -100,15 +127,15 @@ void main() {
     });
 
     test('canRecord should reflect ability to start recording', () {
-      const canRecordState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const canRecordState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         canRecord: true,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const cannotRecordState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.recording,
+      const cannotRecordState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.recording,
         canRecord: false,
         isCameraInitialized: true,
         aspectRatio: AspectRatio.square,
@@ -119,11 +146,9 @@ void main() {
     });
 
     test('zoomLevel should be customizable', () {
-      const defaultZoom = VideoRecordingUIState(
-        aspectRatio: AspectRatio.square,
-      );
+      const defaultZoom = VideoRecorderUIState(aspectRatio: AspectRatio.square);
 
-      const customZoom = VideoRecordingUIState(
+      const customZoom = VideoRecorderUIState(
         zoomLevel: 2.5,
         aspectRatio: AspectRatio.square,
       );
@@ -133,11 +158,11 @@ void main() {
     });
 
     test('focusPoint should be settable', () {
-      const defaultFocus = VideoRecordingUIState(
+      const defaultFocus = VideoRecorderUIState(
         aspectRatio: AspectRatio.square,
       );
 
-      const customFocus = VideoRecordingUIState(
+      const customFocus = VideoRecorderUIState(
         focusPoint: Offset(0.5, 0.5),
         aspectRatio: AspectRatio.square,
       );
@@ -147,11 +172,9 @@ void main() {
     });
 
     test('aspectRatio should be customizable', () {
-      const squareState = VideoRecordingUIState(
-        aspectRatio: AspectRatio.square,
-      );
+      const squareState = VideoRecorderUIState(aspectRatio: AspectRatio.square);
 
-      const verticalState = VideoRecordingUIState(
+      const verticalState = VideoRecorderUIState(
         aspectRatio: AspectRatio.vertical,
       );
 
@@ -160,17 +183,17 @@ void main() {
     });
 
     test('flashMode should be customizable', () {
-      const autoFlash = VideoRecordingUIState(
+      const autoFlash = VideoRecorderUIState(
         flashMode: FlashMode.auto,
         aspectRatio: AspectRatio.square,
       );
 
-      const torchFlash = VideoRecordingUIState(
+      const torchFlash = VideoRecorderUIState(
         flashMode: FlashMode.torch,
         aspectRatio: AspectRatio.square,
       );
 
-      const offFlash = VideoRecordingUIState(
+      const offFlash = VideoRecorderUIState(
         flashMode: FlashMode.off,
         aspectRatio: AspectRatio.square,
       );
@@ -181,17 +204,17 @@ void main() {
     });
 
     test('timerDuration should be customizable', () {
-      const offTimer = VideoRecordingUIState(
+      const offTimer = VideoRecorderUIState(
         timerDuration: TimerDuration.off,
         aspectRatio: AspectRatio.square,
       );
 
-      const threeSecTimer = VideoRecordingUIState(
+      const threeSecTimer = VideoRecorderUIState(
         timerDuration: TimerDuration.three,
         aspectRatio: AspectRatio.square,
       );
 
-      const tenSecTimer = VideoRecordingUIState(
+      const tenSecTimer = VideoRecorderUIState(
         timerDuration: TimerDuration.ten,
         aspectRatio: AspectRatio.square,
       );
@@ -202,12 +225,12 @@ void main() {
     });
 
     test('countdownValue should be settable', () {
-      const noCountdown = VideoRecordingUIState(
+      const noCountdown = VideoRecorderUIState(
         countdownValue: 0,
         aspectRatio: AspectRatio.square,
       );
 
-      const countingDown = VideoRecordingUIState(
+      const countingDown = VideoRecorderUIState(
         countdownValue: 3,
         aspectRatio: AspectRatio.square,
       );
@@ -217,31 +240,31 @@ void main() {
     });
 
     test('copyWith should update specific fields', () {
-      const initialState = VideoRecordingUIState(
-        recordingState: VideoRecordingState.idle,
+      const initialState = VideoRecorderUIState(
+        recordingState: VideoRecorderState.idle,
         zoomLevel: 1.0,
         canRecord: true,
         aspectRatio: AspectRatio.square,
       );
 
       final updatedState = initialState.copyWith(
-        recordingState: VideoRecordingState.recording,
+        recordingState: VideoRecorderState.recording,
         zoomLevel: 2.0,
       );
 
-      expect(updatedState.recordingState, VideoRecordingState.recording);
+      expect(updatedState.recordingState, VideoRecorderState.recording);
       expect(updatedState.zoomLevel, 2.0);
       expect(updatedState.canRecord, true); // Preserved
       expect(updatedState.aspectRatio, AspectRatio.square); // Preserved
     });
 
     test('cameraSwitchCount should increment on camera switch', () {
-      const initialState = VideoRecordingUIState(
+      const initialState = VideoRecorderUIState(
         cameraSwitchCount: 0,
         aspectRatio: AspectRatio.square,
       );
 
-      const switchedState = VideoRecordingUIState(
+      const switchedState = VideoRecorderUIState(
         cameraSwitchCount: 1,
         aspectRatio: AspectRatio.square,
       );
@@ -251,12 +274,12 @@ void main() {
     });
 
     test('canSwitchCamera should be configurable', () {
-      const canSwitch = VideoRecordingUIState(
+      const canSwitch = VideoRecorderUIState(
         canSwitchCamera: true,
         aspectRatio: AspectRatio.square,
       );
 
-      const cannotSwitch = VideoRecordingUIState(
+      const cannotSwitch = VideoRecorderUIState(
         canSwitchCamera: false,
         aspectRatio: AspectRatio.square,
       );
@@ -266,9 +289,9 @@ void main() {
     });
 
     test('default state should have sensible values', () {
-      const state = VideoRecordingUIState();
+      const state = VideoRecorderUIState();
 
-      expect(state.recordingState, VideoRecordingState.idle);
+      expect(state.recordingState, VideoRecorderState.idle);
       expect(state.zoomLevel, 1.0);
       expect(state.cameraSensorAspectRatio, 1.0);
       expect(state.focusPoint, Offset.zero);

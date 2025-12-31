@@ -19,7 +19,7 @@ import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/screens/pure/video_metadata_screen_pure.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 
 import '../providers/sound_library_service_provider.dart';
 import '../services/video_editor/video_editor_service.dart';
@@ -158,7 +158,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
   Future<void> _createDraft(String draftId, String outputPath) async {
     // Get the aspect ratio from recording state
-    final recordingState = ref.read(videoRecordingProvider);
+    final recordingState = ref.read(videoRecorderProvider);
     final aspectRatio = recordingState.aspectRatio;
     // TODO(@hm21): Only create a draft if one does not already exist.
 

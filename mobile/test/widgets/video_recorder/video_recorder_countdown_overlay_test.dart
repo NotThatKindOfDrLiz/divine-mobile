@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
 
 import '../../mocks/mock_camera_service.dart';
@@ -23,8 +23,8 @@ void main() {
     Widget buildTestWidget() {
       return ProviderScope(
         overrides: [
-          videoRecordingProvider.overrideWith(
-            () => VideoRecordingNotifier(mockCamera),
+          videoRecorderProvider.overrideWith(
+            () => VideoRecorderNotifier(mockCamera),
           ),
         ],
         child: MaterialApp(

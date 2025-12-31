@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
@@ -24,7 +24,7 @@ class VideoRecorderScreen extends ConsumerStatefulWidget {
 class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     with WidgetsBindingObserver {
   final double _previewRadius = 16.0;
-  VideoRecordingNotifier? _notifier;
+  VideoRecorderNotifier? _notifier;
 
   @override
   void initState() {
@@ -38,7 +38,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   Future<void> _initializeCamera() async {
     _disposeVideoControllers();
 
-    _notifier = ref.read(videoRecordingProvider.notifier);
+    _notifier = ref.read(videoRecorderProvider.notifier);
     final success = await _notifier!.initialize(context: context);
 
     if (!success && mounted) {
@@ -80,7 +80,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    ref.read(videoRecordingProvider.notifier).handleAppLifecycleState(state);
+    ref.read(videoRecorderProvider.notifier).handleAppLifecycleState(state);
   }
 
   @override
