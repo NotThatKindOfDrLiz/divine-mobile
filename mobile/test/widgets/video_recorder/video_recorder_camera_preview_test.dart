@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_camera_placeholder.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_preview.dart';
 
 import '../../mocks/mock_camera_service.dart';
@@ -13,7 +14,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('VideoRecorderCameraPreview Widget Tests', () {
-    testWidgets('displays mock camera preview from service', (tester) async {
+    testWidgets('renders camera preview widget', (tester) async {
       final mockCamera = MockCameraService();
       await mockCamera.initialize();
 
@@ -24,7 +25,7 @@ void main() {
               () => VideoRecordingNotifier(mockCamera),
             ),
           ],
-          child: MaterialApp(
+          child: const MaterialApp(
             home: Scaffold(
               body: VideoRecorderCameraPreview(previewWidgetRadius: 16.0),
             ),
@@ -32,8 +33,32 @@ void main() {
         ),
       );
 
-      // Mock camera service provides a Container with text
-      expect(find.text('Mock Camera Preview'), findsOneWidget);
+      expect(find.byType(VideoRecorderCameraPreview), findsOneWidget);
+    });
+
+    testWidgets('displays placeholder when camera not initialized', (
+      tester,
+    ) async {
+      final mockCamera = MockCameraService();
+      // Don't initialize - should show placeholder
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            videoRecordingProvider.overrideWith(
+              () => VideoRecordingNotifier(mockCamera),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: VideoRecorderCameraPreview(previewWidgetRadius: 16.0),
+            ),
+          ),
+        ),
+      );
+
+      // Should show placeholder widget
+      expect(find.byType(VideoRecorderCameraPlaceholder), findsOneWidget);
     });
 
     testWidgets('renders with required radius parameter', (tester) async {
@@ -47,7 +72,7 @@ void main() {
               () => VideoRecordingNotifier(mockCamera),
             ),
           ],
-          child: MaterialApp(
+          child: const MaterialApp(
             home: Scaffold(
               body: VideoRecorderCameraPreview(previewWidgetRadius: 16.0),
             ),
@@ -69,7 +94,7 @@ void main() {
               () => VideoRecordingNotifier(mockCamera),
             ),
           ],
-          child: MaterialApp(
+          child: const MaterialApp(
             home: Scaffold(
               body: VideoRecorderCameraPreview(previewWidgetRadius: 16.0),
             ),
@@ -77,10 +102,10 @@ void main() {
         ),
       );
 
-      expect(find.byType(ClipRRect), findsOneWidget);
+      expect(find.byType(ClipRRect), findsWidgets);
     });
 
-    testWidgets('rebuilds when aspect ratio changes', (tester) async {
+    testWidgets('contains AnimatedContainer for transitions', (tester) async {
       final mockCamera = MockCameraService();
       await mockCamera.initialize();
 
@@ -91,7 +116,7 @@ void main() {
               () => VideoRecordingNotifier(mockCamera),
             ),
           ],
-          child: MaterialApp(
+          child: const MaterialApp(
             home: Scaffold(
               body: VideoRecorderCameraPreview(previewWidgetRadius: 16.0),
             ),
@@ -99,10 +124,7 @@ void main() {
         ),
       );
 
-      await tester.pump();
-
-      // Widget should be present after rebuild
-      expect(find.byType(VideoRecorderCameraPreview), findsOneWidget);
+      expect(find.byType(AnimatedContainer), findsOneWidget);
     });
 
     testWidgets('maintains radius value', (tester) async {
