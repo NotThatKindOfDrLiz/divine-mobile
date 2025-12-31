@@ -58,6 +58,8 @@ class CameraMacOSService extends CameraService {
 
   @override
   Future<void> dispose() async {
+    if (!_isInitialized) return;
+
     Log.info(
       '📷 Disposing macOS camera',
       name: 'CameraMacOSService',
@@ -333,7 +335,7 @@ class CameraMacOSService extends CameraService {
           onScaleStart: onScaleStart,
           onScaleUpdate: onScaleUpdate,
           onTapDown: (details) => onTapDown(details, constraints),
-          child: CameraMacosRawView(
+          child: CameraMacOSRawView(
             cameraSize: _cameraSensorSize,
             textureId: _textureId,
           ),

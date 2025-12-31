@@ -349,10 +349,10 @@ packages:
     dependency: "direct main"
     description:
       name: camera_macos_plus
-      sha256: "580282564a190d8c755c80fcde22eae9bfd8ed3c0d534772a7b50d07ab057c3e"
+      sha256: "1c4af91f15aec8d0be5f3e02a4d5ee17cdffcdf1cea6eeed6aa2022bfb587032"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.1"
+    version: "0.0.3"
   camera_platform_interface:
     dependency: transitive
     description:
