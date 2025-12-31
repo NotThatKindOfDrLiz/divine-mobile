@@ -27,18 +27,7 @@ class CameraMacOSService extends CameraService {
   bool _isRecording = false;
   bool _isInitialized = false;
   bool _isInBackground = false;
-
-  @override
-  Future<void> dispose() async {
-    Log.info(
-      '📷 Disposing macOS camera',
-      name: 'CameraMacOSService',
-      category: .video,
-    );
-    _isInitialized = false;
-
-    await CameraMacOS.instance.destroy();
-  }
+  bool _isInitialSetupCompleted = false;
 
   @override
   Future<void> initialize() async {
@@ -58,7 +47,7 @@ class CameraMacOSService extends CameraService {
     );
 
     await _initializeCameraController();
-    _isInitialized = true;
+    _isInitialSetupCompleted = true;
 
     Log.info(
       '📷 macOS camera initialized (${_videoDevices!.length} video, ${_audioDevices!.length} audio devices)',
@@ -67,16 +56,31 @@ class CameraMacOSService extends CameraService {
     );
   }
 
+  @override
+  Future<void> dispose() async {
+    Log.info(
+      '📷 Disposing macOS camera',
+      name: 'CameraMacOSService',
+      category: .video,
+    );
+    _isInitialized = false;
+
+    await CameraMacOS.instance.destroy();
+  }
+
   /// Initializes the camera with the current video and audio device.
   ///
   /// Sets up the camera in video mode with the selected devices.
   Future<void> _initializeCameraController() async {
+    if (_videoDevices == null) return;
+
     final deviceId = _videoDevices![_currentCameraIndex].deviceId;
     final result = await CameraMacOS.instance.initialize(
       cameraMacOSMode: CameraMacOSMode.video,
       deviceId: deviceId,
       audioDeviceId: _audioDevices?.first.deviceId,
     );
+    _isInitialized = true;
 
     _textureId = result?.textureId ?? 0;
     _cameraSensorSize = result?.size ?? Size(500, 500);
@@ -291,13 +295,25 @@ class CameraMacOSService extends CameraService {
       category: .video,
     );
     _isInBackground = state == .inactive;
+    switch (state) {
+      case .inactive:
+        if (isInitialized) await dispose();
+        break;
+      case .resumed:
+        // Only reinitialize if we had a successful initialization before
+        // (prevents reinitialization attempts when coming back from permission dialog)
+        if (_isInitialSetupCompleted) {
+          await _initializeCameraController();
 
-    if (state == .resumed) {
-      Log.info(
-        '📷 macOS camera reinitialized after resume',
-        name: 'CameraMacOSService',
-        category: .video,
-      );
+          Log.info(
+            '📷 macOS camera reinitialized after resume',
+            name: 'CameraMacOSService',
+            category: .video,
+          );
+        }
+        break;
+      default:
+        break;
     }
   }
 
