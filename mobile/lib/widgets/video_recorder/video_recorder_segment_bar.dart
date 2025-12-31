@@ -49,6 +49,8 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
     var used = Duration.zero;
     final segments = <Widget>[];
 
+    print(recordSegments);
+
     // Build segments with Flexible based on duration
     for (int i = 0; i < recordSegments.length; i++) {
       if (used >= _maxDuration) break;
@@ -65,7 +67,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       segments.add(
         Flexible(
           flex: segmentDuration.inMilliseconds,
-          child: const ColoredBox(color: VineTheme.vineGreen),
+          child: Container(color: VineTheme.vineGreen),
         ),
       );
 
@@ -75,7 +77,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
           segments.add(
             SizedBox(
               width: _dividerWidth,
-              child: const ColoredBox(color: Colors.white),
+              child: Container(color: Colors.white),
             ),
           );
         }
@@ -92,7 +94,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       segments.add(
         Flexible(
           flex: activeDuration.inMilliseconds,
-          child: const ColoredBox(color: VineTheme.vineGreen),
+          child: Container(color: VineTheme.vineGreen),
         ),
       );
 
@@ -105,7 +107,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       segments.add(
         Flexible(
           flex: remaining.inMilliseconds,
-          child: const ColoredBox(color: Colors.transparent),
+          child: Container(color: Colors.transparent),
         ),
       );
     }

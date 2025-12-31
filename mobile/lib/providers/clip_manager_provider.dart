@@ -46,17 +46,17 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       category: .video,
     );
 
-    // Update activeRecordingDuration every 100ms
-    _recordingDurationTimer = Timer.periodic(
-      const Duration(milliseconds: 100),
-      (_) {
-        if (_recordStopwatch.isRunning) {
-          state = state.copyWith(
-            activeRecordingDuration: _recordStopwatch.elapsed,
-          );
-        }
-      },
-    );
+    // Update activeRecordingDuration every 16ms (~60fps).
+    // We ONLY rebuild with that logic, the progress inside of the segment-bar.
+    _recordingDurationTimer = Timer.periodic(const Duration(milliseconds: 16), (
+      _,
+    ) {
+      if (_recordStopwatch.isRunning) {
+        state = state.copyWith(
+          activeRecordingDuration: _recordStopwatch.elapsed,
+        );
+      }
+    });
   }
 
   /// Stop recording timer and freeze duration.
@@ -103,11 +103,14 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       category: .video,
     );
 
-    state = state.copyWith(clips: List.unmodifiable(_clips));
-
     if (duration == null) {
       resetRecording();
     }
+    state = state.copyWith(
+      clips: List.unmodifiable(_clips),
+      activeRecordingDuration: .zero,
+    );
+
     return clip;
   }
 
