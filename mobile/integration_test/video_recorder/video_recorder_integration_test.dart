@@ -175,8 +175,11 @@ void main() {
       final initialZoom = container.read(videoRecorderProvider).zoomLevel;
 
       // Move finger up (should zoom in)
-      await gesture.moveBy(Offset(0, -100));
-      await tester.pump(Duration(milliseconds: 100));
+      await gesture.moveBy(
+        Offset(0, -100),
+        timeStamp: Duration(milliseconds: 600),
+      );
+      await tester.pump(Duration(milliseconds: 500));
 
       // Check zoom changed
       final zoomAfterMove = container.read(videoRecorderProvider).zoomLevel;
