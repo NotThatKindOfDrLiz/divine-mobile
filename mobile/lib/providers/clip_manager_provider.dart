@@ -1,38 +1,37 @@
 // ABOUTME: Riverpod provider for Clip Manager state management
-// ABOUTME: Wraps ClipManagerService with reactive state updates
+// ABOUTME: Manages recorded video clips with modern Notifier pattern
 
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/services/clip_manager_service.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
-final clipManagerServiceProvider = Provider<ClipManagerService>((ref) {
-  final service = ClipManagerService();
-  ref.onDispose(() => service.dispose());
-  return service;
-});
-
 final clipManagerProvider =
-    StateNotifierProvider<ClipManagerNotifier, ClipManagerState>((ref) {
-      final service = ref.watch(clipManagerServiceProvider);
-      return ClipManagerNotifier(service);
-    });
+    NotifierProvider<ClipManagerNotifier, ClipManagerState>(
+      ClipManagerNotifier.new,
+    );
 
-class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
-  ClipManagerNotifier(this._service) : super(ClipManagerState()) {
-    _service.addListener(_updateState);
-    _updateState();
-  }
+class ClipManagerNotifier extends Notifier<ClipManagerState> {
+  static const Duration maxDuration = Duration(milliseconds: 6_300);
 
+  int _clipCounter = 0;
   Timer? _recordingDurationTimer;
-  Stopwatch _recordStopwatch = Stopwatch();
+  final _recordStopwatch = Stopwatch();
+  final List<RecordingClip> _clips = [];
 
-  final ClipManagerService _service;
+  @override
+  ClipManagerState build() {
+    ref.onDispose(() {
+      _recordingDurationTimer?.cancel();
+      _recordStopwatch.stop();
+      _clips.clear();
+    });
+    return ClipManagerState();
+  }
 
   void startRecording() {
     _recordStopwatch
@@ -61,27 +60,32 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
     _recordStopwatch.reset();
   }
 
-  void _updateState() {
-    state = state.copyWith(
-      clips: _service.clips,
-      activeRecordingDuration: .zero,
-    );
-  }
-
   RecordingClip addClip({
     required EditorVideo video,
     Duration? duration,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
   }) {
-    final clip = _service.addClip(
+    final clip = RecordingClip(
+      id: 'clip_${DateTime.now().millisecondsSinceEpoch}_${_clipCounter++}',
       video: video,
       duration:
           duration ??
           Duration(microseconds: _recordStopwatch.elapsedMicroseconds),
+      recordedAt: .now(),
       thumbnailPath: thumbnailPath,
       aspectRatio: aspectRatio,
     );
+
+    _clips.add(clip);
+    Log.info(
+      '📎 Added clip: ${clip.id}, duration: ${clip.durationInSeconds}s',
+      name: 'ClipManagerNotifier',
+      category: LogCategory.video,
+    );
+
+    state = state.copyWith(clips: List.unmodifiable(_clips));
+
     if (duration == null) {
       resetRecording();
     }
@@ -89,19 +93,56 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
   }
 
   void deleteClip(String clipId) {
-    _service.deleteClip(clipId);
+    final index = _clips.indexWhere((c) => c.id == clipId);
+    if (index == -1) {
+      Log.warning(
+        '📎 Clip not found for deletion: $clipId',
+        name: 'ClipManagerNotifier',
+        category: LogCategory.video,
+      );
+      return;
+    }
+
+    _clips.removeAt(index);
+    Log.info(
+      '📎 Deleted clip: $clipId, remaining: ${_clips.length}',
+      name: 'ClipManagerNotifier',
+      category: LogCategory.video,
+    );
+    state = state.copyWith(clips: List.unmodifiable(_clips));
   }
 
   void reorderClips(List<String> orderedIds) {
-    _service.reorderClips(orderedIds);
+    final reorderedClips = <RecordingClip>[];
+    for (final id in orderedIds) {
+      final clip = _clips.firstWhere((c) => c.id == id);
+      reorderedClips.add(clip);
+    }
+    _clips
+      ..clear()
+      ..addAll(reorderedClips);
+    Log.info(
+      '📎 Reordered ${orderedIds.length} clips',
+      name: 'ClipManagerNotifier',
+      category: LogCategory.video,
+    );
+    state = state.copyWith(clips: List.unmodifiable(_clips));
   }
 
   void updateThumbnail(String clipId, String thumbnailPath) {
-    _service.updateThumbnail(clipId, thumbnailPath);
+    final index = _clips.indexWhere((c) => c.id == clipId);
+    if (index != -1) {
+      _clips[index] = _clips[index].copyWith(thumbnailPath: thumbnailPath);
+      state = state.copyWith(clips: List.unmodifiable(_clips));
+    }
   }
 
   void updateClipDuration(String clipId, Duration duration) {
-    _service.updateClipDuration(clipId, duration);
+    final index = _clips.indexWhere((c) => c.id == clipId);
+    if (index != -1) {
+      _clips[index] = _clips[index].copyWith(duration: duration);
+      state = state.copyWith(clips: List.unmodifiable(_clips));
+    }
   }
 
   void selectClip(String? clipId) {
@@ -133,25 +174,23 @@ class ClipManagerNotifier extends StateNotifier<ClipManagerState> {
   }
 
   void removeLastClip() {
-    final lastClip = _service.clips.last;
-    _service.deleteClip(lastClip.id);
+    if (_clips.isEmpty) return;
+    final lastClip = _clips.last;
+    deleteClip(lastClip.id);
   }
 
   void clearAll() {
-    _service.clearAll();
+    _clips.clear();
+    Log.info(
+      '📎 Cleared all clips',
+      name: 'ClipManagerNotifier',
+      category: LogCategory.video,
+    );
     state = ClipManagerState();
   }
 
   void saveClipToLibrary() {
     // TODO(@hm21): Implement save to Library feature.
     // Ask design-team first if only the last clip or all clips?
-  }
-
-  @override
-  void dispose() {
-    _recordStopwatch.stop();
-    _service.removeListener(_updateState);
-    _recordingDurationTimer?.cancel();
-    super.dispose();
   }
 }

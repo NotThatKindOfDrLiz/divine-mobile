@@ -278,9 +278,20 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
     final success = await _cameraService.switchCamera();
 
     if (!success) {
+      Log.warning(
+        '⚠️ Failed to switch camera',
+        name: 'VideoRecordingNotifier',
+        category: LogCategory.video,
+      );
       return;
     }
     _baseZoomLevel = 1;
+
+    Log.info(
+      '🔄 Camera switched',
+      name: 'VideoRecordingNotifier',
+      category: LogCategory.video,
+    );
 
     // Force state update to rebuild UI with new camera preview
     // Increment camera switch count to ensure state object changes and triggers UI rebuild
@@ -349,6 +360,11 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
     // Handle timer countdown
     if (state.timerDuration != .off) {
       final seconds = state.timerDuration.duration.inSeconds;
+      Log.info(
+        '⏱️ Starting countdown: $seconds seconds',
+        name: 'VideoRecordingNotifier',
+        category: LogCategory.video,
+      );
 
       for (int i = seconds; i > 0; i--) {
         if (_isDestroyed) return; // Stop countdown if disposed
@@ -360,6 +376,11 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
     }
 
     if (_isDestroyed) return; // Don't start recording if disposed
+    Log.info(
+      '🎥 Recording started',
+      name: 'VideoRecordingNotifier',
+      category: LogCategory.video,
+    );
     await _cameraService.startRecording();
     ref.read(clipManagerProvider.notifier)..startRecording();
   }
@@ -367,12 +388,23 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
   Future<void> stopRecording() async {
     if (!state.isRecording) return;
 
+    Log.info(
+      '⏹️ Stopping recording',
+      name: 'VideoRecordingNotifier',
+      category: LogCategory.video,
+    );
+
     final clipProvider = ref.read(clipManagerProvider.notifier);
 
     clipProvider.stopRecording();
     final videoResult = await _cameraService.stopRecording();
 
     if (videoResult == null) {
+      Log.warning(
+        '⚠️ Recording stopped but no video result',
+        name: 'VideoRecordingNotifier',
+        category: LogCategory.video,
+      );
       return;
     }
 
@@ -382,6 +414,12 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
     final clip = clipProvider.addClip(
       video: videoResult,
       aspectRatio: state.aspectRatio,
+    );
+
+    Log.info(
+      '✅ Clip added: ${clip.id}',
+      name: 'VideoRecordingNotifier',
+      category: LogCategory.video,
     );
 
     /// We used the stopwatch as a temporary timer to set an expected duration.

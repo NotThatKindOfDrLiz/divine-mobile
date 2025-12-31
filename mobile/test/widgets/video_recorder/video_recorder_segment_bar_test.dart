@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/services/clip_manager_service.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:pro_video_editor/core/models/video/editor_video_model.dart';
 
@@ -54,28 +53,27 @@ void main() {
     });
 
     testWidgets('displays clips as colored segments', (tester) async {
+      final testClips = [
+        RecordingClip(
+          id: 'clip1',
+          video: EditorVideo.file('/test/clip1.mp4'),
+          duration: Duration(seconds: 2),
+          recordedAt: DateTime.now(),
+        ),
+        RecordingClip(
+          id: 'clip2',
+          video: EditorVideo.file('/test/clip2.mp4'),
+          duration: Duration(seconds: 3),
+          recordedAt: DateTime.now(),
+        ),
+      ];
+
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            clipManagerProvider.overrideWith((ref) {
-              return ClipManagerNotifier(ClipManagerService())
-                ..state = ClipManagerState(
-                  clips: [
-                    RecordingClip(
-                      id: 'clip1',
-                      video: EditorVideo.file('/test/clip1.mp4'),
-                      duration: Duration(seconds: 2),
-                      recordedAt: DateTime.now(),
-                    ),
-                    RecordingClip(
-                      id: 'clip2',
-                      video: EditorVideo.file('/test/clip2.mp4'),
-                      duration: Duration(seconds: 3),
-                      recordedAt: DateTime.now(),
-                    ),
-                  ],
-                );
-            }),
+            clipManagerProvider.overrideWith(
+              () => _TestClipManagerNotifier(testClips),
+            ),
           ],
           child: MaterialApp(
             home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
@@ -100,4 +98,17 @@ void main() {
       expect(row.children.length, equals(4));
     });
   });
+}
+
+/// Test Notifier that provides clips in build()
+class _TestClipManagerNotifier extends ClipManagerNotifier {
+  _TestClipManagerNotifier(this._clips);
+
+  final List<RecordingClip> _clips;
+
+  @override
+  ClipManagerState build() {
+    super.build(); // Call parent to setup ref.onDispose
+    return ClipManagerState(clips: _clips);
+  }
 }
