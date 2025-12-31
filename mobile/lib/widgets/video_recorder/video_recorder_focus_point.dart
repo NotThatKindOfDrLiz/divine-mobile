@@ -15,23 +15,64 @@ class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
 
 class _VideoRecorderFocusPointState
     extends ConsumerState<VideoRecorderFocusPoint> {
+  final _indicatorSize = 36.0;
   Offset _lastVisiblePosition = .zero;
+
+  /// Transform camera coordinates to display coordinates based on FittedBox.cover
+  Offset _cameraToDisplayCoordinates({
+    required double cropAspectRatio,
+    required double sensorAspectRatio,
+    required Offset cameraPoint,
+  }) {
+    // SizedBox aspect ratio = (100/sensorAR) / 100 = 1/sensorAR
+    // arRatio compares display to sizedbox aspect ratios
+    final arRatio = cropAspectRatio * sensorAspectRatio;
+
+    double displayX, displayY;
+
+    if (arRatio > 1) {
+      // Display is wider relative to camera - height is cropped
+      final visibleHeight = 1 / arRatio;
+      final cropY = (1 - visibleHeight) / 2;
+      displayX = cameraPoint.dx;
+      displayY = (cameraPoint.dy - cropY) * arRatio;
+    } else {
+      // Display is taller relative to camera - width is cropped
+      final visibleWidth = arRatio;
+      final cropX = (1 - visibleWidth) / 2;
+      displayX = (cameraPoint.dx - cropX) / arRatio;
+      displayY = cameraPoint.dy;
+    }
+
+    return Offset(displayX.clamp(0, 1), displayY.clamp(0, 1));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final focusPoint = ref.watch(
-      videoRecorderProvider.select((state) => state.focusPoint),
+    final state = ref.watch(
+      videoRecorderProvider.select(
+        (s) => (
+          aspectRatio: s.aspectRatio.value,
+          sensorAspectRatio: s.cameraSensorAspectRatio,
+          focusPoint: s.focusPoint,
+        ),
+      ),
     );
 
-    final isVisible = focusPoint != .zero;
+    final isVisible = state.focusPoint != .zero;
 
     // Remember the last visible position for smooth fade out
     if (isVisible) {
-      _lastVisiblePosition = focusPoint;
+      _lastVisiblePosition = state.focusPoint;
     }
 
-    // Use last visible position when fading out
-    final displayPosition = isVisible ? focusPoint : _lastVisiblePosition;
+    // Transform camera coordinates to display coordinates
+    final cameraPoint = isVisible ? state.focusPoint : _lastVisiblePosition;
+    final displayPosition = _cameraToDisplayCoordinates(
+      cropAspectRatio: state.aspectRatio,
+      sensorAspectRatio: state.sensorAspectRatio,
+      cameraPoint: cameraPoint,
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -39,24 +80,18 @@ class _VideoRecorderFocusPointState
         final x = displayPosition.dx * constraints.maxWidth;
         final y = displayPosition.dy * constraints.maxHeight;
 
-        // Size based on smallest dimension for consistency across aspect ratios
-        final minDimension = constraints.maxWidth < constraints.maxHeight
-            ? constraints.maxWidth
-            : constraints.maxHeight;
-        final indicatorSize = minDimension * 0.08;
-
         return IgnorePointer(
           child: Stack(
             children: [
               Positioned(
-                left: x - indicatorSize / 2,
-                top: y - indicatorSize / 2,
+                left: x - _indicatorSize / 2,
+                top: y - _indicatorSize / 2,
                 child: AnimatedOpacity(
                   opacity: isVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),
                   curve: Curves.easeInOut,
                   child: TweenAnimationBuilder<double>(
-                    key: ValueKey('Focus-Point-$focusPoint'),
+                    key: ValueKey('Focus-Point-${state.focusPoint}'),
                     duration: const Duration(milliseconds: 300),
                     tween: Tween(
                       begin: isVisible ? 1.2 : 1.0,
@@ -66,7 +101,7 @@ class _VideoRecorderFocusPointState
                     builder: (context, scale, child) {
                       return Transform.scale(scale: scale, child: child);
                     },
-                    child: _buildFocusPoint(indicatorSize),
+                    child: _buildFocusPoint(),
                   ),
                 ),
               ),
@@ -77,21 +112,21 @@ class _VideoRecorderFocusPointState
     );
   }
 
-  Widget _buildFocusPoint(double indicatorSize) {
+  Widget _buildFocusPoint() {
     return Container(
-      width: indicatorSize,
-      height: indicatorSize,
+      width: _indicatorSize,
+      height: _indicatorSize,
       decoration: BoxDecoration(
         border: .all(
           color: const Color(0xFFFFFFFF),
-          width: indicatorSize * 0.025,
+          width: _indicatorSize * 0.025,
         ),
         shape: .circle,
       ),
       child: Center(
         child: Container(
-          width: indicatorSize * 0.05,
-          height: indicatorSize * 0.05,
+          width: _indicatorSize * 0.05,
+          height: _indicatorSize * 0.05,
           decoration: const BoxDecoration(
             color: Color(0xFFFFFFFF),
             shape: .circle,

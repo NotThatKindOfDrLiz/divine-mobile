@@ -86,6 +86,7 @@ class _VideoRecorderCameraPreviewState
       else
         const VideoRecorderCameraPlaceholder(),
       _buildOverlayGrid(showGrid),
+      const VideoRecorderFocusPoint(),
     ];
   }
 
@@ -105,9 +106,6 @@ class _VideoRecorderCameraPreviewState
 
             /// Preview widget
             previewWidget,
-
-            /// Focus Point
-            const VideoRecorderFocusPoint(),
           ],
         ),
       ),

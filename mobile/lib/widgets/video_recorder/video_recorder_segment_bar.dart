@@ -49,8 +49,6 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
     var used = Duration.zero;
     final segments = <Widget>[];
 
-    print(recordSegments);
-
     // Build segments with Flexible based on duration
     for (int i = 0; i < recordSegments.length; i++) {
       if (used >= _maxDuration) break;
