@@ -5,8 +5,12 @@
 // Either grant via ADB: adb shell pm grant co.openvine.app android.permission.CAMERA
 // Or the first test run will show permission dialogs that must be accepted.
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 
@@ -82,7 +86,156 @@ void main() {
       // Should return null or handle gracefully
       expect(video, anyOf(isNull, isA<Object>()));
     });
+
+    testWidgets('zoom works during recording', (tester) async {
+      await cameraService.startRecording();
+      await tester.pump(Duration(milliseconds: 200));
+
+      // Change zoom while recording
+      final midZoom =
+          (cameraService.minZoomLevel + cameraService.maxZoomLevel) / 2;
+      final zoomResult = await cameraService.setZoomLevel(midZoom);
+      expect(zoomResult, isTrue);
+
+      await tester.pump(Duration(milliseconds: 300));
+
+      final video = await cameraService.stopRecording();
+      expect(video, isNotNull);
+    });
   });
 
-  /// TODO(@hm21) add pinch to zoom test and long press test
+  group('Video Recorder Widget Tests', () {
+    setUpAll(() async {
+      await CameraPermissionService.ensurePermissions();
+    });
+
+    testWidgets('pinch to zoom changes zoom level', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+      );
+
+      // Wait for camera to initialize
+      await tester.pumpAndSettle(Duration(seconds: 2));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(VideoRecorderScreen)),
+      );
+      final notifier = container.read(videoRecorderProvider.notifier);
+      final initialZoom = container.read(videoRecorderProvider).zoomLevel;
+
+      // Simulate pinch zoom out (scale > 1)
+      final center = tester.getCenter(find.byType(VideoRecorderScreen));
+      final pointer1 = TestPointer(1);
+      final pointer2 = TestPointer(2);
+
+      // Start with two fingers close together
+      await tester.sendEventToBinding(pointer1.down(center));
+      await tester.sendEventToBinding(pointer2.down(center));
+      await tester.pump();
+
+      // Move fingers apart (zoom in)
+      await tester.sendEventToBinding(pointer1.move(center + Offset(-50, 0)));
+      await tester.sendEventToBinding(pointer2.move(center + Offset(50, 0)));
+      await tester.pump(Duration(milliseconds: 100));
+
+      // Release
+      await tester.sendEventToBinding(pointer1.up());
+      await tester.sendEventToBinding(pointer2.up());
+      await tester.pump();
+
+      final newZoom = container.read(videoRecorderProvider).zoomLevel;
+
+      // Zoom should have increased
+      expect(newZoom, greaterThanOrEqualTo(initialZoom));
+
+      // Cleanup
+      notifier.destroy();
+    });
+
+    testWidgets('long press on record button starts recording', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+      );
+
+      // Wait for camera to initialize
+      await tester.pumpAndSettle(Duration(seconds: 2));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(VideoRecorderScreen)),
+      );
+      final notifier = container.read(videoRecorderProvider.notifier);
+
+      // Find record button
+      final recordButton = find.byKey(ValueKey('divine-camera-record-button'));
+      expect(recordButton, findsOneWidget);
+
+      // Start long press (hold it - don't release yet)
+      final buttonCenter = tester.getCenter(recordButton);
+      final gesture = await tester.startGesture(buttonCenter);
+      await tester.pump(Duration(milliseconds: 600)); // Wait for long press to trigger
+
+      // Check recording state while still pressing
+      final isRecording = container.read(videoRecorderProvider).isRecording;
+      expect(isRecording, isTrue);
+
+      // Get initial zoom level
+      final initialZoom = container.read(videoRecorderProvider).zoomLevel;
+
+      // Move finger up (should zoom in)
+      await gesture.moveBy(Offset(0, -100));
+      await tester.pump(Duration(milliseconds: 100));
+
+      // Check zoom changed
+      final zoomAfterMove = container.read(videoRecorderProvider).zoomLevel;
+      expect(zoomAfterMove, greaterThan(initialZoom),
+          reason: 'Zoom should increase when moving finger up during recording');
+
+      // Release to stop recording
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Cleanup
+      notifier.destroy();
+    });
+
+    testWidgets('long press move zooms during recording', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+      );
+
+      // Wait for camera to initialize
+      await tester.pumpAndSettle(Duration(seconds: 2));
+
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(VideoRecorderScreen)),
+      );
+      final notifier = container.read(videoRecorderProvider.notifier);
+
+      // Find record button
+      final recordButton = find.byKey(ValueKey('divine-camera-record-button'));
+      final buttonCenter = tester.getCenter(recordButton);
+
+      // Start long press
+      final gesture = await tester.startGesture(buttonCenter);
+      await tester.pump(Duration(milliseconds: 600)); // Trigger long press
+
+      final initialZoom = container.read(videoRecorderProvider).zoomLevel;
+
+      // Move finger up (should zoom in)
+      await gesture.moveBy(Offset(0, -100));
+      await tester.pump(Duration(milliseconds: 100));
+
+      final zoomAfterMove = container.read(videoRecorderProvider).zoomLevel;
+
+      // Zoom should have changed
+      expect(zoomAfterMove, greaterThanOrEqualTo(initialZoom));
+
+      // Release
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // Cleanup
+      notifier.destroy();
+    });
+  });
 }

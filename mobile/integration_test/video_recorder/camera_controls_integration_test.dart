@@ -138,6 +138,21 @@ void main() {
         final success = await cameraService.setExposurePoint(Offset(0.5, 0.5));
         expect(success, isA<bool>());
       });
+
+      testWidgets('can set exposure at corners', (tester) async {
+        final points = [
+          Offset(0.0, 0.0), // Top-left
+          Offset(1.0, 0.0), // Top-right
+          Offset(0.0, 1.0), // Bottom-left
+          Offset(1.0, 1.0), // Bottom-right
+        ];
+
+        for (final point in points) {
+          final success = await cameraService.setExposurePoint(point);
+          expect(success, isA<bool>());
+          await tester.pump(Duration(milliseconds: 100));
+        }
+      });
     });
 
     group('Combined Controls', () {
