@@ -151,9 +151,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         } catch (e) {
           // Ignore camera disposal errors during cleanup
           Log.warning(
-            'Failed to dispose camera service: $e',
+            '🧹 Camera service disposal failed during cleanup: $e',
             name: 'VideoRecorderNotifier',
-            category: LogCategory.system,
+            category: .system,
           );
         }
       }
@@ -162,7 +162,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     return const VideoRecorderUIState();
   }
 
-  // Delegate methods to the controller
+  /// Initialize camera and request permissions.
+  ///
+  /// Returns `true` if successful, `false` if permissions denied.
   Future<bool> initialize({BuildContext? context}) async {
     _isDestroyed = false;
 
@@ -184,6 +186,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     return true;
   }
 
+  /// Handle app lifecycle changes (pause/resume).
   void handleAppLifecycleState(AppLifecycleState appState) async {
     await _cameraService.handleAppLifecycleState(appState);
 
@@ -192,6 +195,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
   }
 
+  /// Clean up resources and dispose camera service.
   void destroy() async {
     _isDestroyed = true;
     _focusPointTimer?.cancel();
@@ -210,7 +214,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
           Log.error(
             'Error during auto-save, proceeding with cleanup: $e',
             name: 'VineRecordingProvider',
-            category: LogCategory.system,
+            category: .system,
           );
           // Ensure cleanup happens even if save fails
           _controller.setStateChangeCallback(null);
@@ -239,6 +243,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     return true;
   }
 
+  /// Toggle between square (1:1) and vertical (9:16) aspect ratios.
   void toggleAspectRatio() {
     final model.AspectRatio newRatio = state.aspectRatio == .square
         ? .vertical
@@ -252,23 +257,24 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     state = state.copyWith(aspectRatio: ratio);
   }
 
+  /// Switch between front and back camera.
   Future<void> switchCamera() async {
     final success = await _cameraService.switchCamera();
 
     if (!success) {
       Log.warning(
-        '⚠️ Failed to switch camera',
+        '⚠️ Camera switch failed - no available cameras to switch',
         name: 'VideoRecorderNotifier',
-        category: LogCategory.video,
+        category: .video,
       );
       return;
     }
     _baseZoomLevel = 1;
 
     Log.info(
-      '🔄 Camera switched',
+      '🔄 Camera switched successfully - zoom reset to 1.0x',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
 
     // Force state update to rebuild UI with new camera preview
@@ -280,22 +286,39 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     updateState();
   }
 
+  /// Set camera zoom level (within min/max bounds).
   Future<void> setZoomLevel(double value) async {
     if (value > _cameraService.maxZoomLevel ||
         value < _cameraService.minZoomLevel) {
+      Log.debug(
+        '⚠️ Zoom level $value out of bounds (${_cameraService.minZoomLevel}-${_cameraService.maxZoomLevel})',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
       return;
     }
 
     final success = await _cameraService.setZoomLevel(value);
     if (!success) {
+      Log.warning(
+        '⚠️ Failed to set zoom level to $value',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
       return;
     }
     state = state.copyWith(zoomLevel: value);
   }
 
+  /// Set camera focus point (normalized 0.0-1.0 coordinates).
   Future<void> setFocusPoint(Offset value) async {
     final success = await _cameraService.setFocusPoint(value);
     if (!success) {
+      Log.warning(
+        '⚠️ Failed to set focus point at (${value.dx.toStringAsFixed(2)}, ${value.dy.toStringAsFixed(2)})',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
       return;
     }
 
@@ -313,24 +336,32 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     });
   }
 
+  /// Set camera exposure point (normalized 0.0-1.0 coordinates).
   Future<void> setExposurePoint(Offset value) async {
-    await _cameraService.setExposurePoint(value);
+    final success = await _cameraService.setExposurePoint(value);
+    if (!success) {
+      Log.warning(
+        '⚠️ Failed to set exposure point at (${value.dx.toStringAsFixed(2)}, ${value.dy.toStringAsFixed(2)})',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    }
   }
 
+  /// Toggle recording state (start if idle, stop if recording).
   Future<void> toggleRecording() async {
     switch (state.recordingState) {
       case .idle:
         startRecording();
         break;
+      case .error:
       case .recording:
         stopRecording();
-        break;
-      default:
-        // TODO: Handle other cases
         break;
     }
   }
 
+  /// Start video recording with optional timer countdown.
   Future<void> startRecording() async {
     _baseZoomLevel = state.zoomLevel;
     state = state.copyWith(recordingState: .recording);
@@ -339,9 +370,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     if (state.timerDuration != .off) {
       final seconds = state.timerDuration.duration.inSeconds;
       Log.info(
-        '⏱️ Starting countdown: $seconds seconds',
+        '⏱️  Starting ${seconds}s countdown before recording',
         name: 'VideoRecorderNotifier',
-        category: LogCategory.video,
+        category: .video,
       );
 
       for (int i = seconds; i > 0; i--) {
@@ -355,21 +386,22 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
     if (_isDestroyed) return; // Don't start recording if disposed
     Log.info(
-      '🎥 Recording started',
+      '🎥 Recording started - aspect ratio: ${state.aspectRatio.name}',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
     await _cameraService.startRecording();
     ref.read(clipManagerProvider.notifier)..startRecording();
   }
 
+  /// Stop recording and process clip (metadata, thumbnail).
   Future<void> stopRecording() async {
     if (!state.isRecording) return;
 
     Log.info(
-      '⏹️ Stopping recording',
+      '⏹️  Stopping recording and processing clip...',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
 
     final clipProvider = ref.read(clipManagerProvider.notifier);
@@ -379,10 +411,11 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
     if (videoResult == null) {
       Log.warning(
-        '⚠️ Recording stopped but no video result',
+        '⚠️ Recording stopped but no video file returned from camera service',
         name: 'VideoRecorderNotifier',
-        category: LogCategory.video,
+        category: .video,
       );
+      state = state.copyWith(recordingState: .idle);
       return;
     }
 
@@ -395,25 +428,44 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     );
 
     Log.info(
-      '✅ Clip added: ${clip.id}',
+      '✅ Clip added successfully - ID: ${clip.id}',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
 
     /// We used the stopwatch as a temporary timer to set an expected duration.
     /// However, we now read the exact video duration in the background and
     /// update it.
+    // Extract video metadata and update duration
     final metadata = await ProVideoEditor.instance.getMetadata(videoResult);
     clipProvider.updateClipDuration(clip.id, metadata.duration);
+    Log.debug(
+      '📊 Video duration: ${metadata.duration.inMilliseconds}ms',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
 
+    // Generate and attach thumbnail
     final thumbnailPath = await VideoThumbnailService.extractThumbnail(
       videoPath: await videoResult.safeFilePath(),
     );
     if (thumbnailPath != null) {
       clipProvider.updateThumbnail(clip.id, thumbnailPath);
+      Log.debug(
+        '🖼️  Thumbnail generated: ${thumbnailPath}',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ Thumbnail generation failed',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
     }
   }
 
+  /// Adjust zoom by vertical drag distance during long press.
   void zoomByLongPressMove(Offset offsetFromOrigin) {
     // Calculate upward drag distance (negative Y = upward)
     final dragDistance = (-offsetFromOrigin.dy).clamp(-160.0, 400.0);
@@ -458,17 +510,19 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         )
       : null;
 
+  /// Navigate to video editor screen.
   void openVideoEditor() {
     // if (!state.hasSegments) return;
 
     /// TODO: navigate to new video-editor
   }
 
+  /// Close video recorder and navigate away.
   void closeVideoRecorder(BuildContext context) {
     Log.info(
       '📹 X CANCEL - navigating away from camera',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
     // Try to pop if possible, otherwise go home.
     final router = GoRouter.of(context);
@@ -480,7 +534,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
   }
 
-  /// Update the state based on the current controller state
+  /// Update the state based on the current camera state.
   void updateState() {
     state = VideoRecorderUIState(
       recordingState: state.recordingState,
@@ -533,17 +587,17 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     Log.info(
       '🔍 PROOFMODE DEBUG: stopRecording() called',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
     Log.info(
       '🔍 Video file: ${result.$1?.path ?? "NULL"}',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
     Log.info(
       '🔍 Native proof: ${result.$2?.toString() ?? "NULL"}',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
     // Auto-create draft immediately after recording finishes
     if (result.$1 != null) {
@@ -560,30 +614,30 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
             Log.info(
               '📜 Native ProofMode data attached to draft',
               name: 'VideoRecorderNotifier',
-              category: LogCategory.video,
+              category: .video,
             );
             Log.info(
               '🔍 Proof JSON length: ${proofManifestJson.length} chars',
               name: 'VideoRecorderNotifier',
-              category: LogCategory.video,
+              category: .video,
             );
             Log.info(
               '🔍 Proof verification level: ${result.$2!.verificationLevel}',
               name: 'VideoRecorderNotifier',
-              category: LogCategory.video,
+              category: .video,
             );
           } catch (e) {
             Log.error(
               'Failed to serialize NativeProofData for draft: $e',
               name: 'VideoRecorderNotifier',
-              category: LogCategory.video,
+              category: .video,
             );
           }
         } else {
           Log.warning(
             '⚠️ NO NATIVE PROOF DATA FROM RECORDING! ProofMode will not be published.',
             name: 'VideoRecorderNotifier',
-            category: LogCategory.video,
+            category: .video,
           );
         }
 
@@ -604,7 +658,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         Log.info(
           '📹 Auto-created draft: ${draft.id}',
           name: 'VideoRecorderNotifier',
-          category: LogCategory.video,
+          category: .video,
         );
 
         return RecordingResult(
@@ -616,7 +670,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         Log.error(
           '📹 Failed to auto-create draft: $e',
           name: 'VideoRecorderNotifier',
-          category: LogCategory.video,
+          category: .video,
         );
         // Still return the video file so user can manually save
         return RecordingResult(
@@ -642,7 +696,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     Log.info(
       '📹 Segment stopped, total segments: ${_controller.segments.length}',
       name: 'VideoRecorderNotifier',
-      category: LogCategory.video,
+      category: .video,
     );
   }
 
@@ -687,7 +741,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     Log.info(
       'Recording marked as published - auto-save will be skipped',
       name: 'VideoRecordingProvider',
-      category: LogCategory.system,
+      category: .system,
     );
   }
 
@@ -704,13 +758,13 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       Log.info(
         'Cleaned up temp files and reset for new recording',
         name: 'VideoRecordingProvider',
-        category: LogCategory.system,
+        category: .system,
       );
     } catch (e) {
       Log.error(
         'Error during cleanup and reset: $e',
         name: 'VideoRecordingProvider',
-        category: LogCategory.system,
+        category: .system,
       );
     }
   }
@@ -732,7 +786,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         Log.info(
           'Skipping auto-save - video was published',
           name: 'VideoRecordingProvider',
-          category: LogCategory.system,
+          category: .system,
         );
         return;
       }
@@ -742,7 +796,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         Log.info(
           'Skipping auto-save - draft already created: $_currentDraftId',
           name: 'VideoRecordingProvider',
-          category: LogCategory.system,
+          category: .system,
         );
         return;
       }
@@ -757,7 +811,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         Log.debug(
           'No segments to auto-save as draft',
           name: 'VideoRecordingProvider',
-          category: LogCategory.system,
+          category: .system,
         );
         return;
       }
@@ -784,7 +838,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       Log.error(
         'Failed to auto-save draft on dispose: $e',
         name: 'VideoRecordingProvider',
-        category: LogCategory.system,
+        category: .system,
       );
       // Don't rethrow - ensure cleanup continues
     } 
@@ -816,7 +870,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       Log.info(
         '📁 Copied draft video to permanent location: $permanentPath',
         name: 'VideoRecordingProvider',
-        category: LogCategory.system,
+        category: .system,
       );
 
       // Create draft with permanent file path
@@ -836,13 +890,13 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       Log.info(
         '✅ Auto-saved recording as draft: ${draft.id}',
         name: 'VideoRecordingProvider',
-        category: LogCategory.system,
+        category: .system,
       );
     } catch (e) {
       Log.error(
         'Failed to save draft: $e',
         name: 'VideoRecordingProvider',
-        category: LogCategory.system,
+        category: .system,
       );
       rethrow;
     }

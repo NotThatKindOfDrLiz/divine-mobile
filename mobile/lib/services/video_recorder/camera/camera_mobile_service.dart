@@ -23,6 +23,7 @@ class CameraMobileService extends CameraService {
   double _maxZoomLevel = 1;
 
   bool _isInitialized = false;
+  bool _isInitialSetupCompleted = false;
 
   @override
   Future<void> initialize() async {
@@ -40,7 +41,7 @@ class CameraMobileService extends CameraService {
     _currentCameraIndex = _findPreferredCamera(.back);
 
     await _initializeCameraController(_cameras![_currentCameraIndex]);
-    _isInitialized = true;
+    _isInitialSetupCompleted = true;
 
     Log.info(
       '📷 Mobile camera initialized (${_cameras!.length} cameras available)',
@@ -80,12 +81,20 @@ class CameraMobileService extends CameraService {
   Future<void> _initializeCameraController(
     CameraDescription description,
   ) async {
-    _controller = CameraController(description, .max);
+    try {
+      _controller = CameraController(description, .max);
 
-    await _controller!.initialize();
+      await _controller!.initialize();
+      _isInitialized = true;
 
-    _minZoomLevel = await _controller!.getMinZoomLevel();
-    _maxZoomLevel = await _controller!.getMaxZoomLevel();
+      // Get zoom limits in parallel for faster initialization
+      final results = await Future.wait([
+        _controller!.getMinZoomLevel(),
+        _controller!.getMaxZoomLevel(),
+      ]);
+      _minZoomLevel = results[0];
+      _maxZoomLevel = results[1];
+    } catch (e) {}
   }
 
   @override
@@ -328,6 +337,7 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
+    if (_controller == null) return;
     Log.info(
       '📷 App lifecycle state changed to ${state.name}',
       name: 'CameraMobileService',
@@ -339,14 +349,17 @@ class CameraMobileService extends CameraService {
         if (isInitialized) await dispose();
         break;
       case .resumed:
-        await _initializeCameraController(_controller!.description);
-        _isInitialized = true;
+        // Only reinitialize if we had a successful initialization before
+        // (prevents reinitialization attempts when coming back from permission dialog)
+        if (_isInitialSetupCompleted) {
+          await _initializeCameraController(_controller!.description);
 
-        Log.info(
-          '📷 Camera reinitialized after resume',
-          name: 'CameraMobileService',
-          category: .video,
-        );
+          Log.info(
+            '📷 Camera reinitialized after resume',
+            name: 'CameraMobileService',
+            category: .video,
+          );
+        }
         break;
       default:
         break;
