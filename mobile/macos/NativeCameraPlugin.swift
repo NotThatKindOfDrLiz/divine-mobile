@@ -61,6 +61,9 @@ public class NativeCameraPlugin: NSObject, FlutterPlugin {
         case "hasPermission":
             print("🔵 [NativeCamera] Handling hasPermission request")
             hasPermission(result: result)
+        case "openSystemSettings":
+            print("🔵 [NativeCamera] Handling openSystemSettings request")
+            openSystemSettings(result: result)
         case "getAvailableCameras":
             print("🔵 [NativeCamera] Handling getAvailableCameras request")
             getAvailableCameras(result: result)
@@ -73,6 +76,26 @@ public class NativeCameraPlugin: NSObject, FlutterPlugin {
             } else {
                 print("❌ [NativeCamera] Invalid camera index argument")
                 result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid camera index", details: nil))
+            }
+        case "getAspectRatio":
+            print("🔵 [NativeCamera] Handling getAspectRatio request")
+            if let args = call.arguments as? [String: Any],
+               let deviceId = args["deviceId"] as? String {
+                print("🔵 [NativeCamera] Getting aspect ratio for device: \(deviceId)")
+                getAspectRatio(deviceId: deviceId, result: result)
+            } else {
+                print("🔵 [NativeCamera] Getting aspect ratio for current device")
+                getAspectRatio(deviceId: nil, result: result)
+            }
+        case "hasFlash":
+            print("🔵 [NativeCamera] Handling hasFlash request")
+            if let args = call.arguments as? [String: Any],
+               let deviceId = args["deviceId"] as? String {
+                print("🔵 [NativeCamera] Checking flash for device: \(deviceId)")
+                hasFlash(deviceId: deviceId, result: result)
+            } else {
+                print("🔵 [NativeCamera] Checking flash for current device")
+                hasFlash(deviceId: nil, result: result)
             }
         case "dispose":
             print("🔵 [NativeCamera] Handling dispose request")
@@ -393,13 +416,46 @@ public class NativeCameraPlugin: NSObject, FlutterPlugin {
         let currentStatus = AVCaptureDevice.authorizationStatus(for: .video)
         print("🔵 [NativeCamera] Current status before request: \(currentStatus.rawValue)")
         
-        AVCaptureDevice.requestAccess(for: .video) { granted in
-            print("🔵 [NativeCamera] Permission request completed with result: \(granted)")
-            let newStatus = AVCaptureDevice.authorizationStatus(for: .video)
-            print("🔵 [NativeCamera] New status after request: \(newStatus.rawValue)")
-            
+        switch currentStatus {
+        case .authorized:
+            print("✅ [NativeCamera] Permission already granted")
             DispatchQueue.main.async {
-                result(granted)
+                result(true)
+            }
+            
+        case .denied, .restricted:
+            print("❌ [NativeCamera] Permission previously denied or restricted")
+            print("💡 [NativeCamera] User must enable camera in System Settings")
+            
+            // Return error with instruction to open settings
+            DispatchQueue.main.async {
+                result(FlutterError(
+                    code: "PERMISSION_DENIED",
+                    message: "Camera permission denied. Please enable camera access in System Settings > Privacy & Security > Camera",
+                    details: ["openSettings": true, "status": currentStatus.rawValue]
+                ))
+            }
+            
+        case .notDetermined:
+            print("🔵 [NativeCamera] Permission not determined, requesting...")
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                print("🔵 [NativeCamera] Permission request completed with result: \(granted)")
+                let newStatus = AVCaptureDevice.authorizationStatus(for: .video)
+                print("🔵 [NativeCamera] New status after request: \(newStatus.rawValue)")
+                
+                DispatchQueue.main.async {
+                    result(granted)
+                }
+            }
+            
+        @unknown default:
+            print("⚠️ [NativeCamera] Unknown permission status")
+            DispatchQueue.main.async {
+                result(FlutterError(
+                    code: "PERMISSION_UNKNOWN",
+                    message: "Unknown camera permission status",
+                    details: nil
+                ))
             }
         }
     }
@@ -409,6 +465,48 @@ public class NativeCameraPlugin: NSObject, FlutterPlugin {
         print("🔵 [NativeCamera] Checking permission status: \(status.rawValue)")
         print("🔵 [NativeCamera] Status meanings: 0=notDetermined, 1=restricted, 2=denied, 3=authorized")
         result(status == .authorized)
+    }
+    
+    private func openSystemSettings(result: @escaping FlutterResult) {
+        print("🔵 [NativeCamera] Opening System Settings for camera privacy")
+        
+        // On macOS 13+ (Ventura), we need to use a different approach
+        // The app only appears in Settings after it has requested camera access at least once
+        
+        // Try modern approach first (macOS 13+)
+        if #available(macOS 13.0, *) {
+            // Modern URL scheme for System Settings
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+                NSWorkspace.shared.open(url)
+                print("✅ [NativeCamera] System Settings opened (macOS 13+)")
+                result(true)
+                return
+            }
+        }
+        
+        // Fallback to older approach (macOS 12 and below)
+        // Note: This opens System Preferences, not System Settings
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
+            NSWorkspace.shared.open(url)
+            print("✅ [NativeCamera] System Preferences opened (macOS 12-)") 
+            result(true)
+        } else {
+            print("❌ [NativeCamera] Failed to create settings URL")
+            
+            // Last resort: Just open the Privacy & Security pane
+            let task = Process()
+            task.launchPath = "/usr/bin/open"
+            task.arguments = ["-b", "com.apple.systempreferences", "/System/Library/PreferencePanes/Security.prefPane"]
+            
+            do {
+                try task.run()
+                print("✅ [NativeCamera] Opened Security pane via command line")
+                result(true)
+            } catch {
+                print("❌ [NativeCamera] Failed to open settings: \(error)")
+                result(false)
+            }
+        }
     }
     
     private func getAvailableCameras(result: @escaping FlutterResult) {
@@ -424,6 +522,7 @@ public class NativeCameraPlugin: NSObject, FlutterPlugin {
         let cameras = devices.enumerated().map { index, device in
             return [
                 "index": index,
+                "deviceId": device.uniqueID,
                 "name": device.localizedName,
                 "position": positionString(device.position)
             ]
@@ -474,14 +573,103 @@ public class NativeCameraPlugin: NSObject, FlutterPlugin {
                 videoInput = newInput
                 videoDevice = newDevice
                 captureSession.commitConfiguration()
-                result(true)
+                
+                // Return camera info including aspect ratio
+                let format = newDevice.activeFormat
+                let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+                let width = Double(dimensions.width)
+                let height = Double(dimensions.height)
+                let aspectRatio = height > 0 ? width / height : 0.0
+                let hasFlash = newDevice.hasTorch && newDevice.isTorchAvailable
+                
+                print("📐 [NativeCamera] Switched camera - Resolution: \(dimensions.width)x\(dimensions.height), Aspect Ratio: \(aspectRatio), Flash: \(hasFlash)")
+                
+                result([
+                    "success": true,
+                    "width": Int(width),
+                    "height": Int(height),
+                    "aspectRatio": aspectRatio,
+                    "hasFlash": hasFlash
+                ])
             } else {
                 captureSession.commitConfiguration()
-                result(false)
+                result(["success": false])
             }
         } catch {
             result(FlutterError(code: "SWITCH_FAILED", message: "Failed to switch camera: \(error.localizedDescription)", details: nil))
         }
+    }
+    
+    private func getAspectRatio(deviceId: String?, result: @escaping FlutterResult) {
+        let device: AVCaptureDevice?
+        
+        if let deviceId = deviceId {
+            // Get specific device by ID
+            device = AVCaptureDevice(uniqueID: deviceId)
+            if device == nil {
+                print("⚠️ [NativeCamera] Device not found for ID: \(deviceId)")
+                result(nil)
+                return
+            }
+        } else {
+            // Use current video device
+            device = videoDevice
+        }
+        
+        guard let videoDevice = device else {
+            print("⚠️ [NativeCamera] No video device available")
+            result(nil)
+            return
+        }
+        
+        let format = videoDevice.activeFormat
+        let dimensions = CMVideoFormatDescriptionGetDimensions(format.formatDescription)
+        let width = Double(dimensions.width)
+        let height = Double(dimensions.height)
+        
+        guard height > 0 else {
+            print("⚠️ [NativeCamera] Invalid dimensions: \(dimensions.width)x\(dimensions.height)")
+            result(nil)
+            return
+        }
+        
+        let aspectRatio = width / height
+        let hasFlash = videoDevice.hasTorch && videoDevice.isTorchAvailable
+        print("📐 [NativeCamera] Camera aspect ratio: \(aspectRatio) (\(dimensions.width)x\(dimensions.height)), Flash: \(hasFlash)")
+        
+        result([
+            "width": Int(width),
+            "height": Int(height),
+            "aspectRatio": aspectRatio,
+            "hasFlash": hasFlash
+        ])
+    }
+    
+    private func hasFlash(deviceId: String?, result: @escaping FlutterResult) {
+        let device: AVCaptureDevice?
+        
+        if let deviceId = deviceId {
+            // Get specific device by ID
+            device = AVCaptureDevice(uniqueID: deviceId)
+            if device == nil {
+                print("⚠️ [NativeCamera] Device not found for ID: \(deviceId)")
+                result(false)
+                return
+            }
+        } else {
+            // Use current video device
+            device = videoDevice
+        }
+        
+        guard let videoDevice = device else {
+            print("⚠️ [NativeCamera] No video device available")
+            result(false)
+            return
+        }
+        
+        let hasFlash = videoDevice.hasTorch && videoDevice.isTorchAvailable
+        print("💡 [NativeCamera] Flash/Torch supported: \(hasFlash)")
+        result(hasFlash)
     }
     
     private func dispose(result: @escaping FlutterResult) {

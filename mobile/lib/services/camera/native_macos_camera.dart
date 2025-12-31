@@ -5,7 +5,38 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
-/// TODO(@hm21): Required? Why not use the already implmented package camera_macos?
+/// TODO(@hm21): delete this file and the native implementation except the permission part
+/// Camera information including resolution, aspect ratio, and capabilities
+class CameraInfo {
+  final int width;
+  final int height;
+  final double aspectRatio;
+  final bool hasFlash;
+  final bool success;
+
+  const CameraInfo({
+    required this.width,
+    required this.height,
+    required this.aspectRatio,
+    required this.hasFlash,
+    this.success = true,
+  });
+
+  factory CameraInfo.fromMap(Map<String, dynamic> map) {
+    return CameraInfo(
+      width: map['width'] as int? ?? 0,
+      height: map['height'] as int? ?? 0,
+      aspectRatio: map['aspectRatio'] as double? ?? 16.0 / 9.0,
+      hasFlash: map['hasFlash'] as bool? ?? false,
+      success: map['success'] as bool? ?? true,
+    );
+  }
+
+  @override
+  String toString() =>
+      'CameraInfo(${width}x$height, ratio: $aspectRatio, flash: $hasFlash)';
+}
+
 /// Native macOS camera interface using platform channels
 class NativeMacOSCamera {
   static const MethodChannel _channel = MethodChannel('openvine/native_camera');
@@ -181,7 +212,16 @@ class NativeMacOSCamera {
   }
 
   /// Request permission to access camera
-  static Future<bool> requestPermission() async {
+  ///
+  /// Returns true if permission is granted, false otherwise.
+  /// If [openSettingsOnDenied] is true and permission was previously denied,
+  /// will automatically open System Settings for the user to grant permission.
+  ///
+  /// Throws [PlatformException] with code 'PERMISSION_DENIED' if permission
+  /// was previously denied and [openSettingsOnDenied] is false.
+  static Future<bool> requestPermission({
+    bool openSettingsOnDenied = false,
+  }) async {
     try {
       final result = await _channel.invokeMethod<bool>('requestPermission');
       Log.debug(
@@ -190,6 +230,33 @@ class NativeMacOSCamera {
         category: LogCategory.video,
       );
       return result ?? false;
+    } on PlatformException catch (e) {
+      if (e.code == 'PERMISSION_DENIED') {
+        Log.warning(
+          'Camera permission denied: ${e.message}',
+          name: 'NativeMacosCamera',
+          category: LogCategory.video,
+        );
+
+        if (openSettingsOnDenied) {
+          Log.debug(
+            '⚙️ Opening System Settings for camera permission',
+            name: 'NativeMacosCamera',
+            category: LogCategory.video,
+          );
+          await openSystemSettings();
+        }
+
+        // Re-throw so caller can handle appropriately
+        rethrow;
+      }
+
+      Log.error(
+        'Failed to request camera permission: $e',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
+      return false;
     } catch (e) {
       Log.error(
         'Failed to request camera permission: $e',
@@ -197,6 +264,26 @@ class NativeMacOSCamera {
         category: LogCategory.video,
       );
       return false;
+    }
+  }
+
+  /// Open macOS System Settings to the Camera privacy page
+  ///
+  /// Allows the user to manually enable camera access if it was previously denied.
+  static Future<void> openSystemSettings() async {
+    try {
+      await _channel.invokeMethod('openSystemSettings');
+      Log.debug(
+        '⚙️ Opened System Settings for camera permission',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
+    } catch (e) {
+      Log.error(
+        'Failed to open System Settings: $e',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
     }
   }
 
@@ -238,25 +325,130 @@ class NativeMacOSCamera {
     }
   }
 
-  /// Switch to camera by index
-  static Future<bool> switchCamera(int cameraIndex) async {
+  /// Check if multiple cameras are available
+  ///
+  /// Returns true if two or more cameras are available for switching.
+  /// Useful to determine whether to show camera switch UI elements.
+  static Future<bool> hasMultipleCameras() async {
     try {
-      final result = await _channel.invokeMethod<bool>('switchCamera', {
-        'cameraIndex': cameraIndex,
-      });
+      final cameras = await getAvailableCameras();
+      final hasMultiple = cameras.length > 1;
       Log.debug(
-        'Switched to camera $cameraIndex: $result',
+        '📷 Multiple cameras available: $hasMultiple (${cameras.length} total)',
         name: 'NativeMacosCamera',
         category: LogCategory.video,
       );
-      return result ?? false;
+      return hasMultiple;
+    } catch (e) {
+      Log.error(
+        'Failed to check multiple cameras: $e',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
+      return false;
+    }
+  }
+
+  /// Switch to camera by index
+  ///
+  /// Returns [CameraInfo] with camera information if successful, null otherwise.
+  static Future<CameraInfo?> switchCamera(int cameraIndex) async {
+    try {
+      final result = await _channel.invokeMethod<Map>('switchCamera', {
+        'cameraIndex': cameraIndex,
+      });
+
+      if (result == null) return null;
+
+      final cameraInfo = CameraInfo.fromMap(Map<String, dynamic>.from(result));
+
+      if (cameraInfo.success) {
+        Log.debug(
+          '📷 Switched to camera $cameraIndex - $cameraInfo',
+          name: 'NativeMacosCamera',
+          category: LogCategory.video,
+        );
+      } else {
+        Log.warning(
+          'Failed to switch to camera $cameraIndex',
+          name: 'NativeMacosCamera',
+          category: LogCategory.video,
+        );
+      }
+      return cameraInfo;
     } catch (e) {
       Log.error(
         'Failed to switch camera: $e',
         name: 'NativeMacosCamera',
         category: LogCategory.video,
       );
+      return null;
+    }
+  }
+
+  /// Check if the current camera has flash/torch support
+  ///
+  /// If [deviceId] is provided, checks flash support for that specific device.
+  /// Otherwise, checks the currently active camera.
+  ///
+  /// Returns true if flash is available, false otherwise.
+  /// Returns false if no camera is initialized or device not found.
+  static Future<bool> hasFlash({String? deviceId}) async {
+    try {
+      final Map<String, dynamic>? arguments = deviceId != null
+          ? {'deviceId': deviceId}
+          : null;
+
+      final result = await _channel.invokeMethod<bool>('hasFlash', arguments);
+      final hasFlash = result ?? false;
+      Log.debug(
+        '💡 Camera flash support: $hasFlash',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
+      return hasFlash;
+    } catch (e) {
+      Log.error(
+        'Failed to check flash support: $e',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
       return false;
+    }
+  }
+
+  /// Get camera aspect ratio and resolution
+  ///
+  /// If [deviceId] is provided, gets info for that specific device.
+  /// Otherwise, gets info for the currently active camera.
+  ///
+  /// Returns aspect ratio as double, or null if unavailable.
+  static Future<double?> getAspectRatio({String? deviceId}) async {
+    try {
+      final Map<String, dynamic>? arguments = deviceId != null
+          ? {'deviceId': deviceId}
+          : null;
+
+      final result = await _channel.invokeMethod<Map>(
+        'getAspectRatio',
+        arguments,
+      );
+      if (result == null) return null;
+
+      final cameraInfo = CameraInfo.fromMap(Map<String, dynamic>.from(result));
+      Log.debug(
+        '📐 Camera info: $cameraInfo',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
+      return cameraInfo.aspectRatio;
+    } catch (e) {
+      Log.error(
+        'Failed to get camera aspect ratio: $e',
+        name: 'NativeMacosCamera',
+        category: LogCategory.video,
+      );
+      return null;
     }
   }
 

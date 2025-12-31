@@ -394,6 +394,11 @@ class CameraMobileService extends CameraService {
   @override
   bool get canRecord => isInitialized && !_controller!.value.isRecordingVideo;
 
+  /// Currently, with the camera package there is no way to check if Flash is
+  /// supported.
+  @override
+  bool get hasFlash => true;
+
   @override
   bool get canSwitchCamera {
     if (_cameras == null) return false;

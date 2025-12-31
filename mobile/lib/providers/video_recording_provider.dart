@@ -72,6 +72,7 @@ class VideoRecordingUIState {
     this.canRecord = false,
     this.isCameraInitialized = false,
     this.canSwitchCamera = false,
+    this.hasFlash = false,
     this.cameraSwitchCount = 0,
     this.countdownValue = 0,
     this.aspectRatio = .vertical,
@@ -86,6 +87,7 @@ class VideoRecordingUIState {
   final bool canRecord;
   final bool isCameraInitialized;
   final bool canSwitchCamera;
+  final bool hasFlash;
 
   // Double values
   final double zoomLevel;
@@ -120,6 +122,7 @@ class VideoRecordingUIState {
     bool? hasSegments,
     bool? isCameraInitialized,
     bool? canSwitchCamera,
+    bool? hasFlash,
     int? cameraSwitchCount,
     int? countdownValue,
     model.AspectRatio? aspectRatio,
@@ -135,6 +138,7 @@ class VideoRecordingUIState {
       canRecord: canRecord ?? this.canRecord,
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
+      hasFlash: hasFlash ?? this.hasFlash,
       cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
       countdownValue: countdownValue ?? this.countdownValue,
       aspectRatio: aspectRatio ?? this.aspectRatio,
@@ -214,6 +218,29 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
     _isDestroyed = true;
     _focusPointTimer?.cancel();
     _cameraService.dispose();
+
+    // Auto-save as draft if recording completed but not published
+    // Note: We can't await in dispose(), so we use unawaited future
+    // The controller cleanup will be delayed until save completes via the future chain
+    /* TODO(@hm21): _autoSaveDraftBeforeDispose()
+        .then((_) {
+          // Clear callback to prevent memory leaks
+          _controller.setStateChangeCallback(null);
+          _controller.dispose();
+        })
+        .catchError((e) {
+          Log.error(
+            'Error during auto-save, proceeding with cleanup: $e',
+            name: 'VineRecordingProvider',
+            category: LogCategory.system,
+          );
+          // Ensure cleanup happens even if save fails
+          _controller.setStateChangeCallback(null);
+          _controller.dispose();
+        })
+        .whenComplete(() {
+          super.dispose();
+        }); */
   }
 
   /// Toggle flash mode between `off`, `torch`, and `auto`.
@@ -403,8 +430,7 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
       details.localPosition.dx / constraints.maxWidth,
       details.localPosition.dy / constraints.maxHeight,
     );
-    await setFocusPoint(offset);
-    await setExposurePoint(offset);
+    await Future.wait([setFocusPoint(offset), setExposurePoint(offset)]);
   }
 
   /// Get the camera preview widget from the controller
@@ -447,9 +473,9 @@ class VideoRecordingNotifier extends Notifier<VideoRecordingUIState> {
       focusPoint: state.focusPoint,
       canRecord: _cameraService.canRecord,
       isCameraInitialized: _cameraService.isInitialized,
+      hasFlash: _cameraService.hasFlash,
       canSwitchCamera: _cameraService.canSwitchCamera,
-      cameraSwitchCount:
-          state.cameraSwitchCount, // CRITICAL: Preserve camera switch count
+      cameraSwitchCount: state.cameraSwitchCount,
       countdownValue: state.countdownValue,
       aspectRatio: state.aspectRatio,
       flashMode: state.flashMode,

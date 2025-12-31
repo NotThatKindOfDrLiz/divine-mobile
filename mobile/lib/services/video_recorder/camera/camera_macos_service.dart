@@ -2,7 +2,7 @@
 // ABOUTME: Handles camera and audio device management, recording, and torch control on macOS
 
 import 'package:camera/camera.dart';
-import 'package:camera_macos/camera_macos.dart';
+import 'package:camera_macos_plus/camera_macos.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -18,12 +18,15 @@ class CameraMacOSService extends CameraService {
 
   int _currentCameraIndex = 0;
 
-  /// TODO(@hm21): read from native?
   double _minZoomLevel = 1;
   double _maxZoomLevel = 10;
+  Size _cameraSensorSize = Size(500, 500);
+  int _textureId = 0;
 
+  bool _hasFlash = false;
   bool _isRecording = false;
   bool _isInitialized = false;
+  bool _isInBackground = false;
 
   @override
   Future<void> dispose() async {
@@ -32,6 +35,7 @@ class CameraMacOSService extends CameraService {
       name: 'CameraMacOSService',
       category: .video,
     );
+    _isInitialized = false;
 
     await CameraMacOS.instance.destroy();
   }
@@ -46,10 +50,10 @@ class CameraMacOSService extends CameraService {
       category: .video,
     );
 
-    _videoDevices = await CameraMacOS.instance.listDevices(
+    _videoDevices ??= await CameraMacOS.instance.listDevices(
       deviceType: CameraMacOSDeviceType.video,
     );
-    _audioDevices = await CameraMacOS.instance.listDevices(
+    _audioDevices ??= await CameraMacOS.instance.listDevices(
       deviceType: CameraMacOSDeviceType.audio,
     );
 
@@ -67,11 +71,18 @@ class CameraMacOSService extends CameraService {
   ///
   /// Sets up the camera in video mode with the selected devices.
   Future<void> _initializeCameraController() async {
-    await CameraMacOS.instance.initialize(
+    final deviceId = _videoDevices![_currentCameraIndex].deviceId;
+    final result = await CameraMacOS.instance.initialize(
       cameraMacOSMode: CameraMacOSMode.video,
-      deviceId: _videoDevices?[_currentCameraIndex].deviceId,
+      deviceId: deviceId,
       audioDeviceId: _audioDevices?.first.deviceId,
     );
+
+    _textureId = result?.textureId ?? 0;
+    _cameraSensorSize = result?.size ?? Size(500, 500);
+
+    final hasFlash = await CameraMacOS.instance.hasFlash(deviceId: deviceId);
+    _hasFlash = hasFlash;
   }
 
   @override
@@ -118,13 +129,23 @@ class CameraMacOSService extends CameraService {
 
   @override
   Future<bool> setExposurePoint(Offset offset) async {
-    /// Currently not supported on macos.
-    Log.info(
-      '📷 Exposure point not supported on macOS',
-      name: 'CameraMacOSService',
-      category: .video,
-    );
-    return true;
+    if (!isInitialized) return false;
+    try {
+      Log.info(
+        '📷 Setting exposure point to (${offset.dx}, ${offset.dy})',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+      await CameraMacOS.instance.setExposurePoint(offset);
+      return true;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to set exposure point: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+      return false;
+    }
   }
 
   @override
@@ -163,14 +184,10 @@ class CameraMacOSService extends CameraService {
 
       _currentCameraIndex = (_currentCameraIndex + 1) % _videoDevices!.length;
 
-      await CameraMacOS.instance.initialize(
-        cameraMacOSMode: CameraMacOSMode.video,
-        deviceId: _videoDevices![_currentCameraIndex].deviceId,
-        audioDeviceId: _audioDevices?.first.deviceId,
-      );
+      await _initializeCameraController();
 
       Log.info(
-        '📷 macOS camera switched to device ${_currentCameraIndex}',
+        '📷 macOS camera switched to device $_currentCameraIndex',
         name: 'CameraMacOSService',
         category: .video,
       );
@@ -199,43 +216,71 @@ class CameraMacOSService extends CameraService {
 
   @override
   Future<void> startRecording() async {
-    Log.info(
-      '📷 Starting macOS video recording',
-      name: 'CameraMacOSService',
-      category: .video,
-    );
+    try {
+      Log.info(
+        '📷 Starting macOS video recording',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
 
-    await CameraMacOS.instance.startVideoRecording();
-    _isRecording = true;
+      // Use /tmp/ directory which we have permission to write to
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final outputPath = '/tmp/openvine_recording_$timestamp.mp4';
+
+      await CameraMacOS.instance.startVideoRecording(url: outputPath);
+      _isRecording = true;
+
+      Log.info(
+        '📷 Recording to: $outputPath',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+    } catch (e) {
+      Log.error(
+        '📷 Failed to start recording: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+    }
   }
 
   @override
   Future<EditorVideo?> stopRecording() async {
-    Log.info(
-      '📷 Stopping macOS video recording',
-      name: 'CameraMacOSService',
-      category: .video,
-    );
-
-    final result = await CameraMacOS.instance.stopVideoRecording();
-    _isRecording = false;
-
-    if (result?.bytes == null) {
-      Log.warning(
-        '📷 macOS video recording stopped with null result',
+    try {
+      Log.info(
+        '📷 Stopping macOS video recording',
         name: 'CameraMacOSService',
         category: .video,
       );
+
+      final result = await CameraMacOS.instance.stopVideoRecording();
+      _isRecording = false;
+
+      if (result?.bytes == null) {
+        Log.warning(
+          '📷 macOS video recording stopped with null result',
+          name: 'CameraMacOSService',
+          category: .video,
+        );
+        return null;
+      }
+
+      Log.info(
+        '📷 macOS video recording stopped',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+
+      return EditorVideo.memory(result!.bytes!);
+    } catch (e) {
+      Log.error(
+        '📷 Failed to stop recording: $e',
+        name: 'CameraMacOSService',
+        category: .video,
+      );
+      _isRecording = false;
       return null;
     }
-
-    Log.info(
-      '📷 macOS video recording stopped',
-      name: 'CameraMacOSService',
-      category: .video,
-    );
-
-    return EditorVideo.memory(result!.bytes!);
   }
 
   @override
@@ -245,12 +290,9 @@ class CameraMacOSService extends CameraService {
       name: 'CameraMacOSService',
       category: .video,
     );
+    _isInBackground = state == .inactive;
 
-    if (state == AppLifecycleState.inactive) {
-      CameraMacOS.instance.destroy();
-    } else if (state == AppLifecycleState.resumed) {
-      await _initializeCameraController();
-
+    if (state == .resumed) {
       Log.info(
         '📷 macOS camera reinitialized after resume',
         name: 'CameraMacOSService',
@@ -266,6 +308,8 @@ class CameraMacOSService extends CameraService {
     required Function(TapDownDetails details, BoxConstraints constraints)
     onTapDown,
   }) {
+    if (_isInBackground) return SizedBox.shrink();
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         return GestureDetector(
@@ -273,20 +317,17 @@ class CameraMacOSService extends CameraService {
           onScaleStart: onScaleStart,
           onScaleUpdate: onScaleUpdate,
           onTapDown: (details) => onTapDown(details, constraints),
-          child: CameraMacOSView(
-            cameraMode: .video,
-            onCameraInizialized: (CameraMacOSController controller) {
-              _isInitialized = true;
-            },
+          child: CameraMacosRawView(
+            cameraSize: _cameraSensorSize,
+            textureId: _textureId,
           ),
         );
       },
     );
   }
 
-  /// TODO(@hm21): Maybe extend with native code?
   @override
-  double get cameraAspectRatio => 16.0 / 9.0;
+  double get cameraAspectRatio => 1 / _cameraSensorSize.aspectRatio;
 
   @override
   double get minZoomLevel => _minZoomLevel;
@@ -301,6 +342,9 @@ class CameraMacOSService extends CameraService {
 
   @override
   bool get canRecord => _isInitialized && !_isRecording;
+
+  @override
+  bool get hasFlash => _hasFlash;
 
   @override
   bool get canSwitchCamera =>

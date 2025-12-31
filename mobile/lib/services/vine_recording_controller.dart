@@ -5,7 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
-import 'package:camera_macos/camera_macos.dart';
+import 'package:camera_macos_plus/camera_macos.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 // camera_macos removed - using NativeMacOSCamera for both preview and recording
@@ -391,7 +391,7 @@ class MacOSCameraInterface extends CameraPlatformInterface
         category: LogCategory.system,
       );
 
-      final success = await NativeMacOSCamera.switchCamera(nextCameraIndex);
+      /*   final success = await NativeMacOSCamera.switchCamera(nextCameraIndex);
 
       if (success) {
         _currentCameraIndex = nextCameraIndex;
@@ -406,7 +406,7 @@ class MacOSCameraInterface extends CameraPlatformInterface
           name: 'VineRecordingController',
           category: LogCategory.system,
         );
-      }
+      } */
     } catch (e) {
       Log.error(
         'macOS camera switching failed: $e',

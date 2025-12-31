@@ -152,6 +152,8 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           flashMode: p.flashMode,
           timer: p.timerDuration,
           aspectRatio: p.aspectRatio,
+          canSwitchCamera: p.canSwitchCamera,
+          hasFlash: p.hasFlash,
         ),
       ),
     );
@@ -167,7 +169,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           _buildControlButton(
             icon: _getFlashIcon(state.flashMode),
             label: 'Toggle flash',
-            onPressed: notifier.toggleFlash,
+            onPressed: state.hasFlash ? notifier.toggleFlash : null,
           ),
 
           // Timer toggle
@@ -190,7 +192,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           _buildControlButton(
             icon: Icons.cached_rounded,
             label: 'Switch camera',
-            onPressed: notifier.switchCamera,
+            onPressed: state.canSwitchCamera ? notifier.switchCamera : null,
           ),
 
           // More options
@@ -207,7 +209,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
   /// Build control button with optional label
   Widget _buildControlButton({
     required IconData icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
     String? label,
   }) {
     return IconButton(

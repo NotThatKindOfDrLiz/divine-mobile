@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_recording_provider.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_camera_placeholder.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
 /// Displays the camera preview with animated aspect ratio changes.
@@ -33,6 +34,7 @@ class _VideoRecorderCameraPreviewState
           sensorAspectRatio: s.cameraSensorAspectRatio,
           showGrid: !s.isRecording,
           cameraSwitchCount: s.cameraSwitchCount,
+          isCameraInitialized: s.isCameraInitialized,
         ),
       ),
     );
@@ -63,14 +65,39 @@ class _VideoRecorderCameraPreviewState
                     height: 100,
                     child: Stack(
                       children: [
-                        /// Skeleton when switching camera
-                        Container(color: const Color(0xFF141414)),
+                        if (state.isCameraInitialized && previewWidget != null)
+                          FittedBox(
+                            fit: .cover,
+                            child: SizedBox(
+                              key: ValueKey(
+                                'Video-Recorder-Camera-${state.cameraSwitchCount}',
+                              ),
+                              width: 100 / state.sensorAspectRatio,
+                              height: 100,
+                              child: Stack(
+                                children: [
+                                  /// Skeleton when switching camera
+                                  Container(color: const Color(0xFF141414)),
 
-                        /// Preview widget
-                        if (previewWidget != null) previewWidget,
+                                  /// Preview widget
+                                  previewWidget,
 
-                        /// Focus Point
-                        const VideoRecorderFocusPoint(),
+                                  /// Focus Point
+                                  const VideoRecorderFocusPoint(),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          VideoRecorderCameraPlaceholder(),
+                        IgnorePointer(
+                          child: AnimatedOpacity(
+                            opacity: state.showGrid ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 100),
+                            curve: Curves.easeInOut,
+                            child: CustomPaint(painter: _GridPainter()),
+                          ),
+                        ),
                       ],
                     ),
                   ),
