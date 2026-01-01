@@ -1,0 +1,113 @@
+// ABOUTME: Mock implementation of CameraService for testing
+// ABOUTME: Provides a fake camera service that doesn't require actual hardware
+
+import 'package:camera/camera.dart';
+import 'package:flutter/material.dart';
+import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
+
+/// Mock camera service for testing without requiring actual camera hardware
+class MockCameraService extends CameraService {
+  bool _isInitialized = false;
+  bool _isRecording = false;
+  double zoomLevel = 1.0;
+  FlashMode flashMode = FlashMode.auto;
+  Offset focusPoint = Offset.zero;
+
+  @override
+  Future<void> initialize() async {
+    _isInitialized = true;
+  }
+
+  @override
+  Future<void> dispose() async {
+    _isInitialized = false;
+  }
+
+  @override
+  Future<bool> setFlashMode(FlashMode mode) async {
+    flashMode = mode;
+    return true;
+  }
+
+  @override
+  Future<bool> setFocusPoint(Offset offset) async {
+    focusPoint = offset;
+    return true;
+  }
+
+  @override
+  Future<bool> setExposurePoint(Offset offset) async {
+    return true;
+  }
+
+  @override
+  Future<bool> setZoomLevel(double value) async {
+    zoomLevel = value;
+    return true;
+  }
+
+  @override
+  Future<bool> switchCamera() async {
+    return true;
+  }
+
+  @override
+  Future<void> startRecording() async {
+    _isRecording = true;
+  }
+
+  @override
+  Future<EditorVideo?> stopRecording() async {
+    _isRecording = false;
+    return null; // Return null in mock
+  }
+
+  @override
+  Future<void> handleAppLifecycleState(AppLifecycleState state) async {
+    // Mock implementation - do nothing, just return successfully
+    return;
+  }
+
+  @override
+  double get cameraAspectRatio => 16 / 9;
+
+  @override
+  double get minZoomLevel => 1.0;
+
+  @override
+  double get maxZoomLevel => 8.0;
+
+  @override
+  bool get isInitialized => _isInitialized;
+
+  @override
+  bool get isFocusPointSupported => true;
+
+  @override
+  bool get canRecord => _isInitialized && !_isRecording;
+
+  @override
+  bool get canSwitchCamera => true;
+
+  @override
+  bool get hasFlash => true;
+
+  @override
+  Widget buildPreviewWidget({
+    required Function(ScaleStartDetails details) onScaleStart,
+    required Function(ScaleUpdateDetails details) onScaleUpdate,
+    required Function(TapDownDetails details, BoxConstraints constraints)
+    onTapDown,
+  }) {
+    return Container(
+      color: Colors.black,
+      child: const Center(
+        child: Text(
+          'Mock Camera Preview',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+    );
+  }
+}

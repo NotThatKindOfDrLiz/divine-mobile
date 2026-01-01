@@ -16,7 +16,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.4+179
+version: 1.0.4+200
 
 environment:
   sdk: ^3.10.0
@@ -50,6 +50,7 @@ dependencies:
   # State management
   flutter_riverpod: ^3.0.0
   riverpod_annotation: ^3.0.0
+  flutter_bloc: ^9.0.0
   freezed_annotation: ^3.0.0
   json_annotation: ^4.9.0
   rxdart: ^0.28.0
@@ -67,7 +68,10 @@ dependencies:
 
   # Camera and media
   camera: ^0.11.2
-  camera_macos: ^0.0.9 # macOS camera support
+  # The package below is a temporary workaround for an Android front camera 90° rotation bug 
+  # (observed on Galaxy S10) until the cameraX package is fixed. More https://stackoverflow.com/questions/78612948
+  camera_android: ^0.10.10+14
+  camera_macos_plus: ^0.0.3
   video_player: ^2.9.1 # Uses native AVPlayer (iOS/macOS) and ExoPlayer (Android)
   visibility_detector: ^0.4.0+2 # Detect widget visibility for proper video control
   image: ^4.1.7 # Image processing for GIF generation
@@ -96,6 +100,7 @@ dependencies:
   share_plus: ^12.0.0 # Cross-platform sharing
   google_fonts: ^6.3.2 # For using Google Fonts including Pacifico
   blurhash_dart: ^1.2.1 # Generate blurhash for progressive image loading
+
   # Nostr SDK - Local package for comprehensive Nostr support
   nostr_sdk:
     path: packages/nostr_sdk
@@ -115,7 +120,6 @@ dependencies:
   firebase_core: ^4.1.1
   firebase_crashlytics: ^5.0.2
   firebase_analytics: ^12.0.2
-  ffmpeg_kit_flutter_new: ^3.2.0
   app_device_integrity: ^1.1.0
   go_router: ^16.2.4
   flutter_local_notifications: ^19.4.2
@@ -127,13 +131,9 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.40
   video_player_web_hls: ^1.3.0
   firebase_performance: ^0.11.1+1
-  camerawesome:
-    git:
-      url: https://github.com/VGVentures/CamerAwesome.git
-      ref: master
   convert: ^3.1.2
-  just_audio: ^0.10.5
-  pro_video_editor: ^0.5.0-beta.1
+  audioplayers: ^5.2.1 
+  pro_video_editor: ^1.0.0
   pro_image_editor: ^12.0.0-beta.5
   flutter_colorpicker: ^1.1.0
   file_picker: ^10.3.7
@@ -161,6 +161,7 @@ dev_dependencies:
   # Testing
   mocktail: ^1.0.3
   mockito: ^5.4.4
+  bloc_test: ^10.0.0
 
   # Code generation
   build_runner: ^2.7.1
@@ -207,6 +208,7 @@ flutter:
     - assets/icon/divine_icon_transparent.png
     - assets/icon/divine_wordmark.png
     - assets/icon/user-avatar.png
+    - assets/loading-brand.gif
     - assets/seed_data/seed_events.sql
     - assets/seed_media/manifest.json
     - assets/seed_media/videos/

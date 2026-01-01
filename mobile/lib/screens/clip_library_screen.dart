@@ -12,6 +12,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:video_player/video_player.dart';
 
 class ClipLibraryScreen extends ConsumerStatefulWidget {
@@ -109,7 +110,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     // Add each selected clip
     for (final clip in selectedClips) {
       clipManagerNotifier.addClip(
-        filePath: clip.filePath,
+        video: EditorVideo.file(clip.filePath),
         duration: clip.duration,
         thumbnailPath: clip.thumbnailPath,
       );

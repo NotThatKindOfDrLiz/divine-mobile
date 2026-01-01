@@ -10,7 +10,6 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:video_player/video_player.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/vine_recording_provider.dart';
 import 'package:openvine/models/pending_upload.dart'
     show UploadStatus, PendingUpload;
 import 'package:openvine/models/vine_draft.dart';
@@ -1262,10 +1261,11 @@ class _VideoMetadataScreenPureState
       await draftService.deleteDraft(_currentDraft!.id);
 
       // Mark recording as published to prevent auto-save on dispose
-      ref.read(vineRecordingProvider.notifier).markAsPublished();
+      /* TODO(@hm21): Implement
+     ref.read(vineRecordingProvider.notifier).markAsPublished();
 
       // Clean up recording segments and temp files after successful publish
-      await ref.read(vineRecordingProvider.notifier).cleanupAndReset();
+      await ref.read(vineRecordingProvider.notifier).cleanupAndReset(); */
 
       // Clear clip manager to allow recording new videos without "clear" prompt
       ref.read(clipManagerProvider.notifier).clearAll();

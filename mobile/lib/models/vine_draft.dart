@@ -34,12 +34,13 @@ class VineDraft {
     required List<String> hashtags,
     required int frameCount,
     required String selectedApproach,
+    String? id,
     String? proofManifestJson,
     AspectRatio aspectRatio = AspectRatio.square,
   }) {
     final now = DateTime.now();
     return VineDraft(
-      id: 'draft_${now.millisecondsSinceEpoch}',
+      id: id ?? 'draft_${now.millisecondsSinceEpoch}',
       videoFile: videoFile,
       title: title,
       description: description,

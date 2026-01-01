@@ -3,8 +3,8 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/text_overlay.dart';
 import 'package:openvine/services/video_export_service.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 void main() {
   group('VideoExportService', () {
@@ -27,9 +27,8 @@ void main() {
       test('handles single clip by returning it directly', () async {
         final clip = RecordingClip(
           id: 'clip1',
-          filePath: '/path/to/clip1.mp4',
+          video: EditorVideo.file('/path/to/clip1.mp4'),
           duration: const Duration(seconds: 2),
-          orderIndex: 0,
           recordedAt: DateTime.now(),
         );
 
@@ -39,72 +38,6 @@ void main() {
 
       // Note: Cannot test actual FFmpeg execution in unit tests
       // Integration tests would be needed for that
-    });
-
-    group('applyTextOverlay', () {
-      // Note: Cannot test actual FFmpeg execution in unit tests
-      // The method requires real video files and FFmpeg binary
-      test('method signature accepts correct parameters', () {
-        expect(service.applyTextOverlay, isA<Function>());
-      });
-    });
-
-    group('mixAudio', () {
-      // Note: Cannot test actual FFmpeg execution in unit tests
-      // The method requires real video/audio files and FFmpeg binary
-      test('method signature accepts correct parameters', () {
-        expect(service.mixAudio, isA<Function>());
-      });
-    });
-
-    group('export', () {
-      test('throws error when clips list is empty', () async {
-        void onProgress(ExportStage stage, double progress) {}
-
-        expect(
-          () => service.export(clips: [], onProgress: onProgress),
-          throwsA(isA<ArgumentError>()),
-        );
-      });
-
-      test('accepts valid parameters and returns future', () async {
-        final clips = [
-          RecordingClip(
-            id: 'clip1',
-            filePath: '/path/to/clip1.mp4',
-            duration: const Duration(seconds: 2),
-            orderIndex: 0,
-            recordedAt: DateTime.now(),
-          ),
-        ];
-
-        final textOverlays = [
-          TextOverlay(
-            id: 'text1',
-            text: 'Hello World',
-            normalizedPosition: const Offset(0.5, 0.5),
-          ),
-        ];
-
-        void onProgress(ExportStage stage, double progress) {}
-
-        // Just verify method returns a future - actual execution requires real files
-        final result = service.export(
-          clips: clips,
-          textOverlays: textOverlays,
-          soundId: 'sound1',
-          onProgress: onProgress,
-        );
-
-        expect(result, isA<Future<ExportResult>>());
-
-        // Wait for the future to complete (will fail due to missing plugin, but prevents test leaking)
-        await expectLater(result, throwsA(isA<Exception>()));
-      });
-
-      // Note: Cannot test actual export pipeline in unit tests
-      // The pipeline requires real video files, FFmpeg binary, and Flutter rendering
-      // Integration tests would be needed for full pipeline testing
     });
 
     group('generateThumbnail', () {
@@ -122,16 +55,14 @@ void main() {
         final clips = [
           RecordingClip(
             id: 'clip1',
-            filePath: '/path/to/clip1.mp4',
+            video: EditorVideo.file('/path/to/clip1.mp4'),
             duration: const Duration(seconds: 2),
-            orderIndex: 0,
             recordedAt: DateTime.now(),
           ),
           RecordingClip(
             id: 'clip2',
-            filePath: '/path/to/clip2.mp4',
+            video: EditorVideo.file('/path/to/clip2.mp4'),
             duration: const Duration(seconds: 3),
-            orderIndex: 1,
             recordedAt: DateTime.now(),
           ),
         ];
@@ -148,9 +79,8 @@ void main() {
         final clips = [
           RecordingClip(
             id: 'clip1',
-            filePath: '/path/to/clip1.mp4',
+            video: EditorVideo.file('/path/to/clip1.mp4'),
             duration: const Duration(seconds: 2),
-            orderIndex: 0,
             recordedAt: DateTime.now(),
           ),
         ];
@@ -163,29 +93,27 @@ void main() {
         await expectLater(result, throwsA(isA<Exception>()));
       });
 
-      test('concatenateSegments sorts clips by orderIndex', () async {
-        // The implementation internally sorts clips by orderIndex before concatenation
-        // This ensures clips are processed in the correct order regardless of input order
+      test('concatenateSegments processes clips in list order', () async {
+        // Clips are processed in the order they appear in the list
+        // The list position now determines the concatenation order
 
-        // Create clips in wrong order
+        // Create clips in different order (order is now determined by list position)
         final clips = [
           RecordingClip(
             id: 'clip2',
-            filePath: '/path/to/clip2.mp4',
+            video: EditorVideo.file('/path/to/clip2.mp4'),
             duration: const Duration(seconds: 3),
-            orderIndex: 1,
             recordedAt: DateTime.now(),
           ),
           RecordingClip(
             id: 'clip1',
-            filePath: '/path/to/clip1.mp4',
+            video: EditorVideo.file('/path/to/clip1.mp4'),
             duration: const Duration(seconds: 2),
-            orderIndex: 0,
             recordedAt: DateTime.now(),
           ),
         ];
 
-        // Service accepts clips in any order - sorting is internal
+        // Service processes clips in the order provided in the list
         final result = service.concatenateSegments(clips);
         expect(result, isA<Future<String>>());
 
