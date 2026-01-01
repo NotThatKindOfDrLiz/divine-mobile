@@ -131,8 +131,6 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
     if (!mounted) return;
 
-    String? selectedSoundId;
-
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => SoundPickerModal(

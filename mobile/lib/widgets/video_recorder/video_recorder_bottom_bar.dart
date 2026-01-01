@@ -69,8 +69,8 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                 /// preview so long it's not recording.
                 Positioned(
                   top: -previewWidgetRadius,
-                  left: 0,
-                  right: 0,
+                  left: 4,
+                  right: 4,
                   child: CustomPaint(
                     painter: _InvertedRadiusPainter(
                       color: Colors.black,

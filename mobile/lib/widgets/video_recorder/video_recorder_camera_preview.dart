@@ -40,30 +40,33 @@ class _VideoRecorderCameraPreviewState
     );
 
     return Center(
-      child: TweenAnimationBuilder<double>(
-        duration: Duration(milliseconds: 220),
-        curve: Curves.easeInOut,
-        tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
-        builder: (context, aspectRatio, _) {
-          return AspectRatio(
-            aspectRatio: aspectRatio,
-            child: ClipRRect(
-              clipBehavior: .hardEdge,
-              borderRadius: .circular(widget.previewWidgetRadius),
-              child: Stack(
-                key: ValueKey(
-                  'Video-Recorder-Camera-${state.cameraSwitchCount}',
-                ),
-                fit: .expand,
-                children: _buildStackItems(
-                  showGrid: state.showGrid,
-                  isCameraInitialized: state.isCameraInitialized,
-                  sensorAspectRatio: state.sensorAspectRatio,
+      child: Padding(
+        padding: const .symmetric(horizontal: 4.0),
+        child: TweenAnimationBuilder<double>(
+          duration: Duration(milliseconds: 220),
+          curve: Curves.easeInOut,
+          tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
+          builder: (context, aspectRatio, _) {
+            return AspectRatio(
+              aspectRatio: aspectRatio,
+              child: ClipRRect(
+                clipBehavior: .hardEdge,
+                borderRadius: .circular(widget.previewWidgetRadius),
+                child: Stack(
+                  key: ValueKey(
+                    'Video-Recorder-Camera-${state.cameraSwitchCount}',
+                  ),
+                  fit: .expand,
+                  children: _buildStackItems(
+                    showGrid: state.showGrid,
+                    isCameraInitialized: state.isCameraInitialized,
+                    sensorAspectRatio: state.sensorAspectRatio,
+                  ),
                 ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
