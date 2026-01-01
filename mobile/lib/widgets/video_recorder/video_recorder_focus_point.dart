@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 
 class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
+  static const indicatorSize = 36.0;
+
   const VideoRecorderFocusPoint({super.key});
 
   @override
@@ -15,7 +17,6 @@ class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
 
 class _VideoRecorderFocusPointState
     extends ConsumerState<VideoRecorderFocusPoint> {
-  final _indicatorSize = 36.0;
   Offset _lastVisiblePosition = .zero;
 
   /// Transform camera coordinates to display coordinates based on FittedBox.cover
@@ -84,8 +85,8 @@ class _VideoRecorderFocusPointState
           child: Stack(
             children: [
               Positioned(
-                left: x - _indicatorSize / 2,
-                top: y - _indicatorSize / 2,
+                left: x - VideoRecorderFocusPoint.indicatorSize / 2,
+                top: y - VideoRecorderFocusPoint.indicatorSize / 2,
                 child: AnimatedOpacity(
                   opacity: isVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 200),
@@ -114,19 +115,19 @@ class _VideoRecorderFocusPointState
 
   Widget _buildFocusPoint() {
     return Container(
-      width: _indicatorSize,
-      height: _indicatorSize,
+      width: VideoRecorderFocusPoint.indicatorSize,
+      height: VideoRecorderFocusPoint.indicatorSize,
       decoration: BoxDecoration(
         border: .all(
           color: const Color(0xFFFFFFFF),
-          width: _indicatorSize * 0.025,
+          width: VideoRecorderFocusPoint.indicatorSize * 0.025,
         ),
         shape: .circle,
       ),
       child: Center(
         child: Container(
-          width: _indicatorSize * 0.05,
-          height: _indicatorSize * 0.05,
+          width: VideoRecorderFocusPoint.indicatorSize * 0.05,
+          height: VideoRecorderFocusPoint.indicatorSize * 0.05,
           decoration: const BoxDecoration(
             color: Color(0xFFFFFFFF),
             shape: .circle,

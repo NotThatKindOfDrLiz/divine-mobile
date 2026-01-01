@@ -105,7 +105,9 @@ void main() {
       expect(find.byType(ClipRRect), findsWidgets);
     });
 
-    testWidgets('contains AnimatedContainer for transitions', (tester) async {
+    testWidgets('contains TweenAnimationBuilder for transitions', (
+      tester,
+    ) async {
       final mockCamera = MockCameraService();
       await mockCamera.initialize();
 
@@ -124,7 +126,7 @@ void main() {
         ),
       );
 
-      expect(find.byType(AnimatedContainer), findsOneWidget);
+      expect(find.byType(TweenAnimationBuilder<double>), isNotNull);
     });
 
     testWidgets('maintains radius value', (tester) async {

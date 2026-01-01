@@ -10,7 +10,7 @@ import 'package:openvine/utils/unified_logger.dart';
 /// Service for generating ProofMode proofs for video recordings
 class VideoRecorderProofService {
   /// Generate native ProofMode proof for a video file.
-  /// 
+  ///
   /// Returns [NativeProofData] if proof generation succeeds, null otherwise.
   /// Handles platform availability checks and graceful fallback if ProofMode is not supported.
   static Future<NativeProofData?> generateProof(File videoFile) async {

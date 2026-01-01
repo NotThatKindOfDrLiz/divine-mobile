@@ -67,6 +67,7 @@ void main() {
     });
 
     testWidgets('renders focus point at correct position', (tester) async {
+      final cameraSize = Size(400, 600);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -84,8 +85,8 @@ void main() {
           child: MaterialApp(
             home: Scaffold(
               body: SizedBox(
-                width: 400,
-                height: 600,
+                width: cameraSize.width,
+                height: cameraSize.height,
                 child: VideoRecorderFocusPoint(),
               ),
             ),
@@ -103,15 +104,10 @@ void main() {
         ),
       );
 
-      // With a 400x600 container and focus point at (0.5, 0.5):
-      // x = 0.5 * 400 = 200
-      // y = 0.5 * 600 = 300
-      // indicatorSize = 400 * 0.08 = 32
-      // left = 200 - 32/2 = 184
-      // top = 300 - 32/2 = 284
+      final indicatorSize = VideoRecorderFocusPoint.indicatorSize;
 
-      expect(positioned.left, equals(184.0));
-      expect(positioned.top, equals(284.0));
+      expect(positioned.left, equals(cameraSize.width / 2 - indicatorSize / 2));
+      expect(positioned.top, equals(cameraSize.height / 2 - indicatorSize / 2));
     });
   });
 }
