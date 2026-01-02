@@ -511,13 +511,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         )
       : null;
 
-  /// Navigate to video editor screen.
-  void openVideoEditor() {
-    // if (!state.hasSegments) return;
-
-    /// TODO: navigate to new video-editor
-  }
-
   /// Close video recorder and navigate away.
   void closeVideoRecorder(BuildContext context) {
     Log.info(
@@ -526,9 +519,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       category: .video,
     );
     // Try to pop if possible, otherwise go home.
-    final router = GoRouter.of(context);
-    if (router.canPop()) {
-      router.pop();
+    if (context.canPop()) {
+      context.pop();
     } else {
       // No screen to pop to (navigated via go), go home instead.
       context.goHome();

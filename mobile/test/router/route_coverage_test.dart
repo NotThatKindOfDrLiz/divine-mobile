@@ -189,19 +189,13 @@ void main() {
         expect(context.type, RouteType.importKey);
       });
 
-      test('/camera parses to RouteType.camera', () {
-        final context = parseRoute('/camera');
-        expect(context.type, RouteType.camera);
+      test('/video-recorder parses to RouteType.videoRecorder', () {
+        final context = parseRoute('/video-recorder');
+        expect(context.type, RouteType.videoRecorder);
       });
-
-      test('/clip-manager parses to RouteType.clipManager', () {
-        final context = parseRoute('/clip-manager');
-        expect(context.type, RouteType.clipManager);
-      });
-
-      test('/edit-video parses to RouteType.editVideo', () {
-        final context = parseRoute('/edit-video');
-        expect(context.type, RouteType.editVideo);
+      test('/video-editor parses to RouteType.videoEditor', () {
+        final context = parseRoute('/video-editor');
+        expect(context.type, RouteType.videoEditor);
       });
     });
 
@@ -264,9 +258,8 @@ void main() {
         RouteType.profile: '/profile/npub1test',
         RouteType.hashtag: '/hashtag/test',
         RouteType.search: '/search',
-        RouteType.camera: '/camera',
-        RouteType.clipManager: '/clip-manager',
-        RouteType.editVideo: '/edit-video',
+        RouteType.videoRecorder: '/video-recorder',
+        RouteType.videoEditor: '/video-editor',
         RouteType.importKey: '/import-key',
         RouteType.settings: '/settings',
         RouteType.relaySettings: '/relay-settings',

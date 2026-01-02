@@ -10,9 +10,7 @@ import '../widgets/video_editor/video_editor_clip_preview.dart';
 import '../widgets/video_editor/video_editor_progress_bar.dart';
 
 class VideoEditorScreen extends ConsumerStatefulWidget {
-  const VideoEditorScreen({super.key, required this.videoPath});
-
-  final String videoPath;
+  const VideoEditorScreen({super.key});
 
   @override
   ConsumerState<VideoEditorScreen> createState() => _VideoEditorScreenState();
@@ -24,9 +22,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     super.initState();
     // Initialize editor with video path
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref
+      /*  ref
           .read(videoEditorProvider.notifier)
-          .initializeWithVideo(widget.videoPath);
+          .initializeWithVideo('widget.videoPath'); */
     });
   }
 
@@ -71,14 +69,14 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
                         Positioned(
                           left: -133,
                           child: VideoClipPreview(
-                            videoPath: widget.videoPath,
+                            videoPath: 'widget.videoPath',
                             isCenter: false,
                           ),
                         ),
 
                         // Center clip (main focus)
                         VideoClipPreview(
-                          videoPath: widget.videoPath,
+                          videoPath: 'widget.videoPath',
                           isCenter: true,
                         ),
 
@@ -86,7 +84,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
                         Positioned(
                           right: -95,
                           child: VideoClipPreview(
-                            videoPath: widget.videoPath,
+                            videoPath: 'widget.videoPath',
                             isCenter: false,
                           ),
                         ),

@@ -38,10 +38,17 @@ void main() {
       expect(result.videoIndex, 1);
     });
 
-    test('parses camera route', () {
-      final result = parseRoute('/camera');
+    test('parses video-recorder route', () {
+      final result = parseRoute('/video-recorder');
 
-      expect(result.type, RouteType.camera);
+      expect(result.type, RouteType.videoRecorder);
+      expect(result.videoIndex, isNull);
+    });
+
+    test('parses video-editor route', () {
+      final result = parseRoute('/video-editor');
+
+      expect(result.type, RouteType.videoEditor);
       expect(result.videoIndex, isNull);
     });
 
@@ -49,20 +56,6 @@ void main() {
       final result = parseRoute('/settings');
 
       expect(result.type, RouteType.settings);
-      expect(result.videoIndex, isNull);
-    });
-
-    test('parses clip-manager route', () {
-      final result = parseRoute('/clip-manager');
-
-      expect(result.type, RouteType.clipManager);
-      expect(result.videoIndex, isNull);
-    });
-
-    test('parses edit-video route', () {
-      final result = parseRoute('/edit-video');
-
-      expect(result.type, RouteType.editVideo);
       expect(result.videoIndex, isNull);
     });
 
@@ -114,28 +107,22 @@ void main() {
       expect(buildRoute(context), '/hashtag/nostr/1');
     });
 
-    test('builds camera route', () {
-      final context = RouteContext(type: RouteType.camera);
+    test('builds video-recorder route', () {
+      final context = RouteContext(type: RouteType.videoRecorder);
 
-      expect(buildRoute(context), '/camera');
+      expect(buildRoute(context), '/video-recorder');
+    });
+
+    test('builds video-editor route', () {
+      final context = RouteContext(type: RouteType.videoEditor);
+
+      expect(buildRoute(context), '/video-editor');
     });
 
     test('builds settings route', () {
       final context = RouteContext(type: RouteType.settings);
 
       expect(buildRoute(context), '/settings');
-    });
-
-    test('builds clip-manager route', () {
-      final context = RouteContext(type: RouteType.clipManager);
-
-      expect(buildRoute(context), '/clip-manager');
-    });
-
-    test('builds edit-video route', () {
-      final context = RouteContext(type: RouteType.editVideo);
-
-      expect(buildRoute(context), '/edit-video');
     });
 
     test('defaults missing index to 0 for video routes', () {
@@ -152,10 +139,9 @@ void main() {
         '/explore/3',
         '/profile/npub1abc123/2',
         '/hashtag/nostr/1',
-        '/camera',
         '/settings',
-        '/clip-manager',
-        '/edit-video',
+        '/video-recorder',
+        '/video-editor',
       ];
 
       for (final url in urls) {

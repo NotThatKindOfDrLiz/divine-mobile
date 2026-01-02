@@ -3,11 +3,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
-
-import '../../providers/clip_manager_provider.dart';
 
 class VideoRecorderTopBar extends ConsumerWidget {
   const VideoRecorderTopBar({super.key});
@@ -51,9 +51,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 label: 'Continue to video editor',
                 hidden: isRecording,
                 backgroundColor: hasClips ? VineTheme.vineGreen : _buttonColor,
-                onPressed: hasClips
-                    ? ref.read(videoRecorderProvider.notifier).openVideoEditor
-                    : null,
+                onPressed: hasClips ? context.pushVideoEditor : null,
               ),
             ],
           ),
