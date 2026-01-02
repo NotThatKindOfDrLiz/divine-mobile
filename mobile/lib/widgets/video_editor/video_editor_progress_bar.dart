@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 
 class VideoProgressBar extends ConsumerWidget {
@@ -8,32 +10,30 @@ class VideoProgressBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final segments = ref.watch(
-      videoEditorProvider.select((state) => state.progressSegments),
-    );
+    final clips = ref.watch(clipManagerProvider.select((state) => state.clips));
 
     return Container(
       height: 40,
       padding: const .symmetric(horizontal: 16),
-      child: Row(children: _buildSegments(segments)),
+      child: Row(children: _buildSegments(clips)),
     );
   }
 
-  List<Widget> _buildSegments(List<ProgressSegment> segments) {
+  List<Widget> _buildSegments(List<RecordingClip> clips) {
     final widgets = <Widget>[];
 
-    for (var i = 0; i < segments.length; i++) {
-      final segment = segments[i];
+    for (var i = 0; i < clips.length; i++) {
+      final clip = clips[i];
       final isFirst = i == 0;
-      final isLast = i == segments.length - 1;
+      final isLast = i == clips.length - 1;
 
       widgets.add(
         Expanded(
-          flex: segment.duration,
+          flex: clip.duration.inMilliseconds,
           child: Container(
             height: 8,
             decoration: BoxDecoration(
-              color: segment.color,
+              color: Color(0xFF404040),
               borderRadius: .horizontal(
                 left: isFirst ? const .circular(999) : .zero,
                 right: isLast ? const .circular(999) : .zero,
@@ -44,7 +44,7 @@ class VideoProgressBar extends ConsumerWidget {
       );
 
       // Add gap between segments if not the last one
-      if (i < segments.length - 1) {
+      if (i < clips.length - 1) {
         widgets.add(const SizedBox(width: 2.88));
       }
     }

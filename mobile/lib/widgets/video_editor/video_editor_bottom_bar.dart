@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'video_editor_icon_button.dart';
 
@@ -8,13 +9,16 @@ class VideoEditorBottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final totalDurationValue = ref.watch(
+      clipManagerProvider.select((state) => state.totalDuration),
+    );
+    final totalDuration = _formatDuration(totalDurationValue);
     final state = ref.watch(
       videoEditorProvider.select(
         (state) => (
           isPlaying: state.isPlaying,
           isMuted: state.isMuted,
           currentTime: state.currentTime,
-          totalTime: state.totalTime,
         ),
       ),
     );
@@ -50,38 +54,35 @@ class VideoEditorBottomBar extends ConsumerWidget {
           ),
 
           // Time display
-          Row(
-            children: [
-              Text(
-                state.currentTime,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(
+                fontSize: 18,
+                letterSpacing: 0.15,
+                fontWeight: .w800,
+                fontFeatures: [.tabularFigures()],
+                color: Colors.white.withValues(alpha: 0.5),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '/',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+              children: [
+                TextSpan(
+                  text: state.currentTime,
+                  style: const TextStyle(color: Colors.white),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                state.totalTime,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+                TextSpan(text: ' / '),
+                TextSpan(text: totalDuration),
+              ],
+            ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatDuration(Duration duration) {
+    final seconds = duration.inSeconds.toString().padLeft(2, '0');
+    final milliseconds = (duration.inMilliseconds.remainder(1000) ~/ 10)
+        .toString()
+        .padLeft(2, '0');
+    return '$seconds:$milliseconds';
   }
 }

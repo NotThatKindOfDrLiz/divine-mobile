@@ -36,8 +36,6 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(
       videoPath: videoPath,
       currentTime: '1.39',
-      totalTime: '6.00',
-      totalClips: 4,
       currentClipIndex: 2,
     );
   }
@@ -61,9 +59,9 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   void nextClip() {
-    if (state.currentClipIndex < state.totalClips) {
+    /* if (state.currentClipIndex < state.totalClips) {
       state = state.copyWith(currentClipIndex: state.currentClipIndex + 1);
-    }
+    } */
   }
 
   void updateCurrentTime(String time) {

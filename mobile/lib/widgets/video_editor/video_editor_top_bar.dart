@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'video_editor_icon_button.dart';
 
@@ -8,13 +9,11 @@ class VideoEditorTopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(
-      videoEditorProvider.select(
-        (state) => (
-          currentClipIndex: state.currentClipIndex,
-          totalClips: state.totalClips,
-        ),
-      ),
+    final totalClips = ref.watch(
+      clipManagerProvider.select((state) => state.clips.length),
+    );
+    final currentClipIndex = ref.watch(
+      videoEditorProvider.select((state) => state.currentClipIndex),
     );
     final notifier = ref.read(videoEditorProvider.notifier);
 
@@ -36,7 +35,7 @@ class VideoEditorTopBar extends ConsumerWidget {
 
           // Clip counter
           Text(
-            '${state.currentClipIndex}/${state.totalClips}',
+            '${currentClipIndex}/${totalClips}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,

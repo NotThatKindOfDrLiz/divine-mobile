@@ -7,9 +7,7 @@ class EditorState {
   const EditorState({
     this.videoPath = '',
     this.currentClipIndex = 1,
-    this.totalClips = 4,
     this.currentTime = '0.00',
-    this.totalTime = '0.00',
     this.isPlaying = false,
     this.isMuted = false,
     this.clips = const [],
@@ -18,9 +16,7 @@ class EditorState {
 
   final String videoPath;
   final int currentClipIndex;
-  final int totalClips;
   final String currentTime;
-  final String totalTime;
   final bool isPlaying;
   final bool isMuted;
   final List<VideoClip> clips;
@@ -29,9 +25,7 @@ class EditorState {
   EditorState copyWith({
     String? videoPath,
     int? currentClipIndex,
-    int? totalClips,
     String? currentTime,
-    String? totalTime,
     bool? isPlaying,
     bool? isMuted,
     List<VideoClip>? clips,
@@ -40,9 +34,7 @@ class EditorState {
     return EditorState(
       videoPath: videoPath ?? this.videoPath,
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
-      totalClips: totalClips ?? this.totalClips,
       currentTime: currentTime ?? this.currentTime,
-      totalTime: totalTime ?? this.totalTime,
       isPlaying: isPlaying ?? this.isPlaying,
       isMuted: isMuted ?? this.isMuted,
       clips: clips ?? this.clips,
