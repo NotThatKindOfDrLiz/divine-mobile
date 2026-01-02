@@ -1,9 +1,9 @@
 // ABOUTME: macOS platform implementation of camera service using the camera_macos package
 // ABOUTME: Handles camera and audio device management, recording, and torch control on macOS
 
-import 'package:camera/camera.dart';
 import 'package:camera_macos_plus/camera_macos.dart';
 import 'package:flutter/widgets.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -13,6 +13,8 @@ import 'camera_base_service.dart';
 ///
 /// Manages video and audio devices, recording, and camera switching on macOS.
 class CameraMacOSService extends CameraService {
+  CameraMacOSService({required super.onUpdateState});
+
   List<CameraMacOSDevice>? _videoDevices;
   List<CameraMacOSDevice>? _audioDevices;
 
@@ -22,6 +24,7 @@ class CameraMacOSService extends CameraService {
   double _maxZoomLevel = 10;
   Size _cameraSensorSize = Size(500, 500);
   int _textureId = 0;
+  TapDownDetails? _tapDownDetails;
 
   bool _hasFlash = false;
   bool _isRecording = false;
@@ -92,7 +95,7 @@ class CameraMacOSService extends CameraService {
   }
 
   @override
-  Future<bool> setFlashMode(FlashMode mode) async {
+  Future<bool> setFlashMode(DivineFlashMode mode) async {
     if (!isInitialized) return false;
     try {
       Log.info(
@@ -100,7 +103,7 @@ class CameraMacOSService extends CameraService {
         name: 'CameraMacOSService',
         category: .video,
       );
-      await CameraMacOS.instance.toggleTorch(_getTorchMode(mode));
+      await CameraMacOS.instance.toggleTorch(_getFlashMode(mode));
       return true;
     } catch (e) {
       Log.error(
@@ -206,18 +209,6 @@ class CameraMacOSService extends CameraService {
       );
       return false;
     }
-  }
-
-  /// Converts [FlashMode] to macOS [Torch] mode.
-  ///
-  /// Maps camera package flash modes to camera_macos torch settings.
-  Torch _getTorchMode(FlashMode mode) {
-    return switch (mode) {
-      .always => .on,
-      .torch => .on,
-      .auto => .auto,
-      .off => .off,
-    };
   }
 
   @override
@@ -326,7 +317,7 @@ class CameraMacOSService extends CameraService {
     required Function(TapDownDetails details, BoxConstraints constraints)
     onTapDown,
   }) {
-    if (_isInBackground) return SizedBox.shrink();
+    if (_isInBackground || !_isInitialized) return SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -334,7 +325,12 @@ class CameraMacOSService extends CameraService {
           behavior: .opaque,
           onScaleStart: onScaleStart,
           onScaleUpdate: onScaleUpdate,
-          onTapDown: (details) => onTapDown(details, constraints),
+          onTapDown: (details) => _tapDownDetails = details,
+          onTap: () {
+            if (_tapDownDetails != null) {
+              onTapDown(_tapDownDetails!, constraints);
+            }
+          },
           child: CameraMacOSRawView(
             cameraSize: _cameraSensorSize,
             textureId: _textureId,
@@ -342,6 +338,17 @@ class CameraMacOSService extends CameraService {
         );
       },
     );
+  }
+
+  /// Converts [DivineFlashMode] to macOS [Torch] mode.
+  ///
+  /// Maps camera package flash modes to camera_macos torch settings.
+  Torch _getFlashMode(DivineFlashMode mode) {
+    return switch (mode) {
+      .torch => .on,
+      .auto => .auto,
+      .off => .off,
+    };
   }
 
   @override

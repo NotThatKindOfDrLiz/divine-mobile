@@ -1,8 +1,8 @@
 // ABOUTME: Mock implementation of CameraService for testing
 // ABOUTME: Provides a fake camera service that doesn't require actual hardware
 
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -11,8 +11,10 @@ class MockCameraService extends CameraService {
   bool _isInitialized = false;
   bool _isRecording = false;
   double zoomLevel = 1.0;
-  FlashMode flashMode = FlashMode.auto;
+  DivineFlashMode flashMode = DivineFlashMode.auto;
   Offset focusPoint = Offset.zero;
+
+  MockCameraService.create({required super.onUpdateState});
 
   @override
   Future<void> initialize() async {
@@ -25,7 +27,7 @@ class MockCameraService extends CameraService {
   }
 
   @override
-  Future<bool> setFlashMode(FlashMode mode) async {
+  Future<bool> setFlashMode(DivineFlashMode mode) async {
     flashMode = mode;
     return true;
   }

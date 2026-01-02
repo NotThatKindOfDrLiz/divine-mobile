@@ -13,7 +13,7 @@ void main() {
 
   group('CameraService Tests', () {
     test('create() returns a CameraService instance', () {
-      final service = CameraService.create();
+      final service = CameraService.create(onUpdateState: () {});
       expect(service, isA<CameraService>());
     });
   });

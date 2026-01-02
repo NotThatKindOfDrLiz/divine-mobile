@@ -3,13 +3,10 @@
 
 import 'dart:async';
 
-import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
-import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
@@ -37,6 +34,18 @@ enum TimerDuration {
   };
 }
 
+enum DivineFlashMode {
+  auto,
+  torch,
+  off;
+
+  IconData get icon => switch (this) {
+    .off => Icons.flash_off,
+    .torch => Icons.flash_on,
+    .auto => Icons.flash_auto,
+  };
+}
+
 /// Recording state for Vine-style segmented recording
 enum VideoRecorderState {
   idle, // Camera preview active, not recording
@@ -55,7 +64,6 @@ class VideoRecorderUIState {
     this.isCameraInitialized = false,
     this.canSwitchCamera = false,
     this.hasFlash = false,
-    this.cameraSwitchCount = 0,
     this.countdownValue = 0,
     this.aspectRatio = .vertical,
     this.flashMode = .auto,
@@ -77,12 +85,10 @@ class VideoRecorderUIState {
 
   // Integers
   final int countdownValue;
-  // Increments each time camera switches to force UI rebuild
-  final int cameraSwitchCount;
 
   // Custom types
   final model.AspectRatio aspectRatio;
-  final FlashMode flashMode;
+  final DivineFlashMode flashMode;
   final TimerDuration timerDuration;
   final VideoRecorderState recordingState;
 
@@ -102,10 +108,9 @@ class VideoRecorderUIState {
     bool? isCameraInitialized,
     bool? canSwitchCamera,
     bool? hasFlash,
-    int? cameraSwitchCount,
     int? countdownValue,
     model.AspectRatio? aspectRatio,
-    FlashMode? flashMode,
+    DivineFlashMode? flashMode,
     TimerDuration? timerDuration,
   }) {
     return VideoRecorderUIState(
@@ -118,7 +123,6 @@ class VideoRecorderUIState {
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
       hasFlash: hasFlash ?? this.hasFlash,
-      cameraSwitchCount: cameraSwitchCount ?? this.cameraSwitchCount,
       countdownValue: countdownValue ?? this.countdownValue,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       flashMode: flashMode ?? this.flashMode,
@@ -141,7 +145,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
   @override
   VideoRecorderUIState build() {
-    _cameraService = _cameraServiceOverride ?? CameraService.create();
+    _cameraService =
+        _cameraServiceOverride ??
+        CameraService.create(onUpdateState: updateState);
 
     // Setup cleanup when provider is disposed
     ref.onDispose(() {
@@ -178,10 +184,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
 
     await _cameraService.initialize();
-    state = state.copyWith(
-      cameraSwitchCount: state.cameraSwitchCount + 1,
-      countdownValue: 0,
-    );
     updateState();
 
     return true;
@@ -190,10 +192,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   /// Handle app lifecycle changes (pause/resume).
   void handleAppLifecycleState(AppLifecycleState appState) async {
     await _cameraService.handleAppLifecycleState(appState);
-
-    if (appState == .resumed || (!kIsWeb && Platform.isMacOS)) {
-      state = state.copyWith(cameraSwitchCount: state.cameraSwitchCount + 1);
-    }
   }
 
   /// Clean up resources and dispose camera service.
@@ -230,11 +228,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   ///
   /// Returns `true` if flash mode was successfully changed, `false` otherwise.
   Future<bool> toggleFlash() async {
-    final FlashMode newMode = switch (state.flashMode) {
+    final DivineFlashMode newMode = switch (state.flashMode) {
       .off => .torch,
       .torch => .auto,
       .auto => .off,
-      _ => .off,
     };
     final success = await _cameraService.setFlashMode(newMode);
     if (!success) {
@@ -280,10 +277,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
     // Force state update to rebuild UI with new camera preview
     // Increment camera switch count to ensure state object changes and triggers UI rebuild
-    state = state.copyWith(
-      cameraSwitchCount: state.cameraSwitchCount + 1,
-      zoomLevel: 1,
-    );
+    state = state.copyWith(zoomLevel: 1);
     updateState();
   }
 
@@ -468,10 +462,15 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
   /// Adjust zoom by vertical drag distance during long press.
   void zoomByLongPressMove(Offset offsetFromOrigin) {
+    // At 240px drag distance, reach maxZoomLevel
+    final maxDragDistance = 240.0;
     // Calculate upward drag distance (negative Y = upward)
-    final dragDistance = (-offsetFromOrigin.dy).clamp(-160.0, 400.0);
+    final dragDistance = (-offsetFromOrigin.dy).clamp(0.0, maxDragDistance);
 
-    final zoomLevel = _baseZoomLevel + (dragDistance / 80);
+    final availableZoomRange = _cameraService.maxZoomLevel - _baseZoomLevel;
+    final zoomLevel =
+        _baseZoomLevel + (dragDistance / maxDragDistance) * availableZoomRange;
+
     setZoomLevel(zoomLevel);
   }
 
@@ -480,14 +479,27 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   void _handleScaleUpdate(ScaleUpdateDetails details) {
-    final newZoom = (_baseZoomLevel * details.scale).clamp(
+    // Linear zoom: map scale gesture to zoom range
+    // scale < 1.0 = zoom out, scale > 1.0 = zoom in
+    final scaleChange = details.scale - 1.0; // -1.0 to +2.0 range
+    final normalizedChange = scaleChange.clamp(-1.0, 2.0);
+
+    // Calculate zoom based on available range from base level
+    final zoomRangeDown = _baseZoomLevel - _cameraService.minZoomLevel;
+    final zoomRangeUp = _cameraService.maxZoomLevel - _baseZoomLevel;
+
+    final newZoom = normalizedChange >= 0
+        ? _baseZoomLevel + (normalizedChange / 2.0) * zoomRangeUp
+        : _baseZoomLevel + normalizedChange * zoomRangeDown;
+
+    final clampedZoom = newZoom.clamp(
       _cameraService.minZoomLevel,
       _cameraService.maxZoomLevel,
     );
 
     // Only update if change is significant to avoid excessive updates
-    if ((state.zoomLevel - newZoom).abs() > 0.01) {
-      setZoomLevel(newZoom);
+    if ((state.zoomLevel - clampedZoom).abs() > 0.01) {
+      setZoomLevel(clampedZoom);
     }
   }
 
@@ -505,18 +517,11 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   /// Get the camera preview widget from the controller
   Widget? get previewWidget => _cameraService.isInitialized
       ? _cameraService.buildPreviewWidget(
+          onTapDown: _handleTapDown,
           onScaleStart: _handleScaleStart,
           onScaleUpdate: _handleScaleUpdate,
-          onTapDown: _handleTapDown,
         )
       : null;
-
-  /// Navigate to video editor screen.
-  void openVideoEditor() {
-    // if (!state.hasSegments) return;
-
-    /// TODO: navigate to new video-editor
-  }
 
   /// Close video recorder and navigate away.
   void closeVideoRecorder(BuildContext context) {
@@ -526,9 +531,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       category: .video,
     );
     // Try to pop if possible, otherwise go home.
-    final router = GoRouter.of(context);
-    if (router.canPop()) {
-      router.pop();
+    if (context.canPop()) {
+      context.pop();
     } else {
       // No screen to pop to (navigated via go), go home instead.
       context.goHome();
@@ -538,19 +542,18 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   /// Update the state based on the current camera state.
   void updateState() {
     state = VideoRecorderUIState(
+      countdownValue: 0,
+      zoomLevel: 1,
+      focusPoint: .zero,
+      aspectRatio: state.aspectRatio,
+      flashMode: .auto,
+      timerDuration: .off,
       recordingState: state.recordingState,
-      zoomLevel: state.zoomLevel,
       cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
-      focusPoint: state.focusPoint,
       canRecord: _cameraService.canRecord,
       isCameraInitialized: _cameraService.isInitialized,
       hasFlash: _cameraService.hasFlash,
       canSwitchCamera: _cameraService.canSwitchCamera,
-      cameraSwitchCount: state.cameraSwitchCount,
-      countdownValue: state.countdownValue,
-      aspectRatio: state.aspectRatio,
-      flashMode: state.flashMode,
-      timerDuration: state.timerDuration,
     );
   }
 

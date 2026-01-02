@@ -7,9 +7,9 @@
 
 import 'dart:io';
 
-import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -37,7 +37,7 @@ void main() {
     });
 
     setUp(() async {
-      cameraService = CameraService.create();
+      cameraService = CameraService.create(onUpdateState: () {});
       await cameraService.initialize();
     });
 
@@ -47,27 +47,22 @@ void main() {
 
     group('Flash Control', () {
       testWidgets('can set flash to auto', (tester) async {
-        final success = await cameraService.setFlashMode(FlashMode.auto);
+        final success = await cameraService.setFlashMode(DivineFlashMode.auto);
         expect(success, isA<bool>());
       });
 
       testWidgets('can set flash to off', (tester) async {
-        final success = await cameraService.setFlashMode(FlashMode.off);
-        expect(success, isA<bool>());
-      });
-
-      testWidgets('can set flash to always', (tester) async {
-        final success = await cameraService.setFlashMode(FlashMode.always);
+        final success = await cameraService.setFlashMode(DivineFlashMode.off);
         expect(success, isA<bool>());
       });
 
       testWidgets('can set flash to torch', (tester) async {
-        final success = await cameraService.setFlashMode(FlashMode.torch);
+        final success = await cameraService.setFlashMode(DivineFlashMode.torch);
         expect(success, isA<bool>());
       });
 
       testWidgets('can cycle through all flash modes', (tester) async {
-        for (final mode in FlashMode.values) {
+        for (final mode in DivineFlashMode.values) {
           final success = await cameraService.setFlashMode(mode);
           expect(success, isA<bool>());
           await tester.pump(Duration(milliseconds: 100));
@@ -157,7 +152,7 @@ void main() {
 
     group('Combined Controls', () {
       testWidgets('can change multiple settings in sequence', (tester) async {
-        await cameraService.setFlashMode(FlashMode.auto);
+        await cameraService.setFlashMode(DivineFlashMode.auto);
         await tester.pump(Duration(milliseconds: 100));
 
         await cameraService.setZoomLevel(2.0);

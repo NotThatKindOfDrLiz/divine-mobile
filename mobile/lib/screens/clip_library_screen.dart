@@ -236,7 +236,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
         const SizedBox(height: 32),
         ElevatedButton.icon(
           onPressed: () {
-            context.pushCamera();
+            context.pushVideoRecorder();
           },
           icon: const Icon(Icons.videocam),
           label: const Text('Record a Video'),

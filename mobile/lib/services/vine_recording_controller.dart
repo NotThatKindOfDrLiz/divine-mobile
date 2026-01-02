@@ -4,11 +4,11 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 // camera_macos removed - using NativeMacOSCamera for both preview and recording
 
 import 'package:models/models.dart' as model show AspectRatio;
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/utils/async_utils.dart';
 
 // TODO(@hm21): Delete all of it
@@ -59,7 +59,7 @@ abstract class CameraPlatformInterface {
   Future<void> startRecordingSegment(String filePath);
   Future<String?> stopRecordingSegment();
   Future<void> switchCamera();
-  Future<void> setFlashMode(FlashMode mode);
+  Future<void> setFlashMode(DivineFlashMode mode);
   Widget get previewWidget;
   bool get canSwitchCamera;
   void dispose();
@@ -84,7 +84,7 @@ class MacOSCameraInterface extends CameraPlatformInterface
   Widget get previewWidget => throw UnimplementedError();
 
   @override
-  Future<void> setFlashMode(FlashMode mode) {
+  Future<void> setFlashMode(DivineFlashMode mode) {
     throw UnimplementedError();
   }
 

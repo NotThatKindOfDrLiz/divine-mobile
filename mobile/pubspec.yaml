@@ -66,11 +66,11 @@ dependencies:
 
   permission_handler: ^12.0.1 # Handle runtime permissions
 
-  # Camera and media
-  camera: ^0.11.2
-  # The package below is a temporary workaround for an Android front camera 90° rotation bug 
-  # (observed on Galaxy S10) until the cameraX package is fixed. More https://stackoverflow.com/questions/78612948
-  camera_android: ^0.10.10+14
+  # Camera and media 
+  camerawesome:
+    git:
+      url: https://github.com/VGVentures/CamerAwesome.git
+      ref: master
   camera_macos_plus: ^0.0.3
   video_player: ^2.9.1 # Uses native AVPlayer (iOS/macOS) and ExoPlayer (Android)
   visibility_detector: ^0.4.0+2 # Detect widget visibility for proper video control

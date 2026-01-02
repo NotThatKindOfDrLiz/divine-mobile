@@ -410,7 +410,7 @@ class AppShell extends ConsumerWidget {
                 name: 'Navigation',
                 category: LogCategory.ui,
               );
-              context.pushCamera();
+              context.pushVideoRecorder();
             },
           ),
         ],

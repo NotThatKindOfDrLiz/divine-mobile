@@ -3,9 +3,9 @@
 
 import 'dart:io';
 
-import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/video_recorder/camera/camera_macos_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_mobile_service.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -15,15 +15,18 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 abstract class CameraService {
   /// Factory constructor that returns the appropriate camera service
   /// implementation based on the current platform.
-  factory CameraService.create() {
+  factory CameraService.create({required VoidCallback onUpdateState}) {
     if (!kIsWeb && Platform.isMacOS) {
-      return CameraMacOSService();
+      return CameraMacOSService(onUpdateState: onUpdateState);
     }
-    return CameraMobileService();
+    return CameraMobileService(onUpdateState: onUpdateState);
   }
 
   /// Protected constructor for subclasses
-  CameraService();
+  CameraService({required this.onUpdateState});
+
+  /// Callback to trigger UI updates when camera state changes.
+  final VoidCallback onUpdateState;
 
   /// Initializes the camera and prepares it for use.
   Future<void> initialize();
@@ -32,7 +35,7 @@ abstract class CameraService {
   Future<void> dispose();
 
   /// Sets the flash mode. Returns true if successful.
-  Future<bool> setFlashMode(FlashMode mode);
+  Future<bool> setFlashMode(DivineFlashMode mode);
 
   /// Sets the focus point in normalized coordinates (0.0-1.0).
   Future<bool> setFocusPoint(Offset offset);

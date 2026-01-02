@@ -9,9 +9,8 @@ enum RouteType {
   profile,
   hashtag, // Still supported as push route within explore
   search,
-  camera,
-  clipManager, // Clip management screen for recorded segments
-  editVideo, // Video editor screen for text/sound overlays
+  videoRecorder, // Video recorder screen
+  videoEditor, // Video editor screen
   importKey,
   settings,
   relaySettings, // Relay configuration screen
@@ -140,14 +139,11 @@ RouteContext parseRoute(String path) {
         videoIndex: index,
       );
 
-    case 'camera':
-      return const RouteContext(type: RouteType.camera);
+    case 'video-recorder':
+      return const RouteContext(type: RouteType.videoRecorder);
 
-    case 'clip-manager':
-      return const RouteContext(type: RouteType.clipManager);
-
-    case 'edit-video':
-      return const RouteContext(type: RouteType.editVideo);
+    case 'video-editor':
+      return const RouteContext(type: RouteType.videoEditor);
 
     case 'settings':
       return const RouteContext(type: RouteType.settings);
@@ -268,14 +264,11 @@ String buildRoute(RouteContext context) {
       final index = rawIndex < 0 ? 0 : rawIndex;
       return '/search/$index';
 
-    case RouteType.camera:
-      return '/camera';
+    case RouteType.videoRecorder:
+      return '/video-recorder';
 
-    case RouteType.clipManager:
-      return '/clip-manager';
-
-    case RouteType.editVideo:
-      return '/edit-video';
+    case RouteType.videoEditor:
+      return '/video-editor';
 
     case RouteType.settings:
       return '/settings';

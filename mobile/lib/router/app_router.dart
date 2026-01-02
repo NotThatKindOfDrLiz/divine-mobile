@@ -30,7 +30,6 @@ import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
 import 'package:openvine/screens/video_detail_screen.dart';
 import 'package:openvine/screens/video_editor_screen.dart';
-import 'package:openvine/screens/clip_manager_screen.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/screens/developer_options_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
@@ -87,9 +86,9 @@ int tabIndexFromLocation(String loc) {
     case 'setup-profile':
     case 'import-key':
     case 'welcome':
-    case 'camera':
+    case 'video-recorder':
+    case 'video-editor':
     case 'clip-manager':
-    case 'edit-video':
     case 'drafts':
     case 'followers':
     case 'following':
@@ -475,16 +474,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const KeyImportScreen(),
       ),
       GoRoute(
-        path: '/camera',
-        name: 'camera',
-        builder: (_, __) => const VideoRecorderScreen(),
-      ),
-      GoRoute(
-        path: '/clip-manager',
-        name: 'clip-manager',
-        builder: (_, __) => const ClipManagerScreen(),
-      ),
-      GoRoute(
         path: '/settings',
         name: 'settings',
         builder: (_, __) => const SettingsScreen(),
@@ -653,21 +642,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           return VideoDetailScreen(videoId: videoId);
         },
       ),
+      // Video recorder route
+      GoRoute(
+        path: '/video-recorder',
+        name: 'video-recorder',
+        builder: (_, __) => const VideoRecorderScreen(),
+      ),
       // Video editor route (requires video passed via extra)
       GoRoute(
-        path: '/edit-video',
-        name: 'edit-video',
-        builder: (ctx, st) {
-          final videoPath = st.extra as String?;
-          if (videoPath == null) {
-            // If no video provided, show error screen
-            return Scaffold(
-              appBar: AppBar(title: const Text('Error')),
-              body: const Center(child: Text('No video selected for editing')),
-            );
-          }
-          return VideoEditorScreen(videoPath: videoPath);
-        },
+        path: '/video-editor',
+        name: 'video-editor',
+        builder: (_, _) => const VideoEditorScreen(),
       ),
     ],
   );

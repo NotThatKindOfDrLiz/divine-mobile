@@ -24,7 +24,7 @@ void main() {
     });
 
     setUp(() {
-      cameraService = CameraService.create();
+      cameraService = CameraService.create(onUpdateState: () {});
     });
 
     tearDown(() async {

@@ -100,7 +100,7 @@ void main() {
       expect(context.videoIndex, 2);
     });
 
-    testWidgets('parses camera route correctly', (tester) async {
+    testWidgets('parses video-recorder route correctly', (tester) async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -113,13 +113,36 @@ void main() {
         ),
       );
 
-      // Navigate to camera
-      container.read(goRouterProvider).go('/camera');
+      // Navigate to video-recorder
+      container.read(goRouterProvider).go('/video-recorder');
       await tester.pumpAndSettle();
 
       final contextAsync = container.read(pageContextProvider);
       final context = contextAsync.value!;
-      expect(context.type, RouteType.camera);
+      expect(context.type, RouteType.videoRecorder);
+      expect(context.videoIndex, isNull);
+    });
+
+    testWidgets('parses video-editor route correctly', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(
+            routerConfig: container.read(goRouterProvider),
+          ),
+        ),
+      );
+
+      // Navigate to video-editor
+      container.read(goRouterProvider).go('/video-editor');
+      await tester.pumpAndSettle();
+
+      final contextAsync = container.read(pageContextProvider);
+      final context = contextAsync.value!;
+      expect(context.type, RouteType.videoEditor);
       expect(context.videoIndex, isNull);
     });
 
