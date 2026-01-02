@@ -92,6 +92,7 @@ class CameraMacOSService extends CameraService {
 
     final hasFlash = await CameraMacOS.instance.hasFlash(deviceId: deviceId);
     _hasFlash = hasFlash;
+    onUpdateState(forceCameraRebuild: true);
   }
 
   @override
@@ -290,7 +291,10 @@ class CameraMacOSService extends CameraService {
     _isInBackground = state == .inactive;
     switch (state) {
       case .inactive:
-        if (isInitialized) await dispose();
+        if (isInitialized) {
+          await dispose();
+          onUpdateState(forceCameraRebuild: true);
+        }
         break;
       case .resumed:
         // Only reinitialize if we had a successful initialization before

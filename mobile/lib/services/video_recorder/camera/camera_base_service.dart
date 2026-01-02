@@ -15,7 +15,9 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 abstract class CameraService {
   /// Factory constructor that returns the appropriate camera service
   /// implementation based on the current platform.
-  factory CameraService.create({required VoidCallback onUpdateState}) {
+  factory CameraService.create({
+    required Function({bool? forceCameraRebuild}) onUpdateState,
+  }) {
     if (!kIsWeb && Platform.isMacOS) {
       return CameraMacOSService(onUpdateState: onUpdateState);
     }
@@ -26,7 +28,7 @@ abstract class CameraService {
   CameraService({required this.onUpdateState});
 
   /// Callback to trigger UI updates when camera state changes.
-  final VoidCallback onUpdateState;
+  final Function({bool? forceCameraRebuild}) onUpdateState;
 
   /// Initializes the camera and prepares it for use.
   Future<void> initialize();
