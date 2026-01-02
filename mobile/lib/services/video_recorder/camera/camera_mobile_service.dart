@@ -1,9 +1,10 @@
 // ABOUTME: Mobile platform implementation of camera service using the camera package
 // ABOUTME: Handles camera initialization, switching, recording, and lifecycle management on mobile devices
 
-import 'package:camera/camera.dart';
-import 'package:flutter/foundation.dart';
+import 'package:camerawesome/camerawesome_plugin.dart';
+import 'package:camerawesome/pigeon.dart';
 import 'package:flutter/widgets.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -13,41 +14,31 @@ import 'camera_base_service.dart';
 ///
 /// Manages camera initialization, recording, and switching between front/back cameras.
 class CameraMobileService extends CameraService {
-  CameraController? _controller;
+  CameraMobileService({required super.onUpdateState});
 
-  List<CameraDescription>? _cameras;
-
-  int _currentCameraIndex = 0;
+  CameraState? _cameraState;
 
   double _minZoomLevel = 1;
   double _maxZoomLevel = 1;
+  Size _previewSize = Size.zero;
 
   bool _isInitialized = false;
   bool _isInitialSetupCompleted = false;
+  TapDownDetails? _tapDownDetails;
 
   @override
   Future<void> initialize() async {
-    if (_isInitialized) return;
-
     Log.info(
       '📷 Initializing mobile camera',
       name: 'CameraMobileService',
       category: .video,
     );
 
-    _cameras ??= await availableCameras();
-
-    // Find the preferred back camera.
-    _currentCameraIndex = _findPreferredCamera(.back);
-
-    await _initializeCameraController(_cameras![_currentCameraIndex]);
-    _isInitialSetupCompleted = true;
-
-    Log.info(
-      '📷 Mobile camera initialized (${_cameras!.length} cameras available)',
-      name: 'CameraMobileService',
-      category: .video,
-    );
+    // CamerAwesome requires initialization through the CameraAwesomeBuilder widget.
+    // We mark as initialized immediately since the actual camera setup happens
+    // in buildPreviewWidget() when the widget is built. Zoom limits are loaded
+    // asynchronously after the camera starts.
+    _isInitialized = true;
   }
 
   @override
@@ -59,62 +50,56 @@ class CameraMobileService extends CameraService {
     );
 
     _isInitialized = false;
-    // Only dispose if controller was initialized
-    await _controller?.dispose();
+    onUpdateState();
+    await CamerawesomePlugin.stop();
+    _isInitialSetupCompleted = false;
   }
 
-  /// Finds the first camera matching the specified [direction].
-  ///
-  /// Returns the camera index or 0 if no matching camera is found.
-  int _findPreferredCamera(CameraLensDirection direction) {
-    // Get first camera with correct direction
-    final index = _cameras!.indexWhere(
-      (camera) => camera.lensDirection == direction,
-    );
+  Future<void> _loadZoomLimits() async {
+    if (!_isInitialized) {
+      Log.warning(
+        '📷 Cannot load zoom limits: Camera not initialized',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return;
+    }
 
-    return index != -1 ? index : 0;
-  }
-
-  /// Initializes the camera controller with the given [description].
-  ///
-  /// Sets up the controller with maximum resolution and retrieves zoom limits.
-  Future<void> _initializeCameraController(
-    CameraDescription description,
-  ) async {
     try {
-      _controller = CameraController(description, .max);
-
-      await _controller!.initialize();
-      _isInitialized = true;
-
       // Get zoom limits in parallel for faster initialization
       final results = await Future.wait([
-        _controller!.getMinZoomLevel(),
-        _controller!.getMaxZoomLevel(),
+        CamerawesomePlugin.getMinZoom(),
+        CamerawesomePlugin.getMaxZoom(),
       ]);
-      _minZoomLevel = results[0];
-      _maxZoomLevel = results[1];
-    } catch (e) {}
+      _minZoomLevel = results[0] ?? 1;
+      _maxZoomLevel = results[1] ?? 1;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to load zoom limits (unexpected error): $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+    }
   }
 
   @override
-  Future<bool> setFlashMode(FlashMode mode) async {
-    if (!isInitialized) return false;
+  Future<bool> setFlashMode(DivineFlashMode mode) async {
+    if (!isInitialized || _cameraState == null) {
+      Log.warning(
+        '📷 Cannot set flash mode: Camera not initialized or state is null',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
     try {
       Log.info(
         '📷 Setting flash mode to ${mode.name}',
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller!.setFlashMode(mode);
+      await _cameraState!.sensorConfig.setFlashMode(_getFlashMode(mode));
       return true;
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to set flash mode: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
-      );
-      return false;
     } catch (e) {
       Log.error(
         '📷 Failed to set flash mode (unexpected error): $e',
@@ -127,22 +112,37 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<bool> setFocusPoint(Offset offset) async {
-    if (!isInitialized) return false;
+    if (!isInitialized ||
+        _cameraState == null ||
+        _cameraState is! VideoCameraState) {
+      Log.warning(
+        '📷 Cannot set focus point: Camera not initialized or state is null',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
     try {
       Log.info(
         '📷 Setting focus point to (${offset.dx}, ${offset.dy})',
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller!.setFocusPoint(offset);
-      return true;
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to set focus point: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
+
+      final previewSize = PreviewSize(
+        width: _previewSize.width,
+        height: _previewSize.height,
       );
-      return false;
+
+      (_cameraState as VideoCameraState).focusOnPoint(
+        flutterPosition: Offset(
+          previewSize.width * offset.dx,
+          previewSize.height * offset.dy,
+        ),
+        flutterPreviewSize: previewSize,
+        pixelPreviewSize: previewSize,
+      );
+      return true;
     } catch (e) {
       Log.error(
         '📷 Failed to set focus point (unexpected error): $e',
@@ -155,22 +155,24 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<bool> setExposurePoint(Offset offset) async {
-    if (!isInitialized) return false;
+    if (!isInitialized) {
+      Log.warning(
+        '📷 Cannot set exposure point: Camera not initialized',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
     try {
       Log.info(
         '📷 Setting exposure point to (${offset.dx}, ${offset.dy})',
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller!.setExposurePoint(offset);
+      // CamerAwesome doesn't support setting exposure point separately.
+      // The exposure is automatically handled together with focus point
+      // in setFocusPoint(), so we return true here without doing anything.
       return true;
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to set exposure point: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
-      );
-      return false;
     } catch (e) {
       Log.error(
         '📷 Failed to set exposure point (unexpected error): $e',
@@ -183,22 +185,28 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<bool> setZoomLevel(double value) async {
-    if (!isInitialized) return false;
+    if (!isInitialized || _cameraState == null) {
+      Log.warning(
+        '📷 Cannot set zoom level: Camera not initialized or state is null',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
     try {
       Log.info(
         '📷 Setting zoom level to $value',
         name: 'CameraMobileService',
         category: .video,
       );
-      await _controller!.setZoomLevel(value);
+
+      // Convert zoom value from [minZoomLevel, maxZoomLevel] to [0.0, 1.0]
+      final normalizedZoom = (_maxZoomLevel - _minZoomLevel) > 0
+          ? (value - _minZoomLevel) / (_maxZoomLevel - _minZoomLevel)
+          : 0.0;
+
+      await _cameraState!.sensorConfig.setZoom(normalizedZoom.clamp(0.0, 1.0));
       return true;
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to set zoom level: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
-      );
-      return false;
     } catch (e) {
       Log.error(
         '📷 Failed to set zoom level (unexpected error): $e',
@@ -211,7 +219,14 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<bool> switchCamera() async {
-    if (_cameras == null || _cameras!.length <= 1) return false;
+    if (_cameraState == null) {
+      Log.warning(
+        '📷 Cannot switch camera: Camera state is null',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
 
     try {
       Log.info(
@@ -220,49 +235,16 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
 
-      await _controller!.dispose();
+      await _cameraState!.switchCameraSensor();
 
-      // Switch between front and back camera
-      final currentDirection = _cameras![_currentCameraIndex].lensDirection;
-
-      final CameraLensDirection targetDirection = currentDirection == .back
-          ? .front
-          : .back;
-
-      final targetCameraIndex = _findPreferredCamera(targetDirection);
-
-      if (targetCameraIndex == _currentCameraIndex) {
-        // No alternative camera found, reinitialize current
-        _controller = CameraController(_cameras![_currentCameraIndex], .max);
-        await _controller!.initialize();
-
-        Log.warning(
-          '📷 No alternative camera found',
-          name: 'CameraMobileService',
-          category: .video,
-        );
-        return false;
-      }
-
-      _currentCameraIndex = targetCameraIndex;
-
-      await _initializeCameraController(_cameras![_currentCameraIndex]);
-
-      await _controller!.initialize();
+      await _loadZoomLimits();
 
       Log.info(
-        '📷 Camera switched to ${targetDirection.name}',
+        '📷 Camera switched',
         name: 'CameraMobileService',
         category: .video,
       );
       return true;
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to switch camera: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
-      );
-      return false;
     } catch (e) {
       Log.error(
         '📷 Failed to switch camera (unexpected error): $e',
@@ -275,20 +257,21 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<void> startRecording() async {
+    if (_cameraState == null || _cameraState is! VideoCameraState) {
+      Log.warning(
+        '📷 Cannot start recording: Camera state is null or not in video mode',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return;
+    }
     try {
       Log.info(
         '📷 Starting video recording',
         name: 'CameraMobileService',
         category: .video,
       );
-
-      await _controller!.startVideoRecording();
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to start recording: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
-      );
+      await (_cameraState as VideoCameraState).startRecording();
     } catch (e) {
       Log.error(
         '📷 Failed to start recording (unexpected error): $e',
@@ -300,6 +283,15 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<EditorVideo?> stopRecording() async {
+    if (_cameraState == null || _cameraState is! VideoRecordingCameraState) {
+      Log.warning(
+        '📷 Cannot stop recording: Camera state is null or not currently recording',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return null;
+    }
+
     try {
       Log.info(
         '📷 Stopping video recording',
@@ -307,24 +299,21 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
 
-      final result = await _controller!.stopVideoRecording();
+      late final String? resultPath;
+      await (_cameraState as VideoRecordingCameraState).stopRecording(
+        onVideo: (request) {
+          resultPath = request.path;
+        },
+      );
 
       Log.info(
         '📷 Video recording stopped',
         name: 'CameraMobileService',
         category: .video,
       );
-      return EditorVideo.autoSource(
-        file: result.path,
-        byteArray: kIsWeb ? await result.readAsBytes() : null,
-      );
-    } on CameraException catch (e) {
-      Log.error(
-        '📷 Failed to stop recording: ${e.code} - ${e.description}',
-        name: 'CameraMobileService',
-        category: .video,
-      );
-      return null;
+      if (resultPath == null) return null;
+
+      return EditorVideo.autoSource(file: resultPath);
     } catch (e) {
       Log.error(
         '📷 Failed to stop recording (unexpected error): $e',
@@ -337,33 +326,23 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
-    if (_controller == null) return;
+    if (_cameraState == null) {
+      Log.warning(
+        '📷 Cannot handle lifecycle state: Camera state is null',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return null;
+    }
+
+    // The Camerawesome handle lifecycle changes automatically, so there is
+    // nothing to do here.
+
     Log.info(
       '📷 App lifecycle state changed to ${state.name}',
       name: 'CameraMobileService',
       category: .video,
     );
-
-    switch (state) {
-      case .inactive:
-        if (isInitialized) await dispose();
-        break;
-      case .resumed:
-        // Only reinitialize if we had a successful initialization before
-        // (prevents reinitialization attempts when coming back from permission dialog)
-        if (_isInitialSetupCompleted) {
-          await _initializeCameraController(_controller!.description);
-
-          Log.info(
-            '📷 Camera reinitialized after resume',
-            name: 'CameraMobileService',
-            category: .video,
-          );
-        }
-        break;
-      default:
-        break;
-    }
   }
 
   @override
@@ -373,27 +352,75 @@ class CameraMobileService extends CameraService {
     required Function(TapDownDetails details, BoxConstraints constraints)
     onTapDown,
   }) {
-    return CameraPreview(
-      _controller!,
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          return GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onScaleStart: onScaleStart,
-            onScaleUpdate: onScaleUpdate,
-            onTapDown: (details) => onTapDown(details, constraints),
-          );
-        },
-      ),
+    if (!_isInitialized) return SizedBox.shrink();
+
+    return CameraAwesomeBuilder.custom(
+      saveConfig: SaveConfig.video(),
+      previewAlignment: .center,
+      progressIndicator: SizedBox.shrink(),
+      previewPadding: .zero,
+      builder: (state, preview) {
+        // The builder callback is called multiple times during rebuilds.
+        // We only want to load zoom limits once when the camera is first ready,
+        // not on every rebuild. This ensures we don't spam the native API.
+        if (!_isInitialSetupCompleted) {
+          _isInitialSetupCompleted = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _loadZoomLimits();
+            onUpdateState();
+          });
+        }
+
+        _cameraState = state;
+        _previewSize = preview.nativePreviewSize;
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            return GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onScaleStart: onScaleStart,
+              onScaleUpdate: onScaleUpdate,
+              onTapDown: (details) => _tapDownDetails = details,
+              onTap: () {
+                if (_tapDownDetails != null) {
+                  onTapDown(_tapDownDetails!, constraints);
+                }
+              },
+              // Important: We need to keep OnTapUp so that we can create our
+              // own FocusPoint design.
+              onTapUp: (_) {},
+              child: Container(),
+            );
+          },
+        );
+      },
     );
   }
 
+  /// Converts [DivineFlashMode] to camerawesome [FlashMode] mode.
+  FlashMode _getFlashMode(DivineFlashMode mode) {
+    return switch (mode) {
+      .torch => .always,
+      .auto => .auto,
+      .off => .none,
+    };
+  }
+
   @override
-  double get cameraAspectRatio =>
-      _controller != null ? _controller!.value.aspectRatio : 1;
+  double get cameraAspectRatio {
+    switch (_cameraState?.sensorConfig.aspectRatio) {
+      case .ratio_16_9:
+        return 16 / 9;
+      case .ratio_4_3:
+        return 4 / 3;
+      case .ratio_1_1:
+      case null:
+        return 1;
+    }
+  }
 
   @override
   double get minZoomLevel => _minZoomLevel;
+
   @override
   double get maxZoomLevel => _maxZoomLevel;
 
@@ -401,23 +428,15 @@ class CameraMobileService extends CameraService {
   bool get isInitialized => _isInitialized;
 
   @override
-  bool get isFocusPointSupported =>
-      _controller != null && _controller!.value.focusPointSupported;
+  bool get isFocusPointSupported => true;
 
   @override
-  bool get canRecord => isInitialized && !_controller!.value.isRecordingVideo;
+  bool get canRecord => isInitialized;
 
-  /// Currently, with the camera package there is no way to check if Flash is
-  /// supported.
   @override
   bool get hasFlash => true;
 
   @override
-  bool get canSwitchCamera {
-    if (_cameras == null) return false;
-
-    final hasFront = _cameras!.any((c) => c.lensDirection == .front);
-    final hasBack = _cameras!.any((c) => c.lensDirection == .back);
-    return hasFront && hasBack;
-  }
+  bool get canSwitchCamera =>
+      _cameraState?.sensorConfig.sensors.isNotEmpty ?? false;
 }

@@ -1,7 +1,6 @@
 // ABOUTME: Bottom bar widget for video recorder screen
 // ABOUTME: Contains flash, timer, record button, camera flip, and more options
 
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
@@ -168,7 +167,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
         children: [
           // Flash toggle
           _buildControlButton(
-            icon: _getFlashIcon(state.flashMode),
+            icon: state.flashMode.icon,
             label: 'Toggle flash',
             onPressed: state.hasFlash ? notifier.toggleFlash : null,
           ),
@@ -218,16 +217,6 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       tooltip: label,
       icon: Icon(icon, color: Colors.white, size: 32),
     );
-  }
-
-  /// Get flash icon based on mode
-  IconData _getFlashIcon(FlashMode mode) {
-    return switch (mode) {
-      .off => Icons.flash_off,
-      .torch => Icons.flash_on,
-      .always => Icons.flash_on,
-      .auto => Icons.flash_auto,
-    };
   }
 }
 

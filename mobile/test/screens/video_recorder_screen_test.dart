@@ -145,7 +145,7 @@ void main() {
 
     group('Lifecycle Management', () {
       testWidgets('handles app lifecycle state changes', (tester) async {
-        final mockCamera = MockCameraService();
+        final mockCamera = MockCameraService.create(onUpdateState: () {});
         await mockCamera.initialize();
 
         await tester.pumpWidget(
@@ -387,7 +387,7 @@ void main() {
       });
 
       testWidgets('handles multiple rapid lifecycle changes', (tester) async {
-        final mockCamera = MockCameraService();
+        final mockCamera = MockCameraService.create(onUpdateState: () {});
         await mockCamera.initialize();
 
         await tester.pumpWidget(

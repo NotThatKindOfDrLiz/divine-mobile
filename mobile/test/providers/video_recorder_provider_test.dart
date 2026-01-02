@@ -1,7 +1,6 @@
 // ABOUTME: Unit tests for VideoRecorderUIState behavior
 // ABOUTME: Tests state getters and properties without requiring camera
 
-import 'package:camera/camera.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:openvine/providers/video_recorder_provider.dart';
@@ -184,23 +183,23 @@ void main() {
 
     test('flashMode should be customizable', () {
       const autoFlash = VideoRecorderUIState(
-        flashMode: FlashMode.auto,
+        flashMode: DivineFlashMode.auto,
         aspectRatio: AspectRatio.square,
       );
 
       const torchFlash = VideoRecorderUIState(
-        flashMode: FlashMode.torch,
+        flashMode: DivineFlashMode.torch,
         aspectRatio: AspectRatio.square,
       );
 
       const offFlash = VideoRecorderUIState(
-        flashMode: FlashMode.off,
+        flashMode: DivineFlashMode.off,
         aspectRatio: AspectRatio.square,
       );
 
-      expect(autoFlash.flashMode, equals(FlashMode.auto));
-      expect(torchFlash.flashMode, equals(FlashMode.torch));
-      expect(offFlash.flashMode, equals(FlashMode.off));
+      expect(autoFlash.flashMode, equals(DivineFlashMode.auto));
+      expect(torchFlash.flashMode, equals(DivineFlashMode.torch));
+      expect(offFlash.flashMode, equals(DivineFlashMode.off));
     });
 
     test('timerDuration should be customizable', () {
@@ -258,21 +257,6 @@ void main() {
       expect(updatedState.aspectRatio, AspectRatio.square); // Preserved
     });
 
-    test('cameraSwitchCount should increment on camera switch', () {
-      const initialState = VideoRecorderUIState(
-        cameraSwitchCount: 0,
-        aspectRatio: AspectRatio.square,
-      );
-
-      const switchedState = VideoRecorderUIState(
-        cameraSwitchCount: 1,
-        aspectRatio: AspectRatio.square,
-      );
-
-      expect(initialState.cameraSwitchCount, equals(0));
-      expect(switchedState.cameraSwitchCount, equals(1));
-    });
-
     test('canSwitchCamera should be configurable', () {
       const canSwitch = VideoRecorderUIState(
         canSwitchCamera: true,
@@ -298,10 +282,9 @@ void main() {
       expect(state.canRecord, false);
       expect(state.isCameraInitialized, false);
       expect(state.canSwitchCamera, false);
-      expect(state.cameraSwitchCount, 0);
       expect(state.countdownValue, 0);
       expect(state.aspectRatio, AspectRatio.vertical);
-      expect(state.flashMode, FlashMode.auto);
+      expect(state.flashMode, DivineFlashMode.auto);
       expect(state.timerDuration, TimerDuration.off);
     });
   });

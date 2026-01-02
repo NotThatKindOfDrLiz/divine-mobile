@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/video_editor_provider.dart';
 import '../widgets/video_editor/video_editor_top_bar.dart';
 import '../widgets/video_editor/video_editor_bottom_bar.dart';
 import '../widgets/video_editor/video_editor_clip_preview.dart';

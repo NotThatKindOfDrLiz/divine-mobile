@@ -21,7 +21,7 @@ void main() {
     });
 
     setUp(() async {
-      cameraService = CameraService.create();
+      cameraService = CameraService.create(onUpdateState: () {});
       await cameraService.initialize();
     });
 

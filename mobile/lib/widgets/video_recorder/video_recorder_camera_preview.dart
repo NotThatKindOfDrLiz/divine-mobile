@@ -33,7 +33,6 @@ class _VideoRecorderCameraPreviewState
           aspectRatio: s.aspectRatio.value,
           sensorAspectRatio: s.cameraSensorAspectRatio,
           showGrid: !s.isRecording,
-          cameraSwitchCount: s.cameraSwitchCount,
           isCameraInitialized: s.isCameraInitialized,
         ),
       ),
@@ -53,9 +52,6 @@ class _VideoRecorderCameraPreviewState
                 clipBehavior: .hardEdge,
                 borderRadius: .circular(widget.previewWidgetRadius),
                 child: Stack(
-                  key: ValueKey(
-                    'Video-Recorder-Camera-${state.cameraSwitchCount}',
-                  ),
                   fit: .expand,
                   children: _buildStackItems(
                     showGrid: state.showGrid,
