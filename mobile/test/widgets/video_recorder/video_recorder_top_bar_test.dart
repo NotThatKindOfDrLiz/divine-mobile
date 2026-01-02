@@ -17,7 +17,9 @@ void main() {
     late MockCameraService mockCamera;
 
     setUp(() async {
-      mockCamera = MockCameraService.create(onUpdateState: () {});
+      mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       await mockCamera.initialize();
     });
 

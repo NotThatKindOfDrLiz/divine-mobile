@@ -15,7 +15,9 @@ void main() {
 
   group('VideoRecorderCameraPreview Widget Tests', () {
     testWidgets('renders camera preview widget', (tester) async {
-      final mockCamera = MockCameraService.create(onUpdateState: () {});
+      final mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       await mockCamera.initialize();
 
       await tester.pumpWidget(
@@ -39,7 +41,9 @@ void main() {
     testWidgets('displays placeholder when camera not initialized', (
       tester,
     ) async {
-      final mockCamera = MockCameraService.create(onUpdateState: () {});
+      final mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       // Don't initialize - should show placeholder
 
       await tester.pumpWidget(
@@ -62,7 +66,9 @@ void main() {
     });
 
     testWidgets('renders with required radius parameter', (tester) async {
-      final mockCamera = MockCameraService.create(onUpdateState: () {});
+      final mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       await mockCamera.initialize();
 
       await tester.pumpWidget(
@@ -84,7 +90,9 @@ void main() {
     });
 
     testWidgets('contains ClipRRect for rounded corners', (tester) async {
-      final mockCamera = MockCameraService.create(onUpdateState: () {});
+      final mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       await mockCamera.initialize();
 
       await tester.pumpWidget(
@@ -108,7 +116,9 @@ void main() {
     testWidgets('contains TweenAnimationBuilder for transitions', (
       tester,
     ) async {
-      final mockCamera = MockCameraService.create(onUpdateState: () {});
+      final mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       await mockCamera.initialize();
 
       await tester.pumpWidget(
@@ -130,7 +140,9 @@ void main() {
     });
 
     testWidgets('maintains radius value', (tester) async {
-      final mockCamera = MockCameraService.create(onUpdateState: () {});
+      final mockCamera = MockCameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       await mockCamera.initialize();
 
       await tester.pumpWidget(

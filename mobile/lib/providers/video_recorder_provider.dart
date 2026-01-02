@@ -65,6 +65,7 @@ class VideoRecorderUIState {
     this.canSwitchCamera = false,
     this.hasFlash = false,
     this.countdownValue = 0,
+    this.cameraRebuildCount = 0,
     this.aspectRatio = .vertical,
     this.flashMode = .auto,
     this.timerDuration = .off,
@@ -85,6 +86,7 @@ class VideoRecorderUIState {
 
   // Integers
   final int countdownValue;
+  final int cameraRebuildCount;
 
   // Custom types
   final model.AspectRatio aspectRatio;
@@ -109,6 +111,7 @@ class VideoRecorderUIState {
     bool? canSwitchCamera,
     bool? hasFlash,
     int? countdownValue,
+    int? cameraRebuildCount,
     model.AspectRatio? aspectRatio,
     DivineFlashMode? flashMode,
     TimerDuration? timerDuration,
@@ -124,6 +127,7 @@ class VideoRecorderUIState {
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
       hasFlash: hasFlash ?? this.hasFlash,
       countdownValue: countdownValue ?? this.countdownValue,
+      cameraRebuildCount: cameraRebuildCount ?? this.cameraRebuildCount,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       flashMode: flashMode ?? this.flashMode,
       timerDuration: timerDuration ?? this.timerDuration,
@@ -147,7 +151,15 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   VideoRecorderUIState build() {
     _cameraService =
         _cameraServiceOverride ??
-        CameraService.create(onUpdateState: updateState);
+        CameraService.create(
+          onUpdateState: ({forceCameraRebuild}) {
+            updateState(
+              cameraRebuildCount: forceCameraRebuild == true
+                  ? state.cameraRebuildCount + 1
+                  : null,
+            );
+          },
+        );
 
     // Setup cleanup when provider is disposed
     ref.onDispose(() {
@@ -540,8 +552,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Update the state based on the current camera state.
-  void updateState() {
+  void updateState({int? cameraRebuildCount}) {
     state = VideoRecorderUIState(
+      cameraRebuildCount: cameraRebuildCount ?? state.cameraRebuildCount,
       countdownValue: 0,
       zoomLevel: 1,
       focusPoint: .zero,

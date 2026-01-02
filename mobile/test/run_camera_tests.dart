@@ -51,7 +51,9 @@ void main() async {
   // Check camera availability
   CameraService? cameraService;
   try {
-    cameraService = CameraService.create(onUpdateState: () {});
+    cameraService = CameraService.create(
+      onUpdateState: ({forceCameraRebuild}) {},
+    );
     await cameraService.initialize();
 
     Log.info(

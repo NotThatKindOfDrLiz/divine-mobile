@@ -34,6 +34,7 @@ class _VideoRecorderCameraPreviewState
           sensorAspectRatio: s.cameraSensorAspectRatio,
           showGrid: !s.isRecording,
           isCameraInitialized: s.isCameraInitialized,
+          cameraRebuildCount: s.cameraRebuildCount,
         ),
       ),
     );
@@ -53,6 +54,7 @@ class _VideoRecorderCameraPreviewState
                 borderRadius: .circular(widget.previewWidgetRadius),
                 child: Stack(
                   fit: .expand,
+                  key: ValueKey('Camera-Count-${state.cameraRebuildCount}'),
                   children: _buildStackItems(
                     showGrid: state.showGrid,
                     isCameraInitialized: state.isCameraInitialized,
