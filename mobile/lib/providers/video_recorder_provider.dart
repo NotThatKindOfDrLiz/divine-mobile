@@ -606,6 +606,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
   }
 
+  /// Navigate to video editor screen, pausing camera during transition.
+  ///
+  /// Pauses camera lifecycle, navigates to editor, and resumes camera on
+  /// return.
   Future<void> openVideoEditor(BuildContext context) async {
     await handleAppLifecycleState(.paused);
     if (!context.mounted) return;

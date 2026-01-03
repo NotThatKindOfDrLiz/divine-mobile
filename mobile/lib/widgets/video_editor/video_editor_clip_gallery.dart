@@ -138,24 +138,21 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                     clipBehavior: Clip.none,
                     children: [
                       // PageView for smooth snap scrolling
-                      IgnorePointer(
-                        ignoring: isEditing,
-                        child: PageView.builder(
-                          controller: _pageController,
-                          allowImplicitScrolling: true,
-                          onPageChanged: (page) {
-                            ref
-                                .read(videoEditorProvider.notifier)
-                                .selectClip(page);
-                          },
-                          itemCount: clips.length,
-                          itemBuilder: (context, index) => _buildPageViewItem(
-                            clip: clips[index],
-                            index: index,
-                            currentClipIndex: currentClipIndex,
-                            page: page,
-                            screenWidth: constraints.maxWidth,
-                          ),
+                      PageView.builder(
+                        controller: _pageController,
+                        allowImplicitScrolling: true,
+                        onPageChanged: (page) {
+                          ref
+                              .read(videoEditorProvider.notifier)
+                              .selectClip(page);
+                        },
+                        itemCount: clips.length,
+                        itemBuilder: (context, index) => _buildPageViewItem(
+                          clip: clips[index],
+                          index: index,
+                          currentClipIndex: currentClipIndex,
+                          page: page,
+                          screenWidth: constraints.maxWidth,
                         ),
                       ),
 
@@ -260,7 +257,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                     curve: Curves.ease,
                   );
                 } else {
-                  ref.read(videoEditorProvider.notifier).startClipEditing();
+                  ref.read(videoEditorProvider.notifier).toggleClipEditing();
                 }
               },
             ),

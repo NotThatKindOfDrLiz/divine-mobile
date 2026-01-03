@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
 
@@ -36,9 +35,7 @@ class VideoEditorTopBar extends ConsumerWidget {
           if (state.isEditing)
             VideoEditorIconButton(
               icon: Icons.close,
-              onTap: () {
-                ref.read(videoEditorProvider.notifier).stopClipEditing();
-              },
+              onTap: notifier.stopClipEditing,
               semanticLabel: 'Close video editor',
             )
           else
@@ -69,9 +66,7 @@ class VideoEditorTopBar extends ConsumerWidget {
           if (state.isEditing)
             VideoEditorIconButton(
               icon: Icons.more_horiz,
-              onTap: () {
-                // TODO(@hm21): Handle mroe
-              },
+              onTap: () => notifier.showMoreOptions(context),
               semanticLabel: 'More',
             )
           else

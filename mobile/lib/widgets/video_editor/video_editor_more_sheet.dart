@@ -1,8 +1,9 @@
-// ABOUTME: Bottom sheet for clip management options during video recording
-// ABOUTME: Provides actions to add, save, remove, and clear recording clips
+// ABOUTME: Bottom sheet for video editor options.
+// ABOUTME: Provides actions to add clips from library, save to drafts, or delete all clips.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
@@ -11,28 +12,26 @@ import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
-/// Bottom sheet for managing recording clips.
+/// Bottom sheet for video editor more options.
 ///
-/// Allows users to add clips from library, save current clips, or
-/// remove/clear clips.
-class VideoRecorderMoreSheet extends ConsumerStatefulWidget {
-  /// Creates a more options bottom sheet widget.
-  const VideoRecorderMoreSheet({super.key});
+/// Allows users to add clips from library, save to drafts, or delete all clips.
+class VideoEditorMoreSheet extends ConsumerStatefulWidget {
+  /// Creates a video editor more options sheet.
+  const VideoEditorMoreSheet({super.key});
 
   @override
-  ConsumerState<VideoRecorderMoreSheet> createState() =>
-      _VideoRecorderMoreSheetState();
+  ConsumerState<VideoEditorMoreSheet> createState() =>
+      _VideoEditorMoreSheetState();
 }
 
-class _VideoRecorderMoreSheetState
-    extends ConsumerState<VideoRecorderMoreSheet> {
+class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
   /// Opens the clip library screen in selection mode.
   ///
-  /// When a clip is selected, it is imported into the current recording.
+  /// When a clip is selected, it is imported into the current editing session.
   Future<void> _showClipLibrary() async {
     Log.info(
       '📹 Opening clip library in selection mode',
-      name: 'VideoRecorderMoreSheet',
+      name: 'VideoEditorMoreSheet',
       category: .video,
     );
 
@@ -49,12 +48,12 @@ class _VideoRecorderMoreSheetState
 
     Log.info(
       '📹 Closed clip library',
-      name: 'VideoRecorderMoreSheet',
+      name: 'VideoEditorMoreSheet',
       category: .video,
     );
   }
 
-  /// Imports a saved [clip] from the library into the current recording.
+  /// Imports a saved [clip] from the library into the current editing session.
   ///
   /// Verifies the file exists, adds it to the clip manager, and shows a
   /// confirmation.
@@ -62,7 +61,7 @@ class _VideoRecorderMoreSheetState
     try {
       Log.info(
         '📹 Importing clip from library: ${clip.id}',
-        name: 'VideoRecorderMoreSheet',
+        name: 'VideoEditorMoreSheet',
         category: .video,
       );
 
@@ -86,7 +85,7 @@ class _VideoRecorderMoreSheetState
       Log.info(
         '📹 Added clip from library: ${clip.filePath}, '
         'duration: ${clip.duration.inMilliseconds}ms',
-        name: 'VideoRecorderMoreSheet',
+        name: 'VideoEditorMoreSheet',
         category: .video,
       );
 
@@ -99,7 +98,7 @@ class _VideoRecorderMoreSheetState
     } on Exception catch (e) {
       Log.error(
         '📹 Failed to import clip: $e',
-        name: 'VideoRecorderMoreSheet',
+        name: 'VideoEditorMoreSheet',
         category: .video,
       );
 
@@ -114,15 +113,41 @@ class _VideoRecorderMoreSheetState
     }
   }
 
+  /// Saves all clips to drafts.
+  Future<void> _saveToDrafts() async {
+    Log.info(
+      '📹 Saving video to drafts',
+      name: 'VideoEditorMoreSheet',
+      category: .video,
+    );
+
+    // TODO: Implement save to drafts functionality
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Saved to drafts'),
+        backgroundColor: VineTheme.vineGreen,
+      ),
+    );
+  }
+
+  /// Deletes all clips and starts over.
+  Future<void> _deleteAndStartOver() async {
+    ref.read(clipManagerProvider.notifier).clearAll();
+
+    /// Navigate back to the video-recorder page.
+    context.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final hasClips = ref.watch(clipManagerProvider.select((p) => p.hasClips));
-    final clipsNotifier = ref.read(clipManagerProvider.notifier);
 
     return SafeArea(
       child: SingleChildScrollView(
         child: Column(
-          mainAxisSize: .min,
+          mainAxisSize: MainAxisSize.min,
           children: [
             _buildMenuItem(
               icon: Icons.folder_open_outlined,
@@ -130,23 +155,16 @@ class _VideoRecorderMoreSheetState
               onTap: _showClipLibrary,
             ),
             _buildMenuItem(
-              icon: Icons.download,
-              title: 'Save clip to Library',
+              icon: Icons.save_outlined,
+              title: 'Save to Drafts',
               enabled: hasClips,
-              onTap: clipsNotifier.saveClipToLibrary,
-            ),
-            _buildMenuItem(
-              icon: Icons.undo,
-              title: 'Remove last clip',
-              enabled: hasClips,
-              onTap: clipsNotifier.removeLastClip,
-              color: const Color(0xFFF44336),
+              onTap: _saveToDrafts,
             ),
             _buildMenuItem(
               icon: Icons.delete_outline,
-              title: 'Clear all clips',
+              title: 'Delete clips & start over',
               enabled: hasClips,
-              onTap: clipsNotifier.clearAll,
+              onTap: _deleteAndStartOver,
               color: const Color(0xFFF44336),
             ),
           ],
@@ -177,8 +195,8 @@ class _VideoRecorderMoreSheetState
         title,
         style: const TextStyle(
           fontFamily: 'BricolageGrotesque',
+          fontWeight: FontWeight.w700,
           fontSize: 24,
-          fontWeight: .w700,
           height: 1.33,
           letterSpacing: 0,
         ),

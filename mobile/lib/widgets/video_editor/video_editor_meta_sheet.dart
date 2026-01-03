@@ -37,145 +37,152 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
     final totalDuration = ref.watch(
       clipManagerProvider.select((p) => p.totalDuration.toVideoTime()),
     );
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Top bar with title and more button
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Untitled video',
-                      style: TextStyle(
-                        fontFamily: 'BricolageGrotesque',
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        height: 24 / 18,
-                        letterSpacing: 0.15,
-                        color: Colors.white,
-                      ),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Top bar with title and more button
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'Untitled video',
+                          style: TextStyle(
+                            fontFamily: 'BricolageGrotesque',
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            height: 24 / 18,
+                            letterSpacing: 0.15,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          totalDuration,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w400,
+                            fontSize: 14,
+                            height: 20 / 14,
+                            letterSpacing: 0.25,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      totalDuration,
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.w400,
-                        fontSize: 14,
-                        height: 20 / 14,
-                        letterSpacing: 0.25,
-                        color: Colors.white,
-                      ),
+                  ),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          offset: Offset(1, 1),
+                          blurRadius: 1,
+                        ),
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          offset: Offset(0.4, 0.4),
+                          blurRadius: 0.6,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.more_horiz,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ],
               ),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      offset: Offset(1, 1),
-                      blurRadius: 1,
-                    ),
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      offset: Offset(0.4, 0.4),
-                      blurRadius: 0.6,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(8),
-                child: const Icon(
-                  Icons.more_horiz,
-                  color: Colors.white,
-                  size: 32,
-                ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Title field
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildInputField(
+                label: 'Title',
+                placeholder: 'Add a title...',
+                controller: _titleController,
               ),
-            ],
-          ),
-        ),
+            ),
 
-        const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-        // Title field
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildInputField(
-            label: 'Title',
-            placeholder: 'Add a title...',
-            controller: _titleController,
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Description field
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _buildInputField(
-            label: 'Description',
-            placeholder: 'Add a Description...',
-            controller: _descriptionController,
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Topics field with add button
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildInputField(
-                  label: 'Topics',
-                  placeholder: 'Add a Topic...',
-                  controller: _topicsController,
-                ),
+            // Description field
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildInputField(
+                label: 'Description',
+                placeholder: 'Add a Description...',
+                controller: _descriptionController,
               ),
-              const SizedBox(width: 16),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.black,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      offset: Offset(1, 1),
-                      blurRadius: 1,
-                    ),
-                    BoxShadow(
-                      color: Color(0x1A000000),
-                      offset: Offset(0.4, 0.4),
-                      blurRadius: 0.6,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(8),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
 
-        const SizedBox(height: 16),
-      ],
+            const SizedBox(height: 16),
+
+            // Topics field with add button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildInputField(
+                      label: 'Topics',
+                      placeholder: 'Add a Topic...',
+                      controller: _topicsController,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          offset: Offset(1, 1),
+                          blurRadius: 1,
+                        ),
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          offset: Offset(0.4, 0.4),
+                          blurRadius: 0.6,
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.add,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 

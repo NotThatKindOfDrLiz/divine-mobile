@@ -2,6 +2,7 @@
 // ABOUTME: Dark-themed interface with video preview, text editing, and sound selection
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
@@ -37,36 +38,44 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
       videoEditorProvider.select((p) => p.isProcessing),
     );
 
-    return PopScope(
-      canPop: !isProcessing,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            const SafeArea(
-              child: Column(
-                children: [
-                  /// Top bar
-                  VideoEditorTopBar(),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.black,
+        statusBarIconBrightness: .light,
+        statusBarBrightness: .dark,
+      ),
+      child: PopScope(
+        canPop: !isProcessing,
+        child: Scaffold(
+          resizeToAvoidBottomInset: false,
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              const SafeArea(
+                child: Column(
+                  children: [
+                    /// Top bar
+                    VideoEditorTopBar(),
 
-                  /// Main content area with clips
-                  Expanded(child: VideoEditorClipGallery()),
+                    /// Main content area with clips
+                    Expanded(child: VideoEditorClipGallery()),
 
-                  /// Bottom bar
-                  VideoEditorBottomBar(),
+                    /// Bottom bar
+                    VideoEditorBottomBar(),
 
-                  /// Progress bar
-                  VideoProgressBar(),
-                ],
+                    /// Progress bar
+                    VideoProgressBar(),
+                  ],
+                ),
               ),
-            ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: isProcessing
-                  ? const VideoEditorProcessingOverlay()
-                  : const SizedBox.shrink(),
-            ),
-          ],
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: isProcessing
+                    ? const VideoEditorProcessingOverlay()
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );

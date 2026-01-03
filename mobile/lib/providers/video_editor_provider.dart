@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/video_editor_state.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/widgets/video_editor/video_editor_meta_sheet.dart';
+import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 
 final videoEditorProvider = NotifierProvider<VideoEditorNotifier, EditorState>(
   VideoEditorNotifier.new,
@@ -29,6 +30,10 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(isEditing: false);
   }
 
+  void toggleClipEditing() {
+    state = state.copyWith(isEditing: !state.isEditing);
+  }
+
   void togglePlayPause() {
     state = state.copyWith(isPlaying: !state.isPlaying);
   }
@@ -44,8 +49,16 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     );
   }
 
-  void showMoreOptions() {
-    // TODO: Implement more options
+  void showMoreOptions(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF101111),
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: .vertical(top: .circular(32)),
+      ),
+      builder: (context) => const VideoEditorMoreSheet(),
+    );
   }
 
   void previousClip() {
@@ -81,6 +94,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       context: context,
       backgroundColor: const Color(0xFF101111),
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (context) => const VideoEditorMetaSheet(),
     );
 

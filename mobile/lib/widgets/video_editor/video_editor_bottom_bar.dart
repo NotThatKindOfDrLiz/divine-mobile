@@ -7,11 +7,25 @@ import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/utils/video_editor_utils.dart';
 import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
+import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 
 /// Bottom bar with playback controls and time display.
 class VideoEditorBottomBar extends ConsumerWidget {
   /// Creates a video editor bottom bar widget.
   const VideoEditorBottomBar({super.key});
+
+  /// Show more options menu
+  Future<void> _showMoreOptions(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF101111),
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: .vertical(top: .circular(32)),
+      ),
+      builder: (context) => const VideoEditorMoreSheet(),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,7 +75,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                 ),
                 VideoEditorIconButton(
                   icon: Icons.more_horiz,
-                  onTap: notifier.showMoreOptions,
+                  onTap: () => notifier.showMoreOptions(context),
                   semanticLabel: 'More options',
                 ),
               ],
