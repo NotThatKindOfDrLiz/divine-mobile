@@ -52,7 +52,9 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 icon: Icons.arrow_forward,
                 label: 'Continue to video editor',
                 hidden: isRecording,
-                backgroundColor: hasClips ? VineTheme.vineGreen : _buttonColor,
+                backgroundColor: hasClips
+                    ? VineTheme.tabIndicatorGreen
+                    : _buttonColor,
                 onPressed: hasClips ? context.pushVideoEditor : null,
               ),
             ],

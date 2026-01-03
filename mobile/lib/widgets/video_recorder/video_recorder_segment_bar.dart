@@ -70,7 +70,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       segments.add(
         Flexible(
           flex: segmentDuration.inMilliseconds,
-          child: Container(color: VineTheme.vineGreen),
+          child: Container(color: VineTheme.tabIndicatorGreen),
         ),
       );
 
@@ -97,7 +97,7 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       segments.add(
         Flexible(
           flex: activeDuration.inMilliseconds,
-          child: Container(color: VineTheme.vineGreen),
+          child: Container(color: VineTheme.tabIndicatorGreen),
         ),
       );
 

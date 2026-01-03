@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
 
 /// Top bar with close button, clip counter, and done button.
@@ -72,7 +73,7 @@ class VideoEditorTopBar extends ConsumerWidget {
           else
             VideoEditorIconButton(
               icon: Icons.arrow_forward,
-              backgroundColor: const Color(0xFF27C58B),
+              backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () {
                 notifier.done();
                 Navigator.of(context).pop();
