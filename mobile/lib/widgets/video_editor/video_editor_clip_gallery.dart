@@ -183,6 +183,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
           ),
         ),
         _buildInstructionText(isEditing),
+        const SizedBox(height: 20),
       ],
     );
   }
@@ -196,7 +197,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       duration: const Duration(milliseconds: 200),
       transitionBuilder: (child, animation) => SizeTransition(
         sizeFactor: animation,
-        axisAlignment: -1,
+        axisAlignment: 1,
         child: FadeTransition(
           opacity: animation,
           child: child,
@@ -213,6 +214,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                     color: Colors.white.withValues(alpha: 0.5),
                     fontSize: 12,
                   ),
+                  textAlign: .center,
                 ),
               ),
             ),
