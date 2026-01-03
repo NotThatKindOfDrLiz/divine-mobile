@@ -80,13 +80,15 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    ref.read(videoRecorderProvider.notifier).handleAppLifecycleState(state);
+  Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
+    await ref
+        .read(videoRecorderProvider.notifier)
+        .handleAppLifecycleState(state);
   }
 
   @override
-  void dispose() {
-    _notifier?.destroy();
+  Future<void> dispose() async {
+    await _notifier?.destroy();
 
     WidgetsBinding.instance.removeObserver(this);
 
