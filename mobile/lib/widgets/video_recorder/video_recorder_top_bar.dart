@@ -18,6 +18,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(videoRecorderProvider.notifier);
     final hasClips = ref.watch(clipManagerProvider.select((s) => s.hasClips));
     final isRecording = ref.watch(
       videoRecorderProvider.select((s) => s.isRecording),
@@ -39,9 +40,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 label: 'Close video recorder',
                 hidden: isRecording,
                 backgroundColor: _buttonColor,
-                onPressed: () => ref
-                    .read(videoRecorderProvider.notifier)
-                    .closeVideoRecorder(context),
+                onPressed: () => notifier.closeVideoRecorder(context),
               ),
 
               // Segment bar
@@ -55,7 +54,9 @@ class VideoRecorderTopBar extends ConsumerWidget {
                 backgroundColor: hasClips
                     ? VineTheme.tabIndicatorGreen
                     : _buttonColor,
-                onPressed: hasClips ? context.pushVideoEditor : null,
+                onPressed: hasClips
+                    ? () => notifier.openVideoEditor(context)
+                    : null,
               ),
             ],
           ),

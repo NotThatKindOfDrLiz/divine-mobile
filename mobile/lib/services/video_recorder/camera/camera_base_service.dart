@@ -13,10 +13,13 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 /// Base service for camera operations across different platforms.
 /// Provides a unified API for camera control, recording, and preview.
 abstract class CameraService {
+  /// Protected constructor for subclasses
+  CameraService({required this.onUpdateState});
+
   /// Factory constructor that returns the appropriate camera service
   /// implementation based on the current platform.
   factory CameraService.create({
-    required Function({bool? forceCameraRebuild}) onUpdateState,
+    required void Function({bool? forceCameraRebuild}) onUpdateState,
   }) {
     if (!kIsWeb && Platform.isMacOS) {
       return CameraMacOSService(onUpdateState: onUpdateState);
@@ -24,11 +27,8 @@ abstract class CameraService {
     return CameraMobileService(onUpdateState: onUpdateState);
   }
 
-  /// Protected constructor for subclasses
-  CameraService({required this.onUpdateState});
-
   /// Callback to trigger UI updates when camera state changes.
-  final Function({bool? forceCameraRebuild}) onUpdateState;
+  final void Function({bool? forceCameraRebuild}) onUpdateState;
 
   /// Initializes the camera and prepares it for use.
   Future<void> initialize();
@@ -86,9 +86,9 @@ abstract class CameraService {
 
   /// Builds the camera preview widget with gesture handlers.
   Widget buildPreviewWidget({
-    required Function(ScaleStartDetails details) onScaleStart,
-    required Function(ScaleUpdateDetails details) onScaleUpdate,
-    required Function(TapDownDetails details, BoxConstraints constraints)
+    required void Function(ScaleStartDetails details) onScaleStart,
+    required void Function(ScaleUpdateDetails details) onScaleUpdate,
+    required void Function(TapDownDetails details, BoxConstraints constraints)
     onTapDown,
   });
 }

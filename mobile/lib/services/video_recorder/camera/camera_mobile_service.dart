@@ -5,15 +5,15 @@ import 'package:camerawesome/camerawesome_plugin.dart';
 import 'package:camerawesome/pigeon.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
-
-import 'camera_base_service.dart';
 
 /// Mobile implementation of [CameraService] using the camera package.
 ///
 /// Manages camera initialization, recording, and switching between front/back cameras.
 class CameraMobileService extends CameraService {
+  /// Creates a mobile camera service instance.
   CameraMobileService({required super.onUpdateState});
 
   CameraState? _cameraState;
@@ -34,7 +34,8 @@ class CameraMobileService extends CameraService {
       category: .video,
     );
 
-    // CamerAwesome requires initialization through the CameraAwesomeBuilder widget.
+    // CamerAwesome requires initialization through the CameraAwesomeBuilder
+    // widget.
     // We mark as initialized immediately since the actual camera setup happens
     // in buildPreviewWidget() when the widget is built. Zoom limits are loaded
     // asynchronously after the camera starts.
@@ -73,7 +74,7 @@ class CameraMobileService extends CameraService {
       ]);
       _minZoomLevel = results[0] ?? 1;
       _maxZoomLevel = results[1] ?? 1;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to load zoom limits (unexpected error): $e',
         name: 'CameraMobileService',
@@ -100,7 +101,7 @@ class CameraMobileService extends CameraService {
       );
       await _cameraState!.sensorConfig.setFlashMode(_getFlashMode(mode));
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to set flash mode (unexpected error): $e',
         name: 'CameraMobileService',
@@ -134,7 +135,7 @@ class CameraMobileService extends CameraService {
         height: _previewSize.height,
       );
 
-      (_cameraState as VideoCameraState).focusOnPoint(
+      await (_cameraState! as VideoCameraState).focusOnPoint(
         flutterPosition: Offset(
           previewSize.width * offset.dx,
           previewSize.height * offset.dy,
@@ -143,7 +144,7 @@ class CameraMobileService extends CameraService {
         pixelPreviewSize: previewSize,
       );
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to set focus point (unexpected error): $e',
         name: 'CameraMobileService',
@@ -173,7 +174,7 @@ class CameraMobileService extends CameraService {
       // The exposure is automatically handled together with focus point
       // in setFocusPoint(), so we return true here without doing anything.
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to set exposure point (unexpected error): $e',
         name: 'CameraMobileService',
@@ -207,7 +208,7 @@ class CameraMobileService extends CameraService {
 
       await _cameraState!.sensorConfig.setZoom(normalizedZoom.clamp(0.0, 1.0));
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to set zoom level (unexpected error): $e',
         name: 'CameraMobileService',
@@ -245,7 +246,7 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to switch camera (unexpected error): $e',
         name: 'CameraMobileService',
@@ -271,8 +272,8 @@ class CameraMobileService extends CameraService {
         name: 'CameraMobileService',
         category: .video,
       );
-      await (_cameraState as VideoCameraState).startRecording();
-    } catch (e) {
+      await (_cameraState! as VideoCameraState).startRecording();
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to start recording (unexpected error): $e',
         name: 'CameraMobileService',
@@ -285,7 +286,8 @@ class CameraMobileService extends CameraService {
   Future<EditorVideo?> stopRecording() async {
     if (_cameraState == null || _cameraState is! VideoRecordingCameraState) {
       Log.warning(
-        '📷 Cannot stop recording: Camera state is null or not currently recording',
+        '📷 Cannot stop recording: Camera state is null or not currently '
+        'recording',
         name: 'CameraMobileService',
         category: .video,
       );
@@ -300,7 +302,7 @@ class CameraMobileService extends CameraService {
       );
 
       late final String? resultPath;
-      await (_cameraState as VideoRecordingCameraState).stopRecording(
+      await (_cameraState! as VideoRecordingCameraState).stopRecording(
         onVideo: (request) {
           resultPath = request.path;
         },
@@ -314,7 +316,7 @@ class CameraMobileService extends CameraService {
       if (resultPath == null) return null;
 
       return EditorVideo.autoSource(file: resultPath);
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📷 Failed to stop recording (unexpected error): $e',
         name: 'CameraMobileService',
@@ -326,17 +328,17 @@ class CameraMobileService extends CameraService {
 
   @override
   Future<void> handleAppLifecycleState(AppLifecycleState state) async {
-    if (_cameraState == null) {
+    if (_cameraState == null || !_isInitialSetupCompleted) {
       Log.warning(
         '📷 Cannot handle lifecycle state: Camera state is null',
         name: 'CameraMobileService',
         category: .video,
       );
-      return null;
+      return;
     }
 
-    // The Camerawesome handle lifecycle changes automatically, so there is
-    // nothing to do here.
+    _isInitialized = state == .resumed;
+    onUpdateState(forceCameraRebuild: true);
 
     Log.info(
       '📷 App lifecycle state changed to ${state.name}',
@@ -347,26 +349,24 @@ class CameraMobileService extends CameraService {
 
   @override
   Widget buildPreviewWidget({
-    required Function(ScaleStartDetails details) onScaleStart,
-    required Function(ScaleUpdateDetails details) onScaleUpdate,
-    required Function(TapDownDetails details, BoxConstraints constraints)
+    required void Function(ScaleStartDetails details) onScaleStart,
+    required void Function(ScaleUpdateDetails details) onScaleUpdate,
+    required void Function(TapDownDetails details, BoxConstraints constraints)
     onTapDown,
   }) {
-    if (!_isInitialized) return SizedBox.shrink();
+    if (!_isInitialized) return const SizedBox.shrink();
 
     return CameraAwesomeBuilder.custom(
       saveConfig: SaveConfig.video(),
-      previewAlignment: .center,
       progressIndicator: Container(color: const Color(0xFF141414)),
-      previewPadding: .zero,
       builder: (state, preview) {
         // The builder callback is called multiple times during rebuilds.
         // We only want to load zoom limits once when the camera is first ready,
         // not on every rebuild. This ensures we don't spam the native API.
         if (!_isInitialSetupCompleted) {
           _isInitialSetupCompleted = true;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _loadZoomLimits();
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await _loadZoomLimits();
             onUpdateState();
           });
         }

@@ -3,6 +3,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/utils/video_editor_utils.dart';
 
 /// Bottom sheet widget for editing video metadata.
 ///
@@ -32,6 +34,9 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final totalDuration = ref.watch(
+      clipManagerProvider.select((p) => p.totalDuration.toVideoTime()),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -40,12 +45,12 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
+                    const Text(
                       'Untitled video',
                       style: TextStyle(
                         fontFamily: 'BricolageGrotesque',
@@ -54,15 +59,11 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
                         height: 24 / 18,
                         letterSpacing: 0.15,
                         color: Colors.white,
-                        fontVariations: [
-                          FontVariation('opsz', 14),
-                          FontVariation('wdth', 100),
-                        ],
                       ),
                     ),
                     Text(
-                      '5.73s',
-                      style: TextStyle(
+                      totalDuration,
+                      style: const TextStyle(
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.w400,
                         fontSize: 14,

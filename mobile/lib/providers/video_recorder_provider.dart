@@ -606,6 +606,16 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
   }
 
+  Future<void> openVideoEditor(BuildContext context) async {
+    await handleAppLifecycleState(.paused);
+    if (!context.mounted) return;
+
+    await context.pushVideoEditor();
+    if (!context.mounted) return;
+
+    await handleAppLifecycleState(.resumed);
+  }
+
   /// Update the state based on the current camera state.
   void updateState({int? cameraRebuildCount}) {
     state = VideoRecorderUIState(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/utils/video_editor_utils.dart';
 import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
 
 /// Bottom bar with playback controls and time display.
@@ -14,10 +15,9 @@ class VideoEditorBottomBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final totalDurationValue = ref.watch(
-      clipManagerProvider.select((state) => state.totalDuration),
+    final totalDuration = ref.watch(
+      clipManagerProvider.select((state) => state.totalDuration.toVideoTime()),
     );
-    final totalDuration = _formatDuration(totalDurationValue);
     final state = ref.watch(
       videoEditorProvider.select(
         (state) => (
@@ -93,14 +93,5 @@ class VideoEditorBottomBar extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  /// Formats duration as SS:MS (seconds:milliseconds).
-  String _formatDuration(Duration duration) {
-    final seconds = duration.inSeconds.toString().padLeft(2, '0');
-    final milliseconds = (duration.inMilliseconds.remainder(1000) ~/ 10)
-        .toString()
-        .padLeft(2, '0');
-    return '$seconds:$milliseconds';
   }
 }

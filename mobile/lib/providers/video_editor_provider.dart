@@ -69,9 +69,9 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   void done(BuildContext context) async {
-    // TODO: Export or save video
     state = state.copyWith(isProcessing: true);
 
+    /// TODO: Process with the video-editor
     // DUMMY CODE FOR TESTING
     Future.delayed(Duration(seconds: 5), () {
       state = state.copyWith(isProcessing: false);

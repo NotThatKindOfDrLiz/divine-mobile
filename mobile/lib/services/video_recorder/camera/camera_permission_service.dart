@@ -20,7 +20,7 @@ class CameraPermissionService {
   static Future<bool> ensurePermissionsWithDialog(BuildContext context) async {
     // macOS uses native camera permission handling
     if (!kIsWeb && Platform.isMacOS) {
-      return await _ensureMacOSPermissionsWithDialog(context);
+      return _ensureMacOSPermissionsWithDialog(context);
     }
 
     final cameraStatus = await Permission.camera.status;
@@ -61,7 +61,7 @@ class CameraPermissionService {
         ),
       );
 
-      if (shouldOpenSettings == true) {
+      if (shouldOpenSettings ?? false) {
         await _openAppSettings();
       }
 
@@ -69,7 +69,7 @@ class CameraPermissionService {
     }
 
     // Try to get permissions normally
-    return await ensurePermissions();
+    return ensurePermissions();
   }
 
   /// Checks and requests camera and microphone permissions.
@@ -79,7 +79,7 @@ class CameraPermissionService {
   static Future<bool> ensurePermissions() async {
     // macOS uses native camera permission handling
     if (!kIsWeb && Platform.isMacOS) {
-      return await _ensureMacOSPermissions();
+      return _ensureMacOSPermissions();
     }
 
     final cameraGranted = await _ensureCameraPermission();
@@ -106,7 +106,7 @@ class CameraPermissionService {
   /// Returns true if granted, false otherwise.
   static Future<bool> hasCameraPermission() async {
     if (!kIsWeb && Platform.isMacOS) {
-      return await NativeMacOSCamera.hasPermission();
+      return NativeMacOSCamera.hasPermission();
     }
     final status = await Permission.camera.status;
     return status.isGranted;
@@ -192,7 +192,8 @@ class CameraPermissionService {
     // Check if we can request permission
     if (status.isPermanentlyDenied) {
       Log.error(
-        '🎤 Microphone permission permanently denied - please enable in settings',
+        '🎤 Microphone permission permanently denied - please enable in '
+        'settings',
         name: 'CameraPermissionService',
         category: .video,
       );
@@ -234,7 +235,7 @@ class CameraPermissionService {
       category: .video,
     );
 
-    return await openAppSettings();
+    return openAppSettings();
   }
 
   /// Ensures macOS permissions with dialog support
@@ -275,7 +276,8 @@ class CameraPermissionService {
               '2. Go to Privacy & Security\n'
               '3. Click on Camera\n'
               '4. Enable access for Divine\n\n'
-              'Note: If Divine is not in the list, restart the app and try again.',
+              'Note: If Divine is not in the list, restart the app and try '
+              'again.',
             ),
             actions: [
               TextButton(
@@ -290,7 +292,7 @@ class CameraPermissionService {
           ),
         );
 
-        if (shouldOpenSettings == true) {
+        if (shouldOpenSettings ?? false) {
           await NativeMacOSCamera.openSystemSettings();
         }
 
@@ -323,7 +325,8 @@ class CameraPermissionService {
     } on PlatformException catch (e) {
       if (e.code == 'PERMISSION_DENIED') {
         Log.error(
-          '📷 macOS camera permission permanently denied - please enable in System Settings',
+          '📷 macOS camera permission permanently denied - please enable in '
+          'System Settings',
           name: 'CameraPermissionService',
           category: LogCategory.video,
         );
