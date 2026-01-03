@@ -11,6 +11,7 @@ enum RouteType {
   search,
   videoRecorder, // Video recorder screen
   videoEditor, // Video editor screen
+  videoPublish, // Video publish screen
   importKey,
   settings,
   relaySettings, // Relay configuration screen
@@ -145,6 +146,9 @@ RouteContext parseRoute(String path) {
     case 'video-editor':
       return const RouteContext(type: RouteType.videoEditor);
 
+    case 'video-publish':
+      return const RouteContext(type: RouteType.videoPublish);
+
     case 'settings':
       return const RouteContext(type: RouteType.settings);
 
@@ -269,6 +273,9 @@ String buildRoute(RouteContext context) {
 
     case RouteType.videoEditor:
       return '/video-editor';
+
+    case RouteType.videoPublish:
+      return '/video-publish';
 
     case RouteType.settings:
       return '/settings';

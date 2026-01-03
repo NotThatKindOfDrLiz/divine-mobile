@@ -8,14 +8,16 @@ class EditorState {
     this.isEditing = false,
     this.isPlaying = false,
     this.isMuted = false,
+    this.isProcessing = false,
   });
 
   final int currentClipIndex;
-  final bool isEditing;
-
   final String currentTime;
+
+  final bool isEditing;
   final bool isPlaying;
   final bool isMuted;
+  final bool isProcessing;
 
   EditorState copyWith({
     bool? isEditing,
@@ -23,6 +25,7 @@ class EditorState {
     String? currentTime,
     bool? isPlaying,
     bool? isMuted,
+    bool? isProcessing,
   }) {
     return EditorState(
       isEditing: isEditing ?? this.isEditing,
@@ -30,6 +33,7 @@ class EditorState {
       currentTime: currentTime ?? this.currentTime,
       isPlaying: isPlaying ?? this.isPlaying,
       isMuted: isMuted ?? this.isMuted,
+      isProcessing: isProcessing ?? this.isProcessing,
     );
   }
 }

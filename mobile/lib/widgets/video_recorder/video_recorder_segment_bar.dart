@@ -115,6 +115,8 @@ class VideoRecorderSegmentBar extends ConsumerWidget {
       );
     }
 
-    return Row(children: segments);
+    return RepaintBoundary(
+      child: Row(children: segments),
+    );
   }
 }

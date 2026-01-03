@@ -1,8 +1,11 @@
 // ABOUTME: Riverpod provider for managing video editor state with text overlays and export tracking
 // ABOUTME: Exposes EditorNotifier for state mutations and reactive EditorState updates
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/router/nav_extensions.dart';
+import 'package:openvine/widgets/video_editor/video_editor_meta_sheet.dart';
 
 final videoEditorProvider = NotifierProvider<VideoEditorNotifier, EditorState>(
   VideoEditorNotifier.new,
@@ -65,7 +68,24 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     // Reset state or perform cleanup if needed
   }
 
-  void done() {
+  void done(BuildContext context) async {
     // TODO: Export or save video
+    state = state.copyWith(isProcessing: true);
+
+    // DUMMY CODE FOR TESTING
+    Future.delayed(Duration(seconds: 5), () {
+      state = state.copyWith(isProcessing: false);
+    });
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF101111),
+      showDragHandle: true,
+      builder: (context) => const VideoEditorMetaSheet(),
+    );
+
+    if (!context.mounted) return;
+
+    await context.pushVideoPublish();
   }
 }

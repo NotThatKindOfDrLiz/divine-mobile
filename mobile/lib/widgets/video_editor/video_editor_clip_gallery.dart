@@ -142,6 +142,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                         ignoring: isEditing,
                         child: PageView.builder(
                           controller: _pageController,
+                          allowImplicitScrolling: true,
                           onPageChanged: (page) {
                             ref
                                 .read(videoEditorProvider.notifier)
@@ -211,8 +212,11 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                 child: Text(
                   'Tap to edit. Drag to reorder.',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    fontFamily: 'Inter',
+                    height: 1.33,
+                    letterSpacing: 0.4,
                     fontSize: 12,
+                    color: Colors.white.withValues(alpha: 0.5),
                   ),
                   textAlign: .center,
                 ),

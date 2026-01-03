@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
 
@@ -56,7 +57,10 @@ class VideoEditorTopBar extends ConsumerWidget {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
+              height: 1.33,
+              letterSpacing: 0.15,
               fontWeight: .w800,
+              fontFamily: 'Bricolage Grotesque',
               fontFeatures: [.tabularFigures()],
             ),
           ),
@@ -74,10 +78,7 @@ class VideoEditorTopBar extends ConsumerWidget {
             VideoEditorIconButton(
               icon: Icons.arrow_forward,
               backgroundColor: VineTheme.tabIndicatorGreen,
-              onTap: () {
-                notifier.done();
-                Navigator.of(context).pop();
-              },
+              onTap: () => notifier.done(context),
               semanticLabel: 'Done editing',
             ),
         ],

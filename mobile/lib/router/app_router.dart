@@ -32,6 +32,7 @@ import 'package:openvine/screens/video_detail_screen.dart';
 import 'package:openvine/screens/video_editor_screen.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/screens/developer_options_screen.dart';
+import 'package:openvine/screens/video_publish_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart';
@@ -646,13 +647,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/video-recorder',
         name: 'video-recorder',
-        builder: (_, __) => const VideoRecorderScreen(),
+        builder: (_, _) => const VideoRecorderScreen(),
       ),
-      // Video editor route (requires video passed via extra)
+      // Video editor route
       GoRoute(
         path: '/video-editor',
         name: 'video-editor',
         builder: (_, _) => const VideoEditorScreen(),
+      ),
+      // Video publish route
+      GoRoute(
+        path: '/video-publish',
+        name: 'video-publish',
+        builder: (_, _) => const VideoPublishScreen(),
       ),
     ],
   );

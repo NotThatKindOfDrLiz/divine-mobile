@@ -73,8 +73,10 @@ class VideoEditorBottomBar extends ConsumerWidget {
             TextSpan(
               style: TextStyle(
                 fontSize: 18,
-                letterSpacing: 0.15,
+                fontFamily: 'Bricolage Grotesque',
                 fontWeight: .w800,
+                height: 1.33,
+                letterSpacing: 0.15,
                 fontFeatures: const [.tabularFigures()],
                 color: Colors.white.withValues(alpha: 0.5),
               ),
