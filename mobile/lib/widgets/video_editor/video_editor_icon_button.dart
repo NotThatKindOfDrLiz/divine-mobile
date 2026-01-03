@@ -1,9 +1,14 @@
+// ABOUTME: Reusable rounded icon button for video editor controls
+// ABOUTME: Customizable size, colors, and shadow styling
+
 import 'package:flutter/material.dart';
 
+/// Rounded icon button used throughout the video editor.
 class VideoEditorIconButton extends StatelessWidget {
+  /// Creates a video editor icon button.
   const VideoEditorIconButton({
-    super.key,
     required this.icon,
+    super.key,
     this.backgroundColor = const Color(0xFF101111),
     this.iconColor = Colors.white,
     this.iconSize = 24,
@@ -12,12 +17,25 @@ class VideoEditorIconButton extends StatelessWidget {
     this.semanticLabel,
   });
 
+  /// The icon to display.
   final IconData icon;
+  
+  /// Background color of the button.
   final Color backgroundColor;
+  
+  /// Color of the icon.
   final Color iconColor;
+  
+  /// Size of the icon.
   final double iconSize;
+  
+  /// Size of the button container.
   final double size;
+  
+  /// Callback when the button is tapped.
   final VoidCallback? onTap;
+  
+  /// Semantic label for accessibility.
   final String? semanticLabel;
 
   @override

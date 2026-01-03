@@ -1,10 +1,15 @@
+// ABOUTME: Bottom bar with playback controls and time display
+// ABOUTME: Play/pause, mute, and options buttons with formatted duration
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'video_editor_icon_button.dart';
+import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
 
+/// Bottom bar with playback controls and time display.
 class VideoEditorBottomBar extends ConsumerWidget {
+  /// Creates a video editor bottom bar widget.
   const VideoEditorBottomBar({super.key});
 
   @override
@@ -60,7 +65,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                 fontSize: 18,
                 letterSpacing: 0.15,
                 fontWeight: .w800,
-                fontFeatures: [.tabularFigures()],
+                fontFeatures: const [.tabularFigures()],
                 color: Colors.white.withValues(alpha: 0.5),
               ),
               children: [
@@ -68,7 +73,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                   text: state.currentTime,
                   style: const TextStyle(color: Colors.white),
                 ),
-                TextSpan(text: ' / '),
+                const TextSpan(text: ' / '),
                 TextSpan(text: totalDuration),
               ],
             ),
@@ -78,6 +83,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
     );
   }
 
+  /// Formats duration as SS:MS (seconds:milliseconds).
   String _formatDuration(Duration duration) {
     final seconds = duration.inSeconds.toString().padLeft(2, '0');
     final milliseconds = (duration.inMilliseconds.remainder(1000) ~/ 10)

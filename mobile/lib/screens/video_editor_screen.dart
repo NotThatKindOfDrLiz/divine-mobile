@@ -3,11 +3,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clips.dart';
-import '../widgets/video_editor/video_editor_top_bar.dart';
-import '../widgets/video_editor/video_editor_bottom_bar.dart';
-import '../widgets/video_editor/video_editor_clip_preview.dart';
-import '../widgets/video_editor/video_editor_progress_bar.dart';
+import 'package:openvine/widgets/video_editor/video_editor_progress_bar.dart';
+import 'package:openvine/widgets/video_editor/video_editor_top_bar.dart';
 
 class VideoEditorScreen extends ConsumerStatefulWidget {
   const VideoEditorScreen({super.key});
@@ -36,7 +35,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
         child: Column(
           children: [
             /// Top bar
-            VideoEditorTopBar(),
+            const VideoEditorTopBar(),
 
             /// Main content area with clips
             Expanded(
@@ -46,11 +45,10 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
                 crossAxisAlignment: .stretch,
                 children: [
                   // Clips carousel
-                  Flexible(child: VideoEditorClips()),
+                  const Flexible(child: VideoEditorClips()),
 
                   // Instruction text
                   Align(
-                    alignment: .center,
                     child: Text(
                       'Tap to edit. Drag to reorder.',
                       style: TextStyle(
@@ -64,10 +62,10 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
             ),
 
             /// Bottom bar
-            VideoEditorBottomBar(),
+            const VideoEditorBottomBar(),
 
             /// Progress bar
-            VideoProgressBar(),
+            const VideoProgressBar(),
           ],
         ),
       ),
