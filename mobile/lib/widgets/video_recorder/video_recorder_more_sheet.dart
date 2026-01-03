@@ -16,6 +16,7 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 /// Allows users to add clips from library, save current clips, or
 /// remove/clear clips.
 class VideoRecorderMoreSheet extends ConsumerStatefulWidget {
+  /// Creates a more options bottom sheet widget.
   const VideoRecorderMoreSheet({super.key});
 
   @override
@@ -67,7 +68,7 @@ class _VideoRecorderMoreSheetState
 
       // Verify the file exists
       final videoFile = File(clip.filePath);
-      if (!await videoFile.exists()) {
+      if (!videoFile.existsSync()) {
         throw Exception('Video file not found');
       }
 
@@ -95,7 +96,7 @@ class _VideoRecorderMoreSheetState
           backgroundColor: VineTheme.vineGreen,
         ),
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.error(
         '📹 Failed to import clip: $e',
         name: 'VideoRecorderMoreSheet',
@@ -169,7 +170,7 @@ class _VideoRecorderMoreSheetState
         iconColor: color,
         textColor: color,
         enabled: enabled,
-        minTileHeight: 64.0,
+        minTileHeight: 64,
         leading: Icon(icon, size: 32),
         title: Text(
           title,

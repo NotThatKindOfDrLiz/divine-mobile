@@ -9,7 +9,9 @@ import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
+/// Top bar with close button, segment bar, and forward button.
 class VideoRecorderTopBar extends ConsumerWidget {
+  /// Creates a video recorder top bar widget.
   const VideoRecorderTopBar({super.key});
 
   static const Color _buttonColor = Color(0xFF101111);
@@ -68,7 +70,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
     VoidCallback? onPressed,
     String? label,
   }) {
-    final bool enabled = onPressed != null;
+    final enabled = onPressed != null;
 
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),

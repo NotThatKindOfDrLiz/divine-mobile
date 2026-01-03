@@ -7,12 +7,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_preview.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
-import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
 
+/// Video recorder screen with camera preview and recording controls.
 class VideoRecorderScreen extends ConsumerStatefulWidget {
+  /// Creates a video recorder screen.
   const VideoRecorderScreen({super.key});
 
   @override
@@ -22,7 +24,7 @@ class VideoRecorderScreen extends ConsumerStatefulWidget {
 
 class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     with WidgetsBindingObserver {
-  final double _previewRadius = 16.0;
+  final double _previewRadius = 16;
   VideoRecorderNotifier? _notifier;
 
   @override
@@ -68,7 +70,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
         name: 'VideoRecorderScreen',
         category: .video,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       Log.warning(
         '📹 Failed to dispose video controllers: $e',
         name: 'VideoRecorderScreen',
