@@ -22,6 +22,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
       videoEditorProvider.select(
         (state) => (
           isPlaying: state.isPlaying,
+          isEditing: state.isEditing,
           isMuted: state.isMuted,
           currentTime: state.currentTime,
         ),
@@ -37,24 +38,33 @@ class VideoEditorBottomBar extends ConsumerWidget {
         children: [
           // Control buttons
           Row(
+            spacing: 16,
             children: [
               VideoEditorIconButton(
                 icon: state.isPlaying ? Icons.pause : Icons.play_arrow,
                 onTap: notifier.togglePlayPause,
                 semanticLabel: 'Play or pause video',
               ),
-              const SizedBox(width: 16),
-              VideoEditorIconButton(
-                icon: state.isMuted ? Icons.volume_off : Icons.volume_up,
-                onTap: notifier.toggleMute,
-                semanticLabel: 'Mute or unmute audio',
-              ),
-              const SizedBox(width: 16),
-              VideoEditorIconButton(
-                icon: Icons.more_horiz,
-                onTap: notifier.showMoreOptions,
-                semanticLabel: 'More options',
-              ),
+              if (state.isEditing)
+                VideoEditorIconButton(
+                  icon: Icons.cut_outlined,
+                  onTap: () {
+                    /// TODO(@hm21): Handle crop
+                  },
+                  semanticLabel: 'Crop',
+                )
+              else ...[
+                VideoEditorIconButton(
+                  icon: state.isMuted ? Icons.volume_off : Icons.volume_up,
+                  onTap: notifier.toggleMute,
+                  semanticLabel: 'Mute or unmute audio',
+                ),
+                VideoEditorIconButton(
+                  icon: Icons.more_horiz,
+                  onTap: notifier.showMoreOptions,
+                  semanticLabel: 'More options',
+                ),
+              ],
             ],
           ),
 

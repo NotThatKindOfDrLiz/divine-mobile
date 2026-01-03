@@ -22,45 +22,34 @@ class VideoProgressBar extends ConsumerWidget {
     return Container(
       height: 40,
       padding: const .symmetric(horizontal: 16),
-      child: Row(children: _buildSegments(clips, currentClipIndex)),
+      child: Row(spacing: 3, children: _buildSegments(clips, currentClipIndex)),
     );
   }
 
   /// Builds segment widgets for each clip with proportional widths.
   List<Widget> _buildSegments(List<RecordingClip> clips, int currentClipIndex) {
-    final widgets = <Widget>[];
-
-    for (var i = 0; i < clips.length; i++) {
+    return List.generate(clips.length, (i) {
       final clip = clips[i];
       final isFirst = i == 0;
       final isLast = i == clips.length - 1;
       final isCompleted = i < currentClipIndex;
 
-      widgets.add(
-        Expanded(
-          flex: clip.duration.inMilliseconds,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            height: 8,
-            decoration: BoxDecoration(
-              color: isCompleted
-                  ? const Color(0xFF146346)
-                  : const Color(0xFF404040),
-              borderRadius: .horizontal(
-                left: isFirst ? const .circular(999) : .zero,
-                right: isLast ? const .circular(999) : .zero,
-              ),
+      return Expanded(
+        flex: clip.duration.inMilliseconds,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          height: 8,
+          decoration: BoxDecoration(
+            color: isCompleted
+                ? const Color(0xFF146346)
+                : const Color(0xFF404040),
+            borderRadius: .horizontal(
+              left: isFirst ? const .circular(999) : .zero,
+              right: isLast ? const .circular(999) : .zero,
             ),
           ),
         ),
       );
-
-      // Add gap between segments if not the last one
-      if (i < clips.length - 1) {
-        widgets.add(const SizedBox(width: 2.88));
-      }
-    }
-
-    return widgets;
+    });
   }
 }

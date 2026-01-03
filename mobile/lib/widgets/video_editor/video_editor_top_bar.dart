@@ -17,8 +17,10 @@ class VideoEditorTopBar extends ConsumerWidget {
     final totalClips = ref.watch(
       clipManagerProvider.select((state) => state.clips.length),
     );
-    final currentClipIndex = ref.watch(
-      videoEditorProvider.select((state) => state.currentClipIndex),
+    final state = ref.watch(
+      videoEditorProvider.select(
+        (s) => (currentClipIndex: s.currentClipIndex, isEditing: s.isEditing),
+      ),
     );
     final notifier = ref.read(videoEditorProvider.notifier);
 
@@ -29,18 +31,27 @@ class VideoEditorTopBar extends ConsumerWidget {
         mainAxisAlignment: .spaceBetween,
         children: [
           // Close/Back button
-          VideoEditorIconButton(
-            icon: Icons.videocam,
-            onTap: () {
-              notifier.close();
-              Navigator.of(context).pop();
-            },
-            semanticLabel: 'Close video editor',
-          ),
+          if (state.isEditing)
+            VideoEditorIconButton(
+              icon: Icons.close,
+              onTap: () {
+                ref.read(videoEditorProvider.notifier).stopClipEditing();
+              },
+              semanticLabel: 'Close video editor',
+            )
+          else
+            VideoEditorIconButton(
+              icon: Icons.videocam,
+              onTap: () {
+                notifier.close();
+                Navigator.of(context).pop();
+              },
+              semanticLabel: 'Go back to camera',
+            ),
 
           // Clip counter
           Text(
-            '${currentClipIndex + 1}/$totalClips',
+            '${state.currentClipIndex + 1}/$totalClips',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -50,15 +61,24 @@ class VideoEditorTopBar extends ConsumerWidget {
           ),
 
           // Done button
-          VideoEditorIconButton(
-            icon: Icons.arrow_forward,
-            backgroundColor: const Color(0xFF27C58B),
-            onTap: () {
-              notifier.done();
-              Navigator.of(context).pop();
-            },
-            semanticLabel: 'Done editing',
-          ),
+          if (state.isEditing)
+            VideoEditorIconButton(
+              icon: Icons.more_horiz,
+              onTap: () {
+                // TODO(@hm21): Handle mroe
+              },
+              semanticLabel: 'More',
+            )
+          else
+            VideoEditorIconButton(
+              icon: Icons.arrow_forward,
+              backgroundColor: const Color(0xFF27C58B),
+              onTap: () {
+                notifier.done();
+                Navigator.of(context).pop();
+              },
+              semanticLabel: 'Done editing',
+            ),
         ],
       ),
     );

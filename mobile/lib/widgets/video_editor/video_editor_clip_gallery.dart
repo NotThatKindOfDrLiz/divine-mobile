@@ -9,15 +9,16 @@ import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clip_preview.dart';
 
 /// Horizontal scrolling clip selector with animated transitions.
-class VideoEditorClips extends ConsumerStatefulWidget {
+class VideoEditorClipGallery extends ConsumerStatefulWidget {
   /// Creates a video editor clips widget.
-  const VideoEditorClips({super.key});
+  const VideoEditorClipGallery({super.key});
 
   @override
-  ConsumerState<VideoEditorClips> createState() => _VideoEditorClipsState();
+  ConsumerState<VideoEditorClipGallery> createState() =>
+      _VideoEditorClipsState();
 }
 
-class _VideoEditorClipsState extends ConsumerState<VideoEditorClips> {
+class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
   late PageController _pageController;
 
   @override
@@ -93,6 +94,131 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClips> {
     return -(difference.sign * scaledEased * maxOffset);
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final clips = ref.watch(clipManagerProvider.select((state) => state.clips));
+    final state = ref.watch(
+      videoEditorProvider.select(
+        (s) => (currentClipIndex: s.currentClipIndex, isEditing: s.isEditing),
+      ),
+    );
+    final isEditing = state.isEditing;
+    final currentClipIndex = state.currentClipIndex;
+
+    if (clips.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      mainAxisAlignment: .center,
+      crossAxisAlignment: .stretch,
+      children: [
+        Flexible(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, child) {
+                  // Calculate common values once
+                  final hasClients =
+                      _pageController.hasClients &&
+                      _pageController.position.haveDimensions;
+                  final page = hasClients
+                      ? (_pageController.page ?? currentClipIndex.toDouble())
+                      : currentClipIndex.toDouble();
+                  final centerIndex = page.round();
+                  final difference = (centerIndex - page).abs();
+                  final showCenterOverlay =
+                      difference < 0.2 && centerIndex < clips.length;
+                  final shadowOpacity = showCenterOverlay
+                      ? 1.0 - (difference / 0.2)
+                      : 0.0;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // PageView for smooth snap scrolling
+                      IgnorePointer(
+                        ignoring: isEditing,
+                        child: PageView.builder(
+                          controller: _pageController,
+                          onPageChanged: (page) {
+                            ref
+                                .read(videoEditorProvider.notifier)
+                                .selectClip(page);
+                          },
+                          itemCount: clips.length,
+                          itemBuilder: (context, index) => _buildPageViewItem(
+                            clip: clips[index],
+                            index: index,
+                            currentClipIndex: currentClipIndex,
+                            page: page,
+                            screenWidth: constraints.maxWidth,
+                          ),
+                        ),
+                      ),
+
+                      // Center clip overlay - rendered on top
+                      if (showCenterOverlay)
+                        _buildCenterOverlay(
+                          clip: clips[centerIndex],
+                          centerIndex: centerIndex,
+                          currentClipIndex: currentClipIndex,
+                          page: page,
+                          shadowOpacity: shadowOpacity,
+                          maxWidth: constraints.maxWidth,
+                        ),
+
+                      // Gradient overlays on sides
+                      if (showCenterOverlay)
+                        ..._buildGradientOverlays(
+                          shadowOpacity,
+                          constraints.maxWidth,
+                        ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        _buildInstructionText(isEditing),
+      ],
+    );
+  }
+
+  /// Builds the instruction text that appears below the clips.
+  ///
+  /// Uses AnimatedSwitcher with size and fade transitions.
+  /// Hidden when editing is active.
+  Widget _buildInstructionText(bool isEditing) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      transitionBuilder: (child, animation) => SizeTransition(
+        sizeFactor: animation,
+        axisAlignment: -1,
+        child: FadeTransition(
+          opacity: animation,
+          child: child,
+        ),
+      ),
+      child: isEditing
+          ? const SizedBox(width: .infinity)
+          : Align(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 25),
+                child: Text(
+                  'Tap to edit. Drag to reorder.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+
   /// Builds a single clip item for the PageView.
   ///
   /// Applies scale, offset transformations and opacity based on distance
@@ -127,6 +253,8 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClips> {
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.ease,
                   );
+                } else {
+                  ref.read(videoEditorProvider.notifier).startClipEditing();
                 }
               },
             ),
@@ -178,7 +306,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClips> {
                       ),
                     ],
                   ),
-                  child: VideoClipPreview(clip: clip, onTap: () {}),
+                  child: VideoClipPreview(clip: clip),
                 ),
               ),
             ),
@@ -242,80 +370,5 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClips> {
         ),
       ),
     ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final clips = ref.watch(clipManagerProvider.select((state) => state.clips));
-    final currentClipIndex = ref.watch(
-      videoEditorProvider.select((state) => state.currentClipIndex),
-    );
-
-    if (clips.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return AnimatedBuilder(
-          animation: _pageController,
-          builder: (context, child) {
-            // Calculate common values once
-            final hasClients =
-                _pageController.hasClients &&
-                _pageController.position.haveDimensions;
-            final page = hasClients
-                ? (_pageController.page ?? currentClipIndex.toDouble())
-                : currentClipIndex.toDouble();
-            final centerIndex = page.round();
-            final difference = (centerIndex - page).abs();
-            final showCenterOverlay =
-                hasClients && difference < 0.2 && centerIndex < clips.length;
-            final shadowOpacity = showCenterOverlay
-                ? 1.0 - (difference / 0.2)
-                : 0.0;
-
-            return Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // PageView for smooth snap scrolling
-                PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: (page) {
-                    ref.read(videoEditorProvider.notifier).selectClip(page);
-                  },
-                  itemCount: clips.length,
-                  itemBuilder: (context, index) => _buildPageViewItem(
-                    clip: clips[index],
-                    index: index,
-                    currentClipIndex: currentClipIndex,
-                    page: page,
-                    screenWidth: constraints.maxWidth,
-                  ),
-                ),
-
-                // Center clip overlay - rendered on top
-                if (showCenterOverlay)
-                  _buildCenterOverlay(
-                    clip: clips[centerIndex],
-                    centerIndex: centerIndex,
-                    currentClipIndex: currentClipIndex,
-                    page: page,
-                    shadowOpacity: shadowOpacity,
-                    maxWidth: constraints.maxWidth,
-                  ),
-
-                // Gradient overlays on sides
-                if (showCenterOverlay)
-                  ..._buildGradientOverlays(
-                    shadowOpacity,
-                    constraints.maxWidth,
-                  ),
-              ],
-            );
-          },
-        );
-      },
-    );
   }
 }

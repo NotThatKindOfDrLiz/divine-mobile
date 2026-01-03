@@ -4,11 +4,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
-import 'package:openvine/widgets/video_editor/video_editor_clips.dart';
+import 'package:openvine/widgets/video_editor/video_editor_clip_gallery.dart';
 import 'package:openvine/widgets/video_editor/video_editor_progress_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_top_bar.dart';
 
+/// Video editor screen for editing recorded video clips.
 class VideoEditorScreen extends ConsumerStatefulWidget {
+  /// Creates a video editor screen.
   const VideoEditorScreen({super.key});
 
   @override
@@ -29,43 +31,22 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: Column(
           children: [
             /// Top bar
-            const VideoEditorTopBar(),
+            VideoEditorTopBar(),
 
             /// Main content area with clips
-            Expanded(
-              child: Column(
-                spacing: 25,
-                mainAxisAlignment: .center,
-                crossAxisAlignment: .stretch,
-                children: [
-                  // Clips carousel
-                  const Flexible(child: VideoEditorClips()),
-
-                  // Instruction text
-                  Align(
-                    child: Text(
-                      'Tap to edit. Drag to reorder.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Expanded(child: VideoEditorClipGallery()),
 
             /// Bottom bar
-            const VideoEditorBottomBar(),
+            VideoEditorBottomBar(),
 
             /// Progress bar
-            const VideoProgressBar(),
+            VideoProgressBar(),
           ],
         ),
       ),

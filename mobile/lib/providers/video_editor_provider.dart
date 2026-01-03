@@ -18,11 +18,12 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(currentClipIndex: index);
   }
 
-  void initializeWithVideo(String videoPath) {
-    state = state.copyWith(
-      currentTime: '1.39',
-      currentClipIndex: 2,
-    );
+  void startClipEditing() {
+    state = state.copyWith(isEditing: true);
+  }
+
+  void stopClipEditing() {
+    state = state.copyWith(isEditing: false);
   }
 
   void togglePlayPause() {
@@ -31,6 +32,13 @@ class VideoEditorNotifier extends Notifier<EditorState> {
 
   void toggleMute() {
     state = state.copyWith(isMuted: !state.isMuted);
+  }
+
+  void initializeWithVideo(String videoPath) {
+    state = state.copyWith(
+      currentTime: '1.39',
+      currentClipIndex: 2,
+    );
   }
 
   void showMoreOptions() {
