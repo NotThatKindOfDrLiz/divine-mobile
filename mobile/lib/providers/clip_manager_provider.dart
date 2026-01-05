@@ -153,6 +153,36 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     state = state.copyWith(clips: List.unmodifiable(_clips));
   }
 
+  /// Reorder a single clip from oldIndex to newIndex.
+  ///
+  /// Moves the clip at [oldIndex] to [newIndex], shifting other clips accordingly.
+  void reorderClip(int oldIndex, int newIndex) {
+    if (oldIndex < 0 ||
+        oldIndex >= _clips.length ||
+        newIndex < 0 ||
+        newIndex >= _clips.length) {
+      Log.warning(
+        '⚠️ Invalid reorder indices: $oldIndex → $newIndex (length: ${_clips.length})',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+      return;
+    }
+
+    if (oldIndex == newIndex) return;
+
+    final clip = _clips.removeAt(oldIndex);
+    _clips.insert(newIndex, clip);
+
+    Log.info(
+      '📎 Reordered clip ${clip.id}: $oldIndex → $newIndex',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
+
+    state = state.copyWith(clips: List.unmodifiable(_clips));
+  }
+
   /// Update thumbnail path for a clip.
   void updateThumbnail(String clipId, String thumbnailPath) {
     final index = _clips.indexWhere((c) => c.id == clipId);

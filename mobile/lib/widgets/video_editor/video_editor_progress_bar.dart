@@ -15,37 +15,69 @@ class VideoProgressBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final clips = ref.watch(clipManagerProvider.select((state) => state.clips));
-    final currentClipIndex = ref.watch(
-      videoEditorProvider.select((state) => state.currentClipIndex),
+    final state = ref.watch(
+      videoEditorProvider.select(
+        (s) => (
+          currentClipIndex: s.currentClipIndex,
+          isReordering: s.isReordering,
+        ),
+      ),
     );
 
     return Container(
       height: 40,
       padding: const .symmetric(horizontal: 16),
-      child: Row(spacing: 3, children: _buildSegments(clips, currentClipIndex)),
+      child: Row(
+        spacing: 3,
+        children: _buildSegments(
+          clips,
+          state.currentClipIndex,
+          state.isReordering,
+        ),
+      ),
     );
   }
 
   /// Builds segment widgets for each clip with proportional widths.
-  List<Widget> _buildSegments(List<RecordingClip> clips, int currentClipIndex) {
+  List<Widget> _buildSegments(
+    List<RecordingClip> clips,
+    int currentClipIndex,
+    bool isReordering,
+  ) {
     return List.generate(clips.length, (i) {
       final clip = clips[i];
       final isFirst = i == 0;
       final isLast = i == clips.length - 1;
       final isCompleted = i < currentClipIndex;
+      final isCurrent = i == currentClipIndex;
+      final isReorderingClip = isReordering && isCurrent;
+
+      // Determine color based on state
+      final segmentColor = isReorderingClip
+          ? const Color(0xFF27C58B)
+          : isCompleted
+          ? const Color(0xFF146346) // Green for completed
+          : const Color(0xFF404040); // Gray for uncompleted
 
       return Expanded(
         flex: clip.duration.inMilliseconds,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
+          duration: isReordering
+              ? Duration.zero
+              : const Duration(milliseconds: 100),
           height: 8,
           decoration: BoxDecoration(
-            color: isCompleted
-                ? const Color(0xFF146346)
-                : const Color(0xFF404040),
+            color: segmentColor,
+            border: isReorderingClip
+                ? Border.all(
+                    color: const Color(0xFFEBDE3B),
+                    width: 3,
+                    strokeAlign: BorderSide.strokeAlignOutside,
+                  )
+                : null,
             borderRadius: .horizontal(
-              left: isFirst ? const .circular(999) : .zero,
-              right: isLast ? const .circular(999) : .zero,
+              left: isFirst || isReorderingClip ? const .circular(999) : .zero,
+              right: isLast || isReorderingClip ? const .circular(999) : .zero,
             ),
           ),
         ),

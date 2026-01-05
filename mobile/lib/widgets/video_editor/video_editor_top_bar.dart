@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -43,7 +44,7 @@ class VideoEditorTopBar extends ConsumerWidget {
               icon: Icons.videocam,
               onTap: () {
                 notifier.close();
-                Navigator.of(context).pop();
+                context.pop();
               },
               semanticLabel: 'Go back to camera',
             ),

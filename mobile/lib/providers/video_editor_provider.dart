@@ -22,6 +22,18 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(currentClipIndex: index);
   }
 
+  void startClipReordering() {
+    state = state.copyWith(isReordering: true);
+  }
+
+  void stopClipReordering() {
+    state = state.copyWith(isReordering: false, isOverDeleteZone: false);
+  }
+
+  void setOverDeleteZone(bool isOver) {
+    state = state.copyWith(isOverDeleteZone: isOver);
+  }
+
   void startClipEditing() {
     state = state.copyWith(isEditing: true);
   }

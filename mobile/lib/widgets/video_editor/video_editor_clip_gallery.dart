@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
@@ -20,16 +21,23 @@ class VideoEditorClipGallery extends ConsumerStatefulWidget {
 
 class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
   late PageController _pageController;
+  late ScrollController _scrollController;
+  final _dragOffsetNotifier = ValueNotifier<double>(0);
+  int _reorderTargetIndex = 0;
+  double _accumulatedDragOffset = 0;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.8);
+    _scrollController = ScrollController();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _scrollController.dispose();
+    _dragOffsetNotifier.dispose();
     super.dispose();
   }
 
@@ -83,15 +91,169 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
 
     final page = _pageController.page ?? currentClipIndex.toDouble();
     final difference = index - page;
-    // Clips left of center: positive offset (move right, closer to center)
-    // Clips right of center: negative offset (move left, closer to center)
-    // Center clip: 0 offset
+    final absDifference = difference.abs();
 
-    // Cubic interpolation: strongest effect at ±1, zero at 0
-    final effectStrength = difference.abs().clamp(0.0, 1.0);
-    final eased = effectStrength * effectStrength * effectStrength; // cubic
-    final scaledEased = eased * 0.8; // scale to max 0.8
+    // Offset is 0 for clips beyond distance 1.3
+    if (absDifference > 1.3) return 0;
+
+    // From 0.0 to 1.0: cubic easing, offset increases
+    // From 1.0 to 1.3: gradual falloff, offset decreases to 0
+    double effectStrength;
+    if (absDifference <= 1.0) {
+      // Cubic easing: 0.0→1.0
+      effectStrength = absDifference * absDifference * absDifference;
+    } else {
+      // Gradual falloff: 1.0→0.0 over distance 1.0→1.3
+      final falloff =
+          (1.3 - absDifference) / 0.3; // 1.0 at distance 1.0, 0.0 at 1.3
+      effectStrength = falloff;
+    }
+
+    final scaledEased = effectStrength * 0.8;
     return -(difference.sign * scaledEased * maxOffset);
+  }
+
+  Future<void> _handleReorderEvent(
+    PointerMoveEvent event,
+    BoxConstraints constraints,
+  ) async {
+    final clips = ref.read(clipManagerProvider).clips;
+
+    // Check if pointer is over delete zone (bottom 80px of screen)
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isOverDeleteZone = event.position.dy > screenHeight - 100;
+    ref.read(videoEditorProvider.notifier).setOverDeleteZone(isOverDeleteZone);
+
+    // If over delete zone, reset drag offset and skip reorder logic
+    if (isOverDeleteZone) {
+      _dragOffsetNotifier.value = 0;
+      _accumulatedDragOffset = 0;
+      return;
+    }
+
+    // Update visual drag offset (for rotation effect)
+    _dragOffsetNotifier.value = (_dragOffsetNotifier.value + event.delta.dx)
+        .clamp(
+          -constraints.maxWidth * 0.3,
+          constraints.maxWidth * 0.3,
+        );
+
+    // Accumulate drag offset for page switching
+    _accumulatedDragOffset += event.delta.dx;
+
+    // Calculate threshold: 10% of screen width per clip
+    final threshold = constraints.maxWidth * 0.10;
+
+    // Check if we should switch pages
+    if (_accumulatedDragOffset.abs() >= threshold) {
+      var newTargetIndex = _reorderTargetIndex;
+
+      if (_accumulatedDragOffset > 0 &&
+          _reorderTargetIndex < clips.length - 1) {
+        // Dragged right -> move to next clip (right)
+        newTargetIndex = _reorderTargetIndex + 1;
+      } else if (_accumulatedDragOffset < 0 && _reorderTargetIndex > 0) {
+        // Dragged left -> move to previous clip (left)
+        newTargetIndex = _reorderTargetIndex - 1;
+      }
+
+      if (newTargetIndex != _reorderTargetIndex) {
+        // Reorder the clip in the manager
+        ref
+            .read(clipManagerProvider.notifier)
+            .reorderClip(
+              _reorderTargetIndex,
+              newTargetIndex,
+            );
+
+        _reorderTargetIndex = newTargetIndex;
+        _accumulatedDragOffset = 0; // Reset accumulator
+
+        // Update selected clip index to follow the clip
+        ref.read(videoEditorProvider.notifier).selectClip(newTargetIndex);
+
+        // Scroll the SingleChildScrollView to the new position
+        if (_scrollController.hasClients) {
+          await _scrollController.animateTo(
+            newTargetIndex * constraints.maxWidth * 0.8,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _handleReorderCancel() async {
+    // Check if clip should be deleted
+    final isOverDeleteZone = ref.read(videoEditorProvider).isOverDeleteZone;
+
+    if (isOverDeleteZone) {
+      // Delete the clip if released over delete zone
+      final clips = ref.read(clipManagerProvider).clips;
+      if (_reorderTargetIndex >= 0 && _reorderTargetIndex < clips.length) {
+        final clipToDelete = clips[_reorderTargetIndex];
+        ref.read(clipManagerProvider.notifier).deleteClip(clipToDelete.id);
+
+        if (ref.read(clipManagerProvider.notifier).clips.isEmpty) {
+          context.pop();
+          return;
+        }
+
+        // Update selected index after deletion
+        final remainingClips = ref.read(clipManagerProvider).clips;
+        final newIndex = _reorderTargetIndex >= remainingClips.length
+            ? remainingClips.length - 1
+            : _reorderTargetIndex;
+        _reorderTargetIndex = newIndex;
+        ref.read(videoEditorProvider.notifier).selectClip(newIndex);
+      }
+    }
+
+    // Animate drag offset back to 0
+    final startOffset = _dragOffsetNotifier.value;
+    if (startOffset.abs() > 0.1) {
+      const steps = 10;
+      const duration = Duration(milliseconds: 200);
+      final stepDuration = duration ~/ steps;
+
+      for (var i = 1; i <= steps; i++) {
+        final progress = Curves.easeOut.transform(i / steps);
+        _dragOffsetNotifier.value = startOffset * (1 - progress);
+        await Future<void>.delayed(stepDuration);
+        if (!mounted) return;
+      }
+    }
+
+    _dragOffsetNotifier.value = 0;
+    _accumulatedDragOffset = 0;
+
+    // Exit reorder mode
+    ref.read(videoEditorProvider.notifier).stopClipReordering();
+
+    _pageController = PageController(
+      initialPage: _reorderTargetIndex,
+      viewportFraction: 0.8,
+    );
+  }
+
+  void _startReordering() {
+    final currentClipIndex = ref.read(videoEditorProvider).currentClipIndex;
+
+    _reorderTargetIndex = currentClipIndex;
+    _accumulatedDragOffset = 0;
+
+    // Store the current PageView offset
+    final currentOffset = _pageController.hasClients
+        ? _pageController.offset
+        : 0.0;
+
+    // Switch to reorder mode
+    ref.read(videoEditorProvider.notifier).startClipReordering();
+
+    _scrollController = ScrollController(
+      initialScrollOffset: currentOffset,
+    );
   }
 
   @override
@@ -99,7 +261,12 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     final clips = ref.watch(clipManagerProvider.select((state) => state.clips));
     final state = ref.watch(
       videoEditorProvider.select(
-        (s) => (currentClipIndex: s.currentClipIndex, isEditing: s.isEditing),
+        (s) => (
+          currentClipIndex: s.currentClipIndex,
+          isEditing: s.isEditing,
+          isReordering: s.isReordering,
+          isOverDeleteZone: s.isOverDeleteZone,
+        ),
       ),
     );
     final isEditing = state.isEditing;
@@ -116,71 +283,117 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
         Flexible(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              return AnimatedBuilder(
-                animation: _pageController,
-                builder: (context, child) {
-                  // Calculate common values once
-                  final hasClients =
-                      _pageController.hasClients &&
-                      _pageController.position.haveDimensions;
-                  final page = hasClients
-                      ? (_pageController.page ?? currentClipIndex.toDouble())
-                      : currentClipIndex.toDouble();
-                  final centerIndex = page.round();
-                  final difference = (centerIndex - page).abs();
-                  final showCenterOverlay =
-                      difference < 0.2 && centerIndex < clips.length;
-                  final shadowOpacity = showCenterOverlay
-                      ? 1.0 - (difference / 0.2)
-                      : 0.0;
-
-                  return Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // PageView for smooth snap scrolling
-                      PageView.builder(
-                        controller: _pageController,
-                        allowImplicitScrolling: true,
-                        onPageChanged: (page) {
-                          ref
-                              .read(videoEditorProvider.notifier)
-                              .selectClip(page);
-                        },
-                        itemCount: clips.length,
-                        itemBuilder: (context, index) => _buildPageViewItem(
-                          clip: clips[index],
-                          index: index,
-                          currentClipIndex: currentClipIndex,
-                          page: page,
-                          screenWidth: constraints.maxWidth,
-                        ),
-                      ),
-
-                      // Center clip overlay - rendered on top
-                      if (showCenterOverlay)
-                        _buildCenterOverlay(
-                          clip: clips[centerIndex],
-                          centerIndex: centerIndex,
-                          currentClipIndex: currentClipIndex,
-                          page: page,
-                          shadowOpacity: shadowOpacity,
-                          maxWidth: constraints.maxWidth,
-                        ),
-
-                      // Gradient overlays on sides
-                      if (showCenterOverlay)
-                        ..._buildGradientOverlays(
-                          shadowOpacity,
-                          constraints.maxWidth,
-                        ),
-                    ],
-                  );
+              return Listener(
+                onPointerMove: (event) async {
+                  if (state.isReordering) {
+                    await _handleReorderEvent(event, constraints);
+                  }
                 },
+                onPointerUp: (event) async {
+                  if (state.isReordering) await _handleReorderCancel();
+                },
+                onPointerCancel: (event) async {
+                  if (state.isReordering) await _handleReorderCancel();
+                },
+                child: AnimatedBuilder(
+                  animation: _pageController,
+                  builder: (context, child) {
+                    // Calculate common values once
+                    final hasClients =
+                        _pageController.hasClients &&
+                        _pageController.position.haveDimensions;
+                    final page = hasClients
+                        ? (_pageController.page ?? currentClipIndex.toDouble())
+                        : currentClipIndex.toDouble();
+                    final centerIndex = page.round();
+                    final difference = (centerIndex - page).abs();
+                    final showCenterOverlay =
+                        difference < 0.2 && centerIndex < clips.length;
+                    final shadowOpacity = showCenterOverlay
+                        ? 1.0 - (difference / 0.2)
+                        : 0.0;
+
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        // Use different scroll widget based on reorder state
+                        if (state.isReordering)
+                          // SingleChildScrollView during reordering -
+                          // no auto-snapping
+                          SingleChildScrollView(
+                            controller: _scrollController,
+                            scrollDirection: .horizontal,
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: constraints.maxWidth * 0.1,
+                              ),
+                              child: Row(
+                                children: List.generate(
+                                  clips.length,
+                                  (index) => SizedBox(
+                                    width: constraints.maxWidth * 0.8,
+                                    child: _buildPageViewItem(
+                                      clip: clips[index],
+                                      index: index,
+                                      isEditing: isEditing,
+                                      currentClipIndex: currentClipIndex,
+                                      page: currentClipIndex.toDouble(),
+                                      screenWidth: constraints.maxWidth,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          // PageView for smooth snap scrolling in normal mode
+                          PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (page) {
+                              ref
+                                  .read(videoEditorProvider.notifier)
+                                  .selectClip(page);
+                            },
+                            itemCount: clips.length,
+                            itemBuilder: (context, index) => _buildPageViewItem(
+                              clip: clips[index],
+                              index: index,
+                              isEditing: isEditing,
+                              currentClipIndex: currentClipIndex,
+                              page: page,
+                              screenWidth: constraints.maxWidth,
+                            ),
+                          ),
+
+                        // Center clip overlay - rendered on top
+                        if (showCenterOverlay)
+                          _buildCenterOverlay(
+                            clip: clips[centerIndex],
+                            centerIndex: centerIndex,
+                            currentClipIndex: currentClipIndex,
+                            page: page,
+                            shadowOpacity: shadowOpacity,
+                            maxWidth: constraints.maxWidth,
+                            isReordering: state.isReordering,
+                            isOverDeleteZone: state.isOverDeleteZone,
+                          ),
+
+                        // Gradient overlays on sides
+                        if (showCenterOverlay)
+                          ..._buildGradientOverlays(
+                            shadowOpacity,
+                            constraints.maxWidth,
+                          ),
+                      ],
+                    );
+                  },
+                ),
               );
             },
           ),
         ),
-        _buildInstructionText(isEditing),
+        _buildInstructionText(isEditing, state.isReordering),
         const SizedBox(height: 20),
       ],
     );
@@ -190,7 +403,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
   ///
   /// Uses AnimatedSwitcher with size and fade transitions.
   /// Hidden when editing is active.
-  Widget _buildInstructionText(bool isEditing) {
+  Widget _buildInstructionText(bool isEditing, bool isReordering) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       transitionBuilder: (child, animation) => SizeTransition(
@@ -203,19 +416,23 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       ),
       child: isEditing
           ? const SizedBox(width: .infinity)
-          : Align(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 25),
-                child: Text(
-                  'Tap to edit. Drag to reorder.',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    height: 1.33,
-                    letterSpacing: 0.4,
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.5),
+          : AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: isReordering ? 0 : 1,
+              child: Align(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 25),
+                  child: Text(
+                    'Tap to edit. Drag to reorder.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      height: 1.33,
+                      letterSpacing: 0.4,
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                    textAlign: .center,
                   ),
-                  textAlign: .center,
                 ),
               ),
             ),
@@ -231,6 +448,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
   Widget _buildPageViewItem({
     required RecordingClip clip,
     required int index,
+    required bool isEditing,
     required int currentClipIndex,
     required double page,
     required double screenWidth,
@@ -260,6 +478,9 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                   ref.read(videoEditorProvider.notifier).toggleClipEditing();
                 }
               },
+              onLongPress: index == currentClipIndex && !isEditing
+                  ? _startReordering
+                  : null,
             ),
           ),
         ),
@@ -278,44 +499,73 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     required double page,
     required double shadowOpacity,
     required double maxWidth,
+    required bool isReordering,
+    required bool isOverDeleteZone,
   }) {
     final pageViewOffset = -(page - centerIndex) * maxWidth * 0.8;
     final scale = _calculateScale(centerIndex, currentClipIndex);
     final xOffset = _calculateXOffset(centerIndex, currentClipIndex, maxWidth);
 
-    return RepaintBoundary(
-      child: IgnorePointer(
-        child: Center(
-          child: Transform.translate(
-            offset: Offset(xOffset + pageViewOffset, 0),
-            child: Transform.scale(
-              scale: scale,
-              child: SizedBox(
-                width: maxWidth * 0.8,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.32 * shadowOpacity),
-                        blurRadius: 8,
-                        offset: const Offset(0, 1),
+    return ValueListenableBuilder(
+      valueListenable: _dragOffsetNotifier,
+      builder: (_, dragOffset, _) {
+        // Calculate rotation based on drag offset (-15° to +15°)
+        final rotationAngle = (dragOffset / maxWidth) * 0.26; // ~15° in radians
+        return RepaintBoundary(
+          child: IgnorePointer(
+            ignoring: !isReordering,
+            child: Center(
+              child: Transform.translate(
+                offset: Offset(
+                  xOffset + pageViewOffset + (isReordering ? dragOffset : 0),
+                  0,
+                ),
+                child: Transform.rotate(
+                  angle: isReordering ? rotationAngle : 0,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: SizedBox(
+                      width: maxWidth * 0.8,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color.fromRGBO(
+                                0,
+                                0,
+                                0,
+                                0.32 * shadowOpacity,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 1),
+                            ),
+                            BoxShadow(
+                              color: Color.fromRGBO(
+                                0,
+                                0,
+                                0,
+                                0.16 * shadowOpacity,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                              spreadRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: VideoClipPreview(
+                          clip: clip,
+                          isReordering: isReordering,
+                          isDeletionZone: isOverDeleteZone,
+                        ),
                       ),
-                      BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.16 * shadowOpacity),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
-                        spreadRadius: 10,
-                      ),
-                    ],
+                    ),
                   ),
-                  child: VideoClipPreview(clip: clip),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
