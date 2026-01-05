@@ -134,6 +134,12 @@ dependencies:
   firebase_performance: ^0.11.1+1
   convert: ^3.1.2
   audioplayers: ^5.2.1 
+  
+  # TODO(@hm21): Remove packages below
+  ffmpeg_kit_flutter_new: ^3.2.0
+  just_audio: ^0.10.5
+  audio_session: ^0.2.2
+  
   pro_video_editor: ^1.0.0
   pro_image_editor: ^12.0.0-beta.5
   flutter_colorpicker: ^1.1.0

@@ -6,7 +6,6 @@ import 'dart:io';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
-import 'package:openvine/utils/ffmpeg_encoder.dart';
 import 'package:openvine/utils/hash_util.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:path_provider/path_provider.dart';
@@ -179,9 +178,6 @@ class AudioExtractionService {
 
     final session = await FFmpegKit.execute(command);
     final returnCode = await session.getReturnCode();
-
-    // Clear sessions to free memory
-    await FFmpegEncoder.clearSessions();
 
     if (!ReturnCode.isSuccess(returnCode)) {
       final output = await session.getOutput();
