@@ -15,6 +15,7 @@ import 'package:openvine/widgets/bug_report_dialog.dart';
 import 'package:openvine/widgets/delete_account_dialog.dart';
 import 'package:openvine/services/zendesk_support_service.dart';
 import 'package:openvine/services/draft_storage_service.dart';
+import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -132,6 +133,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 subtitle: 'Blocked users, muted content, and report history',
                 onTap: () => context.push('/safety-settings'),
               ),
+              _buildAudioSharingToggle(),
 
               // Network Configuration
               _buildSectionHeader('Network'),
@@ -323,6 +325,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     trailing: const Icon(Icons.chevron_right, color: Colors.grey),
     onTap: onTap,
   );
+
+  Widget _buildAudioSharingToggle() {
+    final audioSharingService = ref.watch(
+      audioSharingPreferenceServiceProvider,
+    );
+    final isEnabled = audioSharingService.isAudioSharingEnabled;
+
+    return SwitchListTile(
+      value: isEnabled,
+      onChanged: (value) async {
+        await audioSharingService.setAudioSharingEnabled(value);
+        // Force rebuild to reflect the new state
+        setState(() {});
+      },
+      title: const Text(
+        'Make my audio available for reuse',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: const Text(
+        'When enabled, others can use audio from your videos',
+        style: TextStyle(color: Colors.grey, fontSize: 14),
+      ),
+      activeThumbColor: VineTheme.vineGreen,
+      secondary: const Icon(Icons.music_note, color: VineTheme.vineGreen),
+    );
+  }
 
   Widget _buildVersionTile(BuildContext context, WidgetRef ref) {
     final isDeveloperMode = ref.watch(isDeveloperModeEnabledProvider);
@@ -632,13 +664,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   /// Show fallback support options when Zendesk is not available
-  void _showSupportFallback(
+  Future<void> _showSupportFallback(
     BuildContext context,
     WidgetRef ref,
     dynamic authService, // Type inferred from authServiceProvider
-  ) {
+  ) async {
     final bugReportService = ref.read(bugReportServiceProvider);
     final userPubkey = authService.currentPublicKeyHex;
+
+    // Set Zendesk user identity if we have a pubkey
+    if (userPubkey != null) {
+      try {
+        // Get user's npub
+        final npub = NostrKeyUtils.encodePubKey(userPubkey);
+
+        // Try to get user profile for display name and NIP-05
+        final userProfileService = ref.read(userProfileServiceProvider);
+        final profile = userProfileService.getCachedProfile(userPubkey);
+
+        await ZendeskSupportService.setUserIdentity(
+          displayName: profile?.bestDisplayName,
+          nip05: profile?.nip05,
+          npub: npub,
+        );
+      } catch (e) {
+        Log.warning(
+          'Failed to set Zendesk identity: $e',
+          category: LogCategory.system,
+        );
+      }
+    }
+
+    if (!context.mounted) return;
 
     showDialog(
       context: context,
