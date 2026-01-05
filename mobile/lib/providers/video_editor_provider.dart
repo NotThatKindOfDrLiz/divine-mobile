@@ -25,7 +25,18 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   void selectClip(int index) {
-    state = state.copyWith(currentClipIndex: index);
+    final clipManager = ref.read(clipManagerProvider.notifier);
+
+    // Calculate offset from all previous clips
+    final offset = clipManager.clips
+        .take(index)
+        .fold(Duration.zero, (sum, clip) => sum + clip.duration);
+
+    state = state.copyWith(
+      currentClipIndex: index,
+      isPlaying: false,
+      currentPosition: offset,
+    );
   }
 
   void startClipReordering() {
@@ -33,7 +44,10 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   void stopClipReordering() {
-    state = state.copyWith(isReordering: false, isOverDeleteZone: false);
+    state = state.copyWith(
+      isReordering: false,
+      isOverDeleteZone: false,
+    );
   }
 
   void setOverDeleteZone(bool isOver) {
@@ -64,13 +78,6 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(isMuted: !state.isMuted);
   }
 
-  void initializeWithVideo(String videoPath) {
-    state = state.copyWith(
-      currentPosition: .zero,
-      currentClipIndex: 2,
-    );
-  }
-
   void showMoreOptions(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -83,20 +90,19 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     );
   }
 
-  void previousClip() {
-    if (state.currentClipIndex > 1) {
-      state = state.copyWith(currentClipIndex: state.currentClipIndex - 1);
-    }
+  void reset() {
+    state = const EditorState();
   }
 
-  void nextClip() {
-    /* if (state.currentClipIndex < state.totalClips) {
-      state = state.copyWith(currentClipIndex: state.currentClipIndex + 1);
-    } */
-  }
+  void updatePosition(Duration position) {
+    final clipManager = ref.read(clipManagerProvider.notifier);
 
-  void updateCurrentTime(Duration position) {
-    state = state.copyWith(currentPosition: position);
+    // Calculate offset from all previous clips
+    final offset = clipManager.clips
+        .take(state.currentClipIndex)
+        .fold(Duration.zero, (sum, clip) => sum + clip.duration);
+
+    state = state.copyWith(currentPosition: offset + position);
   }
 
   void close() {

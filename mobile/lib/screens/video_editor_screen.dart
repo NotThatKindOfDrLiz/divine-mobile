@@ -24,11 +24,8 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize editor with video path
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      /*  ref
-          .read(videoEditorProvider.notifier)
-          .initializeWithVideo('widget.videoPath'); */
+      ref.read(videoEditorProvider.notifier).reset();
     });
   }
 

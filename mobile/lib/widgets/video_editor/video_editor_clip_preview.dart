@@ -96,17 +96,24 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
   void _videoPlayerListener() {
     if (_controller == null || !mounted) return;
 
+    final notifier = ref.read(videoEditorProvider.notifier);
+
     // Check if video has ended
     final position = _controller!.value.position;
     final duration = _controller!.value.duration;
 
-    if (!_hadPlayed) _hadPlayed = _controller?.value.isPlaying ?? false;
+    notifier.updatePosition(_controller!.value.position);
+
+    if (!_hadPlayed) {
+      _hadPlayed = _controller?.value.isPlaying ?? false;
+      setState(() {});
+    }
 
     if (position >= duration &&
         duration > Duration.zero &&
         widget.isCurrentClip) {
       // Video has finished playing - pause the playback state
-      ref.read(videoEditorProvider.notifier).pauseVideo();
+      notifier.pauseVideo();
       _controller?.pause();
       _controller?.seekTo(.zero);
     }
@@ -126,8 +133,8 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
     // Dispose video player when no longer current clip
     if (oldWidget.isCurrentClip && !widget.isCurrentClip) {
       unawaited(_disposeController());
-      _isInitialized = false;
       _hadPlayed = false;
+      _isInitialized = false;
     }
 
     // Handle playback when isCurrentClip changes
@@ -176,9 +183,26 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  // Show video player ONLY when this is the current clip
+                  if (_isInitialized &&
+                      _controller != null &&
+                      widget.isCurrentClip)
+                    FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: _controller!.value.size.width,
+                        height: _controller!.value.size.height,
+                        child: IgnorePointer(
+                          child: VideoPlayer(_controller!),
+                        ),
+                      ),
+                    ),
+
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
-                    child: _controller != null && _controller!.value.isPlaying
+                    child:
+                        (_controller != null && _controller!.value.isPlaying) ||
+                            _hadPlayed
                         ? const SizedBox.shrink()
                         : widget.clip.thumbnailPath != null
                         ?
@@ -198,21 +222,6 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                             ),
                           ),
                   ),
-
-                  // Show video player ONLY when this is the current clip
-                  if (_isInitialized &&
-                      _controller != null &&
-                      widget.isCurrentClip)
-                    FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: _controller!.value.size.width,
-                        height: _controller!.value.size.height,
-                        child: IgnorePointer(
-                          child: VideoPlayer(_controller!),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),

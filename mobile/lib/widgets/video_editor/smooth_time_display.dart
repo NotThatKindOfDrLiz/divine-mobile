@@ -39,43 +39,75 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
   late Ticker _ticker;
   Duration _lastKnownPosition = Duration.zero;
   DateTime? _lastUpdateTime;
-  bool _isPlaying = false;
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
-    _ticker.start();
+
+    // Initialize with current position
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _lastKnownPosition = ref.read(widget.currentPositionSelector);
+        _lastUpdateTime = DateTime.now();
+
+        // Start ticker if already playing
+        final isPlaying = ref.read(widget.isPlayingSelector);
+        if (isPlaying && !_ticker.isActive) {
+          _ticker.start();
+        }
+
+        setState(() {});
+      }
+    });
+
+    // Listen to playing state changes
+    ref
+      ..listenManual(
+        widget.isPlayingSelector,
+        (previous, next) async {
+          if (next) {
+            // Start ticker when playing
+            _lastUpdateTime = DateTime.now();
+            if (!_ticker.isActive) {
+              await _ticker.start();
+            }
+          } else {
+            // Stop ticker when paused
+            _ticker.stop();
+            if (mounted) {
+              setState(() {});
+            }
+          }
+        },
+      )
+      // Listen to position changes
+      ..listenManual(
+        widget.currentPositionSelector,
+        (previous, next) {
+          if ((next - _lastKnownPosition).abs() >
+              const Duration(milliseconds: 50)) {
+            _lastKnownPosition = next;
+            _lastUpdateTime = DateTime.now();
+            if (mounted) {
+              setState(() {});
+            }
+          }
+        },
+      );
   }
 
   void _onTick(Duration elapsed) {
-    // Check if playing state changed
-    final currentIsPlaying = ref.read(widget.isPlayingSelector);
-    if (_isPlaying != currentIsPlaying) {
-      _isPlaying = currentIsPlaying;
-      if (_isPlaying) {
-        _lastUpdateTime = DateTime.now();
-      }
-    }
-
-    // Get latest position from provider
-    final providerPosition = ref.read(widget.currentPositionSelector);
-
-    // Update reference point if position changed significantly
-    if ((providerPosition - _lastKnownPosition).abs() >
-        const Duration(milliseconds: 50)) {
-      _lastKnownPosition = providerPosition;
-      _lastUpdateTime = DateTime.now();
-    }
-
-    // Rebuild to show interpolated time
-    if (_isPlaying && mounted) {
+    // Only called when ticker is active (i.e., when playing)
+    if (mounted) {
       setState(() {});
     }
   }
 
   Duration get _displayPosition {
-    if (!_isPlaying || _lastUpdateTime == null) {
+    final isPlaying = ref.read(widget.isPlayingSelector);
+
+    if (!isPlaying || _lastUpdateTime == null) {
       return _lastKnownPosition;
     }
 

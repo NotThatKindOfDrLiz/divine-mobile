@@ -26,7 +26,6 @@ class VideoEditorBottomBar extends ConsumerWidget {
           isEditing: state.isEditing,
           isReordering: state.isReordering,
           isMuted: state.isMuted,
-          currentPosition: state.currentPosition,
         ),
       ),
     );
@@ -34,13 +33,13 @@ class VideoEditorBottomBar extends ConsumerWidget {
 
     return Container(
       height: 80,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const .symmetric(horizontal: 16, vertical: 16),
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child: state.isReordering
             ? _buildClipRemoveButton()
             : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: .spaceBetween,
                 children: [
                   // Control buttons
                   Row(

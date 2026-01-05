@@ -61,8 +61,8 @@ class VideoTimeDisplay extends ConsumerWidget {
         style: defaultSeparatorStyle,
         children: [
           WidgetSpan(
-            alignment: PlaceholderAlignment.baseline,
-            baseline: TextBaseline.alphabetic,
+            alignment: .baseline,
+            baseline: .alphabetic,
             child: SmoothTimeDisplay(
               isPlayingSelector: isPlayingSelector,
               currentPositionSelector: currentPositionSelector,
