@@ -28,7 +28,6 @@ class VideoPublishScreen extends ConsumerWidget {
           children: [
             // Video preview
             Align(
-              alignment: .topCenter,
               child: VideoPublishVideo(),
             ),
 

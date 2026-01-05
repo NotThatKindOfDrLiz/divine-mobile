@@ -466,7 +466,9 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
           child: Transform.scale(
             scale: scale,
             child: VideoClipPreview(
+              key: ValueKey('Video-Clip-Preview-${clip.id}'),
               clip: clip,
+              isCurrentClip: index == currentClipIndex,
               onTap: () async {
                 if (index != currentClipIndex) {
                   await _pageController.animateToPage(
@@ -553,7 +555,9 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                           ],
                         ),
                         child: VideoClipPreview(
+                          key: ValueKey('Video-Clip-Preview-${clip.id}'),
                           clip: clip,
+                          isCurrentClip: true,
                           isReordering: isReordering,
                           isDeletionZone: isOverDeleteZone,
                         ),
