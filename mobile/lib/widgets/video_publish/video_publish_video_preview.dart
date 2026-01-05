@@ -6,19 +6,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/platform_io.dart';
-import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:video_player/video_player.dart';
 
 /// Video preview widget displaying the video to be published.
-class VideoPublishVideo extends ConsumerStatefulWidget {
+class VideoPublishVideoPreview extends ConsumerStatefulWidget {
   /// Creates a video publish video widget.
-  const VideoPublishVideo({super.key});
+  const VideoPublishVideoPreview({super.key});
 
   @override
-  ConsumerState<VideoPublishVideo> createState() => _VideoPublishVideoState();
+  ConsumerState<VideoPublishVideoPreview> createState() =>
+      _VideoPublishVideoState();
 }
 
-class _VideoPublishVideoState extends ConsumerState<VideoPublishVideo> {
+class _VideoPublishVideoState extends ConsumerState<VideoPublishVideoPreview> {
   VideoPlayerController? _controller;
   bool _isInitialized = false;
 
@@ -29,10 +30,34 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideo> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_initializeVideoPlayer());
     });
+
+    // Listen to play/pause state changes
+    ref
+      ..listenManual(
+        videoPublishProvider.select((state) => state.isPlaying),
+        (previous, next) async {
+          if (_controller != null && _isInitialized) {
+            if (next && !_controller!.value.isPlaying) {
+              await _controller!.play();
+            } else if (!next && _controller!.value.isPlaying) {
+              await _controller!.pause();
+            }
+          }
+        },
+      )
+      // Listen to mute state changes
+      ..listenManual(
+        videoPublishProvider.select((state) => state.isMuted),
+        (previous, next) async {
+          if (_controller != null && _isInitialized) {
+            await _controller!.setVolume(next ? 0.0 : 1.0);
+          }
+        },
+      );
   }
 
   Future<void> _initializeVideoPlayer() async {
-    final editedVideo = ref.read(videoEditorProvider).editedVideo;
+    final editedVideo = ref.read(videoPublishProvider).video;
     final videoPath = editedVideo?.file?.path;
 
     if (videoPath == null) {
@@ -43,6 +68,17 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideo> {
     _controller = VideoPlayerController.file(File(videoPath));
     await _controller?.initialize();
     if (!mounted) return;
+
+    // Set duration in provider
+    ref
+        .read(videoPublishProvider.notifier)
+        .setDuration(
+          _controller!.value.duration,
+        );
+
+    // Add listener for position updates
+    _controller?.addListener(_onVideoPositionChange);
+
     await _controller?.setLooping(true);
     if (!mounted) return;
     await _controller?.play();
@@ -54,8 +90,19 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideo> {
     }
   }
 
+  void _onVideoPositionChange() {
+    if (_controller != null && mounted) {
+      ref
+          .read(videoPublishProvider.notifier)
+          .updatePosition(
+            _controller!.value.position,
+          );
+    }
+  }
+
   @override
   void dispose() {
+    _controller?.removeListener(_onVideoPositionChange);
     unawaited(_controller?.dispose());
     super.dispose();
   }
@@ -63,7 +110,7 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideo> {
   @override
   Widget build(BuildContext context) {
     final metadata = ref.watch(
-      videoEditorProvider.select((s) => s.editedVideoMeta),
+      videoPublishProvider.select((s) => s.videoMetadata),
     );
 
     return SafeArea(

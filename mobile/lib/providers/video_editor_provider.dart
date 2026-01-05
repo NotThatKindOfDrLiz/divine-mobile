@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/video_editor_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/widgets/video_editor/video_editor_meta_sheet.dart';
 import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
@@ -65,7 +66,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
 
   void initializeWithVideo(String videoPath) {
     state = state.copyWith(
-      currentTime: '1.39',
+      currentPosition: .zero,
       currentClipIndex: 2,
     );
   }
@@ -94,8 +95,8 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     } */
   }
 
-  void updateCurrentTime(String time) {
-    state = state.copyWith(currentTime: time);
+  void updateCurrentTime(Duration position) {
+    state = state.copyWith(currentPosition: position);
   }
 
   void close() {
@@ -127,13 +128,16 @@ class VideoEditorNotifier extends Notifier<EditorState> {
           )
         : null;
 
-    state = state.copyWith(
-      isProcessing: false,
-      editedVideo: validToPublish ? EditorVideo.file(outputPath) : null,
-      editedVideoMeta: metaData,
-    );
+    state = state.copyWith(isProcessing: false);
 
     if (!validToPublish || !context.mounted) return;
+
+    ref.read(videoPublishProvider.notifier)
+      ..reset()
+      ..setVideoData(
+        video: EditorVideo.file(outputPath),
+        metadata: metaData!,
+      );
 
     await context.pushVideoPublish();
   }

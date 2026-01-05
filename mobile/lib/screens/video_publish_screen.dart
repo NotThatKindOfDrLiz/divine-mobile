@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/widgets/video_publish/video_publish_bottom_bar.dart';
 import 'package:openvine/widgets/video_publish/video_publish_top_bar.dart';
-import 'package:openvine/widgets/video_publish/video_publish_video.dart';
+import 'package:openvine/widgets/video_publish/video_publish_video_preview.dart';
 
 /// Video publish screen for previewing and publishing edited videos.
 class VideoPublishScreen extends ConsumerWidget {
@@ -24,28 +24,16 @@ class VideoPublishScreen extends ConsumerWidget {
       child: Scaffold(
         backgroundColor: Colors.black,
         body: Stack(
-          fit: StackFit.expand,
+          fit: .expand,
           children: [
             // Video preview
-            Align(
-              child: VideoPublishVideo(),
-            ),
+            Align(child: VideoPublishVideoPreview()),
 
             // Top navigation
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: VideoPublishTopBar(),
-            ),
+            Align(alignment: .topCenter, child: VideoPublishTopBar()),
 
             // Bottom controls
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: VideoPublishBottomBar(),
-            ),
+            Align(alignment: .bottomCenter, child: VideoPublishBottomBar()),
           ],
         ),
       ),

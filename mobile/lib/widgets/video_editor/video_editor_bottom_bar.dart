@@ -7,6 +7,7 @@ import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/utils/video_editor_utils.dart';
 import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
+import 'package:openvine/widgets/video_editor/video_time_display.dart';
 
 /// Bottom bar with playback controls and time display.
 class VideoEditorBottomBar extends ConsumerWidget {
@@ -16,7 +17,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final totalDuration = ref.watch(
-      clipManagerProvider.select((state) => state.totalDuration.toVideoTime()),
+      clipManagerProvider.select((state) => state.totalDuration),
     );
     final state = ref.watch(
       videoEditorProvider.select(
@@ -25,7 +26,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
           isEditing: state.isEditing,
           isReordering: state.isReordering,
           isMuted: state.isMuted,
-          currentTime: state.currentTime,
+          currentPosition: state.currentPosition,
         ),
       ),
     );
@@ -76,26 +77,14 @@ class VideoEditorBottomBar extends ConsumerWidget {
                   ),
 
                   // Time display
-                  Text.rich(
-                    TextSpan(
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontFamily: 'Bricolage Grotesque',
-                        fontWeight: .w800,
-                        height: 1.33,
-                        letterSpacing: 0.15,
-                        fontFeatures: const [.tabularFigures()],
-                        color: Colors.white.withValues(alpha: 0.5),
-                      ),
-                      children: [
-                        TextSpan(
-                          text: state.currentTime,
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        const TextSpan(text: ' / '),
-                        TextSpan(text: totalDuration),
-                      ],
+                  VideoTimeDisplay(
+                    isPlayingSelector: videoEditorProvider.select(
+                      (s) => s.isPlaying,
                     ),
+                    currentPositionSelector: videoEditorProvider.select(
+                      (s) => s.currentPosition,
+                    ),
+                    totalDuration: totalDuration,
                   ),
                 ],
               ),
