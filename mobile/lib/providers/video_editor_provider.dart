@@ -217,7 +217,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       completer.complete(outputPath);
     } on RenderCanceledException {
       completer.complete(null);
-    } on Exception catch (e) {
+    } catch (e) {
       completer.complete(null);
     }
   }

@@ -74,7 +74,7 @@ class CameraMobileService extends CameraService {
       ]);
       _minZoomLevel = results[0] ?? 1;
       _maxZoomLevel = results[1] ?? 1;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to load zoom limits (unexpected error): $e',
         name: 'CameraMobileService',
@@ -101,7 +101,7 @@ class CameraMobileService extends CameraService {
       );
       await _cameraState!.sensorConfig.setFlashMode(_getFlashMode(mode));
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set flash mode (unexpected error): $e',
         name: 'CameraMobileService',
@@ -144,7 +144,7 @@ class CameraMobileService extends CameraService {
         pixelPreviewSize: previewSize,
       );
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set focus point (unexpected error): $e',
         name: 'CameraMobileService',
@@ -174,7 +174,7 @@ class CameraMobileService extends CameraService {
       // The exposure is automatically handled together with focus point
       // in setFocusPoint(), so we return true here without doing anything.
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set exposure point (unexpected error): $e',
         name: 'CameraMobileService',
@@ -208,7 +208,7 @@ class CameraMobileService extends CameraService {
 
       await _cameraState!.sensorConfig.setZoom(normalizedZoom.clamp(0.0, 1.0));
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set zoom level (unexpected error): $e',
         name: 'CameraMobileService',
@@ -246,7 +246,7 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to switch camera (unexpected error): $e',
         name: 'CameraMobileService',
@@ -273,7 +273,7 @@ class CameraMobileService extends CameraService {
         category: .video,
       );
       await (_cameraState! as VideoCameraState).startRecording();
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to start recording (unexpected error): $e',
         name: 'CameraMobileService',
@@ -316,7 +316,7 @@ class CameraMobileService extends CameraService {
       if (resultPath == null) return null;
 
       return EditorVideo.autoSource(file: resultPath);
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to stop recording (unexpected error): $e',
         name: 'CameraMobileService',

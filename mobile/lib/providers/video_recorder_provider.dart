@@ -110,7 +110,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         _focusPointTimer?.cancel();
         try {
           await _cameraService.dispose();
-        } on Exception catch (e) {
+        } catch (e) {
           // Ignore camera disposal errors during cleanup
           Log.warning(
             '🧹 Camera service disposal failed during cleanup: $e',

@@ -100,7 +100,7 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
           backgroundColor: VineTheme.vineGreen,
         ),
       );
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📹 Failed to import clip: $e',
         name: 'VideoEditorMoreSheet',

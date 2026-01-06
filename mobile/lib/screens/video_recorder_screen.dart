@@ -70,7 +70,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
         name: 'VideoRecorderScreen',
         category: .video,
       );
-    } on Exception catch (e) {
+    } catch (e) {
       Log.warning(
         '📹 Failed to dispose video controllers: $e',
         name: 'VideoRecorderScreen',

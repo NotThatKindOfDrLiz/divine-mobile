@@ -107,7 +107,7 @@ class CameraMacOSService extends CameraService {
       );
       await CameraMacOS.instance.toggleTorch(_getFlashMode(mode));
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set torch mode: $e',
         name: 'CameraMacOSService',
@@ -128,7 +128,7 @@ class CameraMacOSService extends CameraService {
       );
       await CameraMacOS.instance.setFocusPoint(offset);
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set focus point: $e',
         name: 'CameraMacOSService',
@@ -149,7 +149,7 @@ class CameraMacOSService extends CameraService {
       );
       await CameraMacOS.instance.setExposurePoint(offset);
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set exposure point: $e',
         name: 'CameraMacOSService',
@@ -170,7 +170,7 @@ class CameraMacOSService extends CameraService {
       );
       await CameraMacOS.instance.setZoomLevel(value);
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to set zoom level: $e',
         name: 'CameraMacOSService',
@@ -203,7 +203,7 @@ class CameraMacOSService extends CameraService {
         category: .video,
       );
       return true;
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to switch macOS camera: $e',
         name: 'CameraMacOSService',
@@ -234,7 +234,7 @@ class CameraMacOSService extends CameraService {
         name: 'CameraMacOSService',
         category: .video,
       );
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to start recording: $e',
         name: 'CameraMacOSService',
@@ -271,7 +271,7 @@ class CameraMacOSService extends CameraService {
       );
 
       return EditorVideo.memory(result!.bytes!);
-    } on Exception catch (e) {
+    } catch (e) {
       Log.error(
         '📷 Failed to stop recording: $e',
         name: 'CameraMacOSService',
