@@ -5,13 +5,15 @@ import 'package:flutter/material.dart';
 
 /// Fallback preview widget for when camera is not available
 class VideoRecorderCameraPlaceholder extends StatelessWidget {
-  final bool isRecording;
-
+  /// Creates a camera placeholder widget.
   const VideoRecorderCameraPlaceholder({super.key, this.isRecording = false});
+
+  /// Whether the camera is currently recording.
+  final bool isRecording;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ColoredBox(
       color: Colors.black,
       child: Center(
         child: FittedBox(

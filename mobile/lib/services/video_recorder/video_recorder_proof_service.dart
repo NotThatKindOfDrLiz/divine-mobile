@@ -12,7 +12,8 @@ class VideoRecorderProofService {
   /// Generate native ProofMode proof for a video file.
   ///
   /// Returns [NativeProofData] if proof generation succeeds, null otherwise.
-  /// Handles platform availability checks and graceful fallback if ProofMode is not supported.
+  /// Handles platform availability checks and graceful fallback if ProofMode
+  /// is not supported.
   static Future<NativeProofData?> generateProof(File videoFile) async {
     try {
       // Check if native ProofMode is available on this platform

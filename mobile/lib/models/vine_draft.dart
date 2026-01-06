@@ -120,6 +120,7 @@ class VineDraft {
   }
 
   VineDraft copyWith({
+    File? videoFile,
     String? title,
     String? description,
     List<String>? hashtags,
@@ -130,7 +131,7 @@ class VineDraft {
     AspectRatio? aspectRatio,
   }) => VineDraft(
     id: id,
-    videoFile: videoFile,
+    videoFile: videoFile ?? this.videoFile,
     title: title ?? this.title,
     description: description ?? this.description,
     hashtags: hashtags ?? this.hashtags,

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
+import 'package:openvine/models/video_recorder_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
@@ -15,124 +16,82 @@ import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
-/// Timer duration options for delayed recording
+/// Timer duration options for delayed recording.
 enum TimerDuration {
+  /// No timer delay.
   off,
+
+  /// 3 second delay.
   three,
+
+  /// 10 second delay.
   ten;
 
+  /// Icon representing the timer duration.
   IconData get icon => switch (this) {
     .off => Icons.timer,
     .three => Icons.timer_3,
     .ten => Icons.timer_10,
   };
 
+  /// Path to SVG asset representing the timer duration.
+  String get iconPath => switch (this) {
+    .off => 'assets/icon/timer.svg',
+    .three => 'assets/icon/timer_3.svg',
+    .ten => 'assets/icon/timer_10.svg',
+  };
+
+  /// Duration value for the timer.
   Duration get duration => switch (this) {
     .off => Duration.zero,
-    .three => Duration(seconds: 3),
-    .ten => Duration(seconds: 10),
+    .three => const Duration(seconds: 3),
+    .ten => const Duration(seconds: 10),
   };
 }
 
+/// Camera flash mode options.
 enum DivineFlashMode {
+  /// Auto flash mode.
   auto,
+
+  /// Torch (always on) mode.
   torch,
+
+  /// Flash off mode.
   off;
 
+  /// Icon representing the flash mode.
   IconData get icon => switch (this) {
     .off => Icons.flash_off,
     .torch => Icons.flash_on,
     .auto => Icons.flash_auto,
   };
+
+  /// Path to SVG asset representing the flash mode.
+  String get iconPath => switch (this) {
+    .off => 'assets/icon/flash_off.svg',
+    .torch => 'assets/icon/flash_on.svg',
+    .auto => 'assets/icon/flash_auto.svg',
+  };
 }
 
 /// Recording state for Vine-style segmented recording
 enum VideoRecorderState {
-  idle, // Camera preview active, not recording
-  recording, // Currently recording a segment
-  error, // Error state
-}
+  /// Camera preview active, not recording
+  idle,
 
-/// State class for VideoRecording that captures all necessary UI state
-class VideoRecorderUIState {
-  const VideoRecorderUIState({
-    this.recordingState = .idle,
-    this.zoomLevel = 1.0,
-    this.cameraSensorAspectRatio = 1.0,
-    this.focusPoint = .zero,
-    this.canRecord = false,
-    this.isCameraInitialized = false,
-    this.canSwitchCamera = false,
-    this.hasFlash = false,
-    this.countdownValue = 0,
-    this.aspectRatio = .vertical,
-    this.flashMode = .auto,
-    this.timerDuration = .off,
-  });
+  /// Currently recording a segment
+  recording,
 
-  // Offset
-  final Offset focusPoint;
-
-  // Booleans
-  final bool canRecord;
-  final bool isCameraInitialized;
-  final bool canSwitchCamera;
-  final bool hasFlash;
-
-  // Double values
-  final double zoomLevel;
-  final double cameraSensorAspectRatio;
-
-  // Integers
-  final int countdownValue;
-
-  // Custom types
-  final model.AspectRatio aspectRatio;
-  final DivineFlashMode flashMode;
-  final TimerDuration timerDuration;
-  final VideoRecorderState recordingState;
-
-  // Convenience getters used by UI
-  bool get isRecording => recordingState == .recording;
-  bool get isInitialized => isCameraInitialized && recordingState != .error;
-  bool get isError => recordingState == .error;
-  String? get errorMessage => isError ? 'Recording error occurred' : null;
-
-  VideoRecorderUIState copyWith({
-    VideoRecorderState? recordingState,
-    double? zoomLevel,
-    double? cameraSensorAspectRatio,
-    Offset? focusPoint,
-    bool? canRecord,
-    bool? hasSegments,
-    bool? isCameraInitialized,
-    bool? canSwitchCamera,
-    bool? hasFlash,
-    int? countdownValue,
-    model.AspectRatio? aspectRatio,
-    DivineFlashMode? flashMode,
-    TimerDuration? timerDuration,
-  }) {
-    return VideoRecorderUIState(
-      recordingState: recordingState ?? this.recordingState,
-      zoomLevel: zoomLevel ?? this.zoomLevel,
-      cameraSensorAspectRatio:
-          cameraSensorAspectRatio ?? this.cameraSensorAspectRatio,
-      focusPoint: focusPoint ?? this.focusPoint,
-      canRecord: canRecord ?? this.canRecord,
-      isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
-      canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
-      hasFlash: hasFlash ?? this.hasFlash,
-      countdownValue: countdownValue ?? this.countdownValue,
-      aspectRatio: aspectRatio ?? this.aspectRatio,
-      flashMode: flashMode ?? this.flashMode,
-      timerDuration: timerDuration ?? this.timerDuration,
-    );
-  }
+  /// Error state
+  error,
 }
 
 /// Notifier that wraps VideoRecorderNotifier and provides reactive updates
 class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
+  /// Creates a video recorder notifier.
+  ///
+  /// [cameraService] is an optional camera service override for testing.
   VideoRecorderNotifier([CameraService? cameraService])
     : _cameraServiceOverride = cameraService;
 
@@ -140,21 +99,33 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   late final CameraService _cameraService;
   Timer? _focusPointTimer;
 
-  double _baseZoomLevel = 1.0;
+  double _baseZoomLevel = 1;
   bool _isDestroyed = false;
 
   @override
   VideoRecorderUIState build() {
     _cameraService =
         _cameraServiceOverride ??
-        CameraService.create(onUpdateState: updateState);
+        CameraService.create(
+          onUpdateState: ({forceCameraRebuild}) {
+            // Don't update state if provider is being destroyed
+            if (_isDestroyed || !ref.mounted) return;
+
+            updateState(
+              cameraRebuildCount: forceCameraRebuild ?? false
+                  ? state.cameraRebuildCount + 1
+                  : null,
+            );
+          },
+        );
 
     // Setup cleanup when provider is disposed
-    ref.onDispose(() {
+    ref.onDispose(() async {
       if (!_isDestroyed) {
+        _isDestroyed = true; // Set flag before cleanup
         _focusPointTimer?.cancel();
         try {
-          _cameraService.dispose();
+          await _cameraService.dispose();
         } catch (e) {
           // Ignore camera disposal errors during cleanup
           Log.warning(
@@ -184,25 +155,26 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
 
     await _cameraService.initialize();
-    updateState();
+    updateState(aspectRatio: .vertical);
 
     return true;
   }
 
   /// Handle app lifecycle changes (pause/resume).
-  void handleAppLifecycleState(AppLifecycleState appState) async {
+  Future<void> handleAppLifecycleState(AppLifecycleState appState) async {
     await _cameraService.handleAppLifecycleState(appState);
   }
 
   /// Clean up resources and dispose camera service.
-  void destroy() async {
+  Future<void> destroy() async {
     _isDestroyed = true;
     _focusPointTimer?.cancel();
-    _cameraService.dispose();
+    await _cameraService.dispose();
 
     // Auto-save as draft if recording completed but not published
     // Note: We can't await in dispose(), so we use unawaited future
-    // The controller cleanup will be delayed until save completes via the future chain
+    // The controller cleanup will be delayed until save completes via the
+    // future chain
     /* TODO(@hm21): _autoSaveDraftBeforeDispose()
         .then((_) {
           // Clear callback to prevent memory leaks
@@ -276,7 +248,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     );
 
     // Force state update to rebuild UI with new camera preview
-    // Increment camera switch count to ensure state object changes and triggers UI rebuild
+    // Increment camera switch count to ensure state object changes and
+    // triggers UI rebuild
     state = state.copyWith(zoomLevel: 1);
     updateState();
   }
@@ -286,7 +259,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     if (value > _cameraService.maxZoomLevel ||
         value < _cameraService.minZoomLevel) {
       Log.debug(
-        '⚠️ Zoom level $value out of bounds (${_cameraService.minZoomLevel}-${_cameraService.maxZoomLevel})',
+        '⚠️ Zoom level $value out of bounds '
+        '(${_cameraService.minZoomLevel}-${_cameraService.maxZoomLevel})',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
@@ -310,7 +284,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     final success = await _cameraService.setFocusPoint(value);
     if (!success) {
       Log.warning(
-        '⚠️ Failed to set focus point at (${value.dx.toStringAsFixed(2)}, ${value.dy.toStringAsFixed(2)})',
+        '⚠️ Failed to set focus point at (${value.dx.toStringAsFixed(2)}, '
+        '${value.dy.toStringAsFixed(2)})',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
@@ -336,7 +311,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     final success = await _cameraService.setExposurePoint(value);
     if (!success) {
       Log.warning(
-        '⚠️ Failed to set exposure point at (${value.dx.toStringAsFixed(2)}, ${value.dy.toStringAsFixed(2)})',
+        '⚠️ Failed to set exposure point at (${value.dx.toStringAsFixed(2)}, '
+        '${value.dy.toStringAsFixed(2)})',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
@@ -347,12 +323,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   Future<void> toggleRecording() async {
     switch (state.recordingState) {
       case .idle:
-        startRecording();
-        break;
+        await startRecording();
       case .error:
       case .recording:
-        stopRecording();
-        break;
+        await stopRecording();
     }
   }
 
@@ -370,7 +344,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         category: .video,
       );
 
-      for (int i = seconds; i > 0; i--) {
+      for (var i = seconds; i > 0; i--) {
         if (_isDestroyed) return; // Stop countdown if disposed
         state = state.copyWith(countdownValue: i);
         await Future<void>.delayed(const Duration(seconds: 1));
@@ -386,7 +360,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       category: .video,
     );
     await _cameraService.startRecording();
-    ref.read(clipManagerProvider.notifier)..startRecording();
+    ref.read(clipManagerProvider.notifier).startRecording();
   }
 
   /// Stop recording and process clip (metadata, thumbnail).
@@ -399,9 +373,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       category: .video,
     );
 
-    final clipProvider = ref.read(clipManagerProvider.notifier);
-
-    clipProvider.stopRecording();
+    final clipProvider = ref.read(clipManagerProvider.notifier)
+      ..stopRecording();
     final videoResult = await _cameraService.stopRecording();
 
     if (videoResult == null) {
@@ -447,7 +420,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     if (thumbnailPath != null) {
       clipProvider.updateThumbnail(clip.id, thumbnailPath);
       Log.debug(
-        '🖼️  Thumbnail generated: ${thumbnailPath}',
+        '🖼️  Thumbnail generated: $thumbnailPath',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
@@ -461,9 +434,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Adjust zoom by vertical drag distance during long press.
-  void zoomByLongPressMove(Offset offsetFromOrigin) {
+  Future<void> zoomByLongPressMove(Offset offsetFromOrigin) async {
     // At 240px drag distance, reach maxZoomLevel
-    final maxDragDistance = 240.0;
+    const maxDragDistance = 240.0;
     // Calculate upward drag distance (negative Y = upward)
     final dragDistance = (-offsetFromOrigin.dy).clamp(0.0, maxDragDistance);
 
@@ -471,14 +444,14 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     final zoomLevel =
         _baseZoomLevel + (dragDistance / maxDragDistance) * availableZoomRange;
 
-    setZoomLevel(zoomLevel);
+    await setZoomLevel(zoomLevel);
   }
 
   void _handleScaleStart(ScaleStartDetails details) {
     _baseZoomLevel = state.zoomLevel;
   }
 
-  void _handleScaleUpdate(ScaleUpdateDetails details) {
+  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
     // Linear zoom: map scale gesture to zoom range
     // scale < 1.0 = zoom out, scale > 1.0 = zoom in
     final scaleChange = details.scale - 1.0; // -1.0 to +2.0 range
@@ -499,11 +472,11 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
     // Only update if change is significant to avoid excessive updates
     if ((state.zoomLevel - clampedZoom).abs() > 0.01) {
-      setZoomLevel(clampedZoom);
+      await setZoomLevel(clampedZoom);
     }
   }
 
-  void _handleTapDown(
+  Future<void> _handleTapDown(
     TapDownDetails details,
     BoxConstraints constraints,
   ) async {
@@ -539,16 +512,34 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
   }
 
+  /// Navigate to video editor screen, pausing camera during transition.
+  ///
+  /// Pauses camera lifecycle, navigates to editor, and resumes camera on
+  /// return.
+  Future<void> openVideoEditor(BuildContext context) async {
+    await handleAppLifecycleState(.paused);
+    if (!context.mounted) return;
+
+    await context.pushVideoEditor();
+    if (!context.mounted) return;
+
+    await handleAppLifecycleState(.resumed);
+  }
+
   /// Update the state based on the current camera state.
-  void updateState() {
+  void updateState({int? cameraRebuildCount, model.AspectRatio? aspectRatio}) {
+    // Check if ref is still mounted before updating state
+    if (!ref.mounted) return;
+
     state = VideoRecorderUIState(
+      cameraRebuildCount: cameraRebuildCount ?? state.cameraRebuildCount,
       countdownValue: 0,
       zoomLevel: 1,
       focusPoint: .zero,
-      aspectRatio: state.aspectRatio,
-      flashMode: .auto,
+      aspectRatio: aspectRatio ?? state.aspectRatio,
+      flashMode: .off,
       timerDuration: .off,
-      recordingState: state.recordingState,
+      recordingState: .idle,
       cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
       canRecord: _cameraService.canRecord,
       isCameraInitialized: _cameraService.isInitialized,
@@ -639,7 +630,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
           }
         } else {
           Log.warning(
-            '⚠️ NO NATIVE PROOF DATA FROM RECORDING! ProofMode will not be published.',
+            '⚠️ NO NATIVE PROOF DATA FROM RECORDING! ProofMode will not be 
+            published.',
             name: 'VideoRecorderNotifier',
             category: .video,
           );
@@ -881,7 +873,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       final draft = VineDraft.create(
         videoFile: permanentFile,
         title:
-            'Untitled Draft - ${DateTime.now().toLocal().toString().split('.')[0]}',
+            'Untitled Draft - 
+            ${DateTime.now().toLocal().toString().split('.')[0]}',
         description: '',
         hashtags: [],
         frameCount: 0,
@@ -910,6 +903,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   VineRecordingController get controller => _controller; */
 }
 
+/// Provider for video recorder state and operations.
 final videoRecorderProvider =
     NotifierProvider<VideoRecorderNotifier, VideoRecorderUIState>(
       VideoRecorderNotifier.new,

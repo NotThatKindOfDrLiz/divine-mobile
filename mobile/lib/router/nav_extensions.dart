@@ -156,6 +156,7 @@ extension NavX on BuildContext {
   // Optional pushes (non-tab routes)
   Future<void> pushVideoRecorder() => push('/video-recorder');
   Future<void> pushVideoEditor() => push('/video-editor');
+  Future<void> pushVideoPublish() => push('/video-publish');
   Future<void> pushSettings() => push('/settings');
   Future<void> pushComments(VideoEvent video) =>
       CommentsScreen.show(this, video);
@@ -163,4 +164,19 @@ extension NavX on BuildContext {
       push('/following/$pubkey', extra: displayName);
   Future<void> pushFollowers(String pubkey, {String? displayName}) =>
       push('/followers/$pubkey', extra: displayName);
+
+  /// Push curated list screen (NIP-51 kind 30005 video lists)
+  Future<void> pushCuratedList({
+    required String listId,
+    required String listName,
+    List<String>? videoIds,
+    String? authorPubkey,
+  }) => push(
+    '/list/${Uri.encodeComponent(listId)}',
+    extra: CuratedListRouteExtra(
+      listName: listName,
+      videoIds: videoIds,
+      authorPubkey: authorPubkey,
+    ),
+  );
 }

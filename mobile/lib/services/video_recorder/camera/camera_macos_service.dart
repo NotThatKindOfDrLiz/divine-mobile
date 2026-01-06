@@ -4,15 +4,15 @@
 import 'package:camera_macos_plus/camera_macos.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
-
-import 'camera_base_service.dart';
 
 /// macOS implementation of [CameraService] using the camera_macos package.
 ///
 /// Manages video and audio devices, recording, and camera switching on macOS.
 class CameraMacOSService extends CameraService {
+  /// Creates a macOS camera service instance.
   CameraMacOSService({required super.onUpdateState});
 
   List<CameraMacOSDevice>? _videoDevices;
@@ -20,9 +20,9 @@ class CameraMacOSService extends CameraService {
 
   int _currentCameraIndex = 0;
 
-  double _minZoomLevel = 1;
-  double _maxZoomLevel = 10;
-  Size _cameraSensorSize = Size(500, 500);
+  final double _minZoomLevel = 1;
+  final double _maxZoomLevel = 10;
+  Size _cameraSensorSize = const Size(500, 500);
   int _textureId = 0;
   TapDownDetails? _tapDownDetails;
 
@@ -53,7 +53,8 @@ class CameraMacOSService extends CameraService {
     _isInitialSetupCompleted = true;
 
     Log.info(
-      '📷 macOS camera initialized (${_videoDevices!.length} video, ${_audioDevices!.length} audio devices)',
+      '📷 macOS camera initialized (${_videoDevices!.length} video, '
+      '${_audioDevices!.length} audio devices)',
       name: 'CameraMacOSService',
       category: .video,
     );
@@ -88,10 +89,11 @@ class CameraMacOSService extends CameraService {
     _isInitialized = true;
 
     _textureId = result?.textureId ?? 0;
-    _cameraSensorSize = result?.size ?? Size(500, 500);
+    _cameraSensorSize = result?.size ?? const Size(500, 500);
 
     final hasFlash = await CameraMacOS.instance.hasFlash(deviceId: deviceId);
     _hasFlash = hasFlash;
+    onUpdateState(forceCameraRebuild: true);
   }
 
   @override
@@ -287,14 +289,21 @@ class CameraMacOSService extends CameraService {
       name: 'CameraMacOSService',
       category: .video,
     );
-    _isInBackground = state == .inactive;
     switch (state) {
+      case .hidden:
+      case .detached:
+      case .paused:
       case .inactive:
-        if (isInitialized) await dispose();
-        break;
+        _isInBackground = true;
+        if (isInitialized) {
+          await dispose();
+          onUpdateState(forceCameraRebuild: true);
+        }
       case .resumed:
+        _isInBackground = false;
         // Only reinitialize if we had a successful initialization before
-        // (prevents reinitialization attempts when coming back from permission dialog)
+        // (prevents reinitialization attempts when coming back from permission
+        // dialog)
         if (_isInitialSetupCompleted) {
           await _initializeCameraController();
 
@@ -304,20 +313,17 @@ class CameraMacOSService extends CameraService {
             category: .video,
           );
         }
-        break;
-      default:
-        break;
     }
   }
 
   @override
   Widget buildPreviewWidget({
-    required Function(ScaleStartDetails details) onScaleStart,
-    required Function(ScaleUpdateDetails details) onScaleUpdate,
-    required Function(TapDownDetails details, BoxConstraints constraints)
+    required void Function(ScaleStartDetails details) onScaleStart,
+    required void Function(ScaleUpdateDetails details) onScaleUpdate,
+    required void Function(TapDownDetails details, BoxConstraints constraints)
     onTapDown,
   }) {
-    if (_isInBackground || !_isInitialized) return SizedBox.shrink();
+    if (_isInBackground || !_isInitialized) return const SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {

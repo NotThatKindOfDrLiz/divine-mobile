@@ -3,6 +3,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
+import 'package:openvine/models/video_recorder_state.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 
 void main() {

@@ -13,6 +13,7 @@ void main() {
       video: EditorVideo.file('/path/to/video1.mp4'),
       duration: const Duration(seconds: 2),
       recordedAt: DateTime.now(),
+      aspectRatio: .vertical,
     );
 
     final clip2 = RecordingClip(
@@ -20,6 +21,7 @@ void main() {
       video: EditorVideo.file('/path/to/video2.mp4'),
       duration: const Duration(milliseconds: 1500),
       recordedAt: DateTime.now(),
+      aspectRatio: .vertical,
     );
 
     test('totalDuration sums all clip durations', () {
@@ -50,6 +52,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(milliseconds: 6300),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
       final state = ClipManagerState(clips: [fullClip]);
 

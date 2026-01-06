@@ -59,12 +59,14 @@ void main() {
           video: EditorVideo.file('/test/clip1.mp4'),
           duration: Duration(seconds: 2),
           recordedAt: DateTime.now(),
+          aspectRatio: .vertical,
         ),
         RecordingClip(
           id: 'clip2',
           video: EditorVideo.file('/test/clip2.mp4'),
           duration: Duration(seconds: 3),
           recordedAt: DateTime.now(),
+          aspectRatio: .vertical,
         ),
       ];
 

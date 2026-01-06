@@ -1,19 +1,27 @@
+// ABOUTME: Top bar with close, clip counter, and done buttons
+// ABOUTME: Displays current clip position and total clip count
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'video_editor_icon_button.dart';
+import 'package:openvine/theme/vine_theme.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 
+/// Top bar with close button, clip counter, and done button.
 class VideoEditorTopBar extends ConsumerWidget {
+  /// Creates a video editor top bar widget.
   const VideoEditorTopBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final totalClips = ref.watch(
+      clipManagerProvider.select((state) => state.clips.length),
+    );
     final state = ref.watch(
       videoEditorProvider.select(
-        (state) => (
-          currentClipIndex: state.currentClipIndex,
-          totalClips: state.totalClips,
-        ),
+        (s) => (currentClipIndex: s.currentClipIndex, isEditing: s.isEditing),
       ),
     );
     final notifier = ref.read(videoEditorProvider.notifier);
@@ -25,36 +33,50 @@ class VideoEditorTopBar extends ConsumerWidget {
         mainAxisAlignment: .spaceBetween,
         children: [
           // Close/Back button
-          VideoEditorIconButton(
-            icon: Icons.videocam,
-            onTap: () {
-              notifier.close();
-              Navigator.of(context).pop();
-            },
-            semanticLabel: 'Close video editor',
-          ),
+          if (state.isEditing)
+            DivineIconButton(
+              iconPath: 'assets/icon/close.svg',
+              onTap: notifier.stopClipEditing,
+              semanticLabel: 'Close video editor',
+            )
+          else
+            DivineIconButton(
+              iconPath: 'assets/icon/video_camera.svg',
+              onTap: () {
+                notifier.close();
+                context.pop();
+              },
+              semanticLabel: 'Go back to camera',
+            ),
 
           // Clip counter
           Text(
-            '${state.currentClipIndex}/${state.totalClips}',
+            '${state.currentClipIndex + 1}/$totalClips',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
+              height: 1.33,
+              letterSpacing: 0.15,
               fontWeight: .w800,
-              fontFeatures: const [.tabularFigures()],
+              fontFamily: 'Bricolage Grotesque',
+              fontFeatures: [.tabularFigures()],
             ),
           ),
 
           // Done button
-          VideoEditorIconButton(
-            icon: Icons.arrow_forward,
-            backgroundColor: const Color(0xFF27C58B),
-            onTap: () {
-              notifier.done();
-              Navigator.of(context).pop();
-            },
-            semanticLabel: 'Done editing',
-          ),
+          if (state.isEditing)
+            DivineIconButton(
+              iconPath: 'assets/icon/more_horiz.svg',
+              onTap: () => notifier.showMoreOptions(context),
+              semanticLabel: 'More',
+            )
+          else
+            DivineIconButton(
+              iconPath: 'assets/icon/arrow_forward.svg',
+              backgroundColor: VineTheme.tabIndicatorGreen,
+              onTap: () => notifier.done(context),
+              semanticLabel: 'Done editing',
+            ),
         ],
       ),
     );

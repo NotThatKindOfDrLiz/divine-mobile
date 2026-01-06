@@ -7,39 +7,45 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/router/app_shell.dart';
+import 'package:openvine/router/route_utils.dart';
+import 'package:openvine/screens/blossom_settings_screen.dart';
+import 'package:openvine/screens/clip_library_screen.dart';
+import 'package:openvine/screens/curated_list_feed_screen.dart';
+import 'package:openvine/screens/developer_options_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
-import 'package:openvine/screens/hashtag_screen_router.dart';
-import 'package:openvine/screens/home_screen_router.dart';
-import 'package:openvine/screens/notifications_screen.dart';
-import 'package:openvine/screens/profile_screen_router.dart';
-import 'package:openvine/screens/pure/search_screen_pure.dart';
 import 'package:openvine/screens/followers/my_followers_screen.dart';
 import 'package:openvine/screens/followers/others_followers_screen.dart';
 import 'package:openvine/screens/following/my_following_screen.dart';
 import 'package:openvine/screens/following/others_following_screen.dart';
-import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/screens/hashtag_screen_router.dart';
+import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/key_import_screen.dart';
-import 'package:openvine/screens/profile_setup_screen.dart';
-import 'package:openvine/screens/blossom_settings_screen.dart';
 import 'package:openvine/screens/key_management_screen.dart';
 import 'package:openvine/screens/notification_settings_screen.dart';
+import 'package:openvine/screens/notifications_screen.dart';
+import 'package:openvine/screens/profile_screen_router.dart';
+import 'package:openvine/screens/profile_setup_screen.dart';
+import 'package:openvine/screens/pure/search_screen_pure.dart';
 import 'package:openvine/screens/relay_diagnostic_screen.dart';
 import 'package:openvine/screens/relay_settings_screen.dart';
 import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
+import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/screens/video_detail_screen.dart';
 import 'package:openvine/screens/video_editor_screen.dart';
-import 'package:openvine/screens/clip_library_screen.dart';
-import 'package:openvine/screens/developer_options_screen.dart';
+import 'package:openvine/screens/video_publish_screen.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
-import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/video_stop_navigator_observer.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../screens/video_recorder_screen.dart';
 
 // Navigator keys for per-tab state preservation
 final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -92,7 +98,10 @@ int tabIndexFromLocation(String loc) {
     case 'drafts':
     case 'followers':
     case 'following':
+    case 'sound':
       return -1; // Non-tab routes - no bottom nav
+    case 'list':
+      return 1; // List keeps explore tab active (like hashtag)
     default:
       return 0; // fallback to home
   }
@@ -459,6 +468,29 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               ),
             ),
           ),
+
+          // CURATED LIST route (NIP-51 kind 30005 video lists)
+          GoRoute(
+            path: '/list/:listId',
+            name: 'list',
+            builder: (ctx, st) {
+              final listId = st.pathParameters['listId'];
+              if (listId == null || listId.isEmpty) {
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Error')),
+                  body: const Center(child: Text('Invalid list ID')),
+                );
+              }
+              // Extra data contains listName, videoIds, authorPubkey
+              final extra = st.extra as CuratedListRouteExtra?;
+              return CuratedListFeedScreen(
+                listId: listId,
+                listName: extra?.listName ?? 'List',
+                videoIds: extra?.videoIds,
+                authorPubkey: extra?.authorPubkey,
+              );
+            },
+          ),
         ],
       ),
 
@@ -642,17 +674,45 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           return VideoDetailScreen(videoId: videoId);
         },
       ),
-      // Video recorder route
+      // Sound detail route (for audio reuse feature)
+      GoRoute(
+        path: '/sound/:id',
+        name: 'sound',
+        builder: (ctx, st) {
+          final soundId = st.pathParameters['id'];
+          final sound = st.extra as AudioEvent?;
+          if (soundId == null || soundId.isEmpty) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Error')),
+              body: const Center(child: Text('Invalid sound ID')),
+            );
+          }
+          // If sound was passed via extra, use it directly
+          // Otherwise, SoundDetailScreen will need to fetch it
+          if (sound != null) {
+            return SoundDetailScreen(sound: sound);
+          }
+          // Wrap in a loader that fetches the sound by ID
+          return _SoundDetailLoader(soundId: soundId);
+        },
+      ),
+      // Video editor route (requires video passed via extra)
       GoRoute(
         path: '/video-recorder',
         name: 'video-recorder',
-        builder: (_, __) => const VideoRecorderScreen(),
+        builder: (_, _) => const VideoRecorderScreen(),
       ),
-      // Video editor route (requires video passed via extra)
+      // Video editor route
       GoRoute(
         path: '/video-editor',
         name: 'video-editor',
         builder: (_, _) => const VideoEditorScreen(),
+      ),
+      // Video publish route
+      GoRoute(
+        path: '/video-publish',
+        name: 'video-publish',
+        builder: (_, _) => const VideoPublishScreen(),
       ),
     ],
   );
@@ -703,5 +763,56 @@ class _FollowingScreenRouter extends ConsumerWidget {
     } else {
       return OthersFollowingScreen(pubkey: pubkey, displayName: displayName);
     }
+  }
+}
+
+/// Loader widget that fetches a sound by ID before displaying SoundDetailScreen.
+/// Used when navigating via deep link without the sound object.
+class _SoundDetailLoader extends ConsumerWidget {
+  const _SoundDetailLoader({required this.soundId});
+
+  final String soundId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final soundAsync = ref.watch(soundByIdProvider(soundId));
+
+    return soundAsync.when(
+      data: (sound) {
+        if (sound == null) {
+          return Scaffold(
+            backgroundColor: Colors.black,
+            appBar: AppBar(
+              backgroundColor: Colors.black,
+              title: const Text('Sound Not Found'),
+            ),
+            body: const Center(
+              child: Text(
+                'This sound could not be found',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          );
+        }
+        return SoundDetailScreen(sound: sound);
+      },
+      loading: () => const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: BrandedLoadingIndicator(size: 60)),
+      ),
+      error: (error, stack) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          title: const Text('Error'),
+        ),
+        body: Center(
+          child: Text(
+            'Failed to load sound: $error',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      ),
+    );
   }
 }

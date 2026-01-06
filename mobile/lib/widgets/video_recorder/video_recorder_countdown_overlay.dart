@@ -9,6 +9,7 @@ import 'package:openvine/providers/video_recorder_provider.dart';
 ///
 /// Animates in and out based on the countdown value, showing numbers 3, 2, 1.
 class VideoRecorderCountdownOverlay extends ConsumerWidget {
+  /// Creates a countdown overlay widget.
   const VideoRecorderCountdownOverlay({super.key});
 
   @override
@@ -17,14 +18,14 @@ class VideoRecorderCountdownOverlay extends ConsumerWidget {
       videoRecorderProvider.select((p) => p.countdownValue),
     );
 
-    final bool isActive = countdownValue > 0;
+    final isActive = countdownValue > 0;
 
     return IgnorePointer(
       ignoring: !isActive,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 100),
         opacity: isActive ? 1 : 0,
-        child: Container(
+        child: ColoredBox(
           color: const Color(0xB3000000),
           child: Center(
             child: Text(

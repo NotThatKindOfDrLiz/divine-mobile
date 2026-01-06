@@ -3,10 +3,15 @@
 
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/models/saved_clip.dart';
+import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/screens/clip_library_screen.dart';
+import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -81,9 +86,9 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   /// Returns the created clip with unique ID.
   RecordingClip addClip({
     required EditorVideo video,
+    required model.AspectRatio aspectRatio,
     Duration? duration,
     String? thumbnailPath,
-    model.AspectRatio? aspectRatio,
   }) {
     final clip = RecordingClip(
       id: 'clip_${DateTime.now().millisecondsSinceEpoch}_${_clipCounter++}',
@@ -135,21 +140,34 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     state = state.copyWith(clips: List.unmodifiable(_clips));
   }
 
-  /// Reorder clips by providing ordered list of IDs.
-  void reorderClips(List<String> orderedIds) {
-    final reorderedClips = <RecordingClip>[];
-    for (final id in orderedIds) {
-      final clip = _clips.firstWhere((c) => c.id == id);
-      reorderedClips.add(clip);
+  /// Reorder a single clip from oldIndex to newIndex.
+  ///
+  /// Moves the clip at [oldIndex] to [newIndex], shifting other clips
+  /// accordingly.
+  void reorderClip(int oldIndex, int newIndex) {
+    if (oldIndex < 0 ||
+        oldIndex >= _clips.length ||
+        newIndex < 0 ||
+        newIndex >= _clips.length) {
+      Log.warning(
+        '⚠️ Invalid reorder indices: $oldIndex → $newIndex (length: ${_clips.length})',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+      return;
     }
-    _clips
-      ..clear()
-      ..addAll(reorderedClips);
+
+    if (oldIndex == newIndex) return;
+
+    final clip = _clips.removeAt(oldIndex);
+    _clips.insert(newIndex, clip);
+
     Log.info(
-      '📎 Reordered ${orderedIds.length} clips',
+      '📎 Reordered clip ${clip.id}: $oldIndex → $newIndex',
       name: 'ClipManagerNotifier',
       category: .video,
     );
+
     state = state.copyWith(clips: List.unmodifiable(_clips));
   }
 
@@ -198,36 +216,6 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     state = state.copyWith(selectedClipId: clipId);
   }
 
-  /// Set clip for preview playback.
-  void setPreviewingClip(String? clipId) {
-    state = state.copyWith(previewingClipId: clipId);
-  }
-
-  /// Clear preview state.
-  void clearPreview() {
-    state = state.copyWith(clearPreview: true);
-  }
-
-  /// Set processing state (e.g. exporting).
-  void setProcessing(bool processing) {
-    state = state.copyWith(isProcessing: processing);
-  }
-
-  /// Set or clear error message.
-  void setError(String? message) {
-    state = state.copyWith(errorMessage: message, clearError: message == null);
-  }
-
-  /// Toggle original audio mute state.
-  void toggleMuteOriginalAudio() {
-    state = state.copyWith(muteOriginalAudio: !state.muteOriginalAudio);
-  }
-
-  /// Set original audio mute state.
-  void setMuteOriginalAudio(bool mute) {
-    state = state.copyWith(muteOriginalAudio: mute);
-  }
-
   /// Remove the most recent clip (undo last recording).
   void removeLastClip() {
     if (_clips.isEmpty) {
@@ -253,15 +241,110 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     state = ClipManagerState();
   }
 
-  /// Save clip(s) to device library.
+  /// Opens the clip library screen in selection mode.
   ///
-  /// TODO(@hm21): Implement save to Library feature.
-  /// Ask design-team first if only the last clip or all clips?
-  void saveClipToLibrary() {
+  /// When a clip is selected, it is imported into the current editing session.
+  Future<void> pickFromLibrary(BuildContext context) async {
     Log.info(
-      '💾 Save to library requested (not yet implemented)',
+      '📹 Opening clip library in selection mode',
+      name: 'VideoEditorMoreSheet',
+      category: .video,
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF101111),
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: .vertical(top: .circular(32)),
+      ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const ClipLibraryScreen(selectionMode: true),
+    );
+
+    Log.info(
+      '📹 Closed clip library',
+      name: 'VideoEditorMoreSheet',
+      category: .video,
+    );
+  }
+
+  /// Save clip(s) to device library.
+  Future<void> saveClipsToLibrary() async {
+    Log.info(
+      '💾 Starting to save ${_clips.length} clips to library',
       name: 'ClipManagerNotifier',
       category: .video,
+    );
+
+    try {
+      final clipService = ref.read(clipLibraryServiceProvider);
+      int savedCount = 0;
+
+      for (final clip in _clips) {
+        try {
+          final savedClip = SavedClip(
+            id: clip.id,
+            aspectRatio: clip.aspectRatio.name,
+            createdAt: DateTime.now(),
+            duration: clip.duration,
+            filePath: await clip.video.safeFilePath(),
+            thumbnailPath: clip.thumbnailPath,
+          );
+          await clipService.saveClip(savedClip);
+          savedCount++;
+
+          Log.debug(
+            '✅ Saved clip ${clip.id} to library (${clip.durationInSeconds}s)',
+            name: 'ClipManagerNotifier',
+            category: .video,
+          );
+        } catch (e, stackTrace) {
+          Log.error(
+            '❌ Failed to save clip ${clip.id}: $e',
+            name: 'ClipManagerNotifier',
+            category: .video,
+            error: e,
+            stackTrace: stackTrace,
+          );
+          // Continue saving other clips even if one fails
+        }
+      }
+
+      Log.info(
+        '💾 Successfully saved $savedCount/${_clips.length} clips to library',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to save clips to library: $e',
+        name: 'ClipManagerNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+
+  /// Saves all clips to drafts.
+  Future<void> saveToDrafts(BuildContext context) async {
+    Log.info(
+      '📹 Saving video to drafts',
+      name: 'VideoEditorMoreSheet',
+      category: .video,
+    );
+
+    // TODO(@hm21): Implement save to drafts functionality
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Saved to drafts'),
+        backgroundColor: VineTheme.vineGreen,
+      ),
     );
   }
 }

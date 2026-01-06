@@ -109,7 +109,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     }
   }
 
-  void _handleAddSound() async {
+  void handleAddSound() async {
     // Pause video and audio while selecting sound
     await _videoEditorService.videoController?.pause();
     await _videoEditorService.pauseAudio();
@@ -121,7 +121,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
 
     if (!mounted) return;
 
-    String? selectedSoundId;
+    /*  String? selectedSoundId; */
 
     await Navigator.of(context).push(
       MaterialPageRoute(

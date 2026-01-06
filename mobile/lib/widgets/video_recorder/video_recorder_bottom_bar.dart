@@ -3,22 +3,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_more_sheet.dart';
 
-import 'video_recorder_more_sheet.dart';
-
+/// Bottom bar with record button and camera controls.
 class VideoRecorderBottomBar extends ConsumerWidget {
-  const VideoRecorderBottomBar({super.key, required this.previewWidgetRadius});
+  /// Creates a video recorder bottom bar widget.
+  const VideoRecorderBottomBar({required this.previewWidgetRadius, super.key});
 
+  /// Radius for the preview widget's inverted corners.
   final double previewWidgetRadius;
   static const double _bottomBarHeight = 64;
 
   /// Show more options menu
-  void _showMoreOptions(BuildContext context) {
-    showModalBottomSheet<void>(
+  Future<void> _showMoreOptions(BuildContext context) async {
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF101111),
-      enableDrag: true,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: .vertical(top: .circular(32)),
@@ -97,7 +99,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       button: true,
       label: isRecording ? 'Stop recording' : 'Start recording',
       child: GestureDetector(
-        key: ValueKey('divine-camera-record-button'),
+        key: const ValueKey('divine-camera-record-button'),
         onTap: notifier.toggleRecording,
         onLongPressStart: isLongPressSupported
             ? (_) => notifier.startRecording()
@@ -162,42 +164,41 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       color: Colors.black,
       height: _bottomBarHeight,
       child: Row(
-        crossAxisAlignment: .center,
         mainAxisAlignment: .spaceAround,
         children: [
           // Flash toggle
           _buildControlButton(
-            icon: state.flashMode.icon,
+            iconPath: state.flashMode.iconPath,
             label: 'Toggle flash',
             onPressed: state.hasFlash ? notifier.toggleFlash : null,
           ),
 
           // Timer toggle
           _buildControlButton(
-            icon: state.timer.icon,
+            iconPath: state.timer.iconPath,
             label: 'Cycle timer',
             onPressed: notifier.cycleTimer,
           ),
 
           // Aspect-Ratio
           _buildControlButton(
-            icon: state.aspectRatio == .square
-                ? Icons.crop_square
-                : Icons.crop_portrait,
+            iconPath: state.aspectRatio == .square
+                ? 'assets/icon/crop_square.svg'
+                : 'assets/icon/crop_portrait.svg',
             label: 'Toggle aspect ratio',
             onPressed: notifier.toggleAspectRatio,
           ),
 
           // Flip camera
           _buildControlButton(
-            icon: Icons.cached_rounded,
+            iconPath: 'assets/icon/refresh.svg',
             label: 'Switch camera',
             onPressed: state.canSwitchCamera ? notifier.switchCamera : null,
           ),
 
           // More options
           _buildControlButton(
-            icon: Icons.more_horiz,
+            iconPath: 'assets/icon/more_horiz.svg',
             label: 'More options',
             onPressed: () => _showMoreOptions(context),
           ),
@@ -208,23 +209,34 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   /// Build control button with optional label
   Widget _buildControlButton({
-    required IconData icon,
+    required String iconPath,
     required VoidCallback? onPressed,
     String? label,
   }) {
     return IconButton(
       onPressed: onPressed,
       tooltip: label,
-      icon: Icon(icon, color: Colors.white, size: 32),
+      icon: SizedBox(
+        height: 32,
+        width: 32,
+        child: SvgPicture.asset(
+          iconPath,
+          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+        ),
+      ),
     );
   }
 }
 
 /// Custom painter for inverted radius at top-left and top-right corners
 class _InvertedRadiusPainter extends CustomPainter {
+  /// Creates an inverted radius painter.
   _InvertedRadiusPainter({required this.radius, required this.color});
 
+  /// Radius of the inverted corners.
   final double radius;
+
+  /// Color to paint with.
   final Color color;
 
   @override
@@ -233,26 +245,23 @@ class _InvertedRadiusPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    final path = Path();
-
-    // Start from left side
-    path.moveTo(0, 0);
-    path.lineTo(0, radius);
-    path.lineTo(radius, radius);
-
-    // Draw left inverted corner (concave inward)
-    path.quadraticBezierTo(0, radius, 0, 0);
+    final path = Path()
+      // Start from left side
+      ..moveTo(0, 0)
+      ..lineTo(0, radius)
+      ..lineTo(radius, radius)
+      // Draw left inverted corner (concave inward)
+      ..quadraticBezierTo(0, radius, 0, 0);
 
     canvas.drawPath(path, paint);
 
     // Right side path
-    final rightPath = Path();
-    rightPath.moveTo(size.width, 0);
-    rightPath.lineTo(size.width, radius);
-    rightPath.lineTo(size.width - radius, radius);
-
-    // Draw right inverted corner (concave inward)
-    rightPath.quadraticBezierTo(size.width, radius, size.width, 0);
+    final rightPath = Path()
+      ..moveTo(size.width, 0)
+      ..lineTo(size.width, radius)
+      ..lineTo(size.width - radius, radius)
+      // Draw right inverted corner (concave inward)
+      ..quadraticBezierTo(size.width, radius, size.width, 0);
 
     canvas.drawPath(rightPath, paint);
 

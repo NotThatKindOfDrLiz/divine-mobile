@@ -9,13 +9,16 @@ import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart'
 
 /// Displays the camera preview with animated aspect ratio changes.
 ///
-/// Includes a grid overlay for composition guidance and tap-to-focus functionality.
+/// Includes a grid overlay for composition guidance and tap-to-focus
+/// functionality.
 class VideoRecorderCameraPreview extends ConsumerStatefulWidget {
+  /// Creates a camera preview widget.
   const VideoRecorderCameraPreview({
-    super.key,
     required this.previewWidgetRadius,
+    super.key,
   });
 
+  /// Radius for rounded corners of the preview widget.
   final double previewWidgetRadius;
 
   @override
@@ -34,15 +37,16 @@ class _VideoRecorderCameraPreviewState
           sensorAspectRatio: s.cameraSensorAspectRatio,
           showGrid: !s.isRecording,
           isCameraInitialized: s.isCameraInitialized,
+          cameraRebuildCount: s.cameraRebuildCount,
         ),
       ),
     );
 
     return Center(
       child: Padding(
-        padding: const .symmetric(horizontal: 4.0),
+        padding: const .symmetric(horizontal: 4),
         child: TweenAnimationBuilder<double>(
-          duration: Duration(milliseconds: 220),
+          duration: const Duration(milliseconds: 220),
           curve: Curves.easeInOut,
           tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
           builder: (context, aspectRatio, _) {
@@ -53,6 +57,7 @@ class _VideoRecorderCameraPreviewState
                 borderRadius: .circular(widget.previewWidgetRadius),
                 child: Stack(
                   fit: .expand,
+                  key: ValueKey('Camera-Count-${state.cameraRebuildCount}'),
                   children: _buildStackItems(
                     showGrid: state.showGrid,
                     isCameraInitialized: state.isCameraInitialized,
@@ -132,28 +137,28 @@ class _GridPainter extends CustomPainter {
       ..strokeWidth = 1;
 
     // Vertical lines
-    canvas.drawLine(
-      Offset(size.width / 3, 0),
-      Offset(size.width / 3, size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 2 / 3, 0),
-      Offset(size.width * 2 / 3, size.height),
-      paint,
-    );
-
-    // Horizontal lines
-    canvas.drawLine(
-      Offset(0, size.height / 3),
-      Offset(size.width, size.height / 3),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(0, size.height * 2 / 3),
-      Offset(size.width, size.height * 2 / 3),
-      paint,
-    );
+    canvas
+      ..drawLine(
+        Offset(size.width / 3, 0),
+        Offset(size.width / 3, size.height),
+        paint,
+      )
+      ..drawLine(
+        Offset(size.width * 2 / 3, 0),
+        Offset(size.width * 2 / 3, size.height),
+        paint,
+      )
+      // Horizontal lines
+      ..drawLine(
+        Offset(0, size.height / 3),
+        Offset(size.width, size.height / 3),
+        paint,
+      )
+      ..drawLine(
+        Offset(0, size.height * 2 / 3),
+        Offset(size.width, size.height * 2 / 3),
+        paint,
+      );
   }
 
   @override

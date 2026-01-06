@@ -31,6 +31,7 @@ void main() {
       notifier.addClip(
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
 
       final state = container.read(clipManagerProvider);
@@ -44,10 +45,12 @@ void main() {
       notifier.addClip(
         video: EditorVideo.file('/path/to/video1.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
       notifier.addClip(
         video: EditorVideo.file('/path/to/video2.mp4'),
         duration: const Duration(seconds: 1),
+        aspectRatio: .vertical,
       );
 
       final clipId = container.read(clipManagerProvider).clips[0].id;
@@ -57,42 +60,13 @@ void main() {
       expect(state.clips.length, equals(1));
     });
 
-    test('setPreviewingClip updates preview state', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      notifier.addClip(
-        video: EditorVideo.file('/path/to/video.mp4'),
-        duration: const Duration(seconds: 2),
-      );
-
-      final clipId = container.read(clipManagerProvider).clips[0].id;
-      notifier.setPreviewingClip(clipId);
-
-      final state = container.read(clipManagerProvider);
-      expect(state.previewingClipId, equals(clipId));
-    });
-
-    test('clearPreview removes preview state', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      notifier.addClip(
-        video: EditorVideo.file('/path/to/video.mp4'),
-        duration: const Duration(seconds: 2),
-      );
-      final clipId = container.read(clipManagerProvider).clips[0].id;
-      notifier.setPreviewingClip(clipId);
-      notifier.clearPreview();
-
-      final state = container.read(clipManagerProvider);
-      expect(state.previewingClipId, isNull);
-    });
-
     test('selectClip updates selected clip state', () {
       final notifier = container.read(clipManagerProvider.notifier);
 
       notifier.addClip(
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
       final clipId = container.read(clipManagerProvider).clips[0].id;
       notifier.selectClip(clipId);
@@ -101,35 +75,13 @@ void main() {
       expect(state.selectedClipId, equals(clipId));
     });
 
-    test('reorderClips updates clip order', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      notifier.addClip(
-        video: EditorVideo.file('/path/to/video1.mp4'),
-        duration: const Duration(seconds: 1),
-      );
-      notifier.addClip(
-        video: EditorVideo.file('/path/to/video2.mp4'),
-        duration: const Duration(seconds: 2),
-      );
-
-      final clips = container.read(clipManagerProvider).clips;
-      final clip1Id = clips[0].id;
-      final clip2Id = clips[1].id;
-
-      notifier.reorderClips([clip2Id, clip1Id]);
-
-      final state = container.read(clipManagerProvider);
-      expect(state.clips[0].id, equals(clip2Id));
-      expect(state.clips[1].id, equals(clip1Id));
-    });
-
     test('updateThumbnail updates clip thumbnail', () {
       final notifier = container.read(clipManagerProvider.notifier);
 
       notifier.addClip(
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
       final clipId = container.read(clipManagerProvider).clips[0].id;
       notifier.updateThumbnail(clipId, '/path/to/thumb.jpg');
@@ -144,6 +96,7 @@ void main() {
       notifier.addClip(
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
       final clipId = container.read(clipManagerProvider).clips[0].id;
       notifier.updateClipDuration(clipId, const Duration(seconds: 3));
@@ -153,61 +106,18 @@ void main() {
       expect(state.totalDuration, equals(const Duration(seconds: 3)));
     });
 
-    test('setProcessing updates processing state', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      notifier.setProcessing(true);
-      expect(container.read(clipManagerProvider).isProcessing, isTrue);
-
-      notifier.setProcessing(false);
-      expect(container.read(clipManagerProvider).isProcessing, isFalse);
-    });
-
-    test('setError updates error message', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      notifier.setError('Test error');
-      expect(
-        container.read(clipManagerProvider).errorMessage,
-        equals('Test error'),
-      );
-
-      notifier.setError(null);
-      expect(container.read(clipManagerProvider).errorMessage, isNull);
-    });
-
-    test('toggleMuteOriginalAudio toggles mute state', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      expect(container.read(clipManagerProvider).muteOriginalAudio, isFalse);
-
-      notifier.toggleMuteOriginalAudio();
-      expect(container.read(clipManagerProvider).muteOriginalAudio, isTrue);
-
-      notifier.toggleMuteOriginalAudio();
-      expect(container.read(clipManagerProvider).muteOriginalAudio, isFalse);
-    });
-
-    test('setMuteOriginalAudio sets mute state', () {
-      final notifier = container.read(clipManagerProvider.notifier);
-
-      notifier.setMuteOriginalAudio(true);
-      expect(container.read(clipManagerProvider).muteOriginalAudio, isTrue);
-
-      notifier.setMuteOriginalAudio(false);
-      expect(container.read(clipManagerProvider).muteOriginalAudio, isFalse);
-    });
-
     test('removeLastClip removes last clip', () {
       final notifier = container.read(clipManagerProvider.notifier);
 
       notifier.addClip(
         video: EditorVideo.file('/path/to/video1.mp4'),
         duration: const Duration(seconds: 1),
+        aspectRatio: .vertical,
       );
       notifier.addClip(
         video: EditorVideo.file('/path/to/video2.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
 
       expect(container.read(clipManagerProvider).clips.length, equals(2));
@@ -224,13 +134,13 @@ void main() {
       notifier.addClip(
         video: EditorVideo.file('/path/to/video1.mp4'),
         duration: const Duration(seconds: 1),
+        aspectRatio: .vertical,
       );
       notifier.addClip(
         video: EditorVideo.file('/path/to/video2.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
-      notifier.setError('Some error');
-      notifier.setProcessing(true);
 
       notifier.clearAll();
 
@@ -248,6 +158,7 @@ void main() {
       notifier.addClip(
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
+        aspectRatio: .vertical,
       );
 
       final state = container.read(clipManagerProvider);
@@ -260,6 +171,7 @@ void main() {
       notifier.addClip(
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(milliseconds: 6300),
+        aspectRatio: .vertical,
       );
 
       final state = container.read(clipManagerProvider);

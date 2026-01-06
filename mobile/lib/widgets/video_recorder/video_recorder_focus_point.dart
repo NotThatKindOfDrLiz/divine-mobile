@@ -5,10 +5,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 
+/// Animated focus point indicator for tap-to-focus functionality.
 class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
-  static const indicatorSize = 36.0;
-
+  /// Creates a focus point indicator widget.
   const VideoRecorderFocusPoint({super.key});
+
+  /// Size of the focus indicator in pixels.
+  static const indicatorSize = 36.0;
 
   @override
   ConsumerState<VideoRecorderFocusPoint> createState() =>
@@ -19,7 +22,8 @@ class _VideoRecorderFocusPointState
     extends ConsumerState<VideoRecorderFocusPoint> {
   Offset _lastVisiblePosition = .zero;
 
-  /// Transform camera coordinates to display coordinates based on FittedBox.cover
+  /// Transform camera coordinates to display coordinates based on
+  /// FittedBox.cover
   Offset _cameraToDisplayCoordinates({
     required double cropAspectRatio,
     required double sensorAspectRatio,
@@ -29,7 +33,8 @@ class _VideoRecorderFocusPointState
     // arRatio compares display to sizedbox aspect ratios
     final arRatio = cropAspectRatio * sensorAspectRatio;
 
-    double displayX, displayY;
+    double displayX;
+    double displayY;
 
     if (arRatio > 1) {
       // Display is wider relative to camera - height is cropped

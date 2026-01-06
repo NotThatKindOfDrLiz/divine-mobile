@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openvine/widgets/bottom_sheet_list_tile.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_more_sheet.dart';
 
 void main() {
@@ -46,7 +47,14 @@ void main() {
       );
 
       expect(find.text('Add clip from Library'), findsOneWidget);
-      expect(find.byIcon(Icons.folder_open_outlined), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Add clip from Library',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays "Save clip to Library" option', (tester) async {
@@ -57,7 +65,14 @@ void main() {
       );
 
       expect(find.text('Save clip to Library'), findsOneWidget);
-      expect(find.byIcon(Icons.download), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Save clip to Library',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays "Remove last clip" option', (tester) async {
@@ -68,7 +83,14 @@ void main() {
       );
 
       expect(find.text('Remove last clip'), findsOneWidget);
-      expect(find.byIcon(Icons.undo), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Remove last clip',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays "Clear all clips" option', (tester) async {
@@ -79,7 +101,14 @@ void main() {
       );
 
       expect(find.text('Clear all clips'), findsOneWidget);
-      expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Clear all clips',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('destructive actions have red color', (tester) async {
@@ -101,14 +130,15 @@ void main() {
         ),
       );
 
-      final addClipTile = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Add clip from Library'),
-          matching: find.byType(ListTile),
+      final addClipTile = tester.widget<BottomSheetListTile>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Add clip from Library',
         ),
       );
 
-      expect(addClipTile.enabled, isTrue);
+      expect(addClipTile.onTap, isNotNull);
     });
 
     testWidgets('Save option is initially disabled when no clips', (
@@ -120,15 +150,16 @@ void main() {
         ),
       );
 
-      final saveTile = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Save clip to Library'),
-          matching: find.byType(ListTile),
+      final saveTile = tester.widget<BottomSheetListTile>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Save clip to Library',
         ),
       );
 
       // Initially no clips, so should be disabled
-      expect(saveTile.enabled, isFalse);
+      expect(saveTile.onTap, isNull);
     });
 
     testWidgets('Remove option is initially disabled when no clips', (
@@ -140,15 +171,16 @@ void main() {
         ),
       );
 
-      final removeTile = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Remove last clip'),
-          matching: find.byType(ListTile),
+      final removeTile = tester.widget<BottomSheetListTile>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Remove last clip',
         ),
       );
 
       // Initially no clips, so should be disabled
-      expect(removeTile.enabled, isFalse);
+      expect(removeTile.onTap, isNull);
     });
 
     testWidgets('Clear option is initially disabled when no clips', (
@@ -160,15 +192,16 @@ void main() {
         ),
       );
 
-      final clearTile = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Clear all clips'),
-          matching: find.byType(ListTile),
+      final clearTile = tester.widget<BottomSheetListTile>(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is BottomSheetListTile &&
+              widget.title == 'Clear all clips',
         ),
       );
 
       // Initially no clips, so should be disabled
-      expect(clearTile.enabled, isFalse);
+      expect(clearTile.onTap, isNull);
     });
 
     testWidgets('menu items have leading icons', (tester) async {
@@ -178,11 +211,13 @@ void main() {
         ),
       );
 
-      // Check that all ListTiles have leading icons
-      final listTiles = tester.widgetList<ListTile>(find.byType(ListTile));
+      // Check that all BottomSheetListTiles have iconPath
+      final tiles = tester.widgetList<BottomSheetListTile>(
+        find.byType(BottomSheetListTile),
+      );
 
-      for (final tile in listTiles) {
-        expect(tile.leading, isA<Icon>());
+      for (final tile in tiles) {
+        expect(tile.iconPath, isNotEmpty);
       }
     });
 
@@ -193,10 +228,24 @@ void main() {
         ),
       );
 
-      final icons = tester.widgetList<Icon>(find.byType(Icon));
+      // Check that each BottomSheetListTile has a SizedBox with size 32x32
+      final tiles = tester.widgetList<BottomSheetListTile>(
+        find.byType(BottomSheetListTile),
+      );
 
-      for (final icon in icons) {
-        expect(icon.size, equals(32));
+      expect(tiles.length, equals(4));
+
+      // Verify each tile contains a SizedBox with correct dimensions
+      for (final tile in tiles) {
+        final sizeBoxFinder = find.descendant(
+          of: find.byWidget(tile),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is SizedBox && widget.height == 32 && widget.width == 32,
+          ),
+        );
+
+        expect(sizeBoxFinder, findsAtLeastNWidgets(1));
       }
     });
   });

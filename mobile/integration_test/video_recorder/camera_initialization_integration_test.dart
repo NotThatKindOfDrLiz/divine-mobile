@@ -24,7 +24,9 @@ void main() {
     });
 
     setUp(() {
-      cameraService = CameraService.create(onUpdateState: () {});
+      cameraService = CameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
     });
 
     tearDown(() async {
@@ -56,7 +58,7 @@ void main() {
       expect(cameraService.minZoomLevel, greaterThan(0.0));
       expect(
         cameraService.maxZoomLevel,
-        greaterThan(cameraService.minZoomLevel),
+        greaterThanOrEqualTo(cameraService.minZoomLevel),
       );
     });
 

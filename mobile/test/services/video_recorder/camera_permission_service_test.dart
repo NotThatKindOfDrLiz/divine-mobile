@@ -14,28 +14,31 @@ void main() {
       // Register mock handler for permission_handler plugin
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('flutter.baseflow.com/permissions/methods'),
-        (MethodCall methodCall) async {
-          switch (methodCall.method) {
-            case 'checkPermissionStatus':
-              return 1; // PermissionStatus.granted
-            case 'requestPermissions':
-              return <int, int>{0: 1, 1: 1}; // camera and microphone granted
-            case 'openAppSettings':
-              return true;
-            default:
-              return null;
-          }
-        },
-      );
+            const MethodChannel('flutter.baseflow.com/permissions/methods'),
+            (MethodCall methodCall) async {
+              switch (methodCall.method) {
+                case 'checkPermissionStatus':
+                  return 1; // PermissionStatus.granted
+                case 'requestPermissions':
+                  return <int, int>{
+                    0: 1,
+                    1: 1,
+                  }; // camera and microphone granted
+                case 'openAppSettings':
+                  return true;
+                default:
+                  return null;
+              }
+            },
+          );
     });
 
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('flutter.baseflow.com/permissions/methods'),
-        null,
-      );
+            const MethodChannel('flutter.baseflow.com/permissions/methods'),
+            null,
+          );
     });
 
     group('ensurePermissions', () {

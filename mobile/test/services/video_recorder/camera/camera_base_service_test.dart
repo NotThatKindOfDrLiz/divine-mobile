@@ -13,7 +13,9 @@ void main() {
 
   group('CameraService Tests', () {
     test('create() returns a CameraService instance', () {
-      final service = CameraService.create(onUpdateState: () {});
+      final service = CameraService.create(
+        onUpdateState: ({forceCameraRebuild}) {},
+      );
       expect(service, isA<CameraService>());
     });
   });

@@ -14,13 +14,14 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
         recordedAt: DateTime(2025, 12, 13, 10, 0, 0),
+        aspectRatio: .vertical,
       );
 
       expect(clip.id, equals('clip_001'));
       expect(await clip.video.safeFilePath(), equals('/path/to/video.mp4'));
       expect(clip.duration.inSeconds, equals(2));
       expect(clip.thumbnailPath, isNull);
-      expect(clip.aspectRatio, isNull);
+      expect(clip.aspectRatio, equals(model.AspectRatio.vertical));
     });
 
     test('creates clip with optional fields', () {
@@ -43,6 +44,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(milliseconds: 2500),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
 
       expect(clip.durationInSeconds, equals(2.5));
@@ -54,6 +56,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
 
       final updated = clip.copyWith(id: 'clip_002');
@@ -68,6 +71,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
 
       final updated = clip.copyWith(duration: const Duration(seconds: 3));
@@ -83,6 +87,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
 
       final updated = clip.copyWith(thumbnailPath: '/path/to/thumb.jpg');
@@ -97,6 +102,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(seconds: 2),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
 
       final updated = clip.copyWith(aspectRatio: model.AspectRatio.vertical);
@@ -131,12 +137,13 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(milliseconds: 2500),
         recordedAt: DateTime(2025, 12, 13, 10, 0, 0),
+        aspectRatio: .vertical,
       );
 
       final json = clip.toJson();
 
       expect(json['thumbnailPath'], isNull);
-      expect(json['aspectRatio'], isNull);
+      expect(json['aspectRatio'], equals(model.AspectRatio.vertical.name));
     });
 
     test('fromJson deserializes all fields correctly', () async {
@@ -170,7 +177,7 @@ void main() {
       final clip = RecordingClip.fromJson(json);
 
       expect(clip.thumbnailPath, isNull);
-      expect(clip.aspectRatio, isNull);
+      expect(clip.aspectRatio, model.AspectRatio.square);
     });
 
     test('toJson and fromJson roundtrip preserves data', () async {
@@ -202,6 +209,7 @@ void main() {
         video: EditorVideo.file('/path/to/video.mp4'),
         duration: const Duration(milliseconds: 2500),
         recordedAt: DateTime.now(),
+        aspectRatio: .vertical,
       );
 
       expect(

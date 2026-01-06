@@ -23,21 +23,6 @@ void main() {
           throwsA(isA<ArgumentError>()),
         );
       });
-
-      test('handles single clip by returning it directly', () async {
-        final clip = RecordingClip(
-          id: 'clip1',
-          video: EditorVideo.file('/path/to/clip1.mp4'),
-          duration: const Duration(seconds: 2),
-          recordedAt: DateTime.now(),
-        );
-
-        final result = await service.concatenateSegments([clip]);
-        expect(result, equals('/path/to/clip1.mp4'));
-      });
-
-      // Note: Cannot test actual FFmpeg execution in unit tests
-      // Integration tests would be needed for that
     });
 
     group('generateThumbnail', () {
@@ -58,12 +43,14 @@ void main() {
             video: EditorVideo.file('/path/to/clip1.mp4'),
             duration: const Duration(seconds: 2),
             recordedAt: DateTime.now(),
+            aspectRatio: .vertical,
           ),
           RecordingClip(
             id: 'clip2',
             video: EditorVideo.file('/path/to/clip2.mp4'),
             duration: const Duration(seconds: 3),
             recordedAt: DateTime.now(),
+            aspectRatio: .vertical,
           ),
         ];
 
@@ -82,6 +69,7 @@ void main() {
             video: EditorVideo.file('/path/to/clip1.mp4'),
             duration: const Duration(seconds: 2),
             recordedAt: DateTime.now(),
+            aspectRatio: .vertical,
           ),
         ];
 
@@ -104,12 +92,14 @@ void main() {
             video: EditorVideo.file('/path/to/clip2.mp4'),
             duration: const Duration(seconds: 3),
             recordedAt: DateTime.now(),
+            aspectRatio: .vertical,
           ),
           RecordingClip(
             id: 'clip1',
             video: EditorVideo.file('/path/to/clip1.mp4'),
             duration: const Duration(seconds: 2),
             recordedAt: DateTime.now(),
+            aspectRatio: .vertical,
           ),
         ];
 
