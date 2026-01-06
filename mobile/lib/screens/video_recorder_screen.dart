@@ -37,6 +37,8 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
   /// Initialize camera and handle permission failures
   Future<void> _initializeCamera() async {
+    if (!mounted) return;
+
     _disposeVideoControllers();
 
     _notifier = ref.read(videoRecorderProvider.notifier);

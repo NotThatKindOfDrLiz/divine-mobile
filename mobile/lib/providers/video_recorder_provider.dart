@@ -153,7 +153,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
 
     await _cameraService.initialize();
-    updateState();
+    updateState(aspectRatio: .vertical);
 
     return true;
   }
@@ -525,16 +525,16 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Update the state based on the current camera state.
-  void updateState({int? cameraRebuildCount}) {
+  void updateState({int? cameraRebuildCount, model.AspectRatio? aspectRatio}) {
     state = VideoRecorderUIState(
       cameraRebuildCount: cameraRebuildCount ?? state.cameraRebuildCount,
       countdownValue: 0,
       zoomLevel: 1,
       focusPoint: .zero,
-      aspectRatio: state.aspectRatio,
+      aspectRatio: aspectRatio ?? state.aspectRatio,
       flashMode: .off,
       timerDuration: .off,
-      recordingState: state.recordingState,
+      recordingState: .idle,
       cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
       canRecord: _cameraService.canRecord,
       isCameraInitialized: _cameraService.isInitialized,
