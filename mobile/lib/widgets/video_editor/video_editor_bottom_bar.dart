@@ -45,13 +45,15 @@ class VideoEditorBottomBar extends ConsumerWidget {
                     spacing: 16,
                     children: [
                       DivineIconButton(
-                        icon: state.isPlaying ? Icons.pause : Icons.play_arrow,
+                        iconPath: state.isPlaying
+                            ? 'assets/icon/pause.svg'
+                            : 'assets/icon/play.svg',
                         onTap: notifier.togglePlayPause,
                         semanticLabel: 'Play or pause video',
                       ),
                       if (state.isEditing)
                         DivineIconButton(
-                          icon: Icons.cut_outlined,
+                          iconPath: 'assets/icon/trim.svg',
                           onTap: () {
                             /// TODO(@hm21): Handle crop
                           },
@@ -59,14 +61,14 @@ class VideoEditorBottomBar extends ConsumerWidget {
                         )
                       else ...[
                         DivineIconButton(
-                          icon: state.isMuted
-                              ? Icons.volume_off
-                              : Icons.volume_up,
+                          iconPath: state.isMuted
+                              ? 'assets/icon/volume_off.svg'
+                              : 'assets/icon/volume_on.svg',
                           onTap: notifier.toggleMute,
                           semanticLabel: 'Mute or unmute audio',
                         ),
                         DivineIconButton(
-                          icon: Icons.more_horiz,
+                          iconPath: 'assets/icon/more_horiz.svg',
                           onTap: () => notifier.showMoreOptions(context),
                           semanticLabel: 'More options',
                         ),

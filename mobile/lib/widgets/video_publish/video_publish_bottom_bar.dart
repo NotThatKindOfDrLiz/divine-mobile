@@ -40,13 +40,19 @@ class VideoPublishBottomBar extends ConsumerWidget {
               children: [
                 // Pause/Play button
                 DivineIconButton(
-                  icon: state.isPlaying ? Icons.pause : Icons.play_arrow,
+                  iconPath: state.isPlaying
+                      ? 'assets/icon/pause.svg'
+                      : 'assets/icon/play.svg',
                   onTap: notifier.togglePlayPause,
+                  semanticLabel: 'Play or pause video',
                 ),
                 // Mute button
                 DivineIconButton(
-                  icon: state.isMuted ? Icons.volume_off : Icons.volume_up,
+                  iconPath: state.isMuted
+                      ? 'assets/icon/volume_off.svg'
+                      : 'assets/icon/volume_on.svg',
                   onTap: notifier.toggleMute,
+                  semanticLabel: 'Mute or unmute audio',
                 ),
               ],
             ),

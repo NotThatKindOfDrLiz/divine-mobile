@@ -35,13 +35,13 @@ class VideoEditorTopBar extends ConsumerWidget {
           // Close/Back button
           if (state.isEditing)
             DivineIconButton(
-              icon: Icons.close,
+              iconPath: 'assets/icon/close.svg',
               onTap: notifier.stopClipEditing,
               semanticLabel: 'Close video editor',
             )
           else
             DivineIconButton(
-              icon: Icons.videocam,
+              iconPath: 'assets/icon/video_camera.svg',
               onTap: () {
                 notifier.close();
                 context.pop();
@@ -66,13 +66,13 @@ class VideoEditorTopBar extends ConsumerWidget {
           // Done button
           if (state.isEditing)
             DivineIconButton(
-              icon: Icons.more_horiz,
+              iconPath: 'assets/icon/more_horiz.svg',
               onTap: () => notifier.showMoreOptions(context),
               semanticLabel: 'More',
             )
           else
             DivineIconButton(
-              icon: Icons.arrow_forward,
+              iconPath: 'assets/icon/arrow_forward.svg',
               backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () => notifier.done(context),
               semanticLabel: 'Done editing',

@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/widgets/bottom_sheet_list_tile.dart';
 
 /// Bottom sheet for managing recording clips.
 ///
@@ -30,73 +31,33 @@ class _VideoRecorderMoreSheetState
         child: Column(
           mainAxisSize: .min,
           children: [
-            _buildMenuItem(
-              icon: Icons.folder_open_outlined,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/folder_open.svg',
               title: 'Add clip from Library',
               onTap: () => ref
                   .read(clipManagerProvider.notifier)
                   .pickFromLibrary(context),
             ),
-            _buildMenuItem(
-              icon: Icons.download,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/save.svg',
               title: 'Save clip to Library',
-              enabled: hasClips,
-              onTap: clipsNotifier.saveClipsToLibrary,
+              onTap: hasClips ? clipsNotifier.saveClipsToLibrary : null,
             ),
-            _buildMenuItem(
-              icon: Icons.undo,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/undo.svg',
               title: 'Remove last clip',
-              enabled: hasClips,
-              onTap: clipsNotifier.removeLastClip,
+              onTap: hasClips ? clipsNotifier.removeLastClip : null,
               color: const Color(0xFFF44336),
             ),
-            _buildMenuItem(
-              icon: Icons.delete_outline,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/trash.svg',
               title: 'Clear all clips',
-              enabled: hasClips,
-              onTap: clipsNotifier.clearAll,
+              onTap: hasClips ? clipsNotifier.clearAll : null,
               color: const Color(0xFFF44336),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  /// Builds a styled menu item with consistent appearance.
-  ///
-  /// Returns a [ListTile] with the specified [icon], [title], and [onTap]
-  /// callback.
-  /// The item can be disabled with [enabled] and colored with [color].
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool enabled = true,
-    Color color = Colors.white,
-  }) {
-    return ListTile(
-      iconColor: color,
-      textColor: color,
-      enabled: enabled,
-      minTileHeight: 64,
-      leading: Icon(icon, size: 32),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: 'BricolageGrotesque',
-          fontSize: 24,
-          fontWeight: .w700,
-          height: 1.33,
-          letterSpacing: 0,
-        ),
-        maxLines: 1,
-        overflow: .ellipsis,
-      ),
-      onTap: () {
-        Navigator.pop(context);
-        onTap.call();
-      },
     );
   }
 }

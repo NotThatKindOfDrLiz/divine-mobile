@@ -23,16 +23,18 @@ class VideoPublishTopBar extends ConsumerWidget {
           children: [
             // Back button
             DivineIconButton(
-              icon: Icons.arrow_back,
+              iconPath: 'assets/icon/close.svg',
               onTap: context.pop,
+              semanticLabel: 'Back to clip editing',
             ),
             // Publish button
             DivineIconButton(
-              icon: Icons.send,
+              iconPath: 'assets/icon/send.svg',
               backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () {
                 // TODO(@hm21): Implement publish
               },
+              semanticLabel: 'Publish the video',
             ),
           ],
         ),

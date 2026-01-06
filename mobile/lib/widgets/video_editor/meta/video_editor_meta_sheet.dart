@@ -193,31 +193,11 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
                     ],
                   ),
                 ),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1A000000),
-                        offset: Offset(1, 1),
-                        blurRadius: 1,
-                      ),
-                      BoxShadow(
-                        color: Color(0x1A000000),
-                        offset: Offset(0.4, 0.4),
-                        blurRadius: 0.6,
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: const Icon(
-                    Icons.more_horiz,
-                    color: Colors.white,
-                    size: 32,
-                  ),
+                DivineIconButton(
+                  iconPath: 'assets/icon/more_horiz.svg',
+                  onTap: () {},
+                  backgroundColor: Colors.black,
+                  semanticLabel: '',
                 ),
               ],
             ),
@@ -262,7 +242,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
                   ),
                 ),
                 DivineIconButton(
-                  icon: Icons.add,
+                  iconPath: 'assets/icon/add.svg',
                   onTap: _addHashtag,
                   backgroundColor: const Color(0xFF000000),
                 ),

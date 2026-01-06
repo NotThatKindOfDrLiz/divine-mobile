@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 
 /// Top bar with close button, segment bar, and forward button.
@@ -35,11 +36,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
             children: [
               // Close button
               _buildActionButton(
-                icon: Icons.close,
-                label: 'Close video recorder',
+                iconPath: 'assets/icon/close.svg',
+                semanticLabel: 'Close video recorder',
                 hidden: isRecording,
                 backgroundColor: _buttonColor,
-                onPressed: () => notifier.closeVideoRecorder(context),
+                onTap: () => notifier.closeVideoRecorder(context),
               ),
 
               // Segment bar
@@ -47,13 +48,14 @@ class VideoRecorderTopBar extends ConsumerWidget {
 
               // Confirm button
               _buildActionButton(
-                icon: Icons.arrow_forward,
-                label: 'Continue to video editor',
+                iconPath: 'assets/icon/arrow_forward.svg',
+                semanticLabel: 'Continue to video editor',
                 hidden: isRecording,
                 backgroundColor: hasClips
                     ? VineTheme.tabIndicatorGreen
-                    : _buttonColor,
-                onPressed: hasClips
+                    : const Color(0xA6000000),
+                iconColor: hasClips ? Colors.white : const Color(0xA4FFFFFF),
+                onTap: hasClips
                     ? () => notifier.openVideoEditor(context)
                     : null,
               ),
@@ -66,42 +68,23 @@ class VideoRecorderTopBar extends ConsumerWidget {
 
   /// Build action button for top bar
   Widget _buildActionButton({
-    required IconData icon,
+    required String iconPath,
     required Color backgroundColor,
+    Color iconColor = Colors.white,
     bool hidden = false,
-    VoidCallback? onPressed,
-    String? label,
+    VoidCallback? onTap,
+    String? semanticLabel,
   }) {
-    final enabled = onPressed != null;
-
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
       opacity: hidden ? 0 : 1,
       curve: Curves.ease,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: ShapeDecoration(
-          color: backgroundColor.withAlpha(enabled ? 255 : 166),
-          shape: RoundedRectangleBorder(borderRadius: .circular(20)),
-          shadows: const [
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 1,
-              offset: Offset(1, 1),
-            ),
-          ],
-        ),
-        child: IconButton(
-          icon: Icon(
-            icon,
-            color: Colors.white.withAlpha(enabled ? 255 : 64),
-            size: 32,
-          ),
-          onPressed: onPressed,
-          padding: .zero,
-          tooltip: label,
-        ),
+      child: DivineIconButton(
+        backgroundColor: backgroundColor,
+        iconColor: iconColor,
+        iconPath: iconPath,
+        onTap: onTap,
+        semanticLabel: semanticLabel,
       ),
     );
   }

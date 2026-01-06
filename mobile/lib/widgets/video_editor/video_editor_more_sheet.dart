@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/widgets/bottom_sheet_list_tile.dart';
 
 /// Bottom sheet for video editor more options.
 ///
@@ -36,67 +37,31 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildMenuItem(
-              icon: Icons.folder_open_outlined,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/folder_open.svg',
               title: 'Add clip from Library',
               onTap: () => ref
                   .read(clipManagerProvider.notifier)
                   .pickFromLibrary(context),
             ),
-            _buildMenuItem(
-              icon: Icons.save_outlined,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/save.svg',
               title: 'Save to Drafts',
-              enabled: hasClips,
-              onTap: () =>
-                  ref.read(clipManagerProvider.notifier).saveToDrafts(context),
+              onTap: hasClips
+                  ? () => ref
+                        .read(clipManagerProvider.notifier)
+                        .saveToDrafts(context)
+                  : null,
             ),
-            _buildMenuItem(
-              icon: Icons.delete_outline,
+            BottomSheetListTile(
+              iconPath: 'assets/icon/trash.svg',
               title: 'Delete clips & start over',
-              enabled: hasClips,
-              onTap: _deleteAndStartOver,
+              onTap: hasClips ? _deleteAndStartOver : null,
               color: const Color(0xFFF44336),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  /// Builds a styled menu item with consistent appearance.
-  ///
-  /// Returns a [ListTile] with the specified [icon], [title], and [onTap]
-  /// callback.
-  /// The item can be disabled with [enabled] and colored with [color].
-  Widget _buildMenuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    bool enabled = true,
-    Color color = Colors.white,
-  }) {
-    return ListTile(
-      iconColor: color,
-      textColor: color,
-      enabled: enabled,
-      minTileHeight: 64,
-      leading: Icon(icon, size: 32),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: 'BricolageGrotesque',
-          fontWeight: FontWeight.w700,
-          fontSize: 24,
-          height: 1.33,
-          letterSpacing: 0,
-        ),
-        maxLines: 1,
-        overflow: .ellipsis,
-      ),
-      onTap: () {
-        Navigator.pop(context);
-        onTap.call();
-      },
     );
   }
 }

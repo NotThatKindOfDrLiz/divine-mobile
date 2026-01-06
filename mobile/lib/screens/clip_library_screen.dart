@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
@@ -20,7 +19,6 @@ import 'package:openvine/widgets/masonary_grid.dart';
 import 'package:openvine/widgets/video_clip/video_clip_preview_sheet.dart';
 import 'package:openvine/widgets/video_clip/video_clip_thumbnail_card.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
-import 'package:video_player/video_player.dart';
 
 class ClipLibraryScreen extends ConsumerStatefulWidget {
   const ClipLibraryScreen({
@@ -279,13 +277,14 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   );
 
   Widget? _buildClipSelectionHeader() {
+    if (!widget.selectionMode) return null;
+
     final remainingDuration = widget.selectionMode
         ? ref.watch(
             clipManagerProvider.select((s) => s.remainingDuration),
           )
         : const Duration(milliseconds: 6300);
 
-    if (!widget.selectionMode) return null;
     return Container(
       padding: const .fromLTRB(16, 0, 16, 16),
       decoration: const BoxDecoration(color: Color(0xFF101111)),

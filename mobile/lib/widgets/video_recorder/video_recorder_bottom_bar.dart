@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_more_sheet.dart';
 
@@ -167,37 +168,37 @@ class VideoRecorderBottomBar extends ConsumerWidget {
         children: [
           // Flash toggle
           _buildControlButton(
-            icon: state.flashMode.icon,
+            iconPath: state.flashMode.iconPath,
             label: 'Toggle flash',
             onPressed: state.hasFlash ? notifier.toggleFlash : null,
           ),
 
           // Timer toggle
           _buildControlButton(
-            icon: state.timer.icon,
+            iconPath: state.timer.iconPath,
             label: 'Cycle timer',
             onPressed: notifier.cycleTimer,
           ),
 
           // Aspect-Ratio
           _buildControlButton(
-            icon: state.aspectRatio == .square
-                ? Icons.crop_square
-                : Icons.crop_portrait,
+            iconPath: state.aspectRatio == .square
+                ? 'assets/icon/crop_square.svg'
+                : 'assets/icon/crop_portrait.svg',
             label: 'Toggle aspect ratio',
             onPressed: notifier.toggleAspectRatio,
           ),
 
           // Flip camera
           _buildControlButton(
-            icon: Icons.cached_rounded,
+            iconPath: 'assets/icon/refresh.svg',
             label: 'Switch camera',
             onPressed: state.canSwitchCamera ? notifier.switchCamera : null,
           ),
 
           // More options
           _buildControlButton(
-            icon: Icons.more_horiz,
+            iconPath: 'assets/icon/more_horiz.svg',
             label: 'More options',
             onPressed: () => _showMoreOptions(context),
           ),
@@ -208,14 +209,24 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 
   /// Build control button with optional label
   Widget _buildControlButton({
-    required IconData icon,
+    required String iconPath,
     required VoidCallback? onPressed,
     String? label,
   }) {
     return IconButton(
       onPressed: onPressed,
       tooltip: label,
-      icon: Icon(icon, color: Colors.white, size: 32),
+      icon: SizedBox(
+        height: 32,
+        width: 32,
+        child: SvgPicture.asset(
+          iconPath,
+          colorFilter: const ColorFilter.mode(
+            Colors.white,
+            BlendMode.srcIn,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -35,6 +35,13 @@ enum TimerDuration {
     .ten => Icons.timer_10,
   };
 
+  /// Path to SVG asset representing the timer duration.
+  String get iconPath => switch (this) {
+    .off => 'assets/icon/timer.svg',
+    .three => 'assets/icon/timer_3.svg',
+    .ten => 'assets/icon/timer_10.svg',
+  };
+
   /// Duration value for the timer.
   Duration get duration => switch (this) {
     .off => Duration.zero,
@@ -60,6 +67,13 @@ enum DivineFlashMode {
     .off => Icons.flash_off,
     .torch => Icons.flash_on,
     .auto => Icons.flash_auto,
+  };
+
+  /// Path to SVG asset representing the flash mode.
+  String get iconPath => switch (this) {
+    .off => 'assets/icon/flash_off.svg',
+    .torch => 'assets/icon/flash_on.svg',
+    .auto => 'assets/icon/flash_auto.svg',
   };
 }
 
@@ -518,7 +532,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       zoomLevel: 1,
       focusPoint: .zero,
       aspectRatio: state.aspectRatio,
-      flashMode: .auto,
+      flashMode: .off,
       timerDuration: .off,
       recordingState: state.recordingState,
       cameraSensorAspectRatio: _cameraService.cameraAspectRatio,
