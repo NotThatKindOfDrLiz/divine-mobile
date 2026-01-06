@@ -69,7 +69,7 @@ dependencies:
   # Camera and media 
   camerawesome:
     git:
-      url: https://github.com/VGVentures/CamerAwesome.git
+      url: https://github.com/hm21/CamerAwesome.git
       ref: master
   camera_macos_plus: ^0.0.3
   video_player: ^2.9.1 # Uses native AVPlayer (iOS/macOS) and ExoPlayer (Android)

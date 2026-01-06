@@ -334,8 +334,8 @@ packages:
     description:
       path: "."
       ref: master
-      resolved-ref: b2b891c754f0b5708f0964fe84788ba7daa18ed8
-      url: "https://github.com/VGVentures/CamerAwesome.git"
+      resolved-ref: "432059f362b1d499fc53fdd2c50bb3a521b0ab15"
+      url: "https://github.com/hm21/CamerAwesome.git"
     source: git
     version: "2.5.0"
   carousel_slider:
