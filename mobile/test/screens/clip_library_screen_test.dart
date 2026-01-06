@@ -8,6 +8,7 @@ import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/services/clip_library_service.dart';
+import 'package:openvine/widgets/video_clip/video_clip_thumbnail_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -66,8 +67,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should show duration badges
-      expect(find.text('2.0s'), findsOneWidget);
-      expect(find.text('1.5s'), findsOneWidget);
+      expect(find.text('2.00'), findsOneWidget);
+      expect(find.text('1.50'), findsOneWidget);
     });
 
     testWidgets('shows delete icon in preview sheet on long press', (
@@ -88,7 +89,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Long press to show preview sheet
-      await tester.longPress(find.byType(ClipThumbnailCard));
+      await tester.longPress(find.byType(VideoClipThumbnailCard));
       // Use pump instead of pumpAndSettle since VideoPlayer may not initialize
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -115,7 +116,7 @@ void main() {
       expect((await clipService.getAllClips()).length, 1);
 
       // Long press to show preview sheet
-      await tester.longPress(find.byType(ClipThumbnailCard));
+      await tester.longPress(find.byType(VideoClipThumbnailCard));
       await tester.pump(const Duration(milliseconds: 500));
 
       // Tap delete icon in preview sheet

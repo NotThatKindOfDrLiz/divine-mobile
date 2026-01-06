@@ -98,9 +98,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
         padding: const .all(8),
         decoration: ShapeDecoration(
           color: const Color(0xFF2D0000) /* error-error-container */,
-          shape: RoundedRectangleBorder(
-            borderRadius: .circular(20),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: .circular(20)),
           shadows: const [
             BoxShadow(
               color: Color(0x19000000),

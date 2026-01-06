@@ -62,10 +62,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
 
     super.dispose();
 
-    Log.info(
-      '📝 VideoEditorMetaSheet: Disposed',
-      category: LogCategory.video,
-    );
+    Log.info('📝 VideoEditorMetaSheet: Disposed', category: LogCategory.video);
   }
 
   Future<void> _loadDraft() async {
@@ -150,9 +147,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
       clipManagerProvider.select((p) => p.totalDuration.toVideoTime()),
     );
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
@@ -266,9 +261,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
           .map(
             (hashtag) => Chip(
               label: Text('#$hashtag'),
-              labelStyle: const TextStyle(
-                color: Colors.white,
-              ),
+              labelStyle: const TextStyle(color: Colors.white),
               backgroundColor: VineTheme.vineGreen,
               deleteIcon: const Icon(
                 Icons.close,

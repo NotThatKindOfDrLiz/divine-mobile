@@ -1,6 +1,8 @@
 // ABOUTME: Video recorder screen with modern UI design
 // ABOUTME: Features top search bar, camera preview with grid, and bottom controls
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -90,7 +92,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
   @override
   Future<void> dispose() async {
-    await _notifier?.destroy();
+    unawaited(_notifier?.destroy());
 
     WidgetsBinding.instance.removeObserver(this);
 

@@ -7,10 +7,9 @@ import 'package:flutter/material.dart';
 class VideoRecorderCameraPlaceholder extends StatelessWidget {
   /// Creates a camera placeholder widget.
   const VideoRecorderCameraPlaceholder({super.key, this.isRecording = false});
-  
+
   /// Whether the camera is currently recording.
   final bool isRecording;
-
 
   @override
   Widget build(BuildContext context) {

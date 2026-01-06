@@ -78,10 +78,7 @@ class DivineIconButton extends StatelessWidget {
                     width: iconSize,
                     child: SvgPicture.asset(
                       iconPath!,
-                      colorFilter: ColorFilter.mode(
-                        iconColor,
-                        BlendMode.srcIn,
-                      ),
+                      colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
                     ),
                   ),
                 ),

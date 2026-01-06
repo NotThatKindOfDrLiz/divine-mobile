@@ -47,36 +47,36 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
     });
 
     ref
-      ..listenManual(
-        videoEditorProvider.select((s) => s.isPlaying),
-        (previous, next) async {
-          if (next) {
-            _lastUpdateTime = DateTime.now();
-            if (!_ticker.isActive) {
-              await _ticker.start();
-            }
-          } else {
-            // Calculate current interpolated position before stopping
-            if (_lastUpdateTime != null) {
-              final elapsed = DateTime.now().difference(_lastUpdateTime!);
-              _lastKnownPosition = _lastKnownPosition + elapsed;
-            }
-            _ticker.stop();
-            if (mounted) setState(() {});
+      ..listenManual(videoEditorProvider.select((s) => s.isPlaying), (
+        previous,
+        next,
+      ) async {
+        if (next) {
+          _lastUpdateTime = DateTime.now();
+          if (!_ticker.isActive) {
+            await _ticker.start();
           }
-        },
-      )
-      ..listenManual(
-        videoEditorProvider.select((s) => s.currentPosition),
-        (previous, next) {
-          if ((next - _lastKnownPosition).abs() >
-              const Duration(milliseconds: 50)) {
-            _lastKnownPosition = next;
-            _lastUpdateTime = DateTime.now();
-            if (mounted) setState(() {});
+        } else {
+          // Calculate current interpolated position before stopping
+          if (_lastUpdateTime != null) {
+            final elapsed = DateTime.now().difference(_lastUpdateTime!);
+            _lastKnownPosition = _lastKnownPosition + elapsed;
           }
-        },
-      );
+          _ticker.stop();
+          if (mounted) setState(() {});
+        }
+      })
+      ..listenManual(videoEditorProvider.select((s) => s.currentPosition), (
+        previous,
+        next,
+      ) {
+        if ((next - _lastKnownPosition).abs() >
+            const Duration(milliseconds: 50)) {
+          _lastKnownPosition = next;
+          _lastUpdateTime = DateTime.now();
+          if (mounted) setState(() {});
+        }
+      });
   }
 
   void _onTick(Duration elapsed) {
@@ -84,9 +84,7 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
   }
 
   Duration get _smoothPosition {
-    final isPlaying = ref.read(
-      videoEditorProvider.select((s) => s.isPlaying),
-    );
+    final isPlaying = ref.read(videoEditorProvider.select((s) => s.isPlaying));
 
     if (!isPlaying || _lastUpdateTime == null) {
       return _lastKnownPosition;

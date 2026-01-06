@@ -56,12 +56,12 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
       unawaited(_initializeVideoPlayer());
 
       // Listen to play/pause state changes
-      ref.listenManual(
-        videoEditorProvider.select((state) => state.isPlaying),
-        (previous, next) {
-          _handlePlaybackStateChange(next);
-        },
-      );
+      ref.listenManual(videoEditorProvider.select((state) => state.isPlaying), (
+        previous,
+        next,
+      ) {
+        _handlePlaybackStateChange(next);
+      });
     }
   }
 
@@ -163,7 +163,7 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
       onLongPress: widget.onLongPress,
       child: Center(
         child: AspectRatio(
-          aspectRatio: widget.clip.aspectRatio?.value ?? 1,
+          aspectRatio: widget.clip.aspectRatio.value,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
@@ -192,9 +192,7 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                       child: SizedBox(
                         width: _controller!.value.size.width,
                         height: _controller!.value.size.height,
-                        child: IgnorePointer(
-                          child: VideoPlayer(_controller!),
-                        ),
+                        child: IgnorePointer(child: VideoPlayer(_controller!)),
                       ),
                     ),
 

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/widgets/video_editor/clips_previewer_widget.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -15,7 +14,7 @@ import 'package:video_player/video_player.dart';
 import 'video_editor_audio_service.dart';
 import 'video_editor_thumbnail_service.dart';
 
-// TODO(@hm21): Write unit-tests
+// TODO(@hm21): Remove class
 class VideoEditorService {
   VideoEditorService({
     required this.videoPath,
@@ -192,7 +191,7 @@ class VideoEditorService {
         onPlay: audioService.play,
         onStop: (audio) => audioService.pause(),
       ),
-      clipsEditorCallbacks: ClipsEditorCallbacks(
+      /*  clipsEditorCallbacks: ClipsEditorCallbacks(
         onBuildPlayer: (controller, videoClip) {
           return ClipsPreviewer(
             videoConfigs: configs.videoEditor,
@@ -204,7 +203,7 @@ class VideoEditorService {
         onReadKeyFrame: (source) => thumbnailService.getKeyFrame(source),
         onReadKeyFrames: (source) => thumbnailService.getKeyFrames(source),
         onAddClip: addClip,
-      ),
+      ), */
     );
   }
 

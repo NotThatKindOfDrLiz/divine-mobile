@@ -133,26 +133,17 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Colors.grey,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
               ),
             ),
           );
         }
 
         if ((snapshot.data ?? false) && widget.clip.thumbnailPath != null) {
-          return Image.file(
-            File(widget.clip.thumbnailPath!),
-            fit: .cover,
-          );
+          return Image.file(File(widget.clip.thumbnailPath!), fit: .cover);
         }
 
-        return const Icon(
-          Icons.videocam,
-          color: Colors.grey,
-          size: 32,
-        );
+        return const Icon(Icons.videocam, color: Colors.grey, size: 32);
       },
     );
   }
@@ -165,10 +156,7 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
       left: 12,
       bottom: 12,
       child: Container(
-        padding: const .symmetric(
-          horizontal: 8,
-          vertical: 4,
-        ),
+        padding: const .symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.65),
           borderRadius: .circular(4),
@@ -199,10 +187,7 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
           decoration: BoxDecoration(
             borderRadius: .circular(4),
             border: widget.isSelected
-                ? .all(
-                    color: VineTheme.tabIndicatorGreen,
-                    width: 4,
-                  )
+                ? .all(color: VineTheme.tabIndicatorGreen, width: 4)
                 : null,
           ),
         ),
@@ -220,10 +205,7 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
           ),
           child: SvgPicture.asset(
             'assets/icon/check.svg',
-            colorFilter: const ColorFilter.mode(
-              Colors.white,
-              BlendMode.srcIn,
-            ),
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
           ),
         ),
       ),

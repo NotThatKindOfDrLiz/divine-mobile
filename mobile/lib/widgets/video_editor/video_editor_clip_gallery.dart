@@ -133,10 +133,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
 
     // Update visual drag offset (for rotation effect)
     _dragOffsetNotifier.value = (_dragOffsetNotifier.value + event.delta.dx)
-        .clamp(
-          -constraints.maxWidth * 0.3,
-          constraints.maxWidth * 0.3,
-        );
+        .clamp(-constraints.maxWidth * 0.3, constraints.maxWidth * 0.3);
 
     // Accumulate drag offset for page switching
     _accumulatedDragOffset += event.delta.dx;
@@ -161,10 +158,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
         // Reorder the clip in the manager
         ref
             .read(clipManagerProvider.notifier)
-            .reorderClip(
-              _reorderTargetIndex,
-              newTargetIndex,
-            );
+            .reorderClip(_reorderTargetIndex, newTargetIndex);
 
         _reorderTargetIndex = newTargetIndex;
         _accumulatedDragOffset = 0; // Reset accumulator
@@ -251,9 +245,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     // Switch to reorder mode
     ref.read(videoEditorProvider.notifier).startClipReordering();
 
-    _scrollController = ScrollController(
-      initialScrollOffset: currentOffset,
-    );
+    _scrollController = ScrollController(initialScrollOffset: currentOffset);
   }
 
   @override
@@ -409,10 +401,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       transitionBuilder: (child, animation) => SizeTransition(
         sizeFactor: animation,
         axisAlignment: 1,
-        child: FadeTransition(
-          opacity: animation,
-          child: child,
-        ),
+        child: FadeTransition(opacity: animation, child: child),
       ),
       child: isEditing
           ? const SizedBox(width: .infinity)

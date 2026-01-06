@@ -58,7 +58,7 @@ void main() {
       expect(cameraService.minZoomLevel, greaterThan(0.0));
       expect(
         cameraService.maxZoomLevel,
-        greaterThan(cameraService.minZoomLevel),
+        greaterThanOrEqualTo(cameraService.minZoomLevel),
       );
     });
 

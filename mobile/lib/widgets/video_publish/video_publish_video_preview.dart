@@ -33,27 +33,27 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideoPreview> {
 
     // Listen to play/pause state changes
     ref
-      ..listenManual(
-        videoPublishProvider.select((state) => state.isPlaying),
-        (previous, next) async {
-          if (_controller != null && _isInitialized) {
-            if (next && !_controller!.value.isPlaying) {
-              await _controller!.play();
-            } else if (!next && _controller!.value.isPlaying) {
-              await _controller!.pause();
-            }
+      ..listenManual(videoPublishProvider.select((state) => state.isPlaying), (
+        previous,
+        next,
+      ) async {
+        if (_controller != null && _isInitialized) {
+          if (next && !_controller!.value.isPlaying) {
+            await _controller!.play();
+          } else if (!next && _controller!.value.isPlaying) {
+            await _controller!.pause();
           }
-        },
-      )
+        }
+      })
       // Listen to mute state changes
-      ..listenManual(
-        videoPublishProvider.select((state) => state.isMuted),
-        (previous, next) async {
-          if (_controller != null && _isInitialized) {
-            await _controller!.setVolume(next ? 0.0 : 1.0);
-          }
-        },
-      );
+      ..listenManual(videoPublishProvider.select((state) => state.isMuted), (
+        previous,
+        next,
+      ) async {
+        if (_controller != null && _isInitialized) {
+          await _controller!.setVolume(next ? 0.0 : 1.0);
+        }
+      });
   }
 
   Future<void> _initializeVideoPlayer() async {
@@ -72,9 +72,7 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideoPreview> {
     // Set duration in provider
     ref
         .read(videoPublishProvider.notifier)
-        .setDuration(
-          _controller!.value.duration,
-        );
+        .setDuration(_controller!.value.duration);
 
     // Add listener for position updates
     _controller?.addListener(_onVideoPositionChange);
@@ -94,9 +92,7 @@ class _VideoPublishVideoState extends ConsumerState<VideoPublishVideoPreview> {
     if (_controller != null && mounted) {
       ref
           .read(videoPublishProvider.notifier)
-          .updatePosition(
-            _controller!.value.position,
-          );
+          .updatePosition(_controller!.value.position);
     }
   }
 

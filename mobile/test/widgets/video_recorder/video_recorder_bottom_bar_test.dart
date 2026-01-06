@@ -51,36 +51,62 @@ void main() {
     testWidgets('displays flash toggle button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      // Flash icon should be visible (default is auto, shows as flash_auto)
-      expect(find.byIcon(Icons.flash_auto), findsOneWidget);
+      // Flash button should be visible - check for SVG with flash icon path
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == 'Toggle flash',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays timer toggle button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      // Timer icon should be visible (default is off, shows as timer)
-      expect(find.byIcon(Icons.timer), findsOneWidget);
+      // Timer button should be visible
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == 'Cycle timer',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays aspect ratio toggle button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      // Aspect ratio icon should be visible (default is vertical, shows as crop_portrait)
-      expect(find.byIcon(Icons.crop_portrait), findsOneWidget);
+      // Aspect ratio button should be visible
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is IconButton && widget.tooltip == 'Toggle aspect ratio',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays camera flip button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      // Camera flip icon should be visible
-      expect(find.byIcon(Icons.cached_rounded), findsOneWidget);
+      // Camera flip button should be visible
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == 'Switch camera',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('displays more options button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      // More options icon should be visible
-      expect(find.byIcon(Icons.more_horiz), findsOneWidget);
+      // More options button should be visible
+      expect(
+        find.byWidgetPredicate(
+          (widget) => widget is IconButton && widget.tooltip == 'More options',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('has 5 control buttons', (tester) async {

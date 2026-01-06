@@ -31,12 +31,7 @@ class VideoEditorMetaInput extends StatelessWidget {
         color: const Color(0xFF070708),
         borderRadius: BorderRadius.circular(16),
       ),
-      padding: const EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: 16,
-      ),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 16),
       child: Column(
         crossAxisAlignment: .start,
         spacing: 4,

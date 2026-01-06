@@ -79,9 +79,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
 
   Duration get _remainingDuration {
     final remainingDuration = widget.selectionMode
-        ? ref.watch(
-            clipManagerProvider.select((s) => s.remainingDuration),
-          )
+        ? ref.watch(clipManagerProvider.select((s) => s.remainingDuration))
         : const Duration(milliseconds: 6300);
     return remainingDuration - _selectedDuration;
   }
@@ -280,9 +278,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     if (!widget.selectionMode) return null;
 
     final remainingDuration = widget.selectionMode
-        ? ref.watch(
-            clipManagerProvider.select((s) => s.remainingDuration),
-          )
+        ? ref.watch(clipManagerProvider.select((s) => s.remainingDuration))
         : const Duration(milliseconds: 6300);
 
     return Container(
@@ -366,18 +362,16 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
         itemAspectRatios: _clips
             .map((clip) => clip.aspectRatio == 'vertical' ? 9 / 16 : 1.0)
             .toList(),
-        children: _clips.map(
-          (clip) {
-            final isSelected = _selectedClipIds.contains(clip.id);
-            return VideoClipThumbnailCard(
-              clip: clip,
-              isSelected: isSelected,
-              disabled: !isSelected && clip.duration > _remainingDuration,
-              onTap: () => _toggleClipSelection(clip),
-              onLongPress: () => _showClipPreview(clip),
-            );
-          },
-        ).toList(),
+        children: _clips.map((clip) {
+          final isSelected = _selectedClipIds.contains(clip.id);
+          return VideoClipThumbnailCard(
+            clip: clip,
+            isSelected: isSelected,
+            disabled: !isSelected && clip.duration > _remainingDuration,
+            onTap: () => _toggleClipSelection(clip),
+            onLongPress: () => _showClipPreview(clip),
+          );
+        }).toList(),
       ),
     );
   }

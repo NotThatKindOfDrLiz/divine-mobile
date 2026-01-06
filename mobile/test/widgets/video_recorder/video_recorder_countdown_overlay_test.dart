@@ -72,14 +72,14 @@ void main() {
     testWidgets('has semi-transparent black background', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      final container = tester.widget<Container>(
+      final coloredBox = tester.widget<ColoredBox>(
         find.descendant(
           of: find.byType(AnimatedOpacity),
-          matching: find.byType(Container),
+          matching: find.byType(ColoredBox),
         ),
       );
 
-      expect(container.color, equals(const Color(0xB3000000)));
+      expect(coloredBox.color, equals(const Color(0xB3000000)));
     });
 
     testWidgets('displays countdown number centered', (tester) async {

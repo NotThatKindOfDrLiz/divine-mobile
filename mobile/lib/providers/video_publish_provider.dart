@@ -88,10 +88,7 @@ class VideoPublishNotifier extends Notifier<VideoPublishState> {
     required EditorVideo video,
     required VideoMetadata metadata,
   }) {
-    state = state.copyWith(
-      video: video,
-      videoMetadata: metadata,
-    );
+    state = state.copyWith(video: video, videoMetadata: metadata);
 
     Log.info(
       '📹 Video data loaded: ${metadata.resolution.width}x'

@@ -25,8 +25,7 @@ enum TimerDuration {
   three,
 
   /// 10 second delay.
-  ten
-  ;
+  ten;
 
   /// Icon representing the timer duration.
   IconData get icon => switch (this) {
@@ -59,8 +58,7 @@ enum DivineFlashMode {
   torch,
 
   /// Flash off mode.
-  off
-  ;
+  off;
 
   /// Icon representing the flash mode.
   IconData get icon => switch (this) {
@@ -110,6 +108,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         _cameraServiceOverride ??
         CameraService.create(
           onUpdateState: ({forceCameraRebuild}) {
+            // Don't update state if provider is being destroyed
+            if (_isDestroyed || !ref.mounted) return;
+
             updateState(
               cameraRebuildCount: forceCameraRebuild ?? false
                   ? state.cameraRebuildCount + 1
@@ -121,6 +122,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     // Setup cleanup when provider is disposed
     ref.onDispose(() async {
       if (!_isDestroyed) {
+        _isDestroyed = true; // Set flag before cleanup
         _focusPointTimer?.cancel();
         try {
           await _cameraService.dispose();
@@ -526,6 +528,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
 
   /// Update the state based on the current camera state.
   void updateState({int? cameraRebuildCount, model.AspectRatio? aspectRatio}) {
+    // Check if ref is still mounted before updating state
+    if (!ref.mounted) return;
+
     state = VideoRecorderUIState(
       cameraRebuildCount: cameraRebuildCount ?? state.cameraRebuildCount,
       countdownValue: 0,

@@ -221,10 +221,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
         width: 32,
         child: SvgPicture.asset(
           iconPath,
-          colorFilter: const ColorFilter.mode(
-            Colors.white,
-            BlendMode.srcIn,
-          ),
+          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
         ),
       ),
     );

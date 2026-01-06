@@ -167,33 +167,30 @@ class _MasonryGridState extends State<MasonryGrid> {
     return Row(
       spacing: widget.columnGap,
       crossAxisAlignment: .start,
-      children: List.generate(
-        widget.columnCount,
-        (columnIndex) {
-          final items = _columnItems[columnIndex];
-          // +1 for helper height box
-          final itemCount = items.length + 1;
+      children: List.generate(widget.columnCount, (columnIndex) {
+        final items = _columnItems[columnIndex];
+        // +1 for helper height box
+        final itemCount = items.length + 1;
 
-          return Expanded(
-            child: ListView.separated(
-              physics: const BouncingScrollPhysics(),
-              controller: _scrollControllers[columnIndex],
-              itemCount: itemCount,
-              separatorBuilder: (_, _) => SizedBox(height: widget.rowGap),
-              itemBuilder: (_, int itemIndex) {
-                // Last item is a helper box to equalize column heights for
-                // synchronized scrolling
-                if (itemIndex == itemCount - 1) {
-                  return SizedBox(height: helperRowHeight[columnIndex]);
-                }
+        return Expanded(
+          child: ListView.separated(
+            physics: const BouncingScrollPhysics(),
+            controller: _scrollControllers[columnIndex],
+            itemCount: itemCount,
+            separatorBuilder: (_, _) => SizedBox(height: widget.rowGap),
+            itemBuilder: (_, int itemIndex) {
+              // Last item is a helper box to equalize column heights for
+              // synchronized scrolling
+              if (itemIndex == itemCount - 1) {
+                return SizedBox(height: helperRowHeight[columnIndex]);
+              }
 
-                final childIndex = items[itemIndex];
-                return widget.children[childIndex];
-              },
-            ),
-          );
-        },
-      ),
+              final childIndex = items[itemIndex];
+              return widget.children[childIndex];
+            },
+          ),
+        );
+      }),
     );
   }
 

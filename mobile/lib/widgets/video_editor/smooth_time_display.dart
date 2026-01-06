@@ -64,38 +64,32 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
 
     // Listen to playing state changes
     ref
-      ..listenManual(
-        widget.isPlayingSelector,
-        (previous, next) async {
-          if (next) {
-            // Start ticker when playing
-            _lastUpdateTime = DateTime.now();
-            if (!_ticker.isActive) {
-              await _ticker.start();
-            }
-          } else {
-            // Stop ticker when paused
-            _ticker.stop();
-            if (mounted) {
-              setState(() {});
-            }
+      ..listenManual(widget.isPlayingSelector, (previous, next) async {
+        if (next) {
+          // Start ticker when playing
+          _lastUpdateTime = DateTime.now();
+          if (!_ticker.isActive) {
+            await _ticker.start();
           }
-        },
-      )
+        } else {
+          // Stop ticker when paused
+          _ticker.stop();
+          if (mounted) {
+            setState(() {});
+          }
+        }
+      })
       // Listen to position changes
-      ..listenManual(
-        widget.currentPositionSelector,
-        (previous, next) {
-          if ((next - _lastKnownPosition).abs() >
-              const Duration(milliseconds: 50)) {
-            _lastKnownPosition = next;
-            _lastUpdateTime = DateTime.now();
-            if (mounted) {
-              setState(() {});
-            }
+      ..listenManual(widget.currentPositionSelector, (previous, next) {
+        if ((next - _lastKnownPosition).abs() >
+            const Duration(milliseconds: 50)) {
+          _lastKnownPosition = next;
+          _lastUpdateTime = DateTime.now();
+          if (mounted) {
+            setState(() {});
           }
-        },
-      );
+        }
+      });
   }
 
   void _onTick(Duration elapsed) {
@@ -134,9 +128,6 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
           letterSpacing: 0.1,
         );
 
-    return Text(
-      _displayPosition.toFormattedSeconds(),
-      style: style,
-    );
+    return Text(_displayPosition.toFormattedSeconds(), style: style);
   }
 }

@@ -44,10 +44,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   void stopClipReordering() {
-    state = state.copyWith(
-      isReordering: false,
-      isOverDeleteZone: false,
-    );
+    state = state.copyWith(isReordering: false, isOverDeleteZone: false);
   }
 
   void setOverDeleteZone(bool isOver) {
@@ -143,10 +140,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
 
     ref.read(videoPublishProvider.notifier)
       ..reset()
-      ..setVideoData(
-        video: EditorVideo.file(outputPath),
-        metadata: metaData!,
-      );
+      ..setVideoData(video: EditorVideo.file(outputPath), metadata: metaData!);
 
     await context.pushVideoPublish();
   }
@@ -183,7 +177,6 @@ class VideoEditorNotifier extends Notifier<EditorState> {
           cropY = (resolution.height - cropHeight) / 2;
 
         case .vertical:
-        case null:
           // Center crop to 9:16 (portrait)
           final inputAspectRatio = resolution.width / resolution.height;
           const targetAspectRatio = 9.0 / 16.0;

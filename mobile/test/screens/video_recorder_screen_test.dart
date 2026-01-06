@@ -30,7 +30,7 @@ void main() {
     group('UI Components', () {
       testWidgets('renders camera preview widget', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -40,7 +40,7 @@ void main() {
 
       testWidgets('renders top bar widget', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -50,7 +50,7 @@ void main() {
 
       testWidgets('renders bottom bar widget', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -60,7 +60,7 @@ void main() {
 
       testWidgets('renders countdown overlay widget', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -72,7 +72,7 @@ void main() {
         tester,
       ) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -95,7 +95,7 @@ void main() {
     group('Initialization', () {
       testWidgets('initializes recording provider on mount', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -107,7 +107,7 @@ void main() {
 
       testWidgets('registers as WidgetsBindingObserver', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -118,7 +118,7 @@ void main() {
 
       testWidgets('camera preview receives correct radius', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -131,7 +131,7 @@ void main() {
 
       testWidgets('bottom bar receives correct radius', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -157,7 +157,7 @@ void main() {
                 () => VideoRecorderNotifier(mockCamera),
               ),
             ],
-            child: MaterialApp(home: VideoRecorderScreen()),
+            child: const MaterialApp(home: VideoRecorderScreen()),
           ),
         );
 
@@ -179,14 +179,14 @@ void main() {
 
       testWidgets('unregister observer on dispose', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
 
         // Remove the widget
         await tester.pumpWidget(
-          ProviderScope(
+          const ProviderScope(
             child: MaterialApp(home: Scaffold(body: Text('Other screen'))),
           ),
         );
@@ -199,7 +199,7 @@ void main() {
 
       testWidgets('destroys notifier on dispose', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -207,7 +207,7 @@ void main() {
 
         // Navigate away
         await tester.pumpWidget(
-          ProviderScope(
+          const ProviderScope(
             child: MaterialApp(home: Scaffold(body: Text('Other screen'))),
           ),
         );
@@ -224,7 +224,7 @@ void main() {
         tester,
       ) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -240,7 +240,7 @@ void main() {
 
       testWidgets('screen takes full available space', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -261,7 +261,7 @@ void main() {
             overrides: [
               videoRecorderProvider.overrideWith(() => VideoRecorderNotifier()),
             ],
-            child: MaterialApp(home: VideoRecorderScreen()),
+            child: const MaterialApp(home: VideoRecorderScreen()),
           ),
         );
 
@@ -274,7 +274,7 @@ void main() {
 
       testWidgets('maintains state during rebuilds', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -293,7 +293,7 @@ void main() {
     group('Widget Tree Structure', () {
       testWidgets('camera preview is the bottom-most layer', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -309,7 +309,7 @@ void main() {
 
       testWidgets('countdown overlay is the top-most layer', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -336,11 +336,11 @@ void main() {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => VideoRecorderScreen(),
+                          builder: (_) => const VideoRecorderScreen(),
                         ),
                       );
                     },
-                    child: Text('Open Camera'),
+                    child: const Text('Open Camera'),
                   ),
                 ),
               ),
@@ -356,14 +356,14 @@ void main() {
 
       testWidgets('can be popped from navigation stack', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
 
         // Simulate back navigation
         await tester.pumpWidget(
-          ProviderScope(
+          const ProviderScope(
             child: MaterialApp(home: Scaffold(body: Text('Home'))),
           ),
         );
@@ -379,7 +379,7 @@ void main() {
       testWidgets('handles missing provider gracefully', (tester) async {
         // This tests that the screen doesn't crash without proper setup
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();
@@ -401,7 +401,7 @@ void main() {
                 () => VideoRecorderNotifier(mockCamera),
               ),
             ],
-            child: MaterialApp(home: VideoRecorderScreen()),
+            child: const MaterialApp(home: VideoRecorderScreen()),
           ),
         );
 
@@ -427,7 +427,7 @@ void main() {
     group('Constants and Configuration', () {
       testWidgets('uses correct preview radius value', (tester) async {
         await tester.pumpWidget(
-          ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
+          const ProviderScope(child: MaterialApp(home: VideoRecorderScreen())),
         );
 
         await tester.pump();

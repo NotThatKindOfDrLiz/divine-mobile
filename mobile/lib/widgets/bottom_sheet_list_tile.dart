@@ -48,10 +48,7 @@ class BottomSheetListTile extends StatelessWidget {
         width: 32,
         child: SvgPicture.asset(
           iconPath,
-          colorFilter: ColorFilter.mode(
-            effectiveColor,
-            BlendMode.srcIn,
-          ),
+          colorFilter: ColorFilter.mode(effectiveColor, BlendMode.srcIn),
         ),
       ),
       title: Text(

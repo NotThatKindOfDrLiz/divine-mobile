@@ -7,7 +7,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 import 'package:models/models.dart' as vine show AspectRatio;
 import 'package:openvine/models/pending_upload.dart'
     show UploadStatus, PendingUpload;
@@ -19,12 +18,10 @@ import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/upload_manager.dart';
-import 'package:openvine/services/video_export_service.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_duration_extractor.dart';
 import 'package:openvine/widgets/upload_progress_dialog.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
@@ -244,7 +241,7 @@ class _VideoMetadataScreenPureState
           category: LogCategory.video,
         );
 
-        final exportService = VideoExportService();
+        /*  final exportService = VideoExportService(); */
         final previousPath = currentVideoPath;
 
         if (params.externalAudioIsBundled &&

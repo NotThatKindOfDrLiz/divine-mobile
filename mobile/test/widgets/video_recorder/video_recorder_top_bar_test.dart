@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
 
@@ -45,7 +46,14 @@ void main() {
     testWidgets('contains close button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is DivineIconButton &&
+              widget.semanticLabel == 'Close video recorder',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('contains segment bar', (tester) async {

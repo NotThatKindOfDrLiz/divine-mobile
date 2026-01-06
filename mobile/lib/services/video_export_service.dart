@@ -58,7 +58,7 @@ class VideoExportService {
       effectiveAspectRatio = clipsNeedingCrop.first.aspectRatio;
       Log.info(
         'Deferred crop detected: ${clipsNeedingCrop.length}/${clips.length} clips need cropping, '
-        'using aspectRatio=${effectiveAspectRatio?.name ?? "default"}',
+        'using aspectRatio=${effectiveAspectRatio.name}',
         name: 'VideoExportService',
         category: LogCategory.system,
       );
