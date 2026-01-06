@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/models/saved_clip.dart';
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -81,9 +83,9 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   /// Returns the created clip with unique ID.
   RecordingClip addClip({
     required EditorVideo video,
+    required model.AspectRatio aspectRatio,
     Duration? duration,
     String? thumbnailPath,
-    model.AspectRatio? aspectRatio,
   }) {
     final clip = RecordingClip(
       id: 'clip_${DateTime.now().millisecondsSinceEpoch}_${_clipCounter++}',
@@ -155,7 +157,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Reorder a single clip from oldIndex to newIndex.
   ///
-  /// Moves the clip at [oldIndex] to [newIndex], shifting other clips accordingly.
+  /// Moves the clip at [oldIndex] to [newIndex], shifting other clips
+  /// accordingly.
   void reorderClip(int oldIndex, int newIndex) {
     if (oldIndex < 0 ||
         oldIndex >= _clips.length ||
@@ -284,14 +287,61 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   }
 
   /// Save clip(s) to device library.
-  ///
-  /// TODO(@hm21): Implement save to Library feature.
-  /// Ask design-team first if only the last clip or all clips?
-  void saveClipToLibrary() {
+  Future<void> saveClipsToLibrary() async {
     Log.info(
-      '💾 Save to library requested (not yet implemented)',
+      '💾 Starting to save ${_clips.length} clips to library',
       name: 'ClipManagerNotifier',
       category: .video,
     );
+
+    try {
+      final clipService = ref.read(clipLibraryServiceProvider);
+      int savedCount = 0;
+
+      for (final clip in _clips) {
+        try {
+          final savedClip = SavedClip(
+            id: clip.id,
+            aspectRatio: clip.aspectRatio.name,
+            createdAt: DateTime.now(),
+            duration: clip.duration,
+            filePath: await clip.video.safeFilePath(),
+            thumbnailPath: clip.thumbnailPath,
+          );
+          await clipService.saveClip(savedClip);
+          savedCount++;
+
+          Log.debug(
+            '✅ Saved clip ${clip.id} to library (${clip.durationInSeconds}s)',
+            name: 'ClipManagerNotifier',
+            category: .video,
+          );
+        } catch (e, stackTrace) {
+          Log.error(
+            '❌ Failed to save clip ${clip.id}: $e',
+            name: 'ClipManagerNotifier',
+            category: .video,
+            error: e,
+            stackTrace: stackTrace,
+          );
+          // Continue saving other clips even if one fails
+        }
+      }
+
+      Log.info(
+        '💾 Successfully saved $savedCount/${_clips.length} clips to library',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to save clips to library: $e',
+        name: 'ClipManagerNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 }

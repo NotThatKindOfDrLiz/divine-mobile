@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
@@ -113,6 +114,10 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
         video: EditorVideo.file(clip.filePath),
         duration: clip.duration,
         thumbnailPath: clip.thumbnailPath,
+        aspectRatio: model.AspectRatio.values.firstWhere(
+          (el) => el.name == clip.aspectRatio,
+          orElse: () => .vertical,
+        ),
       );
     }
 

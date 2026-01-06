@@ -10,8 +10,8 @@ class RecordingClip {
     required this.video,
     required this.duration,
     required this.recordedAt,
+    required this.aspectRatio,
     this.thumbnailPath,
-    this.aspectRatio,
   });
 
   final String id;
@@ -21,7 +21,7 @@ class RecordingClip {
   final String? thumbnailPath;
 
   /// The target aspect ratio for this clip (used for deferred cropping)
-  final model.AspectRatio? aspectRatio;
+  final model.AspectRatio aspectRatio;
 
   double get durationInSeconds => duration.inMilliseconds / 1000.0;
 
@@ -50,7 +50,7 @@ class RecordingClip {
       'durationMs': duration.inMilliseconds,
       'recordedAt': recordedAt.toIso8601String(),
       'thumbnailPath': thumbnailPath,
-      'aspectRatio': aspectRatio?.name,
+      'aspectRatio': aspectRatio.name,
     };
   }
 
@@ -62,12 +62,10 @@ class RecordingClip {
       duration: Duration(milliseconds: json['durationMs'] as int),
       recordedAt: DateTime.parse(json['recordedAt'] as String),
       thumbnailPath: json['thumbnailPath'] as String?,
-      aspectRatio: aspectRatioName != null
-          ? model.AspectRatio.values.firstWhere(
-              (e) => e.name == aspectRatioName,
-              orElse: () => model.AspectRatio.square,
-            )
-          : null,
+      aspectRatio: model.AspectRatio.values.firstWhere(
+        (e) => e.name == aspectRatioName,
+        orElse: () => model.AspectRatio.square,
+      ),
     );
   }
 

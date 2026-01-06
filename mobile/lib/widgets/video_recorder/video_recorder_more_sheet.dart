@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
@@ -81,6 +82,10 @@ class _VideoRecorderMoreSheetState
             video: EditorVideo.file(clip.filePath),
             duration: clip.duration,
             thumbnailPath: clip.thumbnailPath,
+            aspectRatio: model.AspectRatio.values.firstWhere(
+              (el) => el.name == clip.aspectRatio,
+              orElse: () => .vertical,
+            ),
           );
 
       Log.info(
@@ -133,7 +138,7 @@ class _VideoRecorderMoreSheetState
               icon: Icons.download,
               title: 'Save clip to Library',
               enabled: hasClips,
-              onTap: clipsNotifier.saveClipToLibrary,
+              onTap: clipsNotifier.saveClipsToLibrary,
             ),
             _buildMenuItem(
               icon: Icons.undo,
