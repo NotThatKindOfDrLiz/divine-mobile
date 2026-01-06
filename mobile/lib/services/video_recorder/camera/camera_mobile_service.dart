@@ -359,6 +359,7 @@ class CameraMobileService extends CameraService {
     return CameraAwesomeBuilder.custom(
       saveConfig: SaveConfig.video(),
       progressIndicator: Container(color: const Color(0xFF141414)),
+      loadingWidget: const SizedBox.shrink(),
       builder: (state, preview) {
         // The builder callback is called multiple times during rebuilds.
         // We only want to load zoom limits once when the camera is first ready,
