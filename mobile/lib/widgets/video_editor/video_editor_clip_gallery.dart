@@ -120,7 +120,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     final clips = ref.read(clipManagerProvider).clips;
 
     // Check if pointer is over delete zone (bottom 80px of screen)
-    final screenHeight = MediaQuery.of(context).size.height;
+    final screenHeight = MediaQuery.sizeOf(context).height;
     final isOverDeleteZone = event.position.dy > screenHeight - 100;
     ref.read(videoEditorProvider.notifier).setOverDeleteZone(isOverDeleteZone);
 

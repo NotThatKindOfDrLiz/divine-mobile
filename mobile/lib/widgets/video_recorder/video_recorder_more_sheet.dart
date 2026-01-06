@@ -4,8 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/screens/clip_library_screen.dart';
-import 'package:openvine/utils/unified_logger.dart';
 
 /// Bottom sheet for managing recording clips.
 ///
@@ -22,35 +20,6 @@ class VideoRecorderMoreSheet extends ConsumerStatefulWidget {
 
 class _VideoRecorderMoreSheetState
     extends ConsumerState<VideoRecorderMoreSheet> {
-  /// Opens the clip library screen in selection mode.
-  ///
-  /// When a clip is selected, it is imported into the current recording.
-  Future<void> _showClipLibrary() async {
-    Log.info(
-      '📹 Opening clip library in selection mode',
-      name: 'VideoRecorderMoreSheet',
-      category: .video,
-    );
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF101111),
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: .vertical(top: .circular(32)),
-      ),
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => const ClipLibraryScreen(selectionMode: true),
-    );
-
-    Log.info(
-      '📹 Closed clip library',
-      name: 'VideoRecorderMoreSheet',
-      category: .video,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final hasClips = ref.watch(clipManagerProvider.select((p) => p.hasClips));
@@ -64,7 +33,9 @@ class _VideoRecorderMoreSheetState
             _buildMenuItem(
               icon: Icons.folder_open_outlined,
               title: 'Add clip from Library',
-              onTap: _showClipLibrary,
+              onTap: () => ref
+                  .read(clipManagerProvider.notifier)
+                  .pickFromLibrary(context),
             ),
             _buildMenuItem(
               icon: Icons.download,

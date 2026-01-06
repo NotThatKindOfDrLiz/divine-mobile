@@ -97,15 +97,18 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
             borderRadius: BorderRadius.circular(4),
             child: AspectRatio(
               aspectRatio: aspectRatio,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Thumbnail or placeholder
-                  _buildThumbnail(), // Duration badge - bottom left
-                  _buildDurationBadge(),
-                  // Selection check circle - top right
-                  if (widget.isSelected) ..._buildSelectionOverlay(),
-                ],
+              child: ColoredBox(
+                color: Colors.grey.shade800,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Thumbnail or placeholder
+                    _buildThumbnail(), // Duration badge - bottom left
+                    _buildDurationBadge(),
+                    // Selection check circle - top right
+                    if (widget.isSelected) ..._buildSelectionOverlay(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -124,17 +127,14 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
       future: _thumbnailExistsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == .waiting) {
-          return Container(
-            color: Colors.grey[800],
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.grey,
-                  ),
+          return const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Colors.grey,
                 ),
               ),
             ),
@@ -148,13 +148,10 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
           );
         }
 
-        return Container(
-          color: Colors.grey[800],
-          child: const Icon(
-            Icons.videocam,
-            color: Colors.grey,
-            size: 32,
-          ),
+        return const Icon(
+          Icons.videocam,
+          color: Colors.grey,
+          size: 32,
         );
       },
     );

@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/utils/video_editor_utils.dart';
 import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_editor/video_time_display.dart';
 
