@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/utils/video_editor_utils.dart';
-import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_editor/video_time_display.dart';
 
 /// Bottom bar with playback controls and time display.
@@ -45,13 +45,13 @@ class VideoEditorBottomBar extends ConsumerWidget {
                   Row(
                     spacing: 16,
                     children: [
-                      VideoEditorIconButton(
+                      DivineIconButton(
                         icon: state.isPlaying ? Icons.pause : Icons.play_arrow,
                         onTap: notifier.togglePlayPause,
                         semanticLabel: 'Play or pause video',
                       ),
                       if (state.isEditing)
-                        VideoEditorIconButton(
+                        DivineIconButton(
                           icon: Icons.cut_outlined,
                           onTap: () {
                             /// TODO(@hm21): Handle crop
@@ -59,14 +59,14 @@ class VideoEditorBottomBar extends ConsumerWidget {
                           semanticLabel: 'Crop',
                         )
                       else ...[
-                        VideoEditorIconButton(
+                        DivineIconButton(
                           icon: state.isMuted
                               ? Icons.volume_off
                               : Icons.volume_up,
                           onTap: notifier.toggleMute,
                           semanticLabel: 'Mute or unmute audio',
                         ),
-                        VideoEditorIconButton(
+                        DivineIconButton(
                           icon: Icons.more_horiz,
                           onTap: () => notifier.showMoreOptions(context),
                           semanticLabel: 'More options',

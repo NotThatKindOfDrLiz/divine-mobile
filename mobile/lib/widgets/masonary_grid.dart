@@ -1,5 +1,7 @@
-import 'dart:async';
+// ABOUTME: Masonry/Pinterest-style grid layout widget with synchronized scrolling
+// ABOUTME: Distributes children across columns with variable heights and linked scroll controllers
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
@@ -13,6 +15,7 @@ class MasonryGrid extends StatefulWidget {
   const MasonryGrid({
     required this.columnCount,
     required this.children,
+    this.itemAspectRatios,
     this.columnGap = 0.0,
     this.rowGap = 0.0,
     super.key,
@@ -30,6 +33,12 @@ class MasonryGrid extends StatefulWidget {
   /// The widgets to display in the grid.
   final List<Widget> children;
 
+  /// Optional aspect ratios for each child widget (width/height).
+  /// When provided, items are distributed to columns based on their heights
+  /// to create a more balanced layout. If null, items are distributed evenly
+  /// by count.
+  final List<double>? itemAspectRatios;
+
   @override
   State<MasonryGrid> createState() => _MasonryGridState();
 }
@@ -41,9 +50,15 @@ class _MasonryGridState extends State<MasonryGrid> {
   late List<double> helperRowHeight;
   late VoidCallback _scrollCallback;
 
+  /// Cached column distribution to avoid recalculating on every build.
+  late List<List<int>> _columnItems;
+
   @override
   void initState() {
     super.initState();
+
+    // Calculate initial column distribution
+    _columnItems = _distributeItemsToColumns();
 
     // Initialize linked scroll controller group for synchronized scrolling
     _controllers = LinkedScrollControllerGroup();
@@ -69,6 +84,17 @@ class _MasonryGridState extends State<MasonryGrid> {
         _calculateHelperRowHeights();
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(MasonryGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Recalculate distribution if children or aspect ratios changed
+    if (oldWidget.children.length != widget.children.length ||
+        !listEquals(widget.itemAspectRatios, oldWidget.itemAspectRatios)) {
+      _columnItems = _distributeItemsToColumns();
+    }
   }
 
   @override
@@ -138,42 +164,84 @@ class _MasonryGridState extends State<MasonryGrid> {
 
   @override
   Widget build(BuildContext context) {
-    final childrenCount = widget.children.length;
-    final columnCount = widget.columnCount;
-
-    // Calculate items per column: distribute children evenly
-    final baseItemCount = childrenCount ~/ columnCount;
-    final remainder = childrenCount % columnCount;
-
     return Row(
       spacing: widget.columnGap,
       crossAxisAlignment: .start,
       children: List.generate(
-        columnCount,
-        (row) {
-          final hasExtraItem = row < remainder;
-          // +1 for helper height
-          final itemCount = baseItemCount + (hasExtraItem ? 1 : 0) + 1;
+        widget.columnCount,
+        (columnIndex) {
+          final items = _columnItems[columnIndex];
+          // +1 for helper height box
+          final itemCount = items.length + 1;
 
           return Expanded(
             child: ListView.separated(
               physics: const BouncingScrollPhysics(),
-              controller: _scrollControllers[row],
+              controller: _scrollControllers[columnIndex],
               itemCount: itemCount,
               separatorBuilder: (_, _) => SizedBox(height: widget.rowGap),
-              itemBuilder: (_, int col) {
+              itemBuilder: (_, int itemIndex) {
                 // Last item is a helper box to equalize column heights for
                 // synchronized scrolling
-                if (col == itemCount - 1) {
-                  return SizedBox(height: helperRowHeight[row]);
+                if (itemIndex == itemCount - 1) {
+                  return SizedBox(height: helperRowHeight[columnIndex]);
                 }
 
-                return widget.children[(col * widget.columnCount) + row];
+                final childIndex = items[itemIndex];
+                return widget.children[childIndex];
               },
             ),
           );
         },
       ),
     );
+  }
+
+  /// Distributes items to columns by assigning each item to the
+  /// shortest column.
+  List<List<int>> _distributeItemsToColumns() {
+    final itemCount = widget.children.length;
+    final columnCount = widget.columnCount;
+
+    // If no aspect ratios provided, use simple even distribution
+    if (widget.itemAspectRatios == null) {
+      final columns = List.generate(columnCount, (_) => <int>[]);
+      for (var i = 0; i < itemCount; i++) {
+        columns[i % columnCount].add(i);
+      }
+      return columns;
+    }
+
+    // Initialize empty lists for each column
+    final columns = List.generate(columnCount, (_) => <int>[]);
+
+    // Track total height of each column based on aspect ratios
+    final columnHeights = List<double>.filled(columnCount, 0);
+
+    // Distribute each item to the shortest column
+    for (var i = 0; i < itemCount; i++) {
+      // Find the column with minimum height
+      var minHeight = columnHeights[0];
+      var minIndex = 0;
+
+      for (var j = 1; j < columnCount; j++) {
+        if (columnHeights[j] < minHeight) {
+          minHeight = columnHeights[j];
+          minIndex = j;
+        }
+      }
+
+      // Add item to shortest column
+      columns[minIndex].add(i);
+
+      // Add height based on aspect ratio (height = 1 / aspectRatio)
+      // For example: 9:16 (0.5625) -> height ~1.78, 1:1 (1.0) -> height 1.0
+      final aspectRatio = widget.itemAspectRatios![i];
+      final itemHeight = 1.0 / aspectRatio;
+      columnHeights[minIndex] +=
+          itemHeight + (widget.rowGap / 100); // Add small gap contribution
+    }
+
+    return columns;
   }
 }

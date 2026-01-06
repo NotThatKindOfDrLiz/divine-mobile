@@ -3,14 +3,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:models/models.dart' as model show AspectRatio;
-import 'package:openvine/models/saved_clip.dart';
-import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
-import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:pro_video_editor/pro_video_editor.dart';
 
 /// Bottom sheet for managing recording clips.
 ///
@@ -37,15 +32,16 @@ class _VideoRecorderMoreSheetState
       category: .video,
     );
 
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) => ClipLibraryScreen(
-          selectionMode: true,
-          onClipSelected: (clip) async {
-            await _importClipFromLibrary(clip);
-          },
-        ),
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF101111),
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: .vertical(top: .circular(32)),
       ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => const ClipLibraryScreen(selectionMode: true),
     );
 
     Log.info(
@@ -53,70 +49,6 @@ class _VideoRecorderMoreSheetState
       name: 'VideoRecorderMoreSheet',
       category: .video,
     );
-  }
-
-  /// Imports a saved [clip] from the library into the current recording.
-  ///
-  /// Verifies the file exists, adds it to the clip manager, and shows a
-  /// confirmation.
-  Future<void> _importClipFromLibrary(SavedClip clip) async {
-    try {
-      Log.info(
-        '📹 Importing clip from library: ${clip.id}',
-        name: 'VideoRecorderMoreSheet',
-        category: .video,
-      );
-
-      // Verify the file exists
-      final videoFile = File(clip.filePath);
-      if (!videoFile.existsSync()) {
-        throw Exception('Video file not found');
-      }
-
-      if (!mounted) return;
-
-      // Add to clip manager
-      ref
-          .read(clipManagerProvider.notifier)
-          .addClip(
-            video: EditorVideo.file(clip.filePath),
-            duration: clip.duration,
-            thumbnailPath: clip.thumbnailPath,
-            aspectRatio: model.AspectRatio.values.firstWhere(
-              (el) => el.name == clip.aspectRatio,
-              orElse: () => .vertical,
-            ),
-          );
-
-      Log.info(
-        '📹 Added clip from library: ${clip.filePath}, '
-        'duration: ${clip.duration.inMilliseconds}ms',
-        name: 'VideoRecorderMoreSheet',
-        category: .video,
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Clip added'),
-          backgroundColor: VineTheme.vineGreen,
-        ),
-      );
-    } catch (e) {
-      Log.error(
-        '📹 Failed to import clip: $e',
-        name: 'VideoRecorderMoreSheet',
-        category: .video,
-      );
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to import clip: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   @override

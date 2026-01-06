@@ -10,4 +10,11 @@ extension VideoEditorTimeUtils on Duration {
         .padLeft(2, '0');
     return '$seconds:$milliseconds';
   }
+
+  /// Formats duration as seconds with 2 decimal places.
+  ///
+  /// Example: Duration(seconds: 5, milliseconds: 730) → "5.73"
+  String toFormattedSeconds() {
+    return (inMilliseconds / 1000).toStringAsFixed(2);
+  }
 }

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
@@ -13,6 +14,11 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
+import 'package:openvine/utils/video_editor_utils.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
+import 'package:openvine/widgets/masonary_grid.dart';
+import 'package:openvine/widgets/video_clip/video_clip_preview_sheet.dart';
+import 'package:openvine/widgets/video_clip/video_clip_thumbnail_card.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:video_player/video_player.dart';
 
@@ -38,7 +44,9 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   bool _isLoading = true;
   // Always show selection checkboxes when not in single-selection mode
   // This makes multi-select the default behavior for better UX
-  Set<String> _selectedClipIds = {};
+  final Set<String> _selectedClipIds = {};
+
+  Duration _selectedDuration = .zero;
 
   @override
   void initState() {
@@ -46,11 +54,12 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     _loadClips();
   }
 
-  Future<void> _loadClips() async {
-    setState(() {
-      _isLoading = true;
-    });
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
+  Future<void> _loadClips() async {
     try {
       final clipService = ref.read(clipLibraryServiceProvider);
       final clips = await clipService.getAllClips();
@@ -70,6 +79,15 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     }
   }
 
+  Duration get _remainingDuration {
+    final remainingDuration = widget.selectionMode
+        ? ref.watch(
+            clipManagerProvider.select((s) => s.remainingDuration),
+          )
+        : const Duration(milliseconds: 6300);
+    return remainingDuration - _selectedDuration;
+  }
+
   String _buildAppBarTitle() {
     if (widget.selectionMode) {
       return 'Select Clip';
@@ -81,17 +99,18 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   }
 
   void _clearSelection() {
-    setState(() {
-      _selectedClipIds.clear();
-    });
+    setState(_selectedClipIds.clear);
+    _selectedDuration = .zero;
   }
 
-  void _toggleClipSelection(String clipId) {
+  void _toggleClipSelection(SavedClip clip) {
     setState(() {
-      if (_selectedClipIds.contains(clipId)) {
-        _selectedClipIds.remove(clipId);
+      if (_selectedClipIds.contains(clip.id)) {
+        _selectedClipIds.remove(clip.id);
+        _selectedDuration -= clip.duration;
       } else {
-        _selectedClipIds.add(clipId);
+        _selectedClipIds.add(clip.id);
+        _selectedDuration += clip.duration;
       }
     });
   }
@@ -105,79 +124,97 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     // Add selected clips to ClipManager
     final clipManagerNotifier = ref.read(clipManagerProvider.notifier);
 
-    // Clear existing clips first
-    clipManagerNotifier.clearAll();
+    if (!widget.selectionMode) {
+      // Clear existing clips first
+      clipManagerNotifier.clearAll();
+    }
 
     // Add each selected clip
     for (final clip in selectedClips) {
-      clipManagerNotifier.addClip(
-        video: EditorVideo.file(clip.filePath),
-        duration: clip.duration,
-        thumbnailPath: clip.thumbnailPath,
-        aspectRatio: model.AspectRatio.values.firstWhere(
-          (el) => el.name == clip.aspectRatio,
-          orElse: () => .vertical,
-        ),
-      );
+      // Skip if clip already exists in clip-manager
+      if (!clipManagerNotifier.clips.any((el) => el.id == clip.id)) {
+        clipManagerNotifier.addClip(
+          video: EditorVideo.file(clip.filePath),
+          duration: clip.duration,
+          thumbnailPath: clip.thumbnailPath,
+          aspectRatio: model.AspectRatio.values.firstWhere(
+            (el) => el.name == clip.aspectRatio,
+            orElse: () => .vertical,
+          ),
+        );
+      }
     }
 
-    // Navigate to ClipManager screen (push to preserve back navigation)
-    context.push('/clip-manager');
+    if (widget.selectionMode) {
+      context.pop();
+    } else {
+      // Navigate to ClipManager screen (push to preserve back navigation)
+      await context.push('/video-editor');
 
-    // Clear selection
-    _clearSelection();
+      // Clear selection
+      _clearSelection();
+    }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.black,
-    appBar: AppBar(
-      backgroundColor: VineTheme.vineGreen,
-      foregroundColor: VineTheme.whiteText,
-      title: Text(_buildAppBarTitle()),
-      actions: [
-        // Clear selection button when clips are selected
-        if (_selectedClipIds.isNotEmpty && !widget.selectionMode)
-          TextButton(
-            onPressed: _clearSelection,
-            child: const Text(
-              'Clear',
-              style: TextStyle(color: VineTheme.whiteText),
-            ),
-          ),
-        if (_selectedClipIds.isEmpty &&
-            _clips.isNotEmpty &&
-            !widget.selectionMode)
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: VineTheme.whiteText),
-            onSelected: (value) {
-              if (value == 'clear_all') {
-                _showClearAllConfirmation();
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear_all',
-                child: Row(
-                  children: [
-                    Icon(Icons.delete_sweep, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Clear All Clips'),
+    backgroundColor: const Color(0xFF101111),
+    appBar: widget.selectionMode
+        ? null
+        : AppBar(
+            backgroundColor: const Color(0xFF101111),
+            foregroundColor: VineTheme.whiteText,
+            title: Text(_buildAppBarTitle()),
+            actions: [
+              // Clear selection button when clips are selected
+              if (_selectedClipIds.isNotEmpty && !widget.selectionMode)
+                TextButton(
+                  onPressed: _clearSelection,
+                  child: const Text(
+                    'Clear',
+                    style: TextStyle(color: VineTheme.whiteText),
+                  ),
+                ),
+              if (_selectedClipIds.isEmpty &&
+                  _clips.isNotEmpty &&
+                  !widget.selectionMode)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: VineTheme.whiteText),
+                  onSelected: (value) async {
+                    if (value == 'clear_all') {
+                      await _showClearAllConfirmation();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'clear_all',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_sweep, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Clear All Clips'),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
-              ),
             ],
           ),
+    body: Column(
+      children: [
+        ?_buildClipSelectionHeader(),
+        Expanded(
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: VineTheme.vineGreen),
+                )
+              : _clips.isEmpty
+              ? _buildEmptyState()
+              : _buildMasonryLayout(),
+        ),
       ],
     ),
-    body: _isLoading
-        ? const Center(
-            child: CircularProgressIndicator(color: VineTheme.vineGreen),
-          )
-        : _clips.isEmpty
-        ? _buildEmptyState()
-        : _buildClipsGrid(),
-    floatingActionButton: _selectedClipIds.isNotEmpty
+    floatingActionButton: !widget.selectionMode && _selectedClipIds.isNotEmpty
         ? FloatingActionButton.extended(
             onPressed: _createVideoFromSelected,
             icon: const Icon(Icons.movie_creation),
@@ -219,76 +256,150 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
           'Your recorded video clips will appear here',
           style: TextStyle(color: Colors.grey[400], fontSize: 16),
         ),
-        const SizedBox(height: 32),
-        ElevatedButton.icon(
-          onPressed: () {
-            context.pushVideoRecorder();
-          },
-          icon: const Icon(Icons.videocam),
-          label: const Text('Record a Video'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: VineTheme.vineGreen,
-            foregroundColor: VineTheme.whiteText,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+        if (!widget.selectionMode) ...[
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await context.pushVideoRecorder();
+            },
+            icon: const Icon(Icons.videocam),
+            label: const Text('Record a Video'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: VineTheme.vineGreen,
+              foregroundColor: VineTheme.whiteText,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
-        ),
+        ],
       ],
     ),
   );
 
-  Widget _buildClipsGrid() => GridView.builder(
-    padding: const EdgeInsets.all(8),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 3,
-      crossAxisSpacing: 4,
-      mainAxisSpacing: 4,
-      childAspectRatio: 1.0,
-    ),
-    itemCount: _clips.length,
-    itemBuilder: (context, index) {
-      final clip = _clips[index];
-      return ClipThumbnailCard(
-        clip: clip,
-        isSelected: _selectedClipIds.contains(clip.id),
-        // Show checkboxes when not in single-selection mode
-        showCheckbox: !widget.selectionMode,
-        onTap: () => _handleClipTap(clip),
-        onLongPress: () => _showClipPreview(clip),
-      );
-    },
-  );
+  Widget? _buildClipSelectionHeader() {
+    final remainingDuration = widget.selectionMode
+        ? ref.watch(
+            clipManagerProvider.select((s) => s.remainingDuration),
+          )
+        : const Duration(milliseconds: 6300);
 
-  void _handleClipTap(SavedClip clip) {
-    if (widget.selectionMode) {
-      // Single selection mode from ClipManager - select and close
-      widget.onClipSelected?.call(clip);
-      Navigator.of(context).pop();
-    } else {
-      // Default behavior: toggle selection for multi-select
-      _toggleClipSelection(clip.id);
-    }
+    if (!widget.selectionMode) return null;
+    return Container(
+      padding: const .fromLTRB(16, 0, 16, 16),
+      decoration: const BoxDecoration(color: Color(0xFF101111)),
+      child: Row(
+        mainAxisSize: .min,
+        spacing: 16,
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Library',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontFamily: 'Bricolage Grotesque',
+                    fontWeight: FontWeight.w800,
+                    height: 1.33,
+                    letterSpacing: 0.15,
+                  ),
+                ),
+                Text.rich(
+                  TextSpan(
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontFamily: 'Inter',
+                      fontWeight: .w400,
+                      height: 1.43,
+                      letterSpacing: 0.25,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: '${remainingDuration.toFormattedSeconds()}s',
+                        style: TextStyle(
+                          color: Colors.white.withValues(
+                            alpha: _selectedClipIds.isNotEmpty ? 0.50 : 1,
+                          ),
+                          decoration: _selectedClipIds.isNotEmpty
+                              ? .lineThrough
+                              : null,
+                        ),
+                      ),
+                      if (_selectedClipIds.isNotEmpty)
+                        TextSpan(
+                          text: ' ${_remainingDuration.toFormattedSeconds()}s',
+                        ),
+                      const TextSpan(text: ' left'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          DivineIconButton(
+            semanticLabel: 'Add clips',
+            backgroundColor: const Color(0xFF000000),
+            iconSize: 32,
+            iconPath: 'assets/icon/add.svg',
+            onTap: _selectedClipIds.isNotEmpty
+                ? _createVideoFromSelected
+                : context.pop,
+          ),
+        ],
+      ),
+    );
   }
 
-  void _showClipPreview(SavedClip clip) {
-    showModalBottomSheet(
+  Widget _buildMasonryLayout() {
+    return Padding(
+      padding: const .symmetric(horizontal: 8),
+      child: MasonryGrid(
+        columnCount: 2,
+        rowGap: 4,
+        columnGap: 4,
+        itemAspectRatios: _clips
+            .map((clip) => clip.aspectRatio == 'vertical' ? 9 / 16 : 1.0)
+            .toList(),
+        children: _clips.map(
+          (clip) {
+            final isSelected = _selectedClipIds.contains(clip.id);
+            return VideoClipThumbnailCard(
+              clip: clip,
+              isSelected: isSelected,
+              disabled: !isSelected && clip.duration > _remainingDuration,
+              onTap: () => _toggleClipSelection(clip),
+              onLongPress: () => _showClipPreview(clip),
+            );
+          },
+        ).toList(),
+      ),
+    );
+  }
+
+  Future<void> _showClipPreview(SavedClip clip) async {
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ClipPreviewSheet(
+      builder: (context) => VideoClipPreviewSheet(
         clip: clip,
-        onDelete: () {
+        onDelete: () async {
           Navigator.of(context).pop();
-          _confirmDeleteClip(clip);
+          await _confirmDeleteClip(clip);
         },
       ),
     );
   }
 
-  void _confirmDeleteClip(SavedClip clip) {
-    showDialog(
+  Future<void> _confirmDeleteClip(SavedClip clip) async {
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
@@ -361,8 +472,8 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     }
   }
 
-  void _showClearAllConfirmation() {
-    showDialog(
+  Future<void> _showClearAllConfirmation() async {
+    await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.grey[900],
@@ -438,247 +549,5 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
         );
       }
     }
-  }
-}
-
-/// Thumbnail card for a single clip in the grid
-class ClipThumbnailCard extends StatelessWidget {
-  const ClipThumbnailCard({
-    super.key,
-    required this.clip,
-    required this.onTap,
-    required this.onLongPress,
-    this.isSelected = false,
-    this.showCheckbox = true,
-  });
-
-  final SavedClip clip;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-  final bool isSelected;
-  final bool showCheckbox;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      onLongPress: onLongPress,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? VineTheme.vineGreen : Colors.transparent,
-            width: 2,
-          ),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Thumbnail or placeholder
-              if (clip.thumbnailPath != null &&
-                  File(clip.thumbnailPath!).existsSync())
-                Image.file(File(clip.thumbnailPath!), fit: BoxFit.cover)
-              else
-                Container(
-                  color: Colors.grey[800],
-                  child: const Icon(
-                    Icons.videocam,
-                    color: Colors.grey,
-                    size: 32,
-                  ),
-                ),
-              // Duration badge
-              Positioned(
-                left: 4,
-                bottom: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '${clip.durationInSeconds.toStringAsFixed(1)}s',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              // Aspect ratio indicator
-              Positioned(
-                right: 4,
-                top: 4,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Icon(
-                    clip.aspectRatio == 'vertical'
-                        ? Icons.crop_portrait
-                        : Icons.crop_square,
-                    color: Colors.white,
-                    size: 12,
-                  ),
-                ),
-              ),
-              // Selection checkbox (always visible when showCheckbox is true)
-              if (showCheckbox)
-                Positioned(
-                  left: 4,
-                  top: 4,
-                  child: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isSelected
-                          ? VineTheme.vineGreen
-                          : Colors.black.withValues(alpha: 0.7),
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: isSelected
-                        ? const Icon(Icons.check, color: Colors.white, size: 16)
-                        : null,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Preview sheet for playing a clip
-class ClipPreviewSheet extends StatefulWidget {
-  const ClipPreviewSheet({
-    super.key,
-    required this.clip,
-    required this.onDelete,
-  });
-
-  final SavedClip clip;
-  final VoidCallback onDelete;
-
-  @override
-  State<ClipPreviewSheet> createState() => _ClipPreviewSheetState();
-}
-
-class _ClipPreviewSheetState extends State<ClipPreviewSheet> {
-  VideoPlayerController? _controller;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializePlayer();
-  }
-
-  Future<void> _initializePlayer() async {
-    final file = File(widget.clip.filePath);
-    if (!await file.exists()) {
-      return;
-    }
-
-    _controller = VideoPlayerController.file(file);
-    await _controller!.initialize();
-    await _controller!.setLooping(true);
-    await _controller!.play();
-
-    if (mounted) {
-      setState(() {
-        _isInitialized = true;
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      child: Column(
-        children: [
-          // Handle bar
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          // Video preview
-          Expanded(
-            child: _isInitialized && _controller != null
-                ? Center(
-                    child: AspectRatio(
-                      aspectRatio: _controller!.value.aspectRatio,
-                      child: VideoPlayer(_controller!),
-                    ),
-                  )
-                : const Center(
-                    child: CircularProgressIndicator(
-                      color: VineTheme.vineGreen,
-                    ),
-                  ),
-          ),
-          // Info and actions
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${widget.clip.durationInSeconds.toStringAsFixed(1)}s clip',
-                        style: const TextStyle(
-                          color: VineTheme.whiteText,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        widget.clip.displayDuration,
-                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: widget.onDelete,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

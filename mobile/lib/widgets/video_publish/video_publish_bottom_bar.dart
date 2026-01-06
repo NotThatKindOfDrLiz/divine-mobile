@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
-import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_editor/video_time_display.dart';
 
 /// Bottom control bar with playback controls and time display.
@@ -39,12 +39,12 @@ class VideoPublishBottomBar extends ConsumerWidget {
               spacing: 16,
               children: [
                 // Pause/Play button
-                VideoEditorIconButton(
+                DivineIconButton(
                   icon: state.isPlaying ? Icons.pause : Icons.play_arrow,
                   onTap: notifier.togglePlayPause,
                 ),
                 // Mute button
-                VideoEditorIconButton(
+                DivineIconButton(
                   icon: state.isMuted ? Icons.volume_off : Icons.volume_up,
                   onTap: notifier.toggleMute,
                 ),

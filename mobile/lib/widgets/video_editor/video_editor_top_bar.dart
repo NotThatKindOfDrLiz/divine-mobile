@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 
 /// Top bar with close button, clip counter, and done button.
 class VideoEditorTopBar extends ConsumerWidget {
@@ -34,13 +34,13 @@ class VideoEditorTopBar extends ConsumerWidget {
         children: [
           // Close/Back button
           if (state.isEditing)
-            VideoEditorIconButton(
+            DivineIconButton(
               icon: Icons.close,
               onTap: notifier.stopClipEditing,
               semanticLabel: 'Close video editor',
             )
           else
-            VideoEditorIconButton(
+            DivineIconButton(
               icon: Icons.videocam,
               onTap: () {
                 notifier.close();
@@ -65,13 +65,13 @@ class VideoEditorTopBar extends ConsumerWidget {
 
           // Done button
           if (state.isEditing)
-            VideoEditorIconButton(
+            DivineIconButton(
               icon: Icons.more_horiz,
               onTap: () => notifier.showMoreOptions(context),
               semanticLabel: 'More',
             )
           else
-            VideoEditorIconButton(
+            DivineIconButton(
               icon: Icons.arrow_forward,
               backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () => notifier.done(context),

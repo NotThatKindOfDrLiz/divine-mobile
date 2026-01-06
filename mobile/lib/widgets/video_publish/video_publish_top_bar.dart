@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/widgets/video_editor/video_editor_icon_button.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 
 /// Top navigation bar with back and publish buttons.
 class VideoPublishTopBar extends ConsumerWidget {
@@ -22,12 +22,12 @@ class VideoPublishTopBar extends ConsumerWidget {
           mainAxisAlignment: .spaceBetween,
           children: [
             // Back button
-            VideoEditorIconButton(
+            DivineIconButton(
               icon: Icons.arrow_back,
               onTap: context.pop,
             ),
             // Publish button
-            VideoEditorIconButton(
+            DivineIconButton(
               icon: Icons.send,
               backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () {

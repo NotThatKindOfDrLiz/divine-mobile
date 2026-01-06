@@ -2,12 +2,14 @@
 // ABOUTME: Customizable size, colors, and shadow styling
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 
-/// Rounded icon button used throughout the video editor.
-class VideoEditorIconButton extends StatelessWidget {
+/// Rounded icon button.
+class DivineIconButton extends StatelessWidget {
   /// Creates a video editor icon button.
-  const VideoEditorIconButton({
-    required this.icon,
+  const DivineIconButton({
+    this.icon,
+    this.iconPath,
     super.key,
     this.backgroundColor = const Color(0xFF101111),
     this.iconColor = Colors.white,
@@ -15,26 +17,29 @@ class VideoEditorIconButton extends StatelessWidget {
     this.size = 48,
     this.onTap,
     this.semanticLabel,
-  });
+  }) : assert(icon != null || iconPath != null, 'icon or iconPath is required');
 
   /// The icon to display.
-  final IconData icon;
-  
+  final IconData? icon;
+
+  /// The path to the assets svg-icon.
+  final String? iconPath;
+
   /// Background color of the button.
   final Color backgroundColor;
-  
+
   /// Color of the icon.
   final Color iconColor;
-  
+
   /// Size of the icon.
   final double iconSize;
-  
+
   /// Size of the button container.
   final double size;
-  
+
   /// Callback when the button is tapped.
   final VoidCallback? onTap;
-  
+
   /// Semantic label for accessibility.
   final String? semanticLabel;
 
@@ -65,7 +70,21 @@ class VideoEditorIconButton extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(icon, color: iconColor, size: iconSize),
+          child: icon != null
+              ? Icon(icon, color: iconColor, size: iconSize)
+              : Center(
+                  child: SizedBox(
+                    height: iconSize,
+                    width: iconSize,
+                    child: SvgPicture.asset(
+                      iconPath!,
+                      colorFilter: ColorFilter.mode(
+                        iconColor,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                ),
         ),
       ),
     );

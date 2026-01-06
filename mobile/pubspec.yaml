@@ -222,7 +222,9 @@ flutter:
     - assets/icon/CaretLeft.svg
     - assets/icon/house.svg
     - assets/icon/compass.svg
+    - assets/icon/add.svg
     - assets/icon/bell.svg
+    - assets/icon/check.svg
     - assets/icon/userCircle.svg
     - assets/loading-brand.gif
     - assets/seed_data/seed_events.sql
