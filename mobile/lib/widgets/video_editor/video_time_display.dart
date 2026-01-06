@@ -71,7 +71,7 @@ class VideoTimeDisplay extends ConsumerWidget {
           ),
           const TextSpan(text: ' / '),
           TextSpan(
-            text: '${totalDuration.toVideoTime()}s',
+            text: '${totalDuration.toFormattedSeconds()}s',
             style: defaultTotalStyle,
           ),
         ],

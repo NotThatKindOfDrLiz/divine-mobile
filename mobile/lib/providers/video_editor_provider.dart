@@ -9,7 +9,7 @@ import 'package:openvine/models/video_editor_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
-import 'package:openvine/widgets/video_editor/video_editor_meta_sheet.dart';
+import 'package:openvine/widgets/video_editor/meta/video_editor_meta_sheet.dart';
 import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -121,7 +121,10 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       backgroundColor: const Color(0xFF101111),
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (context) => const VideoEditorMetaSheet(),
+      useSafeArea: true,
+      builder: (context) => const VideoEditorMetaSheet(
+        // draftId: '',
+      ),
     );
 
     final outputPath = await completer.future;

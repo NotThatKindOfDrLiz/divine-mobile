@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/utils/video_editor_utils.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 /// A reusable smooth time display widget that interpolates video position
@@ -116,12 +117,6 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
     return _lastKnownPosition + elapsed;
   }
 
-  String _defaultFormatter(Duration duration) {
-    final seconds = duration.inSeconds;
-    final milliseconds = (duration.inMilliseconds % 1000) ~/ 10;
-    return '$seconds.${milliseconds.toString().padLeft(2, '0')}';
-  }
-
   @override
   void dispose() {
     _ticker.dispose();
@@ -130,7 +125,6 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
 
   @override
   Widget build(BuildContext context) {
-    final formatter = widget.formatter ?? _defaultFormatter;
     final style =
         widget.style ??
         const TextStyle(
@@ -141,7 +135,7 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
         );
 
     return Text(
-      formatter(_displayPosition),
+      _displayPosition.toFormattedSeconds(),
       style: style,
     );
   }
