@@ -41,6 +41,10 @@ import 'package:openvine/screens/video_detail_screen.dart';
 import 'package:openvine/screens/video_editor_screen.dart';
 import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
+import 'package:openvine/screens/clip_library_screen.dart';
+import 'package:openvine/screens/curated_list_feed_screen.dart';
+import 'package:openvine/screens/developer_options_screen.dart';
+import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/screens/video_publish_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
@@ -768,6 +772,40 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/video-publish',
         name: 'video-publish',
         builder: (_, _) => const VideoPublishScreen(),
+      ),
+      // Fullscreen video feed route (no bottom nav, used from profile/hashtag grids)
+      GoRoute(
+        path: '/video-feed',
+        name: 'video-feed',
+        builder: (ctx, st) {
+          final args = st.extra as FullscreenVideoFeedArgs?;
+          if (args == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Error')),
+              body: const Center(child: Text('No videos to display')),
+            );
+          }
+          return FullscreenVideoFeedScreen(
+            source: args.source,
+            initialIndex: args.initialIndex,
+            contextTitle: args.contextTitle,
+          );
+        },
+      ),
+      // Other user's profile screen (no bottom nav, pushed from feeds/search)
+      GoRoute(
+        path: '/profile-view/:npub',
+        name: 'profile-view',
+        builder: (ctx, st) {
+          final npub = st.pathParameters['npub'];
+          if (npub == null || npub.isEmpty) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Error')),
+              body: const Center(child: Text('Invalid profile ID')),
+            );
+          }
+          return OtherProfileScreen(npub: npub);
+        },
       ),
       // Fullscreen video feed route (no bottom nav, used from profile/hashtag grids)
       GoRoute(
