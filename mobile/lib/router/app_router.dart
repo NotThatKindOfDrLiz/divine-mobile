@@ -803,40 +803,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           return OtherProfileScreen(npub: npub);
         },
       ),
-      // Fullscreen video feed route (no bottom nav, used from profile/hashtag grids)
-      GoRoute(
-        path: '/video-feed',
-        name: 'video-feed',
-        builder: (ctx, st) {
-          final args = st.extra as FullscreenVideoFeedArgs?;
-          if (args == null) {
-            return Scaffold(
-              appBar: AppBar(title: const Text('Error')),
-              body: const Center(child: Text('No videos to display')),
-            );
-          }
-          return FullscreenVideoFeedScreen(
-            source: args.source,
-            initialIndex: args.initialIndex,
-            contextTitle: args.contextTitle,
-          );
-        },
-      ),
-      // Other user's profile screen (no bottom nav, pushed from feeds/search)
-      GoRoute(
-        path: '/profile-view/:npub',
-        name: 'profile-view',
-        builder: (ctx, st) {
-          final npub = st.pathParameters['npub'];
-          if (npub == null || npub.isEmpty) {
-            return Scaffold(
-              appBar: AppBar(title: const Text('Error')),
-              body: const Center(child: Text('Invalid profile ID')),
-            );
-          }
-          return OtherProfileScreen(npub: npub);
-        },
-      ),
     ],
   );
 });
