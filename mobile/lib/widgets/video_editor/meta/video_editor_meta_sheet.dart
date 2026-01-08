@@ -3,9 +3,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/models/vine_draft.dart';
+import 'package:go_router/go_router.dart';
+import 'package:openvine/models/video_editor/video_editor_meta.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -35,18 +37,20 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
   final TextEditingController _topicsController = TextEditingController();
   final List<String> _topics = [];
 
-  VineDraft? _currentDraft;
-
   /// TODO(@hm21): The current design didn't inclucde "AudioReuse" and expiring
   /// posts => Not required anymore??
 
   /// Per-video audio sharing override (null = not loaded)
   bool? _allowAudioReuse;
+  Duration? _expireTime;
 
   @override
   void initState() {
     super.initState();
     _loadDraft();
+
+    _titleController.addListener(_handleMetaChanges);
+    _descriptionController.addListener(_handleMetaChanges);
 
     Log.info(
       '📝 VideoEditorMetaSheet: Initialized',
@@ -71,27 +75,19 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
 
       final prefs = await SharedPreferences.getInstance();
       final draftService = DraftStorageService(prefs);
-      final drafts = await draftService.getAllDrafts();
-
-      final draft = drafts.firstWhere(
-        (d) => d.id == widget.draftId,
-        orElse: () {
-          Log.error(
-            '📝 Draft not found: ${widget.draftId}',
-            category: LogCategory.video,
+      final draft = await draftService.getDraftById(widget.draftId!);
+      if (draft == null) {
+        if (context.mounted) {
+          context.pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Draft not found'),
+              backgroundColor: Colors.red,
+            ),
           );
-          if (mounted) {
-            Navigator.of(context).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Draft not found'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-          throw StateError('Draft ${widget.draftId} not found');
-        },
-      );
+        }
+        throw StateError('Draft ${widget.draftId} not found');
+      }
 
       // Load the global audio sharing preference as default
       final audioSharingService = ref.read(
@@ -102,7 +98,6 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
       if (!mounted) return;
 
       setState(() {
-        _currentDraft = draft;
         _allowAudioReuse = defaultAudioSharing;
       });
 
@@ -117,7 +112,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
         ..addAll(draft.hashtags);
 
       Log.info(
-        '📝 VideoMetadataScreenPure: Loaded draft ${draft.id}, '
+        '📝 VideoEditorMetaSheet: Loaded draft ${draft.id}, '
         'audio sharing default: $defaultAudioSharing',
         category: LogCategory.video,
       );
@@ -132,6 +127,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
 
     if (trimmed.isNotEmpty && !_topics.contains(trimmed)) {
       _topics.add(trimmed);
+      _handleMetaChanges();
       setState(() {});
     }
   }
@@ -139,6 +135,18 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
   void _removeHashtag(String hashtag) {
     _topics.remove(hashtag);
     setState(() {});
+  }
+
+  void _handleMetaChanges() {
+    final meta = VideoEditorMeta(
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      hashtags: _topics,
+      allowAudioReuse: _allowAudioReuse ?? false,
+      expireTime: _expireTime,
+    );
+
+    ref.read(videoEditorProvider.notifier).setMetadata(meta);
   }
 
   @override

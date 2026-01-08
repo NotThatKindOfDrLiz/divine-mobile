@@ -2,26 +2,52 @@
 // ABOUTME: Exposes EditorNotifier for state mutations and reactive EditorState updates
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/models/video_editor/video_editor_meta.dart';
 import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/models/vine_draft.dart';
+import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
+import 'package:openvine/services/draft_storage_service.dart';
+import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:openvine/widgets/video_editor/meta/video_editor_meta_sheet.dart';
 import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final videoEditorProvider = NotifierProvider<VideoEditorNotifier, EditorState>(
   VideoEditorNotifier.new,
 );
 
 class VideoEditorNotifier extends Notifier<EditorState> {
+  String? _draftId;
+  VideoEditorMeta _metadata = VideoEditorMeta.draft();
+
   @override
   EditorState build() {
     return const EditorState();
+  }
+
+  Future<void> initialize({String? draftId}) async {
+    reset();
+
+    _draftId = draftId;
+    if (draftId != null && draftId.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+      final draft = await draftService.getDraftById(_draftId!);
+      if (draft != null) {
+        _metadata = VideoEditorMeta.fromVineDraft(draft);
+        ref.read(clipManagerProvider.notifier).addMultipleClips(draft.clips);
+      }
+    }
   }
 
   void selectClip(int index) {
@@ -75,19 +101,8 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(isMuted: !state.isMuted);
   }
 
-  void showMoreOptions(BuildContext context) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF101111),
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: .vertical(top: .circular(32)),
-      ),
-      builder: (context) => const VideoEditorMoreSheet(),
-    );
-  }
-
   void reset() {
+    _metadata = VideoEditorMeta.draft();
     state = const EditorState();
   }
 
@@ -102,8 +117,24 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(currentPosition: offset + position);
   }
 
-  void close() {
-    // Reset state or perform cleanup if needed
+  void setMetadata(VideoEditorMeta value) {
+    _metadata = value;
+  }
+
+  void setDraftId(String id) {
+    _draftId = id;
+  }
+
+  void showMoreOptions(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: const Color(0xFF101111),
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: .vertical(top: .circular(32)),
+      ),
+      builder: (context) => const VideoEditorMoreSheet(),
+    );
   }
 
   void done(BuildContext context) async {
@@ -119,9 +150,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       showDragHandle: true,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => const VideoEditorMetaSheet(
-        // draftId: '',
-      ),
+      builder: (context) => VideoEditorMetaSheet(draftId: _draftId),
     );
 
     final outputPath = await completer.future;
@@ -138,11 +167,42 @@ class VideoEditorNotifier extends Notifier<EditorState> {
 
     if (!validToPublish || !context.mounted) return;
 
+    final clipManager = ref.read(clipManagerProvider.notifier);
+    final clips = clipManager.clips;
+
+    final clip = RecordingClip(
+      id: 'clip-${DateTime.now()}',
+      video: EditorVideo.file(outputPath),
+      duration: metaData!.duration,
+      recordedAt: .now(),
+      aspectRatio: clips.first.aspectRatio,
+    );
+
     ref.read(videoPublishProvider.notifier)
       ..reset()
-      ..setVideoData(video: EditorVideo.file(outputPath), metadata: metaData!);
+      ..initialize(draft: await getDraft(clip));
 
     await context.pushVideoPublish();
+  }
+
+  Future<VineDraft> getDraft(RecordingClip clip) async {
+    final filePath = await clip.video.safeFilePath();
+    final proofData = await NativeProofModeService.proofFile(File(filePath));
+    String? proofManifestJson = proofData == null
+        ? null
+        : jsonEncode(proofData);
+
+    return VineDraft.create(
+      id: _draftId,
+      clips: [clip],
+      title: _metadata.title,
+      description: _metadata.description,
+      hashtags: _metadata.hashtags,
+      allowAudioReuse: _metadata.allowAudioReuse,
+      expireTime: _metadata.expireTime,
+      proofManifestJson: proofManifestJson,
+      selectedApproach: 'video',
+    );
   }
 
   Future<void> _renderVideo(Completer<String?> completer) async {
