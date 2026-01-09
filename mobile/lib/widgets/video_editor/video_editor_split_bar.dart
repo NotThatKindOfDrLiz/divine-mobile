@@ -23,22 +23,20 @@ class VideoEditorSplitBar extends ConsumerWidget {
       ),
     );
     final clipDuration = ref.watch(
-      clipManagerProvider.select(
-        (p) {
-          final clipIndex = videoEditorState.currentClipIndex;
+      clipManagerProvider.select((p) {
+        final clipIndex = videoEditorState.currentClipIndex;
 
-          if (clipIndex >= p.clips.length) {
-            assert(
-              false,
-              'Clip index $clipIndex is out of bounds. '
-              'Total clips: ${p.clips.length}',
-            );
-            return Duration.zero;
-          }
+        if (clipIndex >= p.clips.length) {
+          assert(
+            false,
+            'Clip index $clipIndex is out of bounds. '
+            'Total clips: ${p.clips.length}',
+          );
+          return Duration.zero;
+        }
 
-          return p.clips[clipIndex].duration;
-        },
-      ),
+        return p.clips[clipIndex].duration;
+      }),
     );
     const handleColor = Colors.white;
     final disabledColor = Colors.white.withAlpha(65);
@@ -104,11 +102,7 @@ class _TallRectangularThumbShape extends SliderComponentShape {
     // Offset by half the thumb width (2px) to align with track boundary
     final adjustedCenter = Offset(center.dx + 2, center.dy);
 
-    final rect = Rect.fromCenter(
-      center: adjustedCenter,
-      width: 4,
-      height: 32,
-    );
+    final rect = Rect.fromCenter(center: adjustedCenter, width: 4, height: 32);
 
     final paint = Paint()
       ..color = sliderTheme.thumbColor ?? Colors.white

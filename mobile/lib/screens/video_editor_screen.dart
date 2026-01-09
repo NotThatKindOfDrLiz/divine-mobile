@@ -77,9 +77,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
                           Consumer(
                             builder: (_, ref, _) {
                               final isEditing = ref.watch(
-                                videoEditorProvider.select(
-                                  (p) => p.isEditing,
-                                ),
+                                videoEditorProvider.select((p) => p.isEditing),
                               );
 
                               return Container(

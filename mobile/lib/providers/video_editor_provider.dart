@@ -21,7 +21,6 @@ import 'package:openvine/services/video_editor/video_editor_split_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_editor/meta/video_editor_meta_sheet.dart';
 import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -153,10 +152,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       name: 'VideoEditorNotifier',
       category: .video,
     );
-    state = state.copyWith(
-      isEditing: false,
-      isPlaying: false,
-    );
+    state = state.copyWith(isEditing: false, isPlaying: false);
   }
 
   /// Toggle between editing and viewing mode for the current clip.
@@ -243,11 +239,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
 
   /// Pause video playback.
   void pauseVideo() {
-    Log.debug(
-      '⏸️ Paused video',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
+    Log.debug('⏸️ Paused video', name: 'VideoEditorNotifier', category: .video);
     state = state.copyWith(isPlaying: false);
   }
 

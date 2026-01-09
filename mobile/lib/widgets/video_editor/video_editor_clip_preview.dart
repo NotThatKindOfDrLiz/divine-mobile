@@ -101,31 +101,23 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
       // Listen to trim-position changes
       ..listenManual(
         videoEditorProvider.select(
-          (state) => (
-            splitPosition: state.splitPosition,
-            isEditing: state.isEditing,
-          ),
+          (state) =>
+              (splitPosition: state.splitPosition, isEditing: state.isEditing),
         ),
-        (
-          previous,
-          next,
-        ) {
+        (previous, next) {
           if (!next.isEditing) return;
           _controller?.seekTo(next.splitPosition);
         },
       )
       // Listen to trim-position changes
-      ..listenManual(
-        videoEditorProvider.select((state) => state.isEditing),
-        (
-          previous,
-          next,
-        ) {
-          if (previous == next) return;
+      ..listenManual(videoEditorProvider.select((state) => state.isEditing), (
+        previous,
+        next,
+      ) {
+        if (previous == next) return;
 
-          _controller?.setLooping(!next);
-        },
-      );
+        _controller?.setLooping(!next);
+      });
   }
 
   Future<void> _initializeVideoPlayer() async {

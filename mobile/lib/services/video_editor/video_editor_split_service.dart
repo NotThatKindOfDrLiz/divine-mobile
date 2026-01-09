@@ -31,10 +31,7 @@ class VideoEditorSplitService {
   /// Validates if the split position is valid for the given clip.
   ///
   /// Both resulting clips must meet the minimum duration requirement.
-  static bool isValidSplitPosition(
-    RecordingClip clip,
-    Duration splitPosition,
-  ) {
+  static bool isValidSplitPosition(RecordingClip clip, Duration splitPosition) {
     return splitPosition >= minClipDuration &&
         clip.duration - splitPosition >= minClipDuration;
   }

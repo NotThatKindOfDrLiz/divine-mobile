@@ -128,22 +128,20 @@ class VideoEditorBottomBar extends ConsumerWidget {
 
                       if (state.isEditing) {
                         totalDuration = ref.watch(
-                          clipManagerProvider.select(
-                            (p) {
-                              final clipIndex = state.currentClipIndex;
+                          clipManagerProvider.select((p) {
+                            final clipIndex = state.currentClipIndex;
 
-                              if (clipIndex >= p.clips.length) {
-                                assert(
-                                  false,
-                                  'Clip index $clipIndex is out of bounds. '
-                                  'Total clips: ${p.clips.length}',
-                                );
-                                return Duration.zero;
-                              }
+                            if (clipIndex >= p.clips.length) {
+                              assert(
+                                false,
+                                'Clip index $clipIndex is out of bounds. '
+                                'Total clips: ${p.clips.length}',
+                              );
+                              return Duration.zero;
+                            }
 
-                              return p.clips[clipIndex].duration;
-                            },
-                          ),
+                            return p.clips[clipIndex].duration;
+                          }),
                         );
                       } else {
                         totalDuration = ref.watch(
