@@ -1,6 +1,8 @@
 // ABOUTME: Data model for a recorded video segment in the Clip Manager
 // ABOUTME: Supports ordering, thumbnails, crop metadata, and JSON serialization
 
+import 'dart:async';
+
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:pro_video_editor/pro_video_editor.dart';
 
@@ -12,6 +14,7 @@ class RecordingClip {
     required this.recordedAt,
     required this.aspectRatio,
     this.thumbnailPath,
+    this.processingCompleter,
   });
 
   final String id;
@@ -19,11 +22,14 @@ class RecordingClip {
   final Duration duration;
   final DateTime recordedAt;
   final String? thumbnailPath;
+  final Completer<bool>? processingCompleter;
 
   /// The target aspect ratio for this clip (used for deferred cropping)
   final model.AspectRatio aspectRatio;
 
   double get durationInSeconds => duration.inMilliseconds / 1000.0;
+  bool get isProcessing =>
+      processingCompleter != null && !processingCompleter!.isCompleted;
 
   RecordingClip copyWith({
     String? id,
@@ -32,6 +38,7 @@ class RecordingClip {
     DateTime? recordedAt,
     String? thumbnailPath,
     model.AspectRatio? aspectRatio,
+    Completer<bool>? processingCompleter,
   }) {
     return RecordingClip(
       id: id ?? this.id,
@@ -40,6 +47,7 @@ class RecordingClip {
       recordedAt: recordedAt ?? this.recordedAt,
       thumbnailPath: thumbnailPath ?? this.thumbnailPath,
       aspectRatio: aspectRatio ?? this.aspectRatio,
+      processingCompleter: processingCompleter ?? this.processingCompleter,
     );
   }
 

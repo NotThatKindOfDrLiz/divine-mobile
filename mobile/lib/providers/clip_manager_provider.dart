@@ -43,6 +43,10 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     return ClipManagerState();
   }
 
+  void refreshClips() {
+    state = state.copyWith(clips: List.unmodifiable(_clips));
+  }
+
   /// Start recording timer for active clip duration tracking.
   void startRecording() {
     _recordStopwatch
@@ -119,6 +123,21 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       clips: List.unmodifiable(_clips),
       activeRecordingDuration: .zero,
     );
+
+    return clip;
+  }
+
+  RecordingClip insertClip(int index, RecordingClip clip) {
+    _clips.insert(index, clip);
+    Log.info(
+      '📎 Insert clip: ${clip.id}, '
+      'position: $index '
+      'duration: ${clip.durationInSeconds}s',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
+
+    state = state.copyWith(clips: List.unmodifiable(_clips));
 
     return clip;
   }
@@ -235,6 +254,41 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     } else {
       Log.warning(
         '⚠️ Cannot update duration - clip not found: $clipId',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  void updateClipVideo(String clipId, EditorVideo video) {
+    final index = _clips.indexWhere((c) => c.id == clipId);
+    if (index != -1) {
+      _clips[index] = _clips[index].copyWith(video: video);
+      state = state.copyWith(clips: List.unmodifiable(_clips));
+    } else {}
+  }
+
+  void updateClipThumbnail(String clipId, String thumbnailPath) {
+    final index = _clips.indexWhere((c) => c.id == clipId);
+    if (index != -1) {
+      _clips[index] = _clips[index].copyWith(thumbnailPath: thumbnailPath);
+      state = state.copyWith(clips: List.unmodifiable(_clips));
+    } else {}
+  }
+
+  void refreshClip(RecordingClip clip) {
+    final index = _clips.indexWhere((c) => c.id == clip.id);
+    if (index != -1) {
+      _clips[index] = clip;
+      state = state.copyWith(clips: List.unmodifiable(_clips));
+      Log.debug(
+        '⏱️  Refreshed clip: ${clip.id}',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ Cannot refresh - clip not found: ${clip.id}',
         name: 'ClipManagerNotifier',
         category: .video,
       );

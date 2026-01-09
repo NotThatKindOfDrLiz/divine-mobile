@@ -1,5 +1,5 @@
-// ABOUTME: Displays individual video clip thumbnail with aspect ratio
-// ABOUTME: Shows thumbnail image or placeholder icon with rounded corners
+// ABOUTME: Displays individual video clip with preview and playback controls
+// ABOUTME: Manages video player lifecycle for the currently selected clip
 
 import 'dart:async';
 
@@ -8,9 +8,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/widgets/video_editor/video_editor_clip_processing_overlay.dart';
 import 'package:video_player/video_player.dart';
 
-/// Displays a video clip thumbnail with aspect ratio preserved.
+// TODO(@hm21): There is an issue that sometimes play/pause not working when editing the video.
+
+/// Displays a video clip preview with thumbnail and video playback.
+///
+/// When [isCurrentClip] is true:
+/// - Initializes video player for playback
+/// - Responds to play/pause state changes
+/// - Handles split position seeking in edit mode
+/// - Shows live video feed when playing
+///
+/// When not current:
+/// - Shows thumbnail or placeholder icon
+/// - Disposes video player to free resources
 class VideoClipPreview extends ConsumerStatefulWidget {
   /// Creates a video clip preview widget.
   const VideoClipPreview({
@@ -26,16 +39,19 @@ class VideoClipPreview extends ConsumerStatefulWidget {
   /// The clip to display.
   final RecordingClip clip;
 
-  /// Whether this is the currently selected/centered clip.
+  /// Whether this is the currently selected/playing clip.
   final bool isCurrentClip;
 
+  /// Whether clip reordering mode is active.
   final bool isReordering;
 
+  /// Whether the clip is being dragged over the deletion zone.
   final bool isDeletionZone;
 
   /// Callback when the clip is tapped.
   final VoidCallback? onTap;
 
+  /// Callback when the clip is long-pressed (for reordering).
   final VoidCallback? onLongPress;
 
   @override
@@ -54,27 +70,62 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
     // Only initialize if this is the current clip
     if (widget.isCurrentClip) {
       unawaited(_initializeVideoPlayer());
+      _setupListeners();
+    }
+  }
 
+  Future<void> _handlePlaybackStateChange(bool isPlaying) async {
+    if (_controller == null || !_isInitialized || !mounted) {
+      return;
+    }
+
+    final shouldPlay = widget.isCurrentClip && isPlaying;
+    await _videoPlayerListener();
+
+    if (shouldPlay && !_controller!.value.isPlaying) {
+      await _controller!.play();
+    } else if (!shouldPlay && _controller!.value.isPlaying) {
+      await _controller!.pause();
+    }
+  }
+
+  void _setupListeners() {
+    ref
       // Listen to play/pause state changes
-      ref.listenManual(videoEditorProvider.select((state) => state.isPlaying), (
+      ..listenManual(videoEditorProvider.select((state) => state.isPlaying), (
         previous,
         next,
       ) {
         _handlePlaybackStateChange(next);
-      });
-    }
-  }
+      })
+      // Listen to trim-position changes
+      ..listenManual(
+        videoEditorProvider.select(
+          (state) => (
+            splitPosition: state.splitPosition,
+            isEditing: state.isEditing,
+          ),
+        ),
+        (
+          previous,
+          next,
+        ) {
+          if (!next.isEditing) return;
+          _controller?.seekTo(next.splitPosition);
+        },
+      )
+      // Listen to trim-position changes
+      ..listenManual(
+        videoEditorProvider.select((state) => state.isEditing),
+        (
+          previous,
+          next,
+        ) {
+          if (previous == next) return;
 
-  void _handlePlaybackStateChange(bool isPlaying) {
-    if (_controller == null || !_isInitialized || !mounted) return;
-
-    final shouldPlay = widget.isCurrentClip && isPlaying;
-
-    if (shouldPlay && !_controller!.value.isPlaying) {
-      _controller!.play();
-    } else if (!shouldPlay && _controller!.value.isPlaying) {
-      _controller!.pause();
-    }
+          _controller?.setLooping(!next);
+        },
+      );
   }
 
   Future<void> _initializeVideoPlayer() async {
@@ -82,6 +133,7 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
 
     _controller = VideoPlayerController.file(File(videoPath));
     await _controller?.initialize();
+    if (mounted) await _controller?.setLooping(true);
 
     // Add listener to detect when video ends
     _controller?.addListener(_videoPlayerListener);
@@ -93,14 +145,19 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
     }
   }
 
-  void _videoPlayerListener() {
+  Future<void> _videoPlayerListener() async {
     if (_controller == null || !mounted) return;
 
+    final isEditing = ref.read(videoEditorProvider).isEditing;
+    final isPlaying = ref.read(videoEditorProvider).isPlaying;
+    final splitPosition = ref.read(videoEditorProvider).splitPosition;
     final notifier = ref.read(videoEditorProvider.notifier);
 
     // Check if video has ended
     final position = _controller!.value.position;
-    final duration = _controller!.value.duration;
+    final targetDuration = isEditing
+        ? splitPosition
+        : _controller!.value.duration;
 
     notifier.updatePosition(_controller!.value.position);
 
@@ -109,13 +166,16 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
       setState(() {});
     }
 
-    if (position >= duration &&
-        duration > Duration.zero &&
-        widget.isCurrentClip) {
-      // Video has finished playing - pause the playback state
-      notifier.pauseVideo();
-      _controller?.pause();
-      _controller?.seekTo(.zero);
+    if (isEditing &&
+        widget.isCurrentClip &&
+        position > targetDuration &&
+        targetDuration > Duration.zero) {
+      await _controller?.seekTo(.zero);
+      if (isPlaying) {
+        await _controller?.play();
+      } else {
+        await _controller?.pause();
+      }
     }
   }
 
@@ -220,6 +280,8 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                             ),
                           ),
                   ),
+
+                  VideoEditorClipProcessingOverlay(clip: widget.clip),
                 ],
               ),
             ),

@@ -9,6 +9,7 @@ import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clip_gallery.dart';
 import 'package:openvine/widgets/video_editor/video_editor_processing_overlay.dart';
 import 'package:openvine/widgets/video_editor/video_editor_progress_bar.dart';
+import 'package:openvine/widgets/video_editor/video_editor_split_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_top_bar.dart';
 
 /// Video editor screen for editing recorded video clips.
@@ -57,23 +58,39 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
           resizeToAvoidBottomInset: false,
           backgroundColor: Colors.black,
           body: _isLoadingDraft
-              ? Center(child: CircularProgressIndicator.adaptive())
+              ? const Center(child: CircularProgressIndicator.adaptive())
               : Stack(
                   children: [
-                    const SafeArea(
+                    SafeArea(
                       child: Column(
                         children: [
                           /// Top bar
-                          VideoEditorTopBar(),
+                          const VideoEditorTopBar(),
 
                           /// Main content area with clips
-                          Expanded(child: VideoEditorClipGallery()),
+                          const Expanded(child: VideoEditorClipGallery()),
 
                           /// Bottom bar
-                          VideoEditorBottomBar(),
+                          const VideoEditorBottomBar(),
 
-                          /// Progress bar
-                          VideoProgressBar(),
+                          /// Progress or Split bar
+                          Consumer(
+                            builder: (_, ref, _) {
+                              final isEditing = ref.watch(
+                                videoEditorProvider.select(
+                                  (p) => p.isEditing,
+                                ),
+                              );
+
+                              return Container(
+                                height: 40,
+                                padding: const .symmetric(horizontal: 16),
+                                child: isEditing
+                                    ? const VideoEditorSplitBar()
+                                    : const VideoProgressBar(),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),

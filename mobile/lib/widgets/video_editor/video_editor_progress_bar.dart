@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/theme/vine_theme.dart';
 
 /// Displays a progress bar showing all video clips as segments.
 class VideoProgressBar extends ConsumerStatefulWidget {
@@ -112,17 +113,13 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
       ),
     );
 
-    return Container(
-      height: 40,
-      padding: const .symmetric(horizontal: 16),
-      child: Row(
-        spacing: 3,
-        children: _buildSegments(
-          clips,
-          state.currentClipIndex,
-          state.isReordering,
-          _smoothPosition,
-        ),
+    return Row(
+      spacing: 3,
+      children: _buildSegments(
+        clips,
+        state.currentClipIndex,
+        state.isReordering,
+        _smoothPosition,
       ),
     );
   }
@@ -200,7 +197,7 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
                 child: Container(
                   height: 8,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF27C58B),
+                    color: VineTheme.tabIndicatorGreen,
                     borderRadius: .horizontal(
                       left: isFirst ? const .circular(999) : .zero,
                       right: clipProgress >= 0.99 && isLast

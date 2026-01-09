@@ -198,6 +198,8 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
         category: .video,
       );
 
+      if (!context.mounted) return;
+
       await publishService.publishVideo(
         ref: ref,
         context: context,
@@ -210,6 +212,7 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
         name: 'VideoPublishNotifier',
         category: .video,
       );
+      if (!context.mounted) return;
 
       context.goMyProfile();
     } catch (error, stackTrace) {

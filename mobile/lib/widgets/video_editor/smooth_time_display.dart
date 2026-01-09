@@ -82,7 +82,7 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
       // Listen to position changes
       ..listenManual(widget.currentPositionSelector, (previous, next) {
         if ((next - _lastKnownPosition).abs() >
-            const Duration(milliseconds: 50)) {
+            const Duration(milliseconds: 10)) {
           _lastKnownPosition = next;
           _lastUpdateTime = DateTime.now();
           if (mounted) {

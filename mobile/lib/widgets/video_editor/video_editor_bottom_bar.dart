@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/services/video_editor/video_editor_split_service.dart';
 import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_editor/video_time_display.dart';
 
@@ -12,12 +13,56 @@ import 'package:openvine/widgets/video_editor/video_time_display.dart';
 class VideoEditorBottomBar extends ConsumerWidget {
   /// Creates a video editor bottom bar widget.
   const VideoEditorBottomBar({super.key});
+  Future<void> _handleSplitClip(BuildContext context, WidgetRef ref) async {
+    final splitPosition = ref.read(videoEditorProvider).splitPosition;
+    final currentClipIndex = ref.read(videoEditorProvider).currentClipIndex;
+
+    final clips = ref.read(clipManagerProvider).clips;
+    if (currentClipIndex >= clips.length) {
+      return;
+    }
+
+    final selectedClip = clips[currentClipIndex];
+
+    // Check if clip is currently processing
+    if (selectedClip.isProcessing) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot split clip while it is being processed. Please wait.',
+          ),
+          duration: Duration(seconds: 2),
+          behavior: .floating,
+        ),
+      );
+      return;
+    }
+
+    // Validate split position
+    if (!VideoEditorSplitService.isValidSplitPosition(
+      selectedClip,
+      splitPosition,
+    )) {
+      const minDuration = VideoEditorSplitService.minClipDuration;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Split position invalid. Both clips must be at least '
+            '${minDuration.inMilliseconds}ms long.',
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: .floating,
+        ),
+      );
+      return;
+    }
+
+    // Proceed with split
+    await ref.read(videoEditorProvider.notifier).splitSelectedClip();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final totalDuration = ref.watch(
-      clipManagerProvider.select((state) => state.totalDuration),
-    );
     final state = ref.watch(
       videoEditorProvider.select(
         (state) => (
@@ -25,6 +70,8 @@ class VideoEditorBottomBar extends ConsumerWidget {
           isEditing: state.isEditing,
           isReordering: state.isReordering,
           isMuted: state.isMuted,
+          currentClipIndex: state.currentClipIndex,
+          splitPosition: state.splitPosition,
         ),
       ),
     );
@@ -54,9 +101,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                       if (state.isEditing)
                         DivineIconButton(
                           iconPath: 'assets/icon/trim.svg',
-                          onTap: () {
-                            /// TODO(@hm21): Handle crop
-                          },
+                          onTap: () => _handleSplitClip(context, ref),
                           semanticLabel: 'Crop',
                         )
                       else ...[
@@ -77,14 +122,50 @@ class VideoEditorBottomBar extends ConsumerWidget {
                   ),
 
                   // Time display
-                  VideoTimeDisplay(
-                    isPlayingSelector: videoEditorProvider.select(
-                      (s) => s.isPlaying,
-                    ),
-                    currentPositionSelector: videoEditorProvider.select(
-                      (s) => s.currentPosition,
-                    ),
-                    totalDuration: totalDuration,
+                  Consumer(
+                    builder: (_, ref, _) {
+                      Duration totalDuration = .zero;
+
+                      if (state.isEditing) {
+                        totalDuration = ref.watch(
+                          clipManagerProvider.select(
+                            (p) {
+                              final clipIndex = state.currentClipIndex;
+
+                              if (clipIndex >= p.clips.length) {
+                                assert(
+                                  false,
+                                  'Clip index $clipIndex is out of bounds. '
+                                  'Total clips: ${p.clips.length}',
+                                );
+                                return Duration.zero;
+                              }
+
+                              return p.clips[clipIndex].duration;
+                            },
+                          ),
+                        );
+                      } else {
+                        totalDuration = ref.watch(
+                          clipManagerProvider.select(
+                            (state) => state.totalDuration,
+                          ),
+                        );
+                      }
+
+                      return VideoTimeDisplay(
+                        key: ValueKey(state.isEditing),
+                        isPlayingSelector: videoEditorProvider.select(
+                          (s) => s.isPlaying && !s.isEditing,
+                        ),
+                        currentPositionSelector: state.isEditing
+                            ? videoEditorProvider.select((s) => s.splitPosition)
+                            : videoEditorProvider.select(
+                                (s) => s.currentPosition,
+                              ),
+                        totalDuration: totalDuration,
+                      );
+                    },
                   ),
                 ],
               ),

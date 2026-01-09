@@ -5,6 +5,7 @@ class EditorState {
   const EditorState({
     this.currentClipIndex = 0,
     this.currentPosition = .zero,
+    this.splitPosition = .zero,
     this.isEditing = false,
     this.isReordering = false,
     this.isOverDeleteZone = false,
@@ -15,6 +16,7 @@ class EditorState {
 
   final int currentClipIndex;
   final Duration currentPosition;
+  final Duration splitPosition;
 
   final bool isEditing;
   final bool isReordering;
@@ -29,6 +31,7 @@ class EditorState {
     bool? isOverDeleteZone,
     int? currentClipIndex,
     Duration? currentPosition,
+    Duration? splitPosition,
     bool? isPlaying,
     bool? isMuted,
     bool? isProcessing,
@@ -39,6 +42,7 @@ class EditorState {
       isOverDeleteZone: isOverDeleteZone ?? this.isOverDeleteZone,
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
       currentPosition: currentPosition ?? this.currentPosition,
+      splitPosition: splitPosition ?? this.splitPosition,
       isPlaying: isPlaying ?? this.isPlaying,
       isMuted: isMuted ?? this.isMuted,
       isProcessing: isProcessing ?? this.isProcessing,
