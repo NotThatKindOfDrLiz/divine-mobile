@@ -2,8 +2,8 @@
 // ABOUTME: Verifies settings navigation and UI structure
 
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
@@ -26,6 +26,11 @@ void main() {
       mockAuthService = MockAuthService();
       when(mockAuthService.isAuthenticated).thenReturn(true);
       when(mockAuthService.isAnonymous).thenReturn(true);
+      when(mockAuthService.currentPublicKeyHex).thenReturn('test_pubkey');
+      when(mockAuthService.authState).thenReturn(AuthState.authenticated);
+      when(
+        mockAuthService.authStateStream,
+      ).thenAnswer((_) => Stream.value(AuthState.authenticated));
     });
 
     testWidgets('Settings screen displays all sections', (tester) async {
@@ -34,6 +39,9 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(sharedPreferences),
             authServiceProvider.overrideWithValue(mockAuthService),
+            authStateStreamProvider.overrideWithValue(
+              const AsyncValue<AuthState>.data(AuthState.authenticated),
+            ),
           ],
           child: const MaterialApp(home: SettingsScreen()),
         ),
@@ -49,7 +57,12 @@ void main() {
     testWidgets('Settings tiles display correctly', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [authServiceProvider.overrideWithValue(mockAuthService)],
+          overrides: [
+            authServiceProvider.overrideWithValue(mockAuthService),
+            authStateStreamProvider.overrideWithValue(
+              const AsyncValue<AuthState>.data(AuthState.authenticated),
+            ),
+          ],
           child: const MaterialApp(home: SettingsScreen()),
         ),
       );

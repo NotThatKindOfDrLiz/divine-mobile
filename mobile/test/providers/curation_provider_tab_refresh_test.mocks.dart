@@ -6,7 +6,8 @@
 import 'dart:async' as _i6;
 import 'dart:ui' as _i10;
 
-import 'package:keycast_flutter/keycast_flutter.dart' as _i16;
+import 'package:keycast_flutter/keycast_flutter.dart' as _i17;
+import 'package:likes_repository/likes_repository.dart' as _i13;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
 import 'package:nostr_client/nostr_client.dart' as _i4;
@@ -14,13 +15,13 @@ import 'package:nostr_client/src/models/models.dart' as _i2;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i7;
 import 'package:openvine/models/video_event.dart' as _i9;
 import 'package:openvine/services/age_verification_service.dart' as _i12;
-import 'package:openvine/services/analytics_api_service.dart' as _i17;
+import 'package:openvine/services/analytics_api_service.dart' as _i18;
 import 'package:openvine/services/auth_service.dart' as _i3;
 import 'package:openvine/services/content_blocklist_service.dart' as _i11;
-import 'package:openvine/services/social_service.dart' as _i14;
-import 'package:openvine/services/user_profile_service.dart' as _i15;
+import 'package:openvine/services/social_service.dart' as _i15;
+import 'package:openvine/services/user_profile_service.dart' as _i16;
 import 'package:openvine/services/video_event_service.dart' as _i8;
-import 'package:openvine/services/video_filter_builder.dart' as _i13;
+import 'package:openvine/services/video_filter_builder.dart' as _i14;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -642,6 +643,13 @@ class MockVideoEventService extends _i1.Mock implements _i8.VideoEventService {
   );
 
   @override
+  void setLikesRepository(_i13.LikesRepository? likesRepository) =>
+      super.noSuchMethod(
+        Invocation.method(#setLikesRepository, [likesRepository]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
   bool shouldFilterEvent(_i7.Event? event) =>
       (super.noSuchMethod(
             Invocation.method(#shouldFilterEvent, [event]),
@@ -766,8 +774,8 @@ class MockVideoEventService extends _i1.Mock implements _i8.VideoEventService {
     int? limit = 200,
     bool? replace = true,
     bool? includeReposts = false,
-    _i13.VideoSortField? sortBy,
-    _i13.NIP50SortMode? nip50Sort,
+    _i14.VideoSortField? sortBy,
+    _i14.NIP50SortMode? nip50Sort,
     bool? force = false,
   }) =>
       (super.noSuchMethod(
@@ -841,7 +849,7 @@ class MockVideoEventService extends _i1.Mock implements _i8.VideoEventService {
   _i6.Future<void> subscribeToHomeFeed(
     List<String>? followingPubkeys, {
     int? limit = 100,
-    _i13.VideoSortField? sortBy,
+    _i14.VideoSortField? sortBy,
     bool? force = false,
   }) =>
       (super.noSuchMethod(
@@ -858,8 +866,8 @@ class MockVideoEventService extends _i1.Mock implements _i8.VideoEventService {
   @override
   _i6.Future<void> subscribeToDiscovery({
     int? limit = 100,
-    _i13.VideoSortField? sortBy,
-    _i13.NIP50SortMode? nip50Sort,
+    _i14.VideoSortField? sortBy,
+    _i14.NIP50SortMode? nip50Sort,
     bool? force = false,
   }) =>
       (super.noSuchMethod(
@@ -1250,7 +1258,7 @@ class MockVideoEventService extends _i1.Mock implements _i8.VideoEventService {
 /// A class which mocks [SocialService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSocialService extends _i1.Mock implements _i14.SocialService {
+class MockSocialService extends _i1.Mock implements _i15.SocialService {
   MockSocialService() {
     _i1.throwOnMissingStub(this);
   }
@@ -1272,12 +1280,12 @@ class MockSocialService extends _i1.Mock implements _i14.SocialService {
           as List<String>);
 
   @override
-  List<_i14.FollowSet> get followSets =>
+  List<_i15.FollowSet> get followSets =>
       (super.noSuchMethod(
             Invocation.getter(#followSets),
-            returnValue: <_i14.FollowSet>[],
+            returnValue: <_i15.FollowSet>[],
           )
-          as List<_i14.FollowSet>);
+          as List<_i15.FollowSet>);
 
   @override
   bool isLiked(String? eventId) =>
@@ -1318,9 +1326,9 @@ class MockSocialService extends _i1.Mock implements _i14.SocialService {
           as Map<String, int>?);
 
   @override
-  _i14.FollowSet? getFollowSetById(String? setId) =>
+  _i15.FollowSet? getFollowSetById(String? setId) =>
       (super.noSuchMethod(Invocation.method(#getFollowSetById, [setId]))
-          as _i14.FollowSet?);
+          as _i15.FollowSet?);
 
   @override
   bool isInFollowSet(String? setId, String? pubkey) =>
@@ -1375,7 +1383,7 @@ class MockSocialService extends _i1.Mock implements _i14.SocialService {
           as _i6.Future<Map<String, int>>);
 
   @override
-  _i6.Future<_i14.FollowSet?> createFollowSet({
+  _i6.Future<_i15.FollowSet?> createFollowSet({
     required String? name,
     String? description,
     String? imageUrl,
@@ -1388,9 +1396,9 @@ class MockSocialService extends _i1.Mock implements _i14.SocialService {
               #imageUrl: imageUrl,
               #initialPubkeys: initialPubkeys,
             }),
-            returnValue: _i6.Future<_i14.FollowSet?>.value(),
+            returnValue: _i6.Future<_i15.FollowSet?>.value(),
           )
-          as _i6.Future<_i14.FollowSet?>);
+          as _i6.Future<_i15.FollowSet?>);
 
   @override
   _i6.Future<bool> addToFollowSet(String? setId, String? pubkey) =>
@@ -1672,7 +1680,7 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
 
   @override
   _i6.Future<void> refreshCurrentProfile(
-    _i15.UserProfileService? userProfileService,
+    _i16.UserProfileService? userProfileService,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#refreshCurrentProfile, [userProfileService]),
@@ -1691,7 +1699,7 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
           as _i6.Future<void>);
 
   @override
-  _i6.Future<void> signInWithDivineOAuth(_i16.KeycastSession? session) =>
+  _i6.Future<void> signInWithDivineOAuth(_i17.KeycastSession? session) =>
       (super.noSuchMethod(
             Invocation.method(#signInWithDivineOAuth, [session]),
             returnValue: _i6.Future<void>.value(),
@@ -1757,7 +1765,7 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockAnalyticsApiService extends _i1.Mock
-    implements _i17.AnalyticsApiService {
+    implements _i18.AnalyticsApiService {
   MockAnalyticsApiService() {
     _i1.throwOnMissingStub(this);
   }
@@ -1781,7 +1789,7 @@ class MockAnalyticsApiService extends _i1.Mock
           as _i6.Future<List<_i9.VideoEvent>>);
 
   @override
-  _i6.Future<List<_i17.TrendingHashtag>> getTrendingHashtags({
+  _i6.Future<List<_i18.TrendingHashtag>> getTrendingHashtags({
     String? timeWindow = '24h',
     int? limit = 50,
     bool? forceRefresh = false,
@@ -1792,14 +1800,14 @@ class MockAnalyticsApiService extends _i1.Mock
               #limit: limit,
               #forceRefresh: forceRefresh,
             }),
-            returnValue: _i6.Future<List<_i17.TrendingHashtag>>.value(
-              <_i17.TrendingHashtag>[],
+            returnValue: _i6.Future<List<_i18.TrendingHashtag>>.value(
+              <_i18.TrendingHashtag>[],
             ),
           )
-          as _i6.Future<List<_i17.TrendingHashtag>>);
+          as _i6.Future<List<_i18.TrendingHashtag>>);
 
   @override
-  _i6.Future<List<_i17.TopCreator>> getTopCreators({
+  _i6.Future<List<_i18.TopCreator>> getTopCreators({
     String? timeWindow = '7d',
     int? limit = 50,
     bool? forceRefresh = false,
@@ -1810,11 +1818,11 @@ class MockAnalyticsApiService extends _i1.Mock
               #limit: limit,
               #forceRefresh: forceRefresh,
             }),
-            returnValue: _i6.Future<List<_i17.TopCreator>>.value(
-              <_i17.TopCreator>[],
+            returnValue: _i6.Future<List<_i18.TopCreator>>.value(
+              <_i18.TopCreator>[],
             ),
           )
-          as _i6.Future<List<_i17.TopCreator>>);
+          as _i6.Future<List<_i18.TopCreator>>);
 
   @override
   _i6.Future<List<_i9.VideoEvent>> getRelatedVideos({
