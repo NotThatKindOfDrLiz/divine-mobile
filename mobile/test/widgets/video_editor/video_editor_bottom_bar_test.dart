@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
@@ -28,7 +28,7 @@ void main() {
         overrides: [
           videoEditorProvider.overrideWith(
             () => TestVideoEditorNotifier(
-              EditorState(
+              VideoEditorProviderState(
                 isPlaying: isPlaying,
                 isEditing: isEditing,
                 isReordering: isReordering,
@@ -147,10 +147,10 @@ void main() {
 
 class TestVideoEditorNotifier extends VideoEditorNotifier {
   TestVideoEditorNotifier(this._state);
-  final EditorState _state;
+  final VideoEditorProviderState _state;
 
   @override
-  EditorState build() => _state;
+  VideoEditorProviderState build() => _state;
 
   @override
   void togglePlayPause() {}

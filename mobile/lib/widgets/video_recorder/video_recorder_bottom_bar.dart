@@ -96,10 +96,11 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     final isLongPressSupported = timerDuration == .off;
 
     return Semantics(
+      identifier: 'divine-camera-record-button',
       button: true,
+      // TODO(l10n): Replace with context.l10n when localization is added.
       label: isRecording ? 'Stop recording' : 'Start recording',
       child: GestureDetector(
-        key: const ValueKey('divine-camera-record-button'),
         onTap: notifier.toggleRecording,
         onLongPressStart: isLongPressSupported
             ? (_) => notifier.startRecording()
@@ -169,6 +170,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flash toggle
           _buildControlButton(
             iconPath: state.flashMode.iconPath,
+            // TODO(l10n): Replace with context.l10n when localization is added.
             label: 'Toggle flash',
             onPressed: state.hasFlash ? notifier.toggleFlash : null,
           ),
@@ -176,6 +178,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Timer toggle
           _buildControlButton(
             iconPath: state.timer.iconPath,
+            // TODO(l10n): Replace with context.l10n when localization is added.
             label: 'Cycle timer',
             onPressed: notifier.cycleTimer,
           ),
@@ -185,6 +188,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
             iconPath: state.aspectRatio == .square
                 ? 'assets/icon/crop_square.svg'
                 : 'assets/icon/crop_portrait.svg',
+            // TODO(l10n): Replace with context.l10n when localization is added.
             label: 'Toggle aspect ratio',
             onPressed: notifier.toggleAspectRatio,
           ),
@@ -192,6 +196,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // Flip camera
           _buildControlButton(
             iconPath: 'assets/icon/refresh.svg',
+            // TODO(l10n): Replace with context.l10n when localization is added.
             label: 'Switch camera',
             onPressed: state.canSwitchCamera ? notifier.switchCamera : null,
           ),
@@ -199,6 +204,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           // More options
           _buildControlButton(
             iconPath: 'assets/icon/more_horiz.svg',
+            // TODO(l10n): Replace with context.l10n when localization is added.
             label: 'More options',
             onPressed: () => _showMoreOptions(context),
           ),

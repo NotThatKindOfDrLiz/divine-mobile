@@ -33,6 +33,7 @@ class _VideoRecorderMoreSheetState
           children: [
             BottomSheetListTile(
               iconPath: 'assets/icon/folder_open.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Add clip from Library',
               onTap: () => ref
                   .read(clipManagerProvider.notifier)
@@ -40,17 +41,20 @@ class _VideoRecorderMoreSheetState
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/save.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Save clip to Library',
               onTap: hasClips ? clipsNotifier.saveClipsToLibrary : null,
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/undo.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Remove last clip',
               onTap: hasClips ? clipsNotifier.removeLastClip : null,
               color: const Color(0xFFF44336),
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/trash.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Clear all clips',
               onTap: hasClips ? clipsNotifier.clearAll : null,
               color: const Color(0xFFF44336),

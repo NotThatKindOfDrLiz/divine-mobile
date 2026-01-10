@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/video_publish/video_publish_state.dart';
-import 'package:openvine/models/video_publish_state.dart';
+import 'package:openvine/models/video_publish/video_publish_provider_state.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/router/nav_extensions.dart';

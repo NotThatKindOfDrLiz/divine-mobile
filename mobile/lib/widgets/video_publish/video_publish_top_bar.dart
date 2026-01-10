@@ -26,6 +26,7 @@ class VideoPublishTopBar extends ConsumerWidget {
             DivineIconButton(
               iconPath: 'assets/icon/close.svg',
               onTap: context.pop,
+              // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'Back to clip editing',
             ),
             // Publish button
@@ -34,6 +35,7 @@ class VideoPublishTopBar extends ConsumerWidget {
               backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () =>
                   ref.read(videoPublishProvider.notifier).publishVideo(context),
+              // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'Publish the video',
             ),
           ],

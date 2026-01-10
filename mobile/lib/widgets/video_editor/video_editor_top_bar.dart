@@ -37,12 +37,14 @@ class VideoEditorTopBar extends ConsumerWidget {
             DivineIconButton(
               iconPath: 'assets/icon/close.svg',
               onTap: notifier.stopClipEditing,
+              // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'Close video editor',
             )
           else
             DivineIconButton(
               iconPath: 'assets/icon/video_camera.svg',
               onTap: () => context.pop(),
+              // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'Go back to camera',
             ),
 
@@ -65,6 +67,7 @@ class VideoEditorTopBar extends ConsumerWidget {
             DivineIconButton(
               iconPath: 'assets/icon/more_horiz.svg',
               onTap: () => notifier.showMoreOptions(context),
+              // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'More',
             )
           else
@@ -72,6 +75,7 @@ class VideoEditorTopBar extends ConsumerWidget {
               iconPath: 'assets/icon/arrow_forward.svg',
               backgroundColor: VineTheme.tabIndicatorGreen,
               onTap: () => notifier.done(context),
+              // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'Done editing',
             ),
         ],

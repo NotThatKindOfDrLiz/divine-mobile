@@ -28,6 +28,7 @@ class VideoRecorderCameraPlaceholder extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
+                // TODO(l10n): Replace with context.l10n when localization is added.
                 isRecording ? 'Recording...' : 'Camera Preview',
                 style: TextStyle(
                   color: isRecording ? Colors.red : Colors.white54,

@@ -81,6 +81,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
           context.pop();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
+              // TODO(l10n): Replace with context.l10n when localization is added.
               content: Text('Draft not found'),
               backgroundColor: Colors.red,
             ),
@@ -172,6 +173,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text(
+                        // TODO(l10n): Replace with context.l10n when localization is added.
                         'Untitled video',
                         style: TextStyle(
                           fontFamily: 'BricolageGrotesque',
@@ -210,6 +212,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
 
             // Title field
             VideoEditorMetaInput(
+              // TODO(l10n): Replace with context.l10n when localization is added.
               label: 'Title',
               placeholder: 'Add a title...',
               controller: _titleController,
@@ -221,6 +224,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
 
             // Description field
             VideoEditorMetaInput(
+              // TODO(l10n): Replace with context.l10n when localization is added.
               label: 'Description',
               placeholder: 'Add a Description...',
               controller: _descriptionController,
@@ -236,6 +240,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
               children: [
                 Expanded(
                   child: VideoEditorMetaInput(
+                    // TODO(l10n): Replace with context.l10n when localization is added.
                     label: 'Topics',
                     placeholder: 'Add a Topic...',
                     controller: _topicsController,

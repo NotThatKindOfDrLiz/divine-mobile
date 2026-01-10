@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_progress_bar.dart';
@@ -35,7 +35,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(home: Scaffold(body: VideoProgressBar())),
@@ -79,7 +79,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(home: Scaffold(body: VideoProgressBar())),
@@ -116,7 +116,7 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                const EditorState(currentClipIndex: 2),
+                const VideoEditorProviderState(currentClipIndex: 2),
               ),
             ),
           ],
@@ -161,7 +161,7 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                const EditorState(isReordering: true),
+                const VideoEditorProviderState(isReordering: true),
               ),
             ),
           ],
@@ -206,7 +206,9 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                const EditorState(currentPosition: Duration(seconds: 5)),
+                const VideoEditorProviderState(
+                  currentPosition: Duration(seconds: 5),
+                ),
               ),
             ),
           ],
@@ -251,7 +253,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(home: Scaffold(body: VideoProgressBar())),
@@ -281,10 +283,10 @@ void main() {
 
 class TestVideoEditorNotifier extends VideoEditorNotifier {
   TestVideoEditorNotifier(this._state);
-  final EditorState _state;
+  final VideoEditorProviderState _state;
 
   @override
-  EditorState build() => _state;
+  VideoEditorProviderState build() => _state;
 }
 
 class TestClipManagerNotifier extends ClipManagerNotifier {

@@ -1,3 +1,6 @@
+// ABOUTME: Widget displaying current and total video time with separator
+// ABOUTME: Combines smooth interpolated current time with static total duration
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/utils/video_editor_utils.dart';

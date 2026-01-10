@@ -1,3 +1,6 @@
+// ABOUTME: Overlay widget showing processing indicator for video clips
+// ABOUTME: Displays circular progress indicator while clip is being processed/rendered
+
 import 'package:flutter/material.dart';
 import 'package:openvine/models/recording_clip.dart';
 

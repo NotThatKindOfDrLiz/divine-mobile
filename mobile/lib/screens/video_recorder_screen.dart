@@ -57,6 +57,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
+          // TODO(l10n): Replace with context.l10n when localization is added.
           'Camera and microphone permissions are required to record videos.',
         ),
         backgroundColor: Colors.red,

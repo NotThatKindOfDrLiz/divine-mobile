@@ -1,3 +1,6 @@
+// ABOUTME: Service for rendering final videos from multiple clips
+// ABOUTME: Handles aspect ratio cropping, clip concatenation, and export transformation
+
 import 'dart:async';
 import 'dart:ui';
 

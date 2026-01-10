@@ -1,3 +1,6 @@
+// ABOUTME: Metadata model for video editor containing publication info
+// ABOUTME: Stores title, description, hashtags, and privacy settings for videos
+
 import 'package:openvine/models/vine_draft.dart';
 
 /// Metadata for video editor including title, description, and settings.

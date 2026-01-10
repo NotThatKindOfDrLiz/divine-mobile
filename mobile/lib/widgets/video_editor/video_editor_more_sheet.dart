@@ -47,6 +47,7 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
           children: [
             BottomSheetListTile(
               iconPath: 'assets/icon/folder_open.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Add clip from Library',
               onTap: () => ref
                   .read(clipManagerProvider.notifier)
@@ -54,6 +55,7 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/save.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Save to Drafts',
               onTap: hasClips
                   ? () => ref
@@ -63,6 +65,7 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/trash.svg',
+              // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Delete clips & start over',
               onTap: hasClips ? _deleteAndStartOver : null,
               color: const Color(0xFFF44336),

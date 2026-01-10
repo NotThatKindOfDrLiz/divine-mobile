@@ -1,3 +1,6 @@
+// ABOUTME: Widget for smooth interpolated time display during video playback
+// ABOUTME: Uses Ticker for 60 FPS updates between position updates from video player
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -1,8 +1,15 @@
 // ABOUTME: Immutable state model for video editor managing text overlays, sound, and export progress
 // ABOUTME: Tracks editing state with export stages and computed properties for UI state
 
-class EditorState {
-  const EditorState({
+/// Immutable state model for the video editor.
+///
+/// Manages the complete editing state including:
+/// - Playback position and clip navigation
+/// - UI interaction states (editing, reordering, playing)
+/// - Audio settings
+/// - Processing status
+class VideoEditorProviderState {
+  const VideoEditorProviderState({
     this.currentClipIndex = 0,
     this.currentPosition = .zero,
     this.splitPosition = .zero,
@@ -14,18 +21,38 @@ class EditorState {
     this.isProcessing = false,
   });
 
+  /// Index of the currently active/selected clip (0-based).
   final int currentClipIndex;
+
+  /// Current playback position within the video timeline.
   final Duration currentPosition;
+
+  /// Position where a clip split operation will occur.
   final Duration splitPosition;
 
+  /// Whether the editor is in editing mode (e.g., trimming, adjusting).
   final bool isEditing;
+
+  /// Whether clips are being reordered by drag-and-drop.
   final bool isReordering;
+
+  /// Whether a dragged clip is over the delete zone during reordering.
   final bool isOverDeleteZone;
+
+  /// Whether video playback is currently active.
   final bool isPlaying;
+
+  /// Whether audio is muted during playback.
   final bool isMuted;
+
+  /// Whether a long-running operation (e.g., export, processing) is in progress.
   final bool isProcessing;
 
-  EditorState copyWith({
+  /// Creates a copy of this state with updated fields.
+  ///
+  /// All parameters are optional. Only provided fields will be updated,
+  /// others retain their current values.
+  VideoEditorProviderState copyWith({
     bool? isEditing,
     bool? isReordering,
     bool? isOverDeleteZone,
@@ -36,7 +63,7 @@ class EditorState {
     bool? isMuted,
     bool? isProcessing,
   }) {
-    return EditorState(
+    return VideoEditorProviderState(
       isEditing: isEditing ?? this.isEditing,
       isReordering: isReordering ?? this.isReordering,
       isOverDeleteZone: isOverDeleteZone ?? this.isOverDeleteZone,

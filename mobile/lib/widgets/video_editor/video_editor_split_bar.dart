@@ -1,3 +1,6 @@
+// ABOUTME: Interactive slider for selecting clip split position in video editor
+// ABOUTME: Custom styled Material Slider with tall rectangular thumb for precise trimming
+
 import 'dart:math';
 
 import 'package:flutter/material.dart';

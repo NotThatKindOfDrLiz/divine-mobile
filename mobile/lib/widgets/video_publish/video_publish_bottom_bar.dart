@@ -44,6 +44,7 @@ class VideoPublishBottomBar extends ConsumerWidget {
                       ? 'assets/icon/pause.svg'
                       : 'assets/icon/play.svg',
                   onTap: notifier.togglePlayPause,
+                  // TODO(l10n): Replace with context.l10n when localization is added.
                   semanticLabel: 'Play or pause video',
                 ),
                 // Mute button
@@ -52,6 +53,7 @@ class VideoPublishBottomBar extends ConsumerWidget {
                       ? 'assets/icon/volume_off.svg'
                       : 'assets/icon/volume_on.svg',
                   onTap: notifier.toggleMute,
+                  // TODO(l10n): Replace with context.l10n when localization is added.
                   semanticLabel: 'Mute or unmute audio',
                 ),
               ],

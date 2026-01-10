@@ -43,7 +43,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
 
       expect(
-        find.byKey(ValueKey('divine-camera-record-button')),
+        find.bySemanticsIdentifier('divine-camera-record-button'),
         findsOneWidget,
       );
     });

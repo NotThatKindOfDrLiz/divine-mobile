@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clip_gallery.dart';
@@ -36,7 +36,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(
@@ -74,7 +74,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(
@@ -108,7 +108,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(
@@ -144,7 +144,7 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                EditorState(currentClipIndex: currentIndex),
+                VideoEditorProviderState(currentClipIndex: currentIndex),
               ),
             ),
           ],
@@ -187,7 +187,7 @@ void main() {
       ];
 
       final notifier = MutableVideoEditorNotifier(
-        const EditorState(isPlaying: false),
+        const VideoEditorProviderState(isPlaying: false),
       );
 
       await tester.pumpWidget(
@@ -240,10 +240,10 @@ void main() {
 
 class TestVideoEditorNotifier extends VideoEditorNotifier {
   TestVideoEditorNotifier(this._state);
-  final EditorState _state;
+  final VideoEditorProviderState _state;
 
   @override
-  EditorState build() => _state;
+  VideoEditorProviderState build() => _state;
 }
 
 class TestClipManagerNotifier extends ClipManagerNotifier {
@@ -255,13 +255,14 @@ class TestClipManagerNotifier extends ClipManagerNotifier {
 }
 
 class MutableVideoEditorNotifier extends VideoEditorNotifier {
-  MutableVideoEditorNotifier(EditorState initialState) : _state = initialState;
-  EditorState _state;
+  MutableVideoEditorNotifier(VideoEditorProviderState initialState)
+    : _state = initialState;
+  VideoEditorProviderState _state;
 
   @override
-  EditorState build() => _state;
+  VideoEditorProviderState build() => _state;
 
-  void updateState(EditorState newState) {
+  void updateState(VideoEditorProviderState newState) {
     _state = newState;
     ref.notifyListeners();
   }

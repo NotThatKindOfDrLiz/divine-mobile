@@ -24,13 +24,23 @@ final clipManagerProvider =
       ClipManagerNotifier.new,
     );
 
+/// Manages recorded video clips for the video editor.
+///
+/// Handles clip recording, organization, and state management including:
+/// - Recording timer and duration tracking
+/// - Clip addition, deletion, and reordering
+/// - Thumbnail and metadata updates
+/// - Draft and library persistence
 class ClipManagerNotifier extends Notifier<ClipManagerState> {
+  /// Maximum allowed duration for a video composition (6.3 seconds).
   static const Duration maxDuration = Duration(milliseconds: 6_300);
 
   int _clipCounter = 0;
   Timer? _recordingDurationTimer;
   final _recordStopwatch = Stopwatch();
   final List<RecordingClip> _clips = [];
+
+  /// Returns an unmodifiable view of all clips.
   List<RecordingClip> get clips => List.unmodifiable(_clips);
 
   @override
@@ -39,12 +49,25 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       _recordingDurationTimer?.cancel();
       _recordStopwatch.stop();
       _clips.clear();
+      Log.debug(
+        '🧹 ClipManagerNotifier disposed',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
     });
     return ClipManagerState();
   }
 
+  /// Manually trigger a state refresh with current clips.
+  ///
+  /// Forces a rebuild of consumers without modifying clip data.
   void refreshClips() {
     state = state.copyWith(clips: List.unmodifiable(_clips));
+    Log.debug(
+      '🔄 Refreshed clips state',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
   }
 
   /// Start recording timer for active clip duration tracking.
@@ -87,6 +110,11 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   /// Reset recording stopwatch to zero.
   void resetRecording() {
     _recordStopwatch.reset();
+    Log.debug(
+      '🔄 Recording timer reset',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
   }
 
   /// Add a new recorded clip to the list.
@@ -127,6 +155,10 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     return clip;
   }
 
+  /// Insert a clip at a specific position.
+  ///
+  /// Adds [clip] at [index], shifting subsequent clips forward.
+  /// Returns the inserted clip.
   RecordingClip insertClip(int index, RecordingClip clip) {
     _clips.insert(index, clip);
     Log.info(
@@ -260,22 +292,53 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     }
   }
 
+  /// Update video for a clip (e.g., after trimming or editing).
+  ///
+  /// Replaces the EditorVideo instance for the clip with [clipId].
   void updateClipVideo(String clipId, EditorVideo video) {
     final index = _clips.indexWhere((c) => c.id == clipId);
     if (index != -1) {
       _clips[index] = _clips[index].copyWith(video: video);
       state = state.copyWith(clips: List.unmodifiable(_clips));
-    } else {}
+      Log.debug(
+        '🎬 Updated video for clip: $clipId',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ Cannot update video - clip not found: $clipId',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    }
   }
 
+  /// Update thumbnail path for a clip.
+  ///
+  /// Alternative method to [updateThumbnail] with same functionality.
   void updateClipThumbnail(String clipId, String thumbnailPath) {
     final index = _clips.indexWhere((c) => c.id == clipId);
     if (index != -1) {
       _clips[index] = _clips[index].copyWith(thumbnailPath: thumbnailPath);
       state = state.copyWith(clips: List.unmodifiable(_clips));
-    } else {}
+      Log.debug(
+        '🖼️  Updated thumbnail for clip: $clipId',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ Cannot update thumbnail - clip not found: $clipId',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    }
   }
 
+  /// Refresh an existing clip with new data.
+  ///
+  /// Replaces the entire clip instance at the matching ID position.
   void refreshClip(RecordingClip clip) {
     final index = _clips.indexWhere((c) => c.id == clip.id);
     if (index != -1) {
@@ -296,29 +359,46 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   }
 
   /// Select a clip for editing.
+  ///
+  /// Sets the currently selected clip ID. Pass null to deselect.
   void selectClip(String? clipId) {
     state = state.copyWith(selectedClipId: clipId);
+    Log.debug(
+      clipId == null ? '🔽 Deselected clip' : '🔼 Selected clip: $clipId',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
   }
 
   /// Remove the most recent clip (undo last recording).
+  ///
+  /// Safely removes only the last clip if any exist, otherwise logs debug message.
   void removeLastClip() {
     if (_clips.isEmpty) {
       Log.debug(
-        'Cannot remove last clip - no clips available',
+        '⚠️ Cannot remove last clip - no clips available',
         name: 'ClipManagerNotifier',
         category: .video,
       );
       return;
     }
     final lastClip = _clips.last;
+    Log.info(
+      '↩️  Removing last clip: ${lastClip.id}',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
     deleteClip(lastClip.id);
   }
 
   /// Remove all clips and reset state.
+  ///
+  /// Clears all recorded clips and resets to initial state.
   void clearAll() {
+    final clipCount = _clips.length;
     _clips.clear();
     Log.info(
-      '📎 Cleared all clips',
+      '🗑️  Cleared all clips (removed $clipCount clips)',
       name: 'ClipManagerNotifier',
       category: .video,
     );
@@ -327,11 +407,12 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Opens the clip library screen in selection mode.
   ///
-  /// When a clip is selected, it is imported into the current editing session.
+  /// Shows a modal bottom sheet with the clip library. When a clip is selected,
+  /// it is imported into the current editing session.
   Future<void> pickFromLibrary(BuildContext context) async {
     Log.info(
       '📹 Opening clip library in selection mode',
-      name: 'VideoEditorMoreSheet',
+      name: 'ClipManagerNotifier',
       category: .video,
     );
 
@@ -349,12 +430,15 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
     Log.info(
       '📹 Closed clip library',
-      name: 'VideoEditorMoreSheet',
+      name: 'ClipManagerNotifier',
       category: .video,
     );
   }
 
   /// Save clip(s) to device library.
+  ///
+  /// Iterates through all clips and saves them to the persistent clip library.
+  /// Continues saving remaining clips even if individual saves fail.
   Future<void> saveClipsToLibrary() async {
     Log.info(
       '💾 Starting to save ${_clips.length} clips to library',
@@ -414,10 +498,13 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   }
 
   /// Saves all clips to drafts.
+  ///
+  /// Creates a new [VineDraft] from current clips and saves it to persistent storage.
+  /// Shows a SnackBar on success or failure.
   Future<void> saveToDrafts(BuildContext context) async {
     Log.info(
-      '📹 Saving video to drafts',
-      name: 'VideoEditorMoreSheet',
+      '💾 Saving video to drafts (${_clips.length} clips)',
+      name: 'ClipManagerNotifier',
       category: .video,
     );
 
@@ -434,6 +521,12 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       await draftService.saveDraft(draft);
 
       ref.read(videoEditorProvider.notifier).setDraftId(draft.id);
+
+      Log.info(
+        '✅ Successfully saved draft: ${draft.id}',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
 
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

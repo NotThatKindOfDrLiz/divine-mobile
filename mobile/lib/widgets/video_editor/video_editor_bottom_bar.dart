@@ -29,6 +29,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
+            // TODO(l10n): Replace with context.l10n when localization is added.
             'Cannot split clip while it is being processed. Please wait.',
           ),
           duration: Duration(seconds: 2),
@@ -47,6 +48,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
+            // TODO(l10n): Replace with context.l10n when localization is added.
             'Split position invalid. Both clips must be at least '
             '${minDuration.inMilliseconds}ms long.',
           ),
@@ -96,6 +98,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                             ? 'assets/icon/pause.svg'
                             : 'assets/icon/play.svg',
                         onTap: notifier.togglePlayPause,
+                        // TODO(l10n): Replace with context.l10n when localization is added.
                         semanticLabel: 'Play or pause video',
                       ),
                       if (state.isEditing)
@@ -110,11 +113,13 @@ class VideoEditorBottomBar extends ConsumerWidget {
                               ? 'assets/icon/volume_off.svg'
                               : 'assets/icon/volume_on.svg',
                           onTap: notifier.toggleMute,
+                          // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'Mute or unmute audio',
                         ),
                         DivineIconButton(
                           iconPath: 'assets/icon/more_horiz.svg',
                           onTap: () => notifier.showMoreOptions(context),
+                          // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'More options',
                         ),
                       ],

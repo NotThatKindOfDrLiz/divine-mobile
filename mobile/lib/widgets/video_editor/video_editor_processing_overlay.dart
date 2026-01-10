@@ -51,6 +51,7 @@ class VideoEditorProcessingOverlay extends StatelessWidget {
 
               // Processing text
               const Text(
+                // TODO(l10n): Replace with context.l10n when localization is added.
                 'Processing...',
                 textAlign: .center,
                 style: TextStyle(

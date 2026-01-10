@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_editor/video_editor_meta.dart';
-import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
@@ -24,17 +24,37 @@ import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final videoEditorProvider = NotifierProvider<VideoEditorNotifier, EditorState>(
-  VideoEditorNotifier.new,
-);
+final videoEditorProvider =
+    NotifierProvider<VideoEditorNotifier, VideoEditorProviderState>(
+      VideoEditorNotifier.new,
+    );
 
-class VideoEditorNotifier extends Notifier<EditorState> {
+/// Manages video editor state and operations.
+///
+/// Handles:
+/// - Draft loading and saving
+/// - Clip selection and navigation
+/// - Clip editing (splitting, trimming)
+/// - Playback control
+/// - Video rendering and export
+/// - Metadata management
+class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
+  /// Current draft ID for save/load operations.
   String? _draftId;
+
+  /// Video metadata including title, description, hashtags.
   VideoEditorMeta _metadata = VideoEditorMeta.draft();
 
+  /// Get clip manager notifier.
+  ClipManagerNotifier get _clipManager =>
+      ref.read(clipManagerProvider.notifier);
+
+  /// Get clips from clip manager.
+  List<RecordingClip> get _clips => ref.read(clipManagerProvider).clips;
+
   @override
-  EditorState build() {
-    return const EditorState();
+  VideoEditorProviderState build() {
+    return const VideoEditorProviderState();
   }
 
   /// Initialize the video editor with an optional draft.
@@ -45,6 +65,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     reset();
 
     _draftId = draftId;
+    // If the editor screen is opened from a draft, we initialize it here.
     if (draftId != null && draftId.isNotEmpty) {
       Log.info(
         '🎬 Initializing video editor with draft ID: $draftId',
@@ -56,7 +77,7 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       final draft = await draftService.getDraftById(_draftId!);
       if (draft != null) {
         _metadata = VideoEditorMeta.fromVineDraft(draft);
-        ref.read(clipManagerProvider.notifier).addMultipleClips(draft.clips);
+        _clipManager.addMultipleClips(draft.clips);
         Log.info(
           '✅ Draft loaded with ${draft.clips.length} clip(s)',
           name: 'VideoEditorNotifier',
@@ -82,10 +103,8 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   ///
   /// Calculates the playback offset based on previous clips' durations.
   void selectClip(int index) {
-    final clipManager = ref.read(clipManagerProvider.notifier);
-
     // Calculate offset from all previous clips
-    final offset = clipManager.clips
+    final offset = _clips
         .take(index)
         .fold(Duration.zero, (sum, clip) => sum + clip.duration);
 
@@ -123,11 +142,6 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     state = state.copyWith(isReordering: false, isOverDeleteZone: false);
   }
 
-  /// Update whether a clip is being dragged over the delete zone.
-  void setOverDeleteZone(bool isOver) {
-    state = state.copyWith(isOverDeleteZone: isOver);
-  }
-
   /// Enter editing mode for the currently selected clip.
   ///
   /// Resets trim position to zero when entering edit mode.
@@ -137,11 +151,10 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       name: 'VideoEditorNotifier',
       category: .video,
     );
-    final clips = ref.read(clipManagerProvider).clips;
     state = state.copyWith(
       isEditing: true,
       isPlaying: false,
-      splitPosition: clips[state.currentClipIndex].duration ~/ 2,
+      splitPosition: _clips[state.currentClipIndex].duration ~/ 2,
     );
   }
 
@@ -156,6 +169,9 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   /// Toggle between editing and viewing mode for the current clip.
+  ///
+  /// Convenience method that calls [startClipEditing] or [stopClipEditing]
+  /// based on current state.
   void toggleClipEditing() {
     if (state.isEditing) {
       stopClipEditing();
@@ -164,14 +180,116 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     }
   }
 
+  /// Pause video playback.
+  ///
+  /// Sets isPlaying to false without affecting other state.
+  void pauseVideo() {
+    Log.debug('⏸️ Paused video', name: 'VideoEditorNotifier', category: .video);
+    state = state.copyWith(isPlaying: false);
+  }
+
+  /// Toggle between playing and paused states.
+  ///
+  /// Convenience method to start/stop playback based on current state.
+  void togglePlayPause() {
+    final newState = !state.isPlaying;
+    Log.debug(
+      newState ? '▶️ Playing video' : '⏸️ Paused video',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = state.copyWith(isPlaying: newState);
+  }
+
+  /// Update whether a clip is being dragged over the delete zone.
+  void setOverDeleteZone(bool isOver) {
+    if (state.isOverDeleteZone != isOver) {
+      Log.debug(
+        isOver ? '🗑️  Clip over delete zone' : '⬅️  Clip left delete zone',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
+    state = state.copyWith(isOverDeleteZone: isOver);
+  }
+
+  /// Seek to a specific position within the trim range.
+  ///
+  /// Pauses playback and updates the split position marker.
+  void seekToTrimPosition(Duration value) {
+    state = state.copyWith(splitPosition: value, isPlaying: false);
+  }
+
+  /// Toggle audio mute state.
+  ///
+  /// Mutes or unmutes audio playback for the video editor.
+  void toggleMute() {
+    final newState = !state.isMuted;
+    Log.debug(
+      newState ? '🔇 Muted audio' : '🔊 Unmuted audio',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = state.copyWith(isMuted: newState);
+  }
+
+  /// Reset editor state and metadata to defaults.
+  void reset() {
+    Log.debug(
+      '🔄 Resetting editor state',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    _metadata = VideoEditorMeta.draft();
+    state = const VideoEditorProviderState();
+  }
+
+  /// Update the current playback position.
+  ///
+  /// In editing mode, uses absolute position within the clip.
+  /// In viewing mode, adds offset from previous clips.
+  void updatePosition(Duration position) {
+    // Calculate offset from all previous clips
+    final offset = state.isEditing
+        ? Duration.zero
+        : _clips
+              .take(state.currentClipIndex)
+              .fold(Duration.zero, (sum, clip) => sum + clip.duration);
+
+    state = state.copyWith(currentPosition: offset + position);
+  }
+
+  /// Update video metadata (title, description, hashtags, etc.).
+  ///
+  /// Stores metadata for use when rendering and publishing the video.
+  void setMetadata(VideoEditorMeta value) {
+    Log.debug(
+      '📝 Updated video metadata',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    _metadata = value;
+  }
+
+  /// Set the draft ID for saving/loading.
+  ///
+  /// Associates this editing session with a persistent draft for auto-save.
+  void setDraftId(String id) {
+    Log.debug(
+      '💾 Set draft ID: $id',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    _draftId = id;
+  }
+
   /// Split the currently selected clip at the current split position.
   ///
   /// Creates two new clips and renders them in parallel. Both clips must
   /// meet the minimum duration requirement.
   Future<void> splitSelectedClip() async {
     final splitPosition = state.splitPosition;
-    final clips = ref.read(clipManagerProvider).clips;
-    final selectedClip = clips[state.currentClipIndex];
+    final selectedClip = _clips[state.currentClipIndex];
 
     // Validate split position
     if (!VideoEditorSplitService.isValidSplitPosition(
@@ -195,26 +313,24 @@ class VideoEditorNotifier extends Notifier<EditorState> {
 
     stopClipEditing();
 
-    final clipNotifier = ref.read(clipManagerProvider.notifier);
-
     try {
       await VideoEditorSplitService.splitClip(
         sourceClip: selectedClip,
         splitPosition: splitPosition,
         onClipsCreated: (startClip, endClip) {
           // Add clips to UI immediately so processing status is visible
-          clipNotifier
+          _clipManager
             ..refreshClip(startClip)
             ..insertClip(state.currentClipIndex + 1, endClip);
         },
         onThumbnailExtracted: (clip, thumbnailPath) {
           if (ref.mounted) {
-            clipNotifier.updateClipThumbnail(clip.id, thumbnailPath);
+            _clipManager.updateClipThumbnail(clip.id, thumbnailPath);
           }
         },
         onClipRendered: (clip, video) {
           if (ref.mounted) {
-            clipNotifier.updateClipVideo(clip.id, video);
+            _clipManager.updateClipVideo(clip.id, video);
             Log.debug(
               '✅ Clip rendered: ${clip.id}',
               name: 'VideoEditorNotifier',
@@ -237,88 +353,9 @@ class VideoEditorNotifier extends Notifier<EditorState> {
     }
   }
 
-  /// Pause video playback.
-  void pauseVideo() {
-    Log.debug('⏸️ Paused video', name: 'VideoEditorNotifier', category: .video);
-    state = state.copyWith(isPlaying: false);
-  }
-
-  /// Toggle between playing and paused states.
-  void togglePlayPause() {
-    final newState = !state.isPlaying;
-    Log.debug(
-      newState ? '▶️ Playing video' : '⏸️ Paused video',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = state.copyWith(isPlaying: newState);
-  }
-
-  /// Seek to a specific position within the trim range.
-  void seekToTrimPosition(Duration value) {
-    state = state.copyWith(splitPosition: value, isPlaying: false);
-  }
-
-  /// Toggle audio mute state.
-  void toggleMute() {
-    final newState = !state.isMuted;
-    Log.debug(
-      newState ? '🔇 Muted audio' : '🔊 Unmuted audio',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = state.copyWith(isMuted: newState);
-  }
-
-  /// Reset editor state and metadata to defaults.
-  void reset() {
-    Log.debug(
-      '🔄 Resetting editor state',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    _metadata = VideoEditorMeta.draft();
-    state = const EditorState();
-  }
-
-  /// Update the current playback position.
-  ///
-  /// In editing mode, uses absolute position within the clip.
-  /// In viewing mode, adds offset from previous clips.
-  void updatePosition(Duration position) {
-    final clipManager = ref.read(clipManagerProvider.notifier);
-
-    // Calculate offset from all previous clips
-    final offset = state.isEditing
-        ? Duration.zero
-        : clipManager.clips
-              .take(state.currentClipIndex)
-              .fold(Duration.zero, (sum, clip) => sum + clip.duration);
-
-    state = state.copyWith(currentPosition: offset + position);
-  }
-
-  /// Update video metadata (title, description, hashtags, etc.).
-  void setMetadata(VideoEditorMeta value) {
-    Log.debug(
-      '📝 Updated video metadata',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    _metadata = value;
-  }
-
-  /// Set the draft ID for saving/loading.
-  void setDraftId(String id) {
-    Log.debug(
-      '💾 Set draft ID: $id',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    _draftId = id;
-  }
-
   /// Show the more options bottom sheet.
+  ///
+  /// Displays additional editor options like save to drafts, clip library, etc.
   Future<void> showMoreOptions(BuildContext context) async {
     Log.debug(
       '⚙️ Showing more options sheet',
@@ -390,15 +427,12 @@ class VideoEditorNotifier extends Notifier<EditorState> {
       category: .video,
     );
 
-    final clipManager = ref.read(clipManagerProvider.notifier);
-    final clips = clipManager.clips;
-
     final clip = RecordingClip(
       id: 'clip-${DateTime.now()}',
       video: EditorVideo.file(outputPath),
       duration: metaData.duration,
       recordedAt: .now(),
-      aspectRatio: clips.first.aspectRatio,
+      aspectRatio: _clips.first.aspectRatio,
     );
 
     ref.read(videoPublishProvider.notifier)
@@ -416,10 +450,34 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   }
 
   /// Create a VineDraft from the rendered clip with metadata and proofmode data.
+  ///
+  /// Generates proofmode attestation for the video file and packages all
+  /// metadata into a draft ready for publication.
   Future<VineDraft> getDraft(RecordingClip clip) async {
     final filePath = await clip.video.safeFilePath();
+
+    Log.debug(
+      '🔐 Generating proofmode attestation for video',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
     final proofData = await NativeProofModeService.proofFile(File(filePath));
     final proofManifestJson = proofData == null ? null : jsonEncode(proofData);
+
+    if (proofData != null) {
+      Log.info(
+        '✅ Proofmode attestation generated',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ No proofmode data available',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
 
     return VineDraft.create(
       id: _draftId,
@@ -438,13 +496,30 @@ class VideoEditorNotifier extends Notifier<EditorState> {
   ///
   /// Applies center cropping based on target aspect ratio (square or vertical).
   Future<void> _renderVideo(Completer<String?> completer) async {
-    final clipManager = ref.read(clipManagerProvider.notifier);
-    final clips = clipManager.clips;
+    Log.info(
+      '🎥 Rendering ${_clips.length} clip(s) into final video',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
 
     final outputPath = await VideoEditorRenderService.renderVideo(
-      clips: clips,
-      aspectRatio: clips.first.aspectRatio,
+      clips: _clips,
+      aspectRatio: _clips.first.aspectRatio,
     );
+
+    if (outputPath != null) {
+      Log.info(
+        '✅ Video rendered to: $outputPath',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    } else {
+      Log.error(
+        '❌ Video rendering failed',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
 
     state = state.copyWith(isProcessing: false);
     completer.complete(outputPath);

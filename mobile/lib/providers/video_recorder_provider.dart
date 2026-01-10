@@ -18,8 +18,15 @@ import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
-/// Notifier that wraps VideoRecorderNotifier and provides reactive updates
-class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
+/// Notifier that wraps VideoRecorderNotifier and provides reactive updates.
+///
+/// Manages camera lifecycle, recording state, and UI interactions including:
+/// - Camera initialization and permissions
+/// - Recording start/stop with countdown timer
+/// - Focus, exposure, and zoom controls
+/// - Flash mode and aspect ratio toggles
+/// - Clip creation and thumbnail generation
+class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// Creates a video recorder notifier.
   ///
   /// [cameraService] is an optional camera service override for testing.
@@ -34,7 +41,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   bool _isDestroyed = false;
 
   @override
-  VideoRecorderUIState build() {
+  VideoRecorderProviderState build() {
     _cameraService =
         _cameraServiceOverride ??
         CameraService.create(
@@ -68,36 +75,63 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       }
     });
 
-    return const VideoRecorderUIState();
+    return const VideoRecorderProviderState();
   }
 
   /// Initialize camera and request permissions.
   ///
   /// Returns `true` if successful, `false` if permissions denied.
+  /// Optionally shows permission dialog if [context] is provided.
   Future<bool> initialize({BuildContext? context}) async {
     _isDestroyed = false;
+
+    Log.info(
+      '📹 Initializing video recorder',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
 
     // Check permissions using the dedicated service
     final hasPermissions = context != null && context.mounted
         ? await CameraPermissionService.ensurePermissionsWithDialog(context)
         : await CameraPermissionService.ensurePermissions();
     if (!hasPermissions) {
+      Log.warning(
+        '⚠️ Camera permissions denied',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
       return false;
     }
 
     await _cameraService.initialize();
     updateState(aspectRatio: .vertical);
 
+    Log.info(
+      '✅ Video recorder initialized successfully',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
+
     return true;
   }
 
   /// Handle app lifecycle changes (pause/resume).
+  ///
+  /// Pauses camera when app goes to background, resumes when returning.
   Future<void> handleAppLifecycleState(AppLifecycleState appState) async {
     await _cameraService.handleAppLifecycleState(appState);
   }
 
   /// Clean up resources and dispose camera service.
+  ///
+  /// Cancels timers and releases camera resources.
   Future<void> destroy() async {
+    Log.debug(
+      '🧹 Destroying video recorder',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
     _isDestroyed = true;
     _focusPointTimer?.cancel();
     await _cameraService.dispose();
@@ -114,9 +148,19 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     };
     final success = await _cameraService.setFlashMode(newMode);
     if (!success) {
+      Log.warning(
+        '⚠️ Failed to toggle flash mode',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
       return false;
     }
     state = state.copyWith(flashMode: newMode);
+    Log.debug(
+      '🔦 Flash mode changed to: ${newMode.name}',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
     return true;
   }
 
@@ -126,10 +170,16 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
         ? .vertical
         : .square;
 
+    Log.debug(
+      '📱 Aspect ratio changed to: ${newRatio.name}',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
+
     setAspectRatio(newRatio);
   }
 
-  /// Set aspect ratio for recording
+  /// Set aspect ratio for recording.
   void setAspectRatio(model.AspectRatio ratio) {
     state = state.copyWith(aspectRatio: ratio);
   }
@@ -214,6 +264,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Set camera exposure point (normalized 0.0-1.0 coordinates).
+  ///
+  /// Adjusts exposure metering to the specified point on the preview.
   Future<void> setExposurePoint(Offset value) async {
     final success = await _cameraService.setExposurePoint(value);
     if (!success) {
@@ -227,6 +279,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Toggle recording state (start if idle, stop if recording).
+  ///
+  /// Convenience method for record button - starts recording when idle,
+  /// stops when recording.
   Future<void> toggleRecording() async {
     switch (state.recordingState) {
       case .idle:
@@ -238,6 +293,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Start video recording with optional timer countdown.
+  ///
+  /// If timer duration is set, displays countdown before starting recording.
+  /// Notifies clip manager to begin tracking recording duration.
   Future<void> startRecording() async {
     _baseZoomLevel = state.zoomLevel;
     state = state.copyWith(recordingState: .recording);
@@ -271,6 +329,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Stop recording and process clip (metadata, thumbnail).
+  ///
+  /// Stops camera recording, extracts video metadata for exact duration,
+  /// generates thumbnail, and adds clip to clip manager.
   Future<void> stopRecording() async {
     if (!state.isRecording) return;
 
@@ -341,6 +402,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Adjust zoom by vertical drag distance during long press.
+  ///
+  /// Maps upward drag distance (0-240px) to zoom range from base level to max.
   Future<void> zoomByLongPressMove(Offset offsetFromOrigin) async {
     // At 240px drag distance, reach maxZoomLevel
     const maxDragDistance = 240.0;
@@ -354,10 +417,16 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     await setZoomLevel(zoomLevel);
   }
 
+  /// Handle pinch-to-zoom gesture start.
+  ///
+  /// Captures base zoom level for relative zoom calculations.
   void _handleScaleStart(ScaleStartDetails details) {
     _baseZoomLevel = state.zoomLevel;
   }
 
+  /// Handle pinch-to-zoom gesture update.
+  ///
+  /// Calculates zoom level based on pinch scale relative to base level.
   Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
     // Linear zoom: map scale gesture to zoom range
     // scale < 1.0 = zoom out, scale > 1.0 = zoom in
@@ -383,6 +452,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     }
   }
 
+  /// Handle tap gesture on preview for focus and exposure.
+  ///
+  /// Converts tap position to normalized coordinates and sets both
+  /// focus and exposure points simultaneously.
   Future<void> _handleTapDown(
     TapDownDetails details,
     BoxConstraints constraints,
@@ -394,7 +467,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     await Future.wait([setFocusPoint(offset), setExposurePoint(offset)]);
   }
 
-  /// Get the camera preview widget from the controller
+  /// Get the camera preview widget from the controller.
+  ///
+  /// Returns null if camera is not initialized. Widget includes gesture
+  /// handlers for focus, exposure, and zoom.
   Widget? get previewWidget => _cameraService.isInitialized
       ? _cameraService.buildPreviewWidget(
           onTapDown: _handleTapDown,
@@ -404,6 +480,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       : null;
 
   /// Close video recorder and navigate away.
+  ///
+  /// Pops navigation stack if possible, otherwise navigates home.
   void closeVideoRecorder(BuildContext context) {
     Log.info(
       '📹 X CANCEL - navigating away from camera',
@@ -434,11 +512,20 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
   }
 
   /// Update the state based on the current camera state.
+  ///
+  /// Synchronizes provider state with camera service state including
+  /// capabilities (flash, switch camera) and sensor properties.
   void updateState({int? cameraRebuildCount, model.AspectRatio? aspectRatio}) {
     // Check if ref is still mounted before updating state
     if (!ref.mounted) return;
 
-    state = VideoRecorderUIState(
+    Log.debug(
+      '🔄 Updating video recorder state',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
+
+    state = VideoRecorderProviderState(
       cameraRebuildCount: cameraRebuildCount ?? state.cameraRebuildCount,
       countdownValue: 0,
       zoomLevel: 1,
@@ -455,7 +542,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
     );
   }
 
-  /// Cycle timer duration
+  /// Cycle timer duration through off -> 3s -> 10s -> off.
   void cycleTimer() {
     final TimerDuration newTimer = switch (state.timerDuration) {
       .off => .three,
@@ -463,15 +550,26 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderUIState> {
       .ten => .off,
     };
     state = state.copyWith(timerDuration: newTimer);
+    Log.debug(
+      '⏱️  Timer duration changed to: ${newTimer.name}',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
   }
 
+  /// Reset state to initial values.
   void reset() {
-    state = VideoRecorderUIState();
+    Log.debug(
+      '🔄 Resetting video recorder state',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
+    state = VideoRecorderProviderState();
   }
 }
 
 /// Provider for video recorder state and operations.
 final videoRecorderProvider =
-    NotifierProvider<VideoRecorderNotifier, VideoRecorderUIState>(
+    NotifierProvider<VideoRecorderNotifier, VideoRecorderProviderState>(
       VideoRecorderNotifier.new,
     );

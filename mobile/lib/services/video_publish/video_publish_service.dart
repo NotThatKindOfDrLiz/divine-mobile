@@ -1,3 +1,6 @@
+// ABOUTME: Service for publishing videos to Nostr with upload management
+// ABOUTME: Handles video upload to Blossom servers, retry logic, and Nostr event creation
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

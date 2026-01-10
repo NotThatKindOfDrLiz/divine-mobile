@@ -146,7 +146,9 @@ void main() {
       final notifier = container.read(videoRecorderProvider.notifier);
 
       // Find record button
-      final recordButton = find.byKey(ValueKey('divine-camera-record-button'));
+      final recordButton = find.bySemanticsIdentifier(
+        'divine-camera-record-button',
+      );
       expect(recordButton, findsOneWidget);
 
       // Start long press (hold it - don't release yet)
@@ -200,7 +202,9 @@ void main() {
       final notifier = container.read(videoRecorderProvider.notifier);
 
       // Find record button
-      final recordButton = find.byKey(ValueKey('divine-camera-record-button'));
+      final recordButton = find.bySemanticsIdentifier(
+        'divine-camera-record-button',
+      );
       final buttonCenter = tester.getCenter(recordButton);
 
       // Start long press

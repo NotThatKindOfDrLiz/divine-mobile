@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/video_editor_state.dart';
+import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clip_preview.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -30,7 +30,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -62,7 +62,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -99,7 +99,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -133,7 +133,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const EditorState()),
+              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -158,8 +158,8 @@ void main() {
 
 class TestVideoEditorNotifier extends VideoEditorNotifier {
   TestVideoEditorNotifier(this._state);
-  final EditorState _state;
+  final VideoEditorProviderState _state;
 
   @override
-  EditorState build() => _state;
+  VideoEditorProviderState build() => _state;
 }

@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:models/models.dart' as model;
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/video_publish_state.dart';
+import 'package:openvine/models/video_publish/video_publish_provider_state.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/widgets/video_publish/video_publish_video_preview.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';

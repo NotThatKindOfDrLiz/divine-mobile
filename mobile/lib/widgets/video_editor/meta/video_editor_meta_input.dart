@@ -1,3 +1,6 @@
+// ABOUTME: Styled text input widget for video metadata entry
+// ABOUTME: Provides consistent design for title, description, and hashtag fields
+
 import 'package:flutter/material.dart';
 
 class VideoEditorMetaInput extends StatelessWidget {
