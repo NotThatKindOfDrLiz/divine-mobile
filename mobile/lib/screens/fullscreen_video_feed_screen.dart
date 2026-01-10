@@ -9,6 +9,8 @@ import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
+import 'package:openvine/providers/profile_originals_feed_provider.dart';
+import 'package:openvine/providers/profile_reposts_feed_provider.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:video_player/video_player.dart';
 
@@ -18,10 +20,24 @@ sealed class VideoFeedSource {
   const VideoFeedSource();
 }
 
-/// Profile feed source - videos from a specific user
+/// Profile feed source - ALL videos from a specific user (originals + reposts)
 /// Watches profileFeedProvider for reactive updates when loadMore is called
 class ProfileFeedSource extends VideoFeedSource {
   const ProfileFeedSource(this.userId);
+  final String userId;
+}
+
+/// Profile originals feed source - only original videos from a user
+/// Watches profileOriginalsFeedProvider for reactive updates
+class ProfileOriginalsFeedSource extends VideoFeedSource {
+  const ProfileOriginalsFeedSource(this.userId);
+  final String userId;
+}
+
+/// Profile reposts feed source - only reposted videos from a user
+/// Watches profileRepostsFeedProvider for reactive updates
+class ProfileRepostsFeedSource extends VideoFeedSource {
+  const ProfileRepostsFeedSource(this.userId);
   final String userId;
 }
 
@@ -108,6 +124,12 @@ class _FullscreenVideoFeedScreenState
       case ProfileFeedSource(:final userId):
         final feedState = ref.watch(profileFeedProvider(userId));
         return feedState.asData?.value.videos ?? [];
+      case ProfileOriginalsFeedSource(:final userId):
+        final feedState = ref.watch(profileOriginalsFeedProvider(userId));
+        return feedState.asData?.value.videos ?? [];
+      case ProfileRepostsFeedSource(:final userId):
+        final feedState = ref.watch(profileRepostsFeedProvider(userId));
+        return feedState.asData?.value.videos ?? [];
       case StaticFeedSource(:final videos):
         return videos;
     }
@@ -119,6 +141,10 @@ class _FullscreenVideoFeedScreenState
     switch (source) {
       case ProfileFeedSource(:final userId):
         ref.read(profileFeedProvider(userId).notifier).loadMore();
+      case ProfileOriginalsFeedSource(:final userId):
+        ref.read(profileOriginalsFeedProvider(userId).notifier).loadMore();
+      case ProfileRepostsFeedSource(:final userId):
+        ref.read(profileRepostsFeedProvider(userId).notifier).loadMore();
       case StaticFeedSource(:final onLoadMore):
         // Static source uses callback for loading more
         onLoadMore?.call();

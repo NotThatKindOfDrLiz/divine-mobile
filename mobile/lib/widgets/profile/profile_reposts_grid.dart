@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/profile_reposts_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
+import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
 import 'package:openvine/widgets/video_tile_renderer.dart';
 
@@ -39,8 +39,10 @@ class ProfileRepostsGrid extends ConsumerWidget {
                 video: video,
                 aspectRatio: 1,
                 onTap: () {
-                  final npub = NostrKeyUtils.encodePubKey(userIdHex);
-                  context.goProfile(npub, idx);
+                  context.pushVideoFeed(
+                    source: ProfileRepostsFeedSource(userIdHex),
+                    initialIndex: idx,
+                  );
                 },
                 badge: Container(
                   padding: const EdgeInsets.all(4),

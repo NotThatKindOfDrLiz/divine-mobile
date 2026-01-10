@@ -44,7 +44,7 @@ class ProfileVideosGrid extends ConsumerWidget {
           videos: originalVideos,
           onVideoTap: (videosList, idx) {
             context.pushVideoFeed(
-              source: ProfileFeedSource(userIdHex),
+              source: ProfileOriginalsFeedSource(userIdHex),
               initialIndex: idx,
             );
           },
@@ -56,7 +56,7 @@ class ProfileVideosGrid extends ConsumerWidget {
             video: video,
             aspectRatio: 1,
             onTap: () => context.pushVideoFeed(
-              source: ProfileFeedSource(userIdHex),
+              source: ProfileOriginalsFeedSource(userIdHex),
               initialIndex: idx,
             ),
             showInfo: false,
