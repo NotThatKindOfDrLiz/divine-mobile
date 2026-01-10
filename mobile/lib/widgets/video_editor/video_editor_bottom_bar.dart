@@ -105,6 +105,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                         DivineIconButton(
                           iconPath: 'assets/icon/trim.svg',
                           onTap: () => _handleSplitClip(context, ref),
+                          // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'Crop',
                         )
                       else ...[

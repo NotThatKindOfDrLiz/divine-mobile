@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
-import 'package:openvine/widgets/video_editor/video_editor_clip_gallery.dart';
+import 'package:openvine/widgets/video_editor/gallery/video_editor_clip_gallery.dart';
 import 'package:openvine/widgets/video_editor/video_editor_processing_overlay.dart';
 import 'package:openvine/widgets/video_editor/video_editor_progress_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_split_bar.dart';
