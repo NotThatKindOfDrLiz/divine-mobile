@@ -1,15 +1,14 @@
 // ABOUTME: Grid widget displaying user's reposted videos on profile page
 // ABOUTME: Shows 3-column grid with thumbnails and repost badge indicator
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/profile_reposts_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
-import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/composable_video_grid.dart';
+import 'package:openvine/widgets/video_tile_renderer.dart';
 
 /// Grid widget displaying user's reposted videos
 class ProfileRepostsGrid extends ConsumerWidget {
@@ -29,27 +28,33 @@ class ProfileRepostsGrid extends ConsumerWidget {
 
         return CustomScrollView(
           slivers: [
-            SliverPadding(
+            ComposableVideoGrid.sliver(
+              videos: reposts,
+              onVideoTap: (_, __) {},
+              crossAxisCount: 3,
+              thumbnailAspectRatio: 1,
               padding: const EdgeInsets.all(2),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 2,
-                  mainAxisSpacing: 2,
-                  childAspectRatio: 1,
+              tileBuilder: (video, idx) => sharedVideoTile(
+                context,
+                video: video,
+                aspectRatio: 1,
+                onTap: () {
+                  final npub = NostrKeyUtils.encodePubKey(userIdHex);
+                  context.goProfile(npub, idx);
+                },
+                badge: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(
+                    Icons.repeat,
+                    color: VineTheme.vineGreen,
+                    size: 16,
+                  ),
                 ),
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  if (index >= reposts.length) {
-                    return const SizedBox.shrink();
-                  }
-
-                  final videoEvent = reposts[index];
-                  return _RepostGridTile(
-                    videoEvent: videoEvent,
-                    userIdHex: userIdHex,
-                    index: index,
-                  );
-                }, childCount: reposts.length),
+                showInfo: false,
               ),
             ),
           ],
@@ -98,117 +103,5 @@ class _RepostsEmptyState extends StatelessWidget {
         ),
       ),
     ],
-  );
-}
-
-/// Individual repost tile in the grid with repost badge
-class _RepostGridTile extends StatelessWidget {
-  const _RepostGridTile({
-    required this.videoEvent,
-    required this.userIdHex,
-    required this.index,
-  });
-
-  final VideoEvent videoEvent;
-  final String userIdHex;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () {
-      final npub = NostrKeyUtils.encodePubKey(userIdHex);
-      Log.info(
-        '🎯 ProfileRepostsGrid TAP: gridIndex=$index, '
-        'npub=$npub, videoId=${videoEvent.id}',
-        category: LogCategory.video,
-      );
-      context.goProfile(npub, index);
-    },
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: VineTheme.cardBackground,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: _RepostThumbnail(thumbnailUrl: videoEvent.thumbnailUrl),
-            ),
-          ),
-          const Center(
-            child: Icon(
-              Icons.play_circle_filled,
-              color: Colors.white70,
-              size: 32,
-            ),
-          ),
-          // Repost indicator badge
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Icon(
-                Icons.repeat,
-                color: VineTheme.vineGreen,
-                size: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-/// Repost thumbnail with loading and error states
-class _RepostThumbnail extends StatelessWidget {
-  const _RepostThumbnail({required this.thumbnailUrl});
-
-  final String? thumbnailUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: thumbnailUrl!,
-        fit: BoxFit.cover,
-        placeholder: (context, url) => const _RepostThumbnailPlaceholder(),
-        errorWidget: (context, url, error) =>
-            const _RepostThumbnailPlaceholder(),
-      );
-    }
-    return const _RepostThumbnailPlaceholder();
-  }
-}
-
-/// Gradient placeholder for repost thumbnails
-class _RepostThumbnailPlaceholder extends StatelessWidget {
-  const _RepostThumbnailPlaceholder();
-
-  @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(4),
-      gradient: LinearGradient(
-        colors: [
-          VineTheme.vineGreen.withValues(alpha: 0.3),
-          Colors.blue.withValues(alpha: 0.3),
-        ],
-      ),
-    ),
-    child: const Center(
-      child: Icon(
-        Icons.play_circle_outline,
-        color: VineTheme.whiteText,
-        size: 24,
-      ),
-    ),
   );
 }

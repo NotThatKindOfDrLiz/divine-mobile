@@ -23,18 +23,22 @@ class ComposableVideoGrid extends ConsumerWidget {
     required this.onVideoTap,
     this.crossAxisCount = 2,
     this.thumbnailAspectRatio = 1,
+    this.tileBuilder,
     this.padding,
     this.emptyBuilder,
     this.onRefresh,
+    this.sliverMode = false,
   });
 
   final List<VideoEvent> videos;
   final Function(List<VideoEvent> videos, int index) onVideoTap;
   final int crossAxisCount;
   final double thumbnailAspectRatio;
+  final Widget Function(VideoEvent video, int index)? tileBuilder;
   final EdgeInsets? padding;
   final Widget Function()? emptyBuilder;
   final Future<void> Function()? onRefresh;
+  final bool sliverMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -42,11 +46,23 @@ class ComposableVideoGrid extends ConsumerWidget {
     final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
 
     return brokenTrackerAsync.when(
-      loading: () =>
-          Center(child: CircularProgressIndicator(color: VineTheme.vineGreen)),
+      loading: () {
+        if (sliverMode) {
+          return SliverToBoxAdapter(
+            child: Center(
+              child: CircularProgressIndicator(color: VineTheme.vineGreen),
+            ),
+          );
+        }
+        return Center(
+          child: CircularProgressIndicator(color: VineTheme.vineGreen),
+        );
+      },
       error: (error, stack) {
         // Fallback: show all videos if tracker fails
-        return _buildGrid(context, ref, videos);
+        return sliverMode
+            ? _buildSliver(context, ref, videos)
+            : _buildGrid(context, ref, videos);
       },
       data: (tracker) {
         // Filter out broken videos
@@ -55,13 +71,30 @@ class ComposableVideoGrid extends ConsumerWidget {
             .toList();
 
         if (filteredVideos.isEmpty && emptyBuilder != null) {
-          return emptyBuilder!();
+          return sliverMode
+              ? SliverToBoxAdapter(child: emptyBuilder!())
+              : emptyBuilder!();
         }
 
-        return _buildGrid(context, ref, filteredVideos);
+        return sliverMode
+            ? _buildSliver(context, ref, filteredVideos)
+            : _buildGrid(context, ref, filteredVideos);
       },
     );
   }
+
+  /// Named constructor for building a Sliver-compatible grid
+  const ComposableVideoGrid.sliver({
+    super.key,
+    required this.videos,
+    required this.onVideoTap,
+    this.crossAxisCount = 3,
+    this.thumbnailAspectRatio = 1,
+    this.tileBuilder,
+    this.padding,
+    this.emptyBuilder,
+    this.onRefresh,
+  }) : sliverMode = true;
 
   Widget _buildGrid(
     BuildContext context,
@@ -94,15 +127,19 @@ class ComposableVideoGrid extends ConsumerWidget {
         final listIds = subscribedListCache?.getListsForVideo(video.id);
         final isInSubscribedList = listIds != null && listIds.isNotEmpty;
 
-        return _VideoItem(
-          video: video,
-          aspectRatio: thumbnailAspectRatio,
-          onVideoTap: onVideoTap,
-          index: index,
-          displayedVideos: videosToShow,
-          onLongPress: () => _showVideoContextMenu(context, ref, video),
-          isInSubscribedList: isInSubscribedList,
-        );
+        final tile =
+            tileBuilder?.call(video, index) ??
+            _VideoItem(
+              video: video,
+              aspectRatio: thumbnailAspectRatio,
+              onVideoTap: onVideoTap,
+              index: index,
+              displayedVideos: videosToShow,
+              onLongPress: () => _showVideoContextMenu(context, ref, video),
+              isInSubscribedList: isInSubscribedList,
+            );
+
+        return tile;
       },
     );
 
@@ -117,6 +154,53 @@ class ComposableVideoGrid extends ConsumerWidget {
     }
 
     return gridView;
+  }
+
+  Widget _buildSliver(
+    BuildContext context,
+    WidgetRef ref,
+    List<VideoEvent> videosToShow,
+  ) {
+    if (videosToShow.isEmpty && emptyBuilder != null) {
+      return SliverToBoxAdapter(child: emptyBuilder!());
+    }
+
+    final subscribedListCache = ref.watch(subscribedListVideoCacheProvider);
+
+    // Match profile spacing: small gaps
+    final screenWidth = MediaQuery.of(context).size.width;
+    final responsiveCrossAxisCount = screenWidth >= 600 ? 3 : crossAxisCount;
+
+    return SliverPadding(
+      padding: padding ?? const EdgeInsets.all(2),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: responsiveCrossAxisCount,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+          childAspectRatio: thumbnailAspectRatio,
+        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final video = videosToShow[index];
+          final listIds = subscribedListCache?.getListsForVideo(video.id);
+          final isInSubscribedList = listIds != null && listIds.isNotEmpty;
+
+          final tile =
+              tileBuilder?.call(video, index) ??
+              _VideoItem(
+                video: video,
+                aspectRatio: thumbnailAspectRatio,
+                onVideoTap: onVideoTap,
+                index: index,
+                displayedVideos: videosToShow,
+                onLongPress: () => _showVideoContextMenu(context, ref, video),
+                isInSubscribedList: isInSubscribedList,
+              );
+
+          return tile;
+        }, childCount: videosToShow.length),
+      ),
+    );
   }
 
   /// Show context menu for long press on video tiles
