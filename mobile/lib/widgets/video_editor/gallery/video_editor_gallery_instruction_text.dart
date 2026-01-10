@@ -2,27 +2,24 @@
 // ABOUTME: Animated fade and size transitions based on editing/reordering state
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/video_editor_provider.dart';
 
 /// Instruction text that appears below the clip gallery.
 ///
 /// Displays "Tap to edit. Drag to reorder." with animated transitions
 /// based on editing and reordering states.
-class ClipGalleryInstructionText extends StatelessWidget {
+class ClipGalleryInstructionText extends ConsumerWidget {
   /// Creates clip gallery instruction text.
-  const ClipGalleryInstructionText({
-    required this.isEditing,
-    required this.isReordering,
-    super.key,
-  });
-
-  /// Whether the gallery is in editing mode.
-  final bool isEditing;
-
-  /// Whether clips are being reordered.
-  final bool isReordering;
+  const ClipGalleryInstructionText({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(
+      videoEditorProvider.select(
+        (s) => (isEditing: s.isEditing, isReordering: s.isReordering),
+      ),
+    );
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       transitionBuilder: (child, animation) => SizeTransition(
@@ -30,11 +27,11 @@ class ClipGalleryInstructionText extends StatelessWidget {
         axisAlignment: 1,
         child: FadeTransition(opacity: animation, child: child),
       ),
-      child: isEditing
+      child: state.isEditing
           ? const SizedBox(width: double.infinity)
           : AnimatedOpacity(
               duration: const Duration(milliseconds: 200),
-              opacity: isReordering ? 0 : 1,
+              opacity: state.isReordering ? 0 : 1,
               child: const Align(
                 child: Padding(
                   padding: .only(top: 25),

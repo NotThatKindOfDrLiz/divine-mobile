@@ -283,10 +283,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
             currentClipIndex: currentClipIndex,
           ),
         ),
-        ClipGalleryInstructionText(
-          isEditing: isEditing,
-          isReordering: state.isReordering,
-        ),
+        const ClipGalleryInstructionText(),
         const SizedBox(height: 20),
       ],
     );
@@ -436,44 +433,37 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(),
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: constraints.maxWidth * 0.1,
-        ),
+        padding: EdgeInsets.symmetric(horizontal: constraints.maxWidth * 0.1),
         child: Row(
-          children: List.generate(
-            clips.length,
-            (index) {
-              final scale = _calculateScale(index, currentClipIndex);
-              final xOffset = _calculateXOffset(
-                index,
-                currentClipIndex,
-                constraints.maxWidth,
-              );
-              return SizedBox(
-                width: constraints.maxWidth * 0.8,
-                child: VideoEditorGalleryItem(
-                  clip: clips[index],
-                  index: index,
-                  isCurrentClip: index == currentClipIndex,
-                  page: currentClipIndex.toDouble(),
-                  scale: scale,
-                  xOffset: xOffset,
-                  onTap: () {
-                    if (index != currentClipIndex) {
-                      ref.read(videoEditorProvider.notifier).selectClip(index);
-                    } else {
-                      ref
-                          .read(videoEditorProvider.notifier)
-                          .toggleClipEditing();
-                    }
-                  },
-                  onLongPress: index == currentClipIndex && !isEditing
-                      ? _startReordering
-                      : null,
-                ),
-              );
-            },
-          ),
+          children: List.generate(clips.length, (index) {
+            final scale = _calculateScale(index, currentClipIndex);
+            final xOffset = _calculateXOffset(
+              index,
+              currentClipIndex,
+              constraints.maxWidth,
+            );
+            return SizedBox(
+              width: constraints.maxWidth * 0.8,
+              child: VideoEditorGalleryItem(
+                clip: clips[index],
+                index: index,
+                isCurrentClip: index == currentClipIndex,
+                page: currentClipIndex.toDouble(),
+                scale: scale,
+                xOffset: xOffset,
+                onTap: () {
+                  if (index != currentClipIndex) {
+                    ref.read(videoEditorProvider.notifier).selectClip(index);
+                  } else {
+                    ref.read(videoEditorProvider.notifier).toggleClipEditing();
+                  }
+                },
+                onLongPress: index == currentClipIndex && !isEditing
+                    ? _startReordering
+                    : null,
+              ),
+            );
+          }),
         ),
       ),
     );
