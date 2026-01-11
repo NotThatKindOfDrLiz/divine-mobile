@@ -18,12 +18,37 @@ class BrokenVideoTracker {
   Map<String, DateTime> _brokenTimestamps = {};
 
   Future<void> initialize() async {
+    Log.info(
+      'BrokenVideoTracker: initialize() START',
+      name: 'BrokenVideoTracker',
+      category: LogCategory.system,
+    );
+
+    final stopwatch = Stopwatch()..start();
+
     _prefs = await SharedPreferences.getInstance();
+    Log.info(
+      'BrokenVideoTracker: SharedPreferences.getInstance() '
+      'took ${stopwatch.elapsedMilliseconds}ms',
+      name: 'BrokenVideoTracker',
+      category: LogCategory.system,
+    );
+
     await _loadBrokenVideos();
+    Log.info(
+      'BrokenVideoTracker: _loadBrokenVideos() completed '
+      'at ${stopwatch.elapsedMilliseconds}ms',
+      name: 'BrokenVideoTracker',
+      category: LogCategory.system,
+    );
+
     await _cleanupOldEntries();
 
+    stopwatch.stop();
     Log.info(
-      '🚫 BrokenVideoTracker initialized with ${_brokenVideoIds.length} broken videos',
+      '🚫 BrokenVideoTracker initialized with '
+      '${_brokenVideoIds.length} broken videos '
+      'in ${stopwatch.elapsedMilliseconds}ms',
       name: 'BrokenVideoTracker',
       category: LogCategory.system,
     );

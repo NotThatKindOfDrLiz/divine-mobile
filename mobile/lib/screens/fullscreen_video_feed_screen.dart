@@ -7,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:openvine/models/video_event.dart';
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_liked_feed_provider.dart';
 import 'package:openvine/providers/profile_originals_feed_provider.dart';
 import 'package:openvine/providers/profile_reposts_feed_provider.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:video_player/video_player.dart';
 
@@ -128,25 +130,64 @@ class _FullscreenVideoFeedScreenState
     super.dispose();
   }
 
-  /// Get videos from the appropriate source
+  /// Get videos from the appropriate source, filtering out broken videos
   List<VideoEvent> _getVideos() {
     final source = widget.source;
+    final List<VideoEvent> sourceVideos;
+
+    Log.info(
+      'FullscreenVideoFeedScreen: _getVideos() called, source=${source.runtimeType}',
+      name: 'FullscreenVideoFeedScreen',
+      category: LogCategory.system,
+    );
+
     switch (source) {
       case ProfileFeedSource(:final userId):
         final feedState = ref.watch(profileFeedProvider(userId));
-        return feedState.asData?.value.videos ?? [];
+        sourceVideos = feedState.asData?.value.videos ?? [];
       case ProfileOriginalsFeedSource(:final userId):
         final feedState = ref.watch(profileOriginalsFeedProvider(userId));
-        return feedState.asData?.value.videos ?? [];
+        sourceVideos = feedState.asData?.value.videos ?? [];
       case ProfileRepostsFeedSource(:final userId):
         final feedState = ref.watch(profileRepostsFeedProvider(userId));
-        return feedState.asData?.value.videos ?? [];
+        sourceVideos = feedState.asData?.value.videos ?? [];
       case LikedVideosFeedSource(:final userId):
         final feedState = ref.watch(profileLikedFeedProvider(userId));
-        return feedState.asData?.value.videos ?? [];
+        sourceVideos = feedState.asData?.value.videos ?? [];
       case StaticFeedSource(:final videos):
-        return videos;
+        sourceVideos = videos;
     }
+
+    Log.info(
+      'FullscreenVideoFeedScreen: Got ${sourceVideos.length} videos from source',
+      name: 'FullscreenVideoFeedScreen',
+      category: LogCategory.system,
+    );
+
+    // Filter out broken videos
+    final trackerAsync = ref.watch(brokenVideoTrackerProvider);
+    final tracker = trackerAsync.asData?.value;
+    if (tracker == null) {
+      // Tracker not ready yet, return unfiltered
+      Log.info(
+        'FullscreenVideoFeedScreen: Tracker not ready, returning unfiltered',
+        name: 'FullscreenVideoFeedScreen',
+        category: LogCategory.system,
+      );
+      return sourceVideos;
+    }
+
+    final filtered = sourceVideos
+        .where((video) => !tracker.isVideoBroken(video.id))
+        .toList();
+
+    Log.info(
+      'FullscreenVideoFeedScreen: Filtered to ${filtered.length} videos (removed ${sourceVideos.length - filtered.length} broken)',
+      name: 'FullscreenVideoFeedScreen',
+      category: LogCategory.system,
+    );
+
+    return filtered;
   }
 
   /// Trigger load more for the appropriate source

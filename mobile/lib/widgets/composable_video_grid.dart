@@ -10,6 +10,7 @@ import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/content_deletion_service.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/string_utils.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/user_name.dart';
 import 'package:openvine/widgets/video_thumbnail_widget.dart';
@@ -54,15 +55,52 @@ class ComposableVideoGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (videos.isEmpty && emptyBuilder != null) {
-      return sliverMode
-          ? SliverToBoxAdapter(child: emptyBuilder!())
-          : emptyBuilder!();
-    }
+    Log.info(
+      'ComposableVideoGrid: build() called with ${videos.length} videos, sliverMode=$sliverMode',
+      name: 'ComposableVideoGrid',
+      category: LogCategory.system,
+    );
 
-    return sliverMode
-        ? _buildSliver(context, ref, videos)
-        : _buildGrid(context, ref, videos);
+    // Watch broken video tracker to filter out broken videos
+    final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
+
+    return brokenTrackerAsync.when(
+      loading: () => sliverMode
+          ? const SliverToBoxAdapter(
+              child: Center(
+                child: CircularProgressIndicator(color: VineTheme.vineGreen),
+              ),
+            )
+          : Center(
+              child: CircularProgressIndicator(color: VineTheme.vineGreen),
+            ),
+      error: (error, stack) {
+        // Fallback: show all videos if tracker fails
+        if (videos.isEmpty && emptyBuilder != null) {
+          return sliverMode
+              ? SliverToBoxAdapter(child: emptyBuilder!())
+              : emptyBuilder!();
+        }
+        return sliverMode
+            ? _buildSliver(context, ref, videos)
+            : _buildGrid(context, ref, videos);
+      },
+      data: (tracker) {
+        // Filter out broken videos
+        final filteredVideos =
+            videos.where((video) => !tracker.isVideoBroken(video.id)).toList();
+
+        if (filteredVideos.isEmpty && emptyBuilder != null) {
+          return sliverMode
+              ? SliverToBoxAdapter(child: emptyBuilder!())
+              : emptyBuilder!();
+        }
+
+        return sliverMode
+            ? _buildSliver(context, ref, filteredVideos)
+            : _buildGrid(context, ref, filteredVideos);
+      },
+    );
   }
 
   Widget _buildGrid(

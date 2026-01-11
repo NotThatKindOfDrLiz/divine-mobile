@@ -2725,11 +2725,17 @@ String _$accountDeletionServiceHash() =>
     r'659c0ee712559ba34e462dc9b236c40c80651240';
 
 /// Broken video tracker service for filtering non-functional videos
+///
+/// Uses keepAlive to prevent repeated initialization which causes
+/// SharedPreferences.getInstance() calls on every rebuild.
 
 @ProviderFor(brokenVideoTracker)
 const brokenVideoTrackerProvider = BrokenVideoTrackerProvider._();
 
 /// Broken video tracker service for filtering non-functional videos
+///
+/// Uses keepAlive to prevent repeated initialization which causes
+/// SharedPreferences.getInstance() calls on every rebuild.
 
 final class BrokenVideoTrackerProvider
     extends
@@ -2742,13 +2748,16 @@ final class BrokenVideoTrackerProvider
         $FutureModifier<BrokenVideoTracker>,
         $FutureProvider<BrokenVideoTracker> {
   /// Broken video tracker service for filtering non-functional videos
+  ///
+  /// Uses keepAlive to prevent repeated initialization which causes
+  /// SharedPreferences.getInstance() calls on every rebuild.
   const BrokenVideoTrackerProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'brokenVideoTrackerProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -2769,7 +2778,7 @@ final class BrokenVideoTrackerProvider
 }
 
 String _$brokenVideoTrackerHash() =>
-    r'36268bd477659a229f13da325ac23403a20e7fa7';
+    r'234b8ddad38df9166ef77c1448c696d57328b311';
 
 /// Audio playback service for sound playback during recording and preview
 ///

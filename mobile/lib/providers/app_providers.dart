@@ -931,8 +931,16 @@ AccountDeletionService accountDeletionService(Ref ref) {
 }
 
 /// Broken video tracker service for filtering non-functional videos
-@riverpod
+///
+/// Uses keepAlive to prevent repeated initialization which causes
+/// SharedPreferences.getInstance() calls on every rebuild.
+@Riverpod(keepAlive: true)
 Future<BrokenVideoTracker> brokenVideoTracker(Ref ref) async {
+  Log.info(
+    'brokenVideoTrackerProvider: Creating new instance',
+    name: 'brokenVideoTrackerProvider',
+    category: LogCategory.system,
+  );
   final tracker = BrokenVideoTracker();
   await tracker.initialize();
   return tracker;
