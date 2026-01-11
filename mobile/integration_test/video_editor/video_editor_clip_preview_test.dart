@@ -30,7 +30,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -62,7 +62,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -99,7 +99,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(
@@ -133,7 +133,7 @@ void main() {
         ProviderScope(
           overrides: [
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: MaterialApp(

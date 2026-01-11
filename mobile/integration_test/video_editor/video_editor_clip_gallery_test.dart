@@ -36,7 +36,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(
@@ -74,7 +74,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(
@@ -108,7 +108,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(
@@ -187,7 +187,7 @@ void main() {
       ];
 
       final notifier = MutableVideoEditorNotifier(
-        const VideoEditorProviderState(isPlaying: false),
+        VideoEditorProviderState(isPlaying: false),
       );
 
       await tester.pumpWidget(

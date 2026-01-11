@@ -7,7 +7,7 @@ import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 void main() {
   group('EditorState', () {
     test('creates instance with default values', () {
-      const state = VideoEditorProviderState();
+      final state = VideoEditorProviderState();
 
       expect(state.currentClipIndex, 0);
       expect(state.currentPosition, Duration.zero);
@@ -20,7 +20,7 @@ void main() {
     });
 
     test('copyWith updates specified fields only', () {
-      const initial = VideoEditorProviderState(
+      final initial = VideoEditorProviderState(
         currentClipIndex: 1,
         isPlaying: true,
       );
@@ -35,7 +35,7 @@ void main() {
     });
 
     test('copyWith preserves all fields when none specified', () {
-      const state = VideoEditorProviderState(
+      final state = VideoEditorProviderState(
         currentClipIndex: 2,
         currentPosition: Duration(seconds: 5),
         isEditing: true,

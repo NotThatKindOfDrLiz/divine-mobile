@@ -54,7 +54,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
   @override
   VideoEditorProviderState build() {
-    return const VideoEditorProviderState();
+    return VideoEditorProviderState();
   }
 
   /// Initialize the video editor with an optional draft.
@@ -241,7 +241,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
     _metadata = VideoEditorMeta.draft();
-    state = const VideoEditorProviderState();
+    state = VideoEditorProviderState();
   }
 
   /// Update the current playback position.

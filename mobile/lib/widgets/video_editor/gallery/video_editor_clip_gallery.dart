@@ -44,6 +44,27 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     super.dispose();
   }
 
+  /// Performs a hit test to check if the pointer is over the delete button.
+  bool _isPointerOverDeleteButton(Offset globalPosition) {
+    final deleteButtonKey = ref.read(videoEditorProvider).deleteButtonKey;
+
+    if (deleteButtonKey.currentContext == null) {
+      return false;
+    }
+
+    final renderBox =
+        deleteButtonKey.currentContext!.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) {
+      return false;
+    }
+
+    // Convert global position to local coordinates
+    final localPosition = renderBox.globalToLocal(globalPosition);
+
+    // Check if the local position is within the bounds
+    return renderBox.paintBounds.contains(localPosition);
+  }
+
   /// Calculates the scale factor for a clip based on its distance from center.
   ///
   /// Returns 1.0 for the centered clip and 0.85 for clips far from center,
@@ -70,13 +91,6 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
   }
 
   /// Calculates the horizontal offset for a clip to create depth effect.
-  ///
-  /// Uses cubic easing to make the effect stronger as clips approach center.
-  /// The offset is calculated as a percentage of screen width (20% max).
-  /// Calculates the horizontal offset for a clip to create depth effect.
-  ///
-  /// Uses cubic easing to make the effect stronger as clips approach center.
-  /// The offset is calculated as a percentage of screen width (20% max).
   double _calculateXOffset(
     int index,
     int currentClipIndex,
@@ -122,9 +136,8 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
   ) async {
     final clips = ref.read(clipManagerProvider).clips;
 
-    // Check if pointer is over delete zone (bottom 80px of screen)
-    final screenHeight = MediaQuery.sizeOf(context).height;
-    final isOverDeleteZone = event.position.dy > screenHeight - 100;
+    // Perform hit test on delete button
+    final isOverDeleteZone = _isPointerOverDeleteButton(event.position);
     ref.read(videoEditorProvider.notifier).setOverDeleteZone(isOverDeleteZone);
 
     // If over delete zone, reset drag offset and skip reorder logic
@@ -228,6 +241,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     // Exit reorder mode
     ref.read(videoEditorProvider.notifier).stopClipReordering();
 
+    _pageController.dispose();
     _pageController = PageController(
       initialPage: _reorderTargetIndex,
       viewportFraction: 0.8,
@@ -248,6 +262,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     // Switch to reorder mode
     ref.read(videoEditorProvider.notifier).startClipReordering();
 
+    _scrollController.dispose();
     _scrollController = ScrollController(initialScrollOffset: currentOffset);
   }
 

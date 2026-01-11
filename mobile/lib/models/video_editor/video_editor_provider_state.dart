@@ -1,6 +1,8 @@
 // ABOUTME: Immutable state model for video editor managing text overlays, sound, and export progress
 // ABOUTME: Tracks editing state with export stages and computed properties for UI state
 
+import 'package:flutter/widgets.dart';
+
 /// Immutable state model for the video editor.
 ///
 /// Manages the complete editing state including:
@@ -9,7 +11,7 @@
 /// - Audio settings
 /// - Processing status
 class VideoEditorProviderState {
-  const VideoEditorProviderState({
+  VideoEditorProviderState({
     this.currentClipIndex = 0,
     this.currentPosition = .zero,
     this.splitPosition = .zero,
@@ -47,6 +49,9 @@ class VideoEditorProviderState {
 
   /// Whether a long-running operation (e.g., export, processing) is in progress.
   final bool isProcessing;
+
+  /// GlobalKey for the delete button to enable hit testing.
+  final GlobalKey deleteButtonKey = GlobalKey();
 
   /// Creates a copy of this state with updated fields.
   ///

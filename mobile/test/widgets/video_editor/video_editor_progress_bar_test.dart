@@ -35,7 +35,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(home: Scaffold(body: VideoProgressBar())),
@@ -79,7 +79,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(home: Scaffold(body: VideoProgressBar())),
@@ -116,7 +116,7 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                const VideoEditorProviderState(currentClipIndex: 2),
+                VideoEditorProviderState(currentClipIndex: 2),
               ),
             ),
           ],
@@ -161,7 +161,7 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                const VideoEditorProviderState(isReordering: true),
+                VideoEditorProviderState(isReordering: true),
               ),
             ),
           ],
@@ -206,9 +206,7 @@ void main() {
             ),
             videoEditorProvider.overrideWith(
               () => TestVideoEditorNotifier(
-                const VideoEditorProviderState(
-                  currentPosition: Duration(seconds: 5),
-                ),
+                VideoEditorProviderState(currentPosition: Duration(seconds: 5)),
               ),
             ),
           ],
@@ -253,7 +251,7 @@ void main() {
               () => TestClipManagerNotifier(ClipManagerState(clips: clips)),
             ),
             videoEditorProvider.overrideWith(
-              () => TestVideoEditorNotifier(const VideoEditorProviderState()),
+              () => TestVideoEditorNotifier(VideoEditorProviderState()),
             ),
           ],
           child: const MaterialApp(home: Scaffold(body: VideoProgressBar())),
