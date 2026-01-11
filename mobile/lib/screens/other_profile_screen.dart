@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_stats_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -15,7 +14,6 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/profile/blocked_user_screen.dart';
 import 'package:openvine/widgets/profile/profile_block_confirmation_dialog.dart';
 import 'package:openvine/widgets/profile/profile_grid_view.dart';
-import 'package:openvine/widgets/profile/profile_loading_view.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Fullscreen profile screen for viewing other users' profiles.
@@ -86,9 +84,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
       return BlockedUserScreen(onBack: () => context.pop());
     }
 
-    // Get video data from profile feed
-    final videosAsync = ref.watch(profileFeedProvider(userIdHex));
-
     // Get profile stats
     final profileStatsAsync = ref.watch(fetchProfileStatsProvider(userIdHex));
 
@@ -114,24 +109,14 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
           ),
         ),
       ),
-      body: switch (videosAsync) {
-        AsyncLoading() => const ProfileLoadingView(),
-        AsyncError(:final error) => Center(
-          child: Text(
-            'Error: $error',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-        AsyncData(:final value) => ProfileGridView(
-          userIdHex: userIdHex,
-          isOwnProfile: false,
-          videos: value.videos,
-          profileStatsAsync: profileStatsAsync,
-          scrollController: _scrollController,
-          onShareProfile: () => _shareProfile(userIdHex),
-          onBlockUser: (isBlocked) => _blockUser(userIdHex, isBlocked),
-        ),
-      },
+      body: ProfileGridView(
+        userIdHex: userIdHex,
+        isOwnProfile: false,
+        profileStatsAsync: profileStatsAsync,
+        scrollController: _scrollController,
+        onShareProfile: () => _shareProfile(userIdHex),
+        onBlockUser: (isBlocked) => _blockUser(userIdHex, isBlocked),
+      ),
     );
   }
 

@@ -1,4 +1,4 @@
-// ABOUTME: Composable video grid widget with automatic broken video filtering
+// ABOUTME: Composable video grid widget for displaying video thumbnails
 // ABOUTME: Reusable component for Explore, Hashtag, and Search screens
 
 import 'package:flutter/material.dart';
@@ -14,8 +14,8 @@ import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/user_name.dart';
 import 'package:openvine/widgets/video_thumbnail_widget.dart';
 
-/// Composable video grid that automatically filters broken videos
-/// and provides consistent styling across Explore, Hashtag, and Search screens
+/// Composable video grid that provides consistent styling
+/// across Explore, Hashtag, and Search screens
 class ComposableVideoGrid extends ConsumerWidget {
   const ComposableVideoGrid({
     super.key,
@@ -42,45 +42,15 @@ class ComposableVideoGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch broken video tracker asynchronously
-    final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
+    if (videos.isEmpty && emptyBuilder != null) {
+      return sliverMode
+          ? SliverToBoxAdapter(child: emptyBuilder!())
+          : emptyBuilder!();
+    }
 
-    return brokenTrackerAsync.when(
-      loading: () {
-        if (sliverMode) {
-          return SliverToBoxAdapter(
-            child: Center(
-              child: CircularProgressIndicator(color: VineTheme.vineGreen),
-            ),
-          );
-        }
-        return Center(
-          child: CircularProgressIndicator(color: VineTheme.vineGreen),
-        );
-      },
-      error: (error, stack) {
-        // Fallback: show all videos if tracker fails
-        return sliverMode
-            ? _buildSliver(context, ref, videos)
-            : _buildGrid(context, ref, videos);
-      },
-      data: (tracker) {
-        // Filter out broken videos
-        final filteredVideos = videos
-            .where((video) => !tracker.isVideoBroken(video.id))
-            .toList();
-
-        if (filteredVideos.isEmpty && emptyBuilder != null) {
-          return sliverMode
-              ? SliverToBoxAdapter(child: emptyBuilder!())
-              : emptyBuilder!();
-        }
-
-        return sliverMode
-            ? _buildSliver(context, ref, filteredVideos)
-            : _buildGrid(context, ref, filteredVideos);
-      },
-    );
+    return sliverMode
+        ? _buildSliver(context, ref, videos)
+        : _buildGrid(context, ref, videos);
   }
 
   /// Named constructor for building a Sliver-compatible grid

@@ -5,10 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/others_followers/others_followers_bloc.dart';
-import 'package:openvine/blocs/profile_liked_videos/profile_liked_videos_bloc.dart';
-import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/profile_stats_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/profile/profile_action_buttons_widget.dart';
@@ -23,7 +20,6 @@ class ProfileGridView extends ConsumerStatefulWidget {
   const ProfileGridView({
     required this.userIdHex,
     required this.isOwnProfile,
-    required this.videos,
     required this.profileStatsAsync,
     this.onSetupProfile,
     this.onEditProfile,
@@ -39,9 +35,6 @@ class ProfileGridView extends ConsumerStatefulWidget {
 
   /// Whether this is the current user's own profile.
   final bool isOwnProfile;
-
-  /// List of videos to display in the videos tab.
-  final List<VideoEvent> videos;
 
   /// Async value containing profile stats.
   final AsyncValue<ProfileStats> profileStatsAsync;
@@ -87,30 +80,16 @@ class _ProfileGridViewState extends ConsumerState<ProfileGridView>
 
   @override
   Widget build(BuildContext context) {
-    // Get services for ProfileLikedVideosBloc
-    final videoEventService = ref.watch(videoEventServiceProvider);
-    final nostrClient = ref.watch(nostrServiceProvider);
     final followRepository = ref.watch(followRepositoryProvider);
-    final likesRepository = ref.watch(likesRepositoryProvider);
 
-    // Build the base widget with ProfileLikedVideosBloc
-    final tabContent = BlocProvider<ProfileLikedVideosBloc>(
-      create: (_) =>
-          ProfileLikedVideosBloc(
-              likesRepository: likesRepository,
-              videoEventService: videoEventService,
-              nostrClient: nostrClient,
-            )
-            ..add(const ProfileLikedVideosSubscriptionRequested())
-            ..add(const ProfileLikedVideosSyncRequested()),
-      child: TabBarView(
-        controller: _tabController,
-        children: [
-          ProfileVideosGrid(videos: widget.videos, userIdHex: widget.userIdHex),
-          const ProfileLikedGrid(),
-          ProfileRepostsGrid(userIdHex: widget.userIdHex),
-        ],
-      ),
+    // Tab content - all grids use Riverpod providers directly
+    final tabContent = TabBarView(
+      controller: _tabController,
+      children: [
+        ProfileVideosGrid(userIdHex: widget.userIdHex),
+        ProfileLikedGrid(userIdHex: widget.userIdHex),
+        ProfileRepostsGrid(userIdHex: widget.userIdHex),
+      ],
     );
 
     // Build the main content

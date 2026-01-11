@@ -1,68 +1,85 @@
-// ABOUTME: Grid widget displaying user's videos on profile page
-// ABOUTME: Shows 3-column grid with thumbnails, handles empty state and navigation
+// ABOUTME: Grid widget displaying user's original videos on profile page
+// ABOUTME: Watches profileOriginalsFeedProvider for consistent data with fullscreen view
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/profile_feed_provider.dart';
+import 'package:openvine/providers/profile_originals_feed_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
 import 'package:openvine/widgets/video_tile_renderer.dart';
 
-/// Grid widget displaying user's videos on their profile
+/// Grid widget displaying user's original videos on their profile
+///
+/// Watches [profileOriginalsFeedProvider] for video state.
+/// Both grid and fullscreen view use the same provider for consistency.
 class ProfileVideosGrid extends ConsumerWidget {
-  const ProfileVideosGrid({
-    required this.videos,
-    required this.userIdHex,
-    super.key,
-  });
+  const ProfileVideosGrid({required this.userIdHex, super.key});
 
-  final List<VideoEvent> videos;
+  /// The hex public key of the user whose videos to display.
   final String userIdHex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Show only original videos (exclude reposts) on the main profile tab
-    final originalVideos = videos.where((v) => !v.isRepost).toList();
+    final originalsFeedAsync = ref.watch(profileOriginalsFeedProvider(userIdHex));
 
-    if (originalVideos.isEmpty) {
-      return _ProfileVideosEmptyState(
-        userIdHex: userIdHex,
-        isOwnProfile:
-            ref.read(authServiceProvider).currentPublicKeyHex == userIdHex,
-        onRefresh: () =>
-            ref.read(profileFeedProvider(userIdHex).notifier).loadMore(),
-      );
-    }
-
-    return CustomScrollView(
-      slivers: [
-        ComposableVideoGrid.sliver(
-          videos: originalVideos,
-          onVideoTap: (videosList, idx) {
-            context.pushVideoFeed(
-              source: ProfileOriginalsFeedSource(userIdHex),
-              initialIndex: idx,
-            );
-          },
-          crossAxisCount: 3,
-          thumbnailAspectRatio: 1,
-          padding: const EdgeInsets.all(2),
-          tileBuilder: (video, idx) => sharedVideoTile(
-            context,
-            video: video,
-            aspectRatio: 1,
-            onTap: () => context.pushVideoFeed(
-              source: ProfileOriginalsFeedSource(userIdHex),
-              initialIndex: idx,
+    return originalsFeedAsync.when(
+      data: (feedState) {
+        if (feedState.error != null) {
+          return Center(
+            child: Text(
+              'Error loading videos',
+              style: const TextStyle(color: Colors.white),
             ),
-            showInfo: false,
-          ),
+          );
+        }
+
+        final originalVideos = feedState.videos;
+
+        if (originalVideos.isEmpty) {
+          return _ProfileVideosEmptyState(
+            userIdHex: userIdHex,
+            isOwnProfile:
+                ref.read(authServiceProvider).currentPublicKeyHex == userIdHex,
+            onRefresh: () => ref
+                .read(profileOriginalsFeedProvider(userIdHex).notifier)
+                .loadMore(),
+          );
+        }
+
+        return CustomScrollView(
+          slivers: [
+            ComposableVideoGrid.sliver(
+              videos: originalVideos,
+              onVideoTap: (_, __) {},
+              crossAxisCount: 3,
+              thumbnailAspectRatio: 1,
+              padding: const EdgeInsets.all(2),
+              tileBuilder: (video, idx) => sharedVideoTile(
+                context,
+                video: video,
+                aspectRatio: 1,
+                onTap: () => context.pushVideoFeed(
+                  source: ProfileOriginalsFeedSource(userIdHex),
+                  initialIndex: idx,
+                ),
+                showInfo: false,
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: VineTheme.vineGreen),
+      ),
+      error: (error, stack) => const Center(
+        child: Text(
+          'Error loading videos',
+          style: TextStyle(color: Colors.white),
         ),
-      ],
+      ),
     );
   }
 }

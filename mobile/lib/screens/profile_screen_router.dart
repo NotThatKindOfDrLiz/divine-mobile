@@ -548,7 +548,6 @@ class _ProfileViewSwitcher extends StatelessWidget {
     return ProfileGridView(
       userIdHex: userIdHex,
       isOwnProfile: isOwnProfile,
-      videos: videos,
       profileStatsAsync: profileStatsAsync,
       scrollController: scrollController,
       onSetupProfile: onSetupProfile,

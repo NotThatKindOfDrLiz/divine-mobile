@@ -2,10 +2,8 @@
 // ABOUTME: Shows 3-column grid with thumbnails and heart badge indicator
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/blocs/profile_liked_videos/profile_liked_videos_bloc.dart';
-import 'package:openvine/providers/liked_videos_state_bridge.dart';
+import 'package:openvine/providers/profile_liked_feed_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -14,45 +12,30 @@ import 'package:openvine/widgets/video_tile_renderer.dart';
 
 /// Grid widget displaying user's liked videos
 ///
-/// Requires [ProfileLikedVideosBloc] to be provided in the widget tree.
-/// Syncs BLoC state to [likedVideosFeedStateProvider] for fullscreen navigation.
+/// Watches [profileLikedFeedProvider] for liked videos state.
+/// Both grid and fullscreen view use the same provider for consistency.
 class ProfileLikedGrid extends ConsumerWidget {
-  const ProfileLikedGrid({super.key});
+  const ProfileLikedGrid({required this.userIdHex, super.key});
+
+  /// The hex public key of the user whose liked videos to display.
+  final String userIdHex;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return BlocConsumer<ProfileLikedVideosBloc, ProfileLikedVideosState>(
-      listener: (context, state) {
-        // Sync BLoC state to Riverpod bridge provider for fullscreen navigation
-        final isLoading = state.status == ProfileLikedVideosStatus.initial ||
-            state.status == ProfileLikedVideosStatus.syncing ||
-            state.status == ProfileLikedVideosStatus.loading;
+    final likedFeedAsync = ref.watch(profileLikedFeedProvider(userIdHex));
 
-        ref.read(likedVideosFeedStateProvider.notifier).state =
-            LikedVideosBridgeState(
-          isLoading: isLoading,
-          videos: state.videos,
-        );
-      },
-      builder: (context, state) {
-        if (state.status == ProfileLikedVideosStatus.initial ||
-            state.status == ProfileLikedVideosStatus.syncing ||
-            state.status == ProfileLikedVideosStatus.loading) {
-          return const Center(
-            child: CircularProgressIndicator(color: VineTheme.vineGreen),
-          );
-        }
-
-        if (state.status == ProfileLikedVideosStatus.failure) {
-          return const Center(
+    return likedFeedAsync.when(
+      data: (feedState) {
+        if (feedState.error != null) {
+          return Center(
             child: Text(
               'Error loading liked videos',
-              style: TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
             ),
           );
         }
 
-        final likedVideos = state.videos;
+        final likedVideos = feedState.videos;
 
         if (likedVideos.isEmpty) {
           return const _LikedEmptyState();
@@ -72,7 +55,7 @@ class ProfileLikedGrid extends ConsumerWidget {
                 aspectRatio: 1,
                 onTap: () {
                   context.pushVideoFeed(
-                    source: const LikedVideosFeedSource(),
+                    source: LikedVideosFeedSource(userIdHex),
                     initialIndex: idx,
                   );
                 },
@@ -94,6 +77,15 @@ class ProfileLikedGrid extends ConsumerWidget {
           ],
         );
       },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: VineTheme.vineGreen),
+      ),
+      error: (error, stack) => const Center(
+        child: Text(
+          'Error loading liked videos',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
     );
   }
 }
