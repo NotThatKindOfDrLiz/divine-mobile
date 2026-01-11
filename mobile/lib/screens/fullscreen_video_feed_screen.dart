@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
+import 'package:openvine/providers/liked_videos_state_bridge.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_originals_feed_provider.dart';
 import 'package:openvine/providers/profile_reposts_feed_provider.dart';
@@ -39,6 +40,12 @@ class ProfileOriginalsFeedSource extends VideoFeedSource {
 class ProfileRepostsFeedSource extends VideoFeedSource {
   const ProfileRepostsFeedSource(this.userId);
   final String userId;
+}
+
+/// Liked videos feed source - current user's liked videos
+/// Watches likedVideosFeedProvider (bridge from BLoC) for reactive updates
+class LikedVideosFeedSource extends VideoFeedSource {
+  const LikedVideosFeedSource();
 }
 
 /// Static feed source - for cases where we just have a list of videos
@@ -130,6 +137,9 @@ class _FullscreenVideoFeedScreenState
       case ProfileRepostsFeedSource(:final userId):
         final feedState = ref.watch(profileRepostsFeedProvider(userId));
         return feedState.asData?.value.videos ?? [];
+      case LikedVideosFeedSource():
+        final feedState = ref.watch(likedVideosFeedProvider);
+        return feedState.asData?.value.videos ?? [];
       case StaticFeedSource(:final videos):
         return videos;
     }
@@ -145,6 +155,9 @@ class _FullscreenVideoFeedScreenState
         ref.read(profileOriginalsFeedProvider(userId).notifier).loadMore();
       case ProfileRepostsFeedSource(:final userId):
         ref.read(profileRepostsFeedProvider(userId).notifier).loadMore();
+      case LikedVideosFeedSource():
+        // Liked videos don't support pagination - all liked videos are loaded at once
+        break;
       case StaticFeedSource(:final onLoadMore):
         // Static source uses callback for loading more
         onLoadMore?.call();
