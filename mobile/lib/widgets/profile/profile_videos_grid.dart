@@ -23,7 +23,9 @@ class ProfileVideosGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final originalsFeedAsync = ref.watch(profileOriginalsFeedProvider(userIdHex));
+    final originalsFeedAsync = ref.watch(
+      profileOriginalsFeedProvider(userIdHex),
+    );
 
     return originalsFeedAsync.when(
       data: (feedState) {
