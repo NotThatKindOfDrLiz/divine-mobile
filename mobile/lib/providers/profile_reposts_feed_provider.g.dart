@@ -81,7 +81,7 @@ final class ProfileRepostsFeedProvider
 }
 
 String _$profileRepostsFeedHash() =>
-    r'db281aebb8ce8b3a870f11b7660b5411bb9580cc';
+    r'9ee60eb731a9514b23629085284534a724e98eb8';
 
 /// Feed provider for user's reposted videos
 ///

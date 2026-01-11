@@ -1,5 +1,6 @@
 // ABOUTME: Feed provider for user's original videos with pagination support
-// ABOUTME: Wraps profileOriginalsProvider with VideoFeedState for fullscreen feed
+// ABOUTME: Wraps profileOriginalsProvider with VideoFeedState for fullscreen
+// feed
 
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_originals_provider.dart';
@@ -29,7 +30,6 @@ class ProfileOriginalsFeed extends _$ProfileOriginalsFeed {
     return VideoFeedState(
       videos: originals,
       hasMoreContent: originals.length >= 10,
-      isLoadingMore: false,
       lastUpdated: DateTime.now(),
     );
   }

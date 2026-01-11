@@ -29,7 +29,6 @@ class ProfileRepostsFeed extends _$ProfileRepostsFeed {
     return VideoFeedState(
       videos: reposts,
       hasMoreContent: reposts.length >= 10,
-      isLoadingMore: false,
       lastUpdated: DateTime.now(),
     );
   }

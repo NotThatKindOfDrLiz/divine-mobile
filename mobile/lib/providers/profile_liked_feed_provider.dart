@@ -54,7 +54,8 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
     final isCurrentUser = userId == nostrClient.publicKey;
 
     Log.info(
-      'ProfileLikedFeedProvider: Starting sync for $userId (isCurrentUser: $isCurrentUser)',
+      'ProfileLikedFeedProvider: Starting sync for $userId '
+      '(isCurrentUser: $isCurrentUser)',
       name: 'ProfileLikedFeedProvider',
       category: LogCategory.video,
     );
@@ -73,7 +74,8 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
       }
 
       Log.info(
-        'ProfileLikedFeedProvider: Synced ${likedEventIds.length} liked IDs for $userId',
+        'ProfileLikedFeedProvider: Synced ${likedEventIds.length} liked IDs '
+        'for $userId',
         name: 'ProfileLikedFeedProvider',
         category: LogCategory.video,
       );
@@ -82,7 +84,6 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
         return VideoFeedState(
           videos: [],
           hasMoreContent: false,
-          isLoadingMore: false,
           lastUpdated: DateTime.now(),
         );
       }
@@ -105,7 +106,6 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
         // Liked videos are currently loaded all at once
         // Set hasMoreContent based on whether we might have pagination later
         hasMoreContent: false,
-        isLoadingMore: false,
         lastUpdated: DateTime.now(),
       );
     } on SyncFailedException catch (e) {
@@ -117,7 +117,6 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
       return VideoFeedState(
         videos: [],
         hasMoreContent: false,
-        isLoadingMore: false,
         error: 'Sync failed: ${e.message}',
         lastUpdated: DateTime.now(),
       );
@@ -130,7 +129,6 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
       return VideoFeedState(
         videos: [],
         hasMoreContent: false,
-        isLoadingMore: false,
         error: 'Failed to load videos',
         lastUpdated: DateTime.now(),
       );
@@ -160,7 +158,8 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
     // Pagination not yet implemented for liked videos
     // When implemented, this would fetch the next page of liked video IDs
     Log.info(
-      'ProfileLikedFeedProvider: loadMore called (pagination not yet implemented)',
+      'ProfileLikedFeedProvider: loadMore called '
+      '(pagination not yet implemented)',
       name: 'ProfileLikedFeedProvider',
       category: LogCategory.video,
     );
@@ -180,7 +179,8 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
     StreamSubscription<dynamic>? subscription;
 
     final subscriptionId =
-        'liked_ids_${userPubkey.substring(0, 8)}_${DateTime.now().millisecondsSinceEpoch}';
+        'liked_ids_${userPubkey.substring(0, 8)}_'
+        '${DateTime.now().millisecondsSinceEpoch}';
 
     Future<void> cleanup() async {
       await subscription?.cancel();
@@ -214,7 +214,8 @@ class ProfileLikedFeed extends _$ProfileLikedFeed {
         onEose: () {
           if (!completer.isCompleted) {
             Log.info(
-              'ProfileLikedFeedProvider: EOSE received for liked IDs, got ${likedIds.length}',
+              'ProfileLikedFeedProvider: EOSE received for liked IDs, '
+              'got ${likedIds.length}',
               name: 'ProfileLikedFeedProvider',
               category: LogCategory.video,
             );

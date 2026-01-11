@@ -30,9 +30,6 @@ class ProfileRepostsGrid extends ConsumerWidget {
           slivers: [
             ComposableVideoGrid.sliver(
               videos: reposts,
-              onVideoTap: (_, __) {},
-              crossAxisCount: 3,
-              thumbnailAspectRatio: 1,
               padding: const EdgeInsets.all(2),
               tileBuilder: (video, idx) => sharedVideoTile(
                 context,
@@ -56,7 +53,6 @@ class ProfileRepostsGrid extends ConsumerWidget {
                     size: 16,
                   ),
                 ),
-                showInfo: false,
               ),
             ),
           ],
@@ -76,7 +72,7 @@ class _RepostsEmptyState extends StatelessWidget {
   const _RepostsEmptyState();
 
   @override
-  Widget build(BuildContext context) => CustomScrollView(
+  Widget build(BuildContext context) => const CustomScrollView(
     slivers: [
       SliverFillRemaining(
         hasScrollBody: false,
@@ -84,7 +80,7 @@ class _RepostsEmptyState extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Icon(Icons.repeat, color: Colors.grey, size: 64),
               SizedBox(height: 16),
               Text(

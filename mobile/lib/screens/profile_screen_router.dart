@@ -1,5 +1,6 @@
 // ABOUTME: Router-driven Instagram-style profile screen implementation
-// ABOUTME: Uses CustomScrollView with slivers for smooth scrolling, URL is source of truth
+// ABOUTME: Uses CustomScrollView with slivers for smooth scrolling, URL is
+// source of truth
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

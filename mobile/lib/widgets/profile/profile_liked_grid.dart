@@ -27,10 +27,10 @@ class ProfileLikedGrid extends ConsumerWidget {
     return likedFeedAsync.when(
       data: (feedState) {
         if (feedState.error != null) {
-          return Center(
+          return const Center(
             child: Text(
               'Error loading liked videos',
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white),
             ),
           );
         }
@@ -45,9 +45,6 @@ class ProfileLikedGrid extends ConsumerWidget {
           slivers: [
             ComposableVideoGrid.sliver(
               videos: likedVideos,
-              onVideoTap: (_, __) {},
-              crossAxisCount: 3,
-              thumbnailAspectRatio: 1,
               padding: const EdgeInsets.all(2),
               tileBuilder: (video, idx) => sharedVideoTile(
                 context,
@@ -71,7 +68,6 @@ class ProfileLikedGrid extends ConsumerWidget {
                     size: 16,
                   ),
                 ),
-                showInfo: false,
               ),
             ),
           ],
@@ -95,7 +91,7 @@ class _LikedEmptyState extends StatelessWidget {
   const _LikedEmptyState();
 
   @override
-  Widget build(BuildContext context) => CustomScrollView(
+  Widget build(BuildContext context) => const CustomScrollView(
     slivers: [
       SliverFillRemaining(
         hasScrollBody: false,
@@ -103,7 +99,7 @@ class _LikedEmptyState extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Icon(Icons.favorite_border, color: Colors.grey, size: 64),
               SizedBox(height: 16),
               Text(

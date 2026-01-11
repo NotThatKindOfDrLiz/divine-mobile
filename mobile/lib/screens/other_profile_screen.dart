@@ -166,8 +166,7 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
   Future<void> _blockUser(String pubkey, bool currentlyBlocked) async {
     if (currentlyBlocked) {
       // Unblock without confirmation
-      final blocklistService = ref.read(contentBlocklistServiceProvider);
-      blocklistService.unblockUser(pubkey);
+      ref.read(contentBlocklistServiceProvider).unblockUser(pubkey);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -202,14 +201,12 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
     );
 
     if (confirmed == true) {
-      final blocklistService = ref.read(contentBlocklistServiceProvider);
-      blocklistService.blockUser(pubkey);
+      ref.read(contentBlocklistServiceProvider).blockUser(pubkey);
 
       if (mounted) {
         // Show success confirmation
         showDialog(
           context: context,
-          useRootNavigator: true,
           builder: (context) => const ProfileBlockConfirmationDialog(),
         );
       }

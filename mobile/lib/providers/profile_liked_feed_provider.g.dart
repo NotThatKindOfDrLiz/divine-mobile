@@ -98,7 +98,7 @@ final class ProfileLikedFeedProvider
   }
 }
 
-String _$profileLikedFeedHash() => r'5118689c001bf302fcdee8f609c524ee3a081f0d';
+String _$profileLikedFeedHash() => r'b9726aa1b28f3d306010048bc0bc69f29500f2a0';
 
 /// Feed provider for a user's liked videos
 ///

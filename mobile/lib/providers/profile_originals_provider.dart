@@ -1,5 +1,6 @@
 // ABOUTME: Provider for fetching a user's original videos (excluding reposts)
-// ABOUTME: Filters profile feed events to show only original content by the user
+// ABOUTME: Filters profile feed events to show only original content by the
+// user
 
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';

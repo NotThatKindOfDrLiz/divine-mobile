@@ -1,5 +1,6 @@
 // ABOUTME: Grid widget displaying user's original videos on profile page
-// ABOUTME: Watches profileOriginalsFeedProvider for consistent data with fullscreen view
+// ABOUTME: Watches profileOriginalsFeedProvider for consistent data with
+// fullscreen view
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,10 +31,10 @@ class ProfileVideosGrid extends ConsumerWidget {
     return originalsFeedAsync.when(
       data: (feedState) {
         if (feedState.error != null) {
-          return Center(
+          return const Center(
             child: Text(
               'Error loading videos',
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: Colors.white),
             ),
           );
         }
@@ -55,9 +56,6 @@ class ProfileVideosGrid extends ConsumerWidget {
           slivers: [
             ComposableVideoGrid.sliver(
               videos: originalVideos,
-              onVideoTap: (_, __) {},
-              crossAxisCount: 3,
-              thumbnailAspectRatio: 1,
               padding: const EdgeInsets.all(2),
               tileBuilder: (video, idx) => sharedVideoTile(
                 context,
@@ -67,7 +65,6 @@ class ProfileVideosGrid extends ConsumerWidget {
                   source: ProfileOriginalsFeedSource(userIdHex),
                   initialIndex: idx,
                 ),
-                showInfo: false,
               ),
             ),
           ],

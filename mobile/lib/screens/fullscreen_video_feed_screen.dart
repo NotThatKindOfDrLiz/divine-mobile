@@ -50,8 +50,10 @@ class LikedVideosFeedSource extends VideoFeedSource {
 }
 
 /// Static feed source - for cases where we just have a list of videos
-/// Note: This source does NOT support reactive updates when loadMore fetches new videos
-/// Use this for hashtag feeds or other sources that don't have a family provider
+/// Note: This source does NOT support reactive updates when loadMore fetches
+/// new videos
+/// Use this for hashtag feeds or other sources that don't have a family
+/// provider
 class StaticFeedSource extends VideoFeedSource {
   const StaticFeedSource(this.videos, {this.onLoadMore});
   final List<VideoEvent> videos;
@@ -106,7 +108,8 @@ class _FullscreenVideoFeedScreenState
   @override
   void initState() {
     super.initState();
-    // We'll initialize the page controller once we have videos from the provider
+    // We'll initialize the page controller once we have videos from the
+    // provider
     _currentIndex = widget.initialIndex;
   }
 
@@ -295,8 +298,8 @@ class _FullscreenVideoFeedScreenState
             index: index,
             hasBottomNavigation: false,
             contextTitle: widget.contextTitle,
-            // Use isActiveOverride since this screen manages its own active state
-            // (not using URL-based routing for video index)
+            // Use isActiveOverride since this screen manages its own active
+            // state (not using URL-based routing for video index)
             isActiveOverride: index == _currentIndex,
             disableTapNavigation: true,
             // Fullscreen mode - add extra padding to avoid back button
