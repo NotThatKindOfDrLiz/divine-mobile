@@ -87,8 +87,9 @@ class ComposableVideoGrid extends ConsumerWidget {
       },
       data: (tracker) {
         // Filter out broken videos
-        final filteredVideos =
-            videos.where((video) => !tracker.isVideoBroken(video.id)).toList();
+        final filteredVideos = videos
+            .where((video) => !tracker.isVideoBroken(video.id))
+            .toList();
 
         if (filteredVideos.isEmpty && emptyBuilder != null) {
           return sliverMode
