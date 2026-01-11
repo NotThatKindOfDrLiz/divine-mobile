@@ -86,7 +86,7 @@ class _RepostsEmptyState extends StatelessWidget {
               Text(
                 'No Reposts Yet',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: VineTheme.whiteText,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),

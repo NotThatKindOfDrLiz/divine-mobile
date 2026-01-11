@@ -34,7 +34,7 @@ class ProfileVideosGrid extends ConsumerWidget {
           return const Center(
             child: Text(
               'Error loading videos',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: VineTheme.whiteText),
             ),
           );
         }
@@ -76,7 +76,7 @@ class ProfileVideosGrid extends ConsumerWidget {
       error: (error, stack) => const Center(
         child: Text(
           'Error loading videos',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: VineTheme.whiteText),
         ),
       ),
     );
@@ -110,7 +110,7 @@ class _ProfileVideosEmptyState extends StatelessWidget {
               const Text(
                 'No Videos Yet',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: VineTheme.whiteText,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),

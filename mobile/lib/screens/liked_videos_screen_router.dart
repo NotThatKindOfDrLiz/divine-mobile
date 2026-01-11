@@ -35,9 +35,12 @@ class LikedVideosScreenRouter extends ConsumerWidget {
         category: LogCategory.ui,
       );
       return const Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: VineTheme.backgroundColor,
         body: Center(
-          child: Text('Invalid route', style: TextStyle(color: Colors.white)),
+          child: Text(
+            'Invalid route',
+            style: TextStyle(color: VineTheme.whiteText),
+          ),
         ),
       );
     }
@@ -52,15 +55,15 @@ class LikedVideosScreenRouter extends ConsumerWidget {
         category: LogCategory.ui,
       );
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: VineTheme.backgroundColor,
         appBar: AppBar(
-          backgroundColor: Colors.black,
+          backgroundColor: VineTheme.backgroundColor,
           title: const Text(
             'Liked Videos',
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: VineTheme.whiteText),
           ),
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: VineTheme.whiteText),
             onPressed: () => context.goMyProfile(),
           ),
         ),
@@ -82,19 +85,19 @@ class LikedVideosScreenRouter extends ConsumerWidget {
       data: (state) {
         if (state.videos.isEmpty) {
           return Scaffold(
-            backgroundColor: Colors.black,
+            backgroundColor: VineTheme.backgroundColor,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                icon: const Icon(Icons.arrow_back, color: VineTheme.whiteText),
                 onPressed: () => context.pop(),
               ),
             ),
             body: const Center(
               child: Text(
                 'No liked videos',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: VineTheme.whiteText),
               ),
             ),
           );
@@ -108,25 +111,25 @@ class LikedVideosScreenRouter extends ConsumerWidget {
         );
       },
       loading: () => const Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: VineTheme.backgroundColor,
         body: Center(
           child: CircularProgressIndicator(color: VineTheme.vineGreen),
         ),
       ),
       error: (error, stack) => Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: VineTheme.backgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            icon: const Icon(Icons.arrow_back, color: VineTheme.whiteText),
             onPressed: () => context.pop(),
           ),
         ),
         body: const Center(
           child: Text(
             'Error loading liked videos',
-            style: TextStyle(color: Colors.white),
+            style: TextStyle(color: VineTheme.whiteText),
           ),
         ),
       ),

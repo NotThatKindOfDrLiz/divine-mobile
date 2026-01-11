@@ -30,7 +30,7 @@ class ProfileLikedGrid extends ConsumerWidget {
           return const Center(
             child: Text(
               'Error loading liked videos',
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: VineTheme.whiteText),
             ),
           );
         }
@@ -79,7 +79,7 @@ class ProfileLikedGrid extends ConsumerWidget {
       error: (error, stack) => const Center(
         child: Text(
           'Error loading liked videos',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: VineTheme.whiteText),
         ),
       ),
     );
@@ -105,7 +105,7 @@ class _LikedEmptyState extends StatelessWidget {
               Text(
                 'No Liked Videos Yet',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: VineTheme.whiteText,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
