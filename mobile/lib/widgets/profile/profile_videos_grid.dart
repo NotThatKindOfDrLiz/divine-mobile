@@ -52,11 +52,20 @@ class ProfileVideosGrid extends ConsumerWidget {
           );
         }
 
+        final isOwnProfile =
+            ref.read(authServiceProvider).currentPublicKeyHex == userIdHex;
+
         return CustomScrollView(
           slivers: [
             ComposableVideoGrid.sliver(
               videos: originalVideos,
               padding: const EdgeInsets.all(2),
+              emptyBuilder: () => _ProfileVideosEmptyStateContent(
+                isOwnProfile: isOwnProfile,
+                onRefresh: () => ref
+                    .read(profileOriginalsFeedProvider(userIdHex).notifier)
+                    .loadMore(),
+              ),
               tileBuilder: (video, idx) => sharedVideoTile(
                 context,
                 video: video,
@@ -83,7 +92,7 @@ class ProfileVideosGrid extends ConsumerWidget {
   }
 }
 
-/// Empty state shown when user has no videos
+/// Empty state shown when user has no videos (wrapped in CustomScrollView)
 class _ProfileVideosEmptyState extends StatelessWidget {
   const _ProfileVideosEmptyState({
     required this.userIdHex,
@@ -100,42 +109,60 @@ class _ProfileVideosEmptyState extends StatelessWidget {
     slivers: [
       SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.videocam_outlined, color: Colors.grey, size: 64),
-              const SizedBox(height: 16),
-              const Text(
-                'No Videos Yet',
-                style: TextStyle(
-                  color: VineTheme.whiteText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isOwnProfile
-                    ? 'Share your first video to see it here'
-                    : "This user hasn't shared any videos yet",
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
-              ),
-              const SizedBox(height: 32),
-              IconButton(
-                onPressed: onRefresh,
-                icon: const Icon(
-                  Icons.refresh,
-                  color: VineTheme.vineGreen,
-                  size: 28,
-                ),
-                tooltip: 'Refresh',
-              ),
-            ],
-          ),
+        child: _ProfileVideosEmptyStateContent(
+          isOwnProfile: isOwnProfile,
+          onRefresh: onRefresh,
         ),
       ),
     ],
+  );
+}
+
+/// Empty state content widget (used by both _ProfileVideosEmptyState and
+/// ComposableVideoGrid's emptyBuilder when all videos are filtered out)
+class _ProfileVideosEmptyStateContent extends StatelessWidget {
+  const _ProfileVideosEmptyStateContent({
+    required this.isOwnProfile,
+    required this.onRefresh,
+  });
+
+  final bool isOwnProfile;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.videocam_outlined, color: Colors.grey, size: 64),
+        const SizedBox(height: 16),
+        const Text(
+          'No Videos Yet',
+          style: TextStyle(
+            color: VineTheme.whiteText,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          isOwnProfile
+              ? 'Share your first video to see it here'
+              : "This user hasn't shared any videos yet",
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        const SizedBox(height: 32),
+        IconButton(
+          onPressed: onRefresh,
+          icon: const Icon(
+            Icons.refresh,
+            color: VineTheme.vineGreen,
+            size: 28,
+          ),
+          tooltip: 'Refresh',
+        ),
+      ],
+    ),
   );
 }
