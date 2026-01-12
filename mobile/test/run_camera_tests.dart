@@ -7,8 +7,6 @@ import 'package:openvine/services/video_recorder/camera/camera_base_service.dart
 import 'package:openvine/utils/unified_logger.dart';
 
 // Import all camera test files
-import 'services/video_recorder/camera/camera_base_service_test.dart'
-    as base_service_test;
 import 'services/video_recorder/camera_permission_service_test.dart'
     as permission_test;
 
@@ -50,6 +48,7 @@ void main() async {
   CameraService? cameraService;
   try {
     cameraService = CameraService.create(
+      onAutoStopped: (_) {},
       onUpdateState: ({forceCameraRebuild}) {},
     );
     await cameraService.initialize();
@@ -100,10 +99,6 @@ void main() async {
 
   // Run test suites
   group('Camera Test Suite', () {
-    group('Camera Base Service Tests', () {
-      base_service_test.main();
-    });
-
     group('Camera Permission Service Tests', () {
       permission_test.main();
     });

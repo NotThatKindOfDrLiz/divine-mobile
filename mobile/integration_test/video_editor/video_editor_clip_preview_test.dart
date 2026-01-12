@@ -41,7 +41,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      // Use pump instead of pumpAndSettle to avoid waiting for infinite animations
+      await tester.pump();
 
       // AspectRatio widget should be present
       expect(find.byType(AspectRatio), findsOneWidget);
@@ -77,11 +78,12 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      // Use pump instead of pumpAndSettle to avoid waiting for infinite animations
+      await tester.pump();
 
       // Tap the preview
       await tester.tap(find.byType(VideoClipPreview));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(tapped, true);
     });
@@ -114,7 +116,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      // Use pump instead of pumpAndSettle to avoid waiting for infinite animations
+      await tester.pump();
 
       // AnimatedContainer should be present for border animation
       expect(find.byType(AnimatedContainer), findsWidgets);
@@ -148,7 +151,8 @@ void main() {
         ),
       );
 
-      await tester.pumpAndSettle();
+      // Use pump instead of pumpAndSettle to avoid waiting for infinite animations
+      await tester.pump();
 
       // Preview should render with deletion zone styling
       expect(find.byType(VideoClipPreview), findsOneWidget);

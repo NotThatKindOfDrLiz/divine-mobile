@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
-import 'package:openvine/widgets/video_recorder/video_recorder_camera_preview.dart';
+import 'package:openvine/widgets/video_recorder/preview/video_recorder_camera_preview.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
 
@@ -147,6 +147,7 @@ void main() {
       testWidgets('handles app lifecycle state changes', (tester) async {
         final mockCamera = MockCameraService.create(
           onUpdateState: ({forceCameraRebuild}) {},
+          onAutoStopped: (_) {},
         );
         await mockCamera.initialize();
 
@@ -390,6 +391,7 @@ void main() {
 
       testWidgets('handles multiple rapid lifecycle changes', (tester) async {
         final mockCamera = MockCameraService.create(
+          onAutoStopped: (_) {},
           onUpdateState: ({forceCameraRebuild}) {},
         );
         await mockCamera.initialize();

@@ -25,6 +25,7 @@ environment:
 workspace:
   - packages/comments_repository
   - packages/db_client
+  - packages/divine_camera
   - packages/keycast_flutter
   - packages/likes_repository
   - packages/models
@@ -67,11 +68,9 @@ dependencies:
   permission_handler: ^12.0.1 # Handle runtime permissions
 
   # Camera and media
-  camerawesome:
-    git:
-      url: https://github.com/hm21/CamerAwesome.git
-      ref: master
-  camera_macos_plus: ^0.0.3
+  divine_camera:
+    path: packages/divine_camera
+  camera_macos_plus: ^0.0.4
   video_player: ^2.9.1 # Uses native AVPlayer (iOS/macOS) and ExoPlayer (Android)
   visibility_detector: ^0.4.0+2 # Detect widget visibility for proper video control
   image: ^4.1.7 # Image processing for GIF generation

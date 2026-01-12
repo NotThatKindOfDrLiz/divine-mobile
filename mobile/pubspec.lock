@@ -269,27 +269,10 @@ packages:
     dependency: "direct main"
     description:
       name: camera_macos_plus
-      sha256: "1c4af91f15aec8d0be5f3e02a4d5ee17cdffcdf1cea6eeed6aa2022bfb587032"
+      sha256: dad4f992c6c511e3ceeef49ab1dc999d22135dac462a7fc06c8cfb05632c8f16
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.3"
-  camerawesome:
-    dependency: "direct main"
-    description:
-      path: "."
-      ref: master
-      resolved-ref: "432059f362b1d499fc53fdd2c50bb3a521b0ab15"
-      url: "https://github.com/hm21/CamerAwesome.git"
-    source: git
-    version: "2.5.0"
-  carousel_slider:
-    dependency: transitive
-    description:
-      name: carousel_slider
-      sha256: bcc61735345c9ab5cb81073896579e735f81e35fd588907a393143ea986be8ff
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.1.1"
+    version: "0.0.4"
   characters:
     dependency: transitive
     description:
@@ -362,14 +345,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
-  colorfilter_generator:
-    dependency: transitive
-    description:
-      name: colorfilter_generator
-      sha256: ccc2995e440b1d828d55d99150e7cad64624f3cb4a1e235000de3f93cf10d35c
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.0.8"
   connectivity_plus:
     dependency: "direct main"
     description:
@@ -581,10 +556,10 @@ packages:
     dependency: "direct main"
     description:
       name: equatable
-      sha256: "567c64b3cb4cf82397aac55f4f0cbd3ca20d77c6c03bedbc4ceaddc08904aef7"
+      sha256: "3e0141505477fd8ad55d6eb4e7776d3fe8430be8e497ccb1521370c3f21a3e2b"
       url: "https://pub.dev"
     source: hosted
-    version: "2.0.7"
+    version: "2.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -1303,14 +1278,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.11.1"
-  matrix2d:
-    dependency: transitive
-    description:
-      name: matrix2d
-      sha256: "188718dd3bc2a31e372cfd0791b0f77f4f13ea76164147342cc378d9132949e7"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.4"
   melos:
     dependency: "direct dev"
     description:
@@ -2381,5 +2348,5 @@ packages:
     source: hosted
     version: "2.1.0"
 sdks:
-  dart: ">=3.10.0 <4.0.0"
+  dart: ">=3.10.3 <4.0.0"
   flutter: ">=3.38.3 <4.0.0"

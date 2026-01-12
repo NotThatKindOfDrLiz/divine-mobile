@@ -14,6 +14,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/services/draft_storage_service.dart';
+import 'package:openvine/services/video_editor/video_editor_render_service.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -42,6 +43,17 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Returns an unmodifiable view of all clips.
   List<RecordingClip> get clips => List.unmodifiable(_clips);
+
+  /// Calculates the remaining recording time available.
+  ///
+  /// Returns the difference between [maxDuration] and the sum of all clip durations.
+  Duration get remainingDuration {
+    final totalDuration = _clips.fold<Duration>(
+      Duration.zero,
+      (sum, clip) => sum + clip.duration,
+    );
+    return maxDuration - totalDuration;
+  }
 
   @override
   ClipManagerState build() {
@@ -119,6 +131,10 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Add a new recorded clip to the list.
   ///
+  /// If the clip duration exceeds [remainingDuration], it will be automatically
+  /// trimmed to fit within the max duration limit. The trimming happens
+  /// asynchronously in the background while the clip is displayed immediately.
+  ///
   /// Returns the created clip with unique ID.
   RecordingClip addClip({
     required EditorVideo video,
@@ -126,16 +142,41 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     Duration? duration,
     String? thumbnailPath,
   }) {
+    final clipDuration =
+        duration ??
+        Duration(microseconds: _recordStopwatch.elapsedMicroseconds);
+    final remainingDuration = this.remainingDuration;
+
+    // Check if clip needs to be trimmed to fit within max duration
+    final isClipToLong = clipDuration > remainingDuration;
+
+    // Create a completer to track async trimming progress
+    final processingCompleter = isClipToLong ? Completer<bool>() : null;
+
     final clip = RecordingClip(
       id: 'clip_${DateTime.now().millisecondsSinceEpoch}_${_clipCounter++}',
       video: video,
-      duration:
-          duration ??
-          Duration(microseconds: _recordStopwatch.elapsedMicroseconds),
+      duration: isClipToLong ? remainingDuration : clipDuration,
       recordedAt: .now(),
       thumbnailPath: thumbnailPath,
       aspectRatio: aspectRatio,
+      processingCompleter: processingCompleter,
     );
+
+    // Asynchronously trim the clip if it exceeds remaining duration
+    if (isClipToLong) {
+      unawaited(
+        VideoEditorRenderService.limitClipDuration(
+          clip: clip,
+          duration: remainingDuration,
+          onComplete: (success) async {
+            if (!ref.mounted) return;
+            processingCompleter!.complete(success);
+            refreshClip(clip);
+          },
+        ),
+      );
+    }
 
     _clips.add(clip);
     Log.info(

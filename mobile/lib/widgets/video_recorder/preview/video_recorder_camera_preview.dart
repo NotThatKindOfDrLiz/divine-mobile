@@ -1,9 +1,13 @@
 // ABOUTME: Camera preview widget with animated aspect ratio transitions and grid overlay
 // ABOUTME: Handles tap-to-focus and displays rule-of-thirds grid during non-recording state
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/widgets/video_recorder/preview/video_recorder_macos_preview.dart';
+import 'package:openvine/widgets/video_recorder/preview/video_recorder_mobile_preview.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_camera_placeholder.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart';
 
@@ -77,16 +81,9 @@ class _VideoRecorderCameraPreviewState
     required bool showGrid,
     required double sensorAspectRatio,
   }) {
-    final previewWidget = ref
-        .read(videoRecorderProvider.notifier)
-        .previewWidget;
-
     return [
-      if (isCameraInitialized && previewWidget != null)
-        _buildCameraPreview(
-          previewWidget: previewWidget,
-          sensorAspectRatio: sensorAspectRatio,
-        )
+      if (isCameraInitialized)
+        _buildCameraPreview(sensorAspectRatio: sensorAspectRatio)
       else
         const VideoRecorderCameraPlaceholder(),
       _buildOverlayGrid(showGrid),
@@ -94,22 +91,22 @@ class _VideoRecorderCameraPreviewState
     ];
   }
 
-  Widget _buildCameraPreview({
-    required Widget previewWidget,
-    required double sensorAspectRatio,
-  }) {
+  Widget _buildCameraPreview({required double sensorAspectRatio}) {
     return FittedBox(
       fit: .cover,
       child: SizedBox(
-        width: 100 / sensorAspectRatio,
-        height: 100,
+        width: 1000 / sensorAspectRatio,
+        height: 1000,
         child: Stack(
           children: [
             /// Skeleton when switching camera
             Container(color: const Color(0xFF141414)),
 
             /// Preview widget
-            previewWidget,
+            if (!kIsWeb && Platform.isMacOS)
+              VideoRecorderMacosPreview()
+            else
+              VideoRecorderMobilePreview(),
           ],
         ),
       ),

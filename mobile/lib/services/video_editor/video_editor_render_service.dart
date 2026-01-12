@@ -2,8 +2,8 @@
 // ABOUTME: Handles aspect ratio cropping, clip concatenation, and export transformation
 
 import 'dart:async';
-import 'dart:ui';
 
+import 'package:flutter/widgets.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/utils/unified_logger.dart';
@@ -100,6 +100,23 @@ class VideoEditorRenderService {
         category: .video,
       );
       return null;
+    }
+  }
+
+  static Future limitClipDuration({
+    required RecordingClip clip,
+    required Duration duration,
+    required ValueChanged<bool> onComplete,
+  }) async {
+    try {
+      await ProVideoEditor.instance.renderVideoToFile(
+        await clip.video.safeFilePath(),
+        VideoRenderData(video: clip.video, endTime: duration),
+      );
+
+      onComplete(true);
+    } catch (e) {
+      onComplete(false);
     }
   }
 

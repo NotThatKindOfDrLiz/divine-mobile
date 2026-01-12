@@ -26,6 +26,7 @@ void main() {
     setUp(() {
       cameraService = CameraService.create(
         onUpdateState: ({forceCameraRebuild}) {},
+        onAutoStopped: (_) {},
       );
     });
 

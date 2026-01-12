@@ -19,14 +19,14 @@ class VideoThumbnailService {
   /// Extract a thumbnail from a video file at a specific timestamp
   ///
   /// [videoPath] - Path to the video file
-  /// [timestamp] - Timestamp to extract thumbnail from (default: 500ms)
+  /// [timestamp] - Timestamp to extract thumbnail from (default: 210ms)
   /// [quality] - JPEG quality (1-100, default: 75)
   ///
   /// Returns the path to the generated thumbnail file
   static Future<String?> extractThumbnail({
     required String videoPath,
-    // Extract frame at 500ms by default
-    Duration timestamp = const Duration(milliseconds: 500),
+    // Extract frame at 210ms by default
+    Duration timestamp = const Duration(milliseconds: 210),
     int quality = _thumbnailQuality,
   }) async {
     try {
@@ -121,7 +121,7 @@ class VideoThumbnailService {
   /// Extract thumbnail as bytes (for direct upload without file)
   static Future<Uint8List?> extractThumbnailBytes({
     required String videoPath,
-    Duration timestamp = const Duration(milliseconds: 500),
+    Duration timestamp = const Duration(milliseconds: 210),
     int quality = _thumbnailQuality,
   }) async {
     try {
@@ -178,7 +178,7 @@ class VideoThumbnailService {
   /// If [timestamps] is not provided, thumbnails are extracted at **500ms,
   /// 1000ms, and 1500ms** by default. Extraction intentionally does not start
   /// at 0ms because many MP4 videos have no decodable frame at the beginning.
-  /// The first keyframe typically appears after ~200–500ms.
+  /// The first keyframe typically appears after ~210ms.
   static Future<List<Uint8List>> extractMultipleThumbnails({
     required String videoPath,
     List<Duration>? timestamps,

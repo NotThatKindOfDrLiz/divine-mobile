@@ -19,11 +19,9 @@ enum DivineVideoQuality {
   highest,
 
   /// Lowest available quality on the device
-  lowest,
-}
+  lowest
+  ;
 
-/// Extension to convert quality to platform-specific strings.
-extension DivineVideoQualityExtension on DivineVideoQuality {
   /// Converts to a string representation for platform channels.
   String get value {
     switch (this) {

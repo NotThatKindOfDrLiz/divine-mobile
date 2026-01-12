@@ -55,6 +55,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
                   : null,
             );
           },
+          onAutoStopped: stopRecording,
         );
 
     // Setup cleanup when provider is disposed
@@ -297,6 +298,15 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// If timer duration is set, displays countdown before starting recording.
   /// Notifies clip manager to begin tracking recording duration.
   Future<void> startRecording() async {
+    final clipProvider = ref.read(clipManagerProvider.notifier);
+    final remainingDuration = clipProvider.remainingDuration;
+
+    // We block the recording if the video is already recording or if the
+    // remaining duration is less than one frame.
+    if (state.isRecording || remainingDuration < Duration(milliseconds: 30)) {
+      return;
+    }
+
     _baseZoomLevel = state.zoomLevel;
     state = state.copyWith(recordingState: .recording);
 
@@ -309,8 +319,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         category: .video,
       );
 
-      for (var i = seconds; i > 0; i--) {
-        if (_isDestroyed) return; // Stop countdown if disposed
+      for (var i = seconds; i > 0 && !_isDestroyed; i--) {
         state = state.copyWith(countdownValue: i);
         await Future<void>.delayed(const Duration(seconds: 1));
       }
@@ -324,26 +333,28 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       name: 'VideoRecorderNotifier',
       category: .video,
     );
-    await _cameraService.startRecording();
-    ref.read(clipManagerProvider.notifier).startRecording();
+
+    await _cameraService.startRecording(maxDuration: remainingDuration);
+    clipProvider.startRecording();
   }
 
   /// Stop recording and process clip (metadata, thumbnail).
   ///
   /// Stops camera recording, extracts video metadata for exact duration,
   /// generates thumbnail, and adds clip to clip manager.
-  Future<void> stopRecording() async {
-    if (!state.isRecording) return;
+  Future<void> stopRecording([EditorVideo? result]) async {
+    if (!state.isRecording && result != null) return;
 
     Log.info(
       '⏹️  Stopping recording and processing clip...',
       name: 'VideoRecorderNotifier',
       category: .video,
     );
+    final videoResult = result ?? await _cameraService.stopRecording();
 
     final clipProvider = ref.read(clipManagerProvider.notifier)
       ..stopRecording();
-    final videoResult = await _cameraService.stopRecording();
+    final remainingMs = clipProvider.remainingDuration.inMilliseconds;
 
     if (videoResult == null) {
       Log.warning(
@@ -384,6 +395,14 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     // Generate and attach thumbnail
     final thumbnailPath = await VideoThumbnailService.extractThumbnail(
       videoPath: await videoResult.safeFilePath(),
+      timestamp: Duration(
+        // Use the middle of remaining duration if video is
+        // shorter than remaining time (clip was trimmed), otherwise use default
+        // 210ms which is typically the first keyframe in most MP4 videos
+        milliseconds: remainingMs <= metadata.duration.inMilliseconds
+            ? remainingMs ~/ 2
+            : 210,
+      ),
     );
     if (thumbnailPath != null) {
       clipProvider.updateThumbnail(clip.id, thumbnailPath);
@@ -420,14 +439,14 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// Handle pinch-to-zoom gesture start.
   ///
   /// Captures base zoom level for relative zoom calculations.
-  void _handleScaleStart(ScaleStartDetails details) {
+  void handleScaleStart(ScaleStartDetails details) {
     _baseZoomLevel = state.zoomLevel;
   }
 
   /// Handle pinch-to-zoom gesture update.
   ///
   /// Calculates zoom level based on pinch scale relative to base level.
-  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
+  Future<void> handleScaleUpdate(ScaleUpdateDetails details) async {
     // Linear zoom: map scale gesture to zoom range
     // scale < 1.0 = zoom out, scale > 1.0 = zoom in
     final scaleChange = details.scale - 1.0; // -1.0 to +2.0 range
@@ -452,33 +471,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     }
   }
 
-  /// Handle tap gesture on preview for focus and exposure.
-  ///
-  /// Converts tap position to normalized coordinates and sets both
-  /// focus and exposure points simultaneously.
-  Future<void> _handleTapDown(
-    TapDownDetails details,
-    BoxConstraints constraints,
-  ) async {
-    final offset = Offset(
-      details.localPosition.dx / constraints.maxWidth,
-      details.localPosition.dy / constraints.maxHeight,
-    );
-    await Future.wait([setFocusPoint(offset), setExposurePoint(offset)]);
-  }
-
-  /// Get the camera preview widget from the controller.
-  ///
-  /// Returns null if camera is not initialized. Widget includes gesture
-  /// handlers for focus, exposure, and zoom.
-  Widget? get previewWidget => _cameraService.isInitialized
-      ? _cameraService.buildPreviewWidget(
-          onTapDown: _handleTapDown,
-          onScaleStart: _handleScaleStart,
-          onScaleUpdate: _handleScaleUpdate,
-        )
-      : null;
-
   /// Close video recorder and navigate away.
   ///
   /// Pops navigation stack if possible, otherwise navigates home.
@@ -502,13 +494,18 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// Pauses camera lifecycle, navigates to editor, and resumes camera on
   /// return.
   Future<void> openVideoEditor(BuildContext context) async {
-    await handleAppLifecycleState(.paused);
+    await Future.wait([
+      context.pushVideoEditor(),
+      // We delay camera dispose so that the screen animation can finish
+      // before the editor open. Without that it will look weird to the user
+      // because the initialization screen will show up quickly.
+      Future.delayed(Duration(milliseconds: 300), () {
+        return _cameraService.dispose();
+      }),
+    ]);
     if (!context.mounted) return;
 
-    await context.pushVideoEditor();
-    if (!context.mounted) return;
-
-    await handleAppLifecycleState(.resumed);
+    await _cameraService.initialize();
   }
 
   /// Update the state based on the current camera state.
