@@ -155,11 +155,7 @@ class _ProfileVideosEmptyStateContent extends StatelessWidget {
         const SizedBox(height: 32),
         IconButton(
           onPressed: onRefresh,
-          icon: const Icon(
-            Icons.refresh,
-            color: VineTheme.vineGreen,
-            size: 28,
-          ),
+          icon: const Icon(Icons.refresh, color: VineTheme.vineGreen, size: 28),
           tooltip: 'Refresh',
         ),
       ],

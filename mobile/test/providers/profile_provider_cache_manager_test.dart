@@ -23,12 +23,14 @@ void main() {
       // Default stubs for VideoEventService
       when(mockVideoEventService.addListener(any)).thenAnswer((_) {});
       when(mockVideoEventService.removeListener(any)).thenAnswer((_) {});
-      when(mockVideoEventService.addVideoUpdateListener(any))
-          .thenReturn(() {});
+      when(mockVideoEventService.addVideoUpdateListener(any)).thenReturn(() {});
       when(mockVideoEventService.addNewVideoListener(any)).thenReturn(() {});
       when(mockVideoEventService.authorVideos(any)).thenReturn([]);
       when(
-        mockVideoEventService.subscribeToUserVideos(any, limit: anyNamed('limit')),
+        mockVideoEventService.subscribeToUserVideos(
+          any,
+          limit: anyNamed('limit'),
+        ),
       ).thenAnswer((_) async {});
 
       container = ProviderContainer(
@@ -43,15 +45,17 @@ void main() {
     });
 
     test('should start with empty cache', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       expect(cacheManager.cachedUserIds, isEmpty);
     });
 
     test('should add user to cache on recordAccess', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
 
@@ -59,44 +63,57 @@ void main() {
     });
 
     test('should maintain LRU order (most recent at end)', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.recordAccess('user_2');
       cacheManager.recordAccess('user_3');
 
-      expect(cacheManager.cachedUserIds, equals(['user_1', 'user_2', 'user_3']));
+      expect(
+        cacheManager.cachedUserIds,
+        equals(['user_1', 'user_2', 'user_3']),
+      );
     });
 
     test('should move existing user to end on re-access', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.recordAccess('user_2');
       cacheManager.recordAccess('user_3');
       cacheManager.recordAccess('user_1'); // Re-access user_1
 
-      expect(cacheManager.cachedUserIds, equals(['user_2', 'user_3', 'user_1']));
+      expect(
+        cacheManager.cachedUserIds,
+        equals(['user_2', 'user_3', 'user_1']),
+      );
     });
 
     test('should evict oldest user when cache exceeds max size', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.recordAccess('user_2');
       cacheManager.recordAccess('user_3');
       cacheManager.recordAccess('user_4'); // Should evict user_1
 
-      expect(cacheManager.cachedUserIds, equals(['user_2', 'user_3', 'user_4']));
+      expect(
+        cacheManager.cachedUserIds,
+        equals(['user_2', 'user_3', 'user_4']),
+      );
       expect(cacheManager.cachedUserIds.contains('user_1'), isFalse);
     });
 
     test('should keep only maxCachedProfiles users', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       // Add 5 users
       cacheManager.recordAccess('user_1');
@@ -107,12 +124,16 @@ void main() {
 
       // Should only have last 3
       expect(cacheManager.cachedUserIds.length, equals(3));
-      expect(cacheManager.cachedUserIds, equals(['user_3', 'user_4', 'user_5']));
+      expect(
+        cacheManager.cachedUserIds,
+        equals(['user_3', 'user_4', 'user_5']),
+      );
     });
 
     test('should not duplicate user on multiple accesses', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.recordAccess('user_1');
@@ -123,8 +144,9 @@ void main() {
     });
 
     test('evictUser should remove specific user from cache', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.recordAccess('user_2');
@@ -136,8 +158,9 @@ void main() {
     });
 
     test('evictUser should do nothing for non-cached user', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.evictUser('user_999'); // Not in cache
@@ -146,8 +169,9 @@ void main() {
     });
 
     test('clearAll should empty the cache', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       cacheManager.recordAccess('user_1');
       cacheManager.recordAccess('user_2');
@@ -159,8 +183,9 @@ void main() {
     });
 
     test('re-accessing evicted user should add them back', () {
-      final cacheManager =
-          container.read(profileProviderCacheManagerProvider.notifier);
+      final cacheManager = container.read(
+        profileProviderCacheManagerProvider.notifier,
+      );
 
       // Fill cache
       cacheManager.recordAccess('user_1');
@@ -173,7 +198,10 @@ void main() {
 
       // Re-access user_1 - should add back and evict user_2
       cacheManager.recordAccess('user_1');
-      expect(cacheManager.cachedUserIds, equals(['user_3', 'user_4', 'user_1']));
+      expect(
+        cacheManager.cachedUserIds,
+        equals(['user_3', 'user_4', 'user_1']),
+      );
     });
   });
 }

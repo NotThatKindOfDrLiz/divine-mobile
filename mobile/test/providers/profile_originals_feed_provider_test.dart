@@ -48,8 +48,7 @@ void main() {
       when(mockVideoEventService.removeListener(any)).thenAnswer((_) {});
 
       // Default stub for video update listeners
-      when(mockVideoEventService.addVideoUpdateListener(any))
-          .thenReturn(() {});
+      when(mockVideoEventService.addVideoUpdateListener(any)).thenReturn(() {});
       when(mockVideoEventService.addNewVideoListener(any)).thenReturn(() {});
     });
 
@@ -58,30 +57,33 @@ void main() {
       reset(mockVideoEventService);
     });
 
-    test('should return empty VideoFeedState when user has no videos',
-        () async {
-      // Setup: User has no videos
-      when(mockVideoEventService.authorVideos(testUserId)).thenReturn([]);
-      when(
-        mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
-      ).thenAnswer((_) async {});
+    test(
+      'should return empty VideoFeedState when user has no videos',
+      () async {
+        // Setup: User has no videos
+        when(mockVideoEventService.authorVideos(testUserId)).thenReturn([]);
+        when(
+          mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
+        ).thenAnswer((_) async {});
 
-      container = ProviderContainer(
-        overrides: [
-          videoEventServiceProvider.overrideWithValue(mockVideoEventService),
-        ],
-      );
+        container = ProviderContainer(
+          overrides: [
+            videoEventServiceProvider.overrideWithValue(mockVideoEventService),
+          ],
+        );
 
-      // Act
-      final result =
-          await container.read(profileOriginalsFeedProvider(testUserId).future);
+        // Act
+        final result = await container.read(
+          profileOriginalsFeedProvider(testUserId).future,
+        );
 
-      // Assert
-      expect(result.videos, isEmpty);
-      expect(result.hasMoreContent, isFalse);
-      expect(result.isLoadingMore, isFalse);
-      expect(result.error, isNull);
-    });
+        // Assert
+        expect(result.videos, isEmpty);
+        expect(result.hasMoreContent, isFalse);
+        expect(result.isLoadingMore, isFalse);
+        expect(result.error, isNull);
+      },
+    );
 
     test('should filter out reposts and return only original videos', () async {
       // Setup: Mix of original videos and reposts
@@ -112,8 +114,9 @@ void main() {
         ),
       ];
 
-      when(mockVideoEventService.authorVideos(testUserId))
-          .thenReturn(mixedVideos);
+      when(
+        mockVideoEventService.authorVideos(testUserId),
+      ).thenReturn(mixedVideos);
       when(
         mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
       ).thenAnswer((_) async {});
@@ -125,8 +128,9 @@ void main() {
       );
 
       // Act
-      final result =
-          await container.read(profileOriginalsFeedProvider(testUserId).future);
+      final result = await container.read(
+        profileOriginalsFeedProvider(testUserId).future,
+      );
 
       // Assert: Only originals should be returned
       expect(result.videos.length, equals(2));
@@ -158,8 +162,9 @@ void main() {
         ),
       ];
 
-      when(mockVideoEventService.authorVideos(testUserId))
-          .thenReturn(mixedAuthorVideos);
+      when(
+        mockVideoEventService.authorVideos(testUserId),
+      ).thenReturn(mixedAuthorVideos);
       when(
         mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
       ).thenAnswer((_) async {});
@@ -171,8 +176,9 @@ void main() {
       );
 
       // Act
-      final result =
-          await container.read(profileOriginalsFeedProvider(testUserId).future);
+      final result = await container.read(
+        profileOriginalsFeedProvider(testUserId).future,
+      );
 
       // Assert: Only videos from testUserId should be returned
       expect(result.videos.length, equals(2));
@@ -191,8 +197,9 @@ void main() {
         ),
       );
 
-      when(mockVideoEventService.authorVideos(testUserId))
-          .thenReturn(manyVideos);
+      when(
+        mockVideoEventService.authorVideos(testUserId),
+      ).thenReturn(manyVideos);
       when(
         mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
       ).thenAnswer((_) async {});
@@ -204,8 +211,9 @@ void main() {
       );
 
       // Act
-      final result =
-          await container.read(profileOriginalsFeedProvider(testUserId).future);
+      final result = await container.read(
+        profileOriginalsFeedProvider(testUserId).future,
+      );
 
       // Assert
       expect(result.videos.length, equals(10));
@@ -224,8 +232,9 @@ void main() {
         ),
       );
 
-      when(mockVideoEventService.authorVideos(testUserId))
-          .thenReturn(fewVideos);
+      when(
+        mockVideoEventService.authorVideos(testUserId),
+      ).thenReturn(fewVideos);
       when(
         mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
       ).thenAnswer((_) async {});
@@ -237,8 +246,9 @@ void main() {
       );
 
       // Act
-      final result =
-          await container.read(profileOriginalsFeedProvider(testUserId).future);
+      final result = await container.read(
+        profileOriginalsFeedProvider(testUserId).future,
+      );
 
       // Assert
       expect(result.videos.length, equals(5));
@@ -261,8 +271,9 @@ void main() {
       final beforeTest = DateTime.now();
 
       // Act
-      final result =
-          await container.read(profileOriginalsFeedProvider(testUserId).future);
+      final result = await container.read(
+        profileOriginalsFeedProvider(testUserId).future,
+      );
 
       // Assert
       expect(result.lastUpdated, isNotNull);
@@ -274,57 +285,63 @@ void main() {
     });
 
     group('loadMore', () {
-      test('should delegate to profileFeedProvider which calls service',
-          () async {
-        // Setup: Initial videos
-        final initialVideos = List.generate(
-          10,
-          (i) => createTestVideo(
-            id: 'video$i',
-            pubkey: testUserId,
-            createdAt: 1000 - i,
-            isRepost: false,
-          ),
-        );
+      test(
+        'should delegate to profileFeedProvider which calls service',
+        () async {
+          // Setup: Initial videos
+          final initialVideos = List.generate(
+            10,
+            (i) => createTestVideo(
+              id: 'video$i',
+              pubkey: testUserId,
+              createdAt: 1000 - i,
+              isRepost: false,
+            ),
+          );
 
-        when(mockVideoEventService.authorVideos(testUserId))
-            .thenReturn(initialVideos);
-        when(
-          mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
-        ).thenAnswer((_) async {});
-        when(
-          mockVideoEventService.queryHistoricalUserVideos(
-            testUserId,
-            until: anyNamed('until'),
-            limit: anyNamed('limit'),
-          ),
-        ).thenAnswer((_) async {});
+          when(
+            mockVideoEventService.authorVideos(testUserId),
+          ).thenReturn(initialVideos);
+          when(
+            mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
+          ).thenAnswer((_) async {});
+          when(
+            mockVideoEventService.queryHistoricalUserVideos(
+              testUserId,
+              until: anyNamed('until'),
+              limit: anyNamed('limit'),
+            ),
+          ).thenAnswer((_) async {});
 
-        container = ProviderContainer(
-          overrides: [
-            videoEventServiceProvider.overrideWithValue(mockVideoEventService),
-          ],
-        );
+          container = ProviderContainer(
+            overrides: [
+              videoEventServiceProvider.overrideWithValue(
+                mockVideoEventService,
+              ),
+            ],
+          );
 
-        // Get initial state
-        final initialResult =
-            await container.read(profileOriginalsFeedProvider(testUserId).future);
-        expect(initialResult.hasMoreContent, isTrue);
+          // Get initial state
+          final initialResult = await container.read(
+            profileOriginalsFeedProvider(testUserId).future,
+          );
+          expect(initialResult.hasMoreContent, isTrue);
 
-        // Act: Call loadMore
-        await container
-            .read(profileOriginalsFeedProvider(testUserId).notifier)
-            .loadMore();
+          // Act: Call loadMore
+          await container
+              .read(profileOriginalsFeedProvider(testUserId).notifier)
+              .loadMore();
 
-        // Assert: The underlying service should have been called
-        verify(
-          mockVideoEventService.queryHistoricalUserVideos(
-            testUserId,
-            until: anyNamed('until'),
-            limit: anyNamed('limit'),
-          ),
-        ).called(1);
-      });
+          // Assert: The underlying service should have been called
+          verify(
+            mockVideoEventService.queryHistoricalUserVideos(
+              testUserId,
+              until: anyNamed('until'),
+              limit: anyNamed('limit'),
+            ),
+          ).called(1);
+        },
+      );
 
       test('should not call loadMore when hasMoreContent is false', () async {
         // Setup: Few videos so hasMoreContent is false
@@ -338,8 +355,9 @@ void main() {
           ),
         );
 
-        when(mockVideoEventService.authorVideos(testUserId))
-            .thenReturn(fewVideos);
+        when(
+          mockVideoEventService.authorVideos(testUserId),
+        ).thenReturn(fewVideos);
         when(
           mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
         ).thenAnswer((_) async {});
@@ -351,8 +369,9 @@ void main() {
         );
 
         // Get initial state - hasMoreContent should be false
-        final initialResult =
-            await container.read(profileOriginalsFeedProvider(testUserId).future);
+        final initialResult = await container.read(
+          profileOriginalsFeedProvider(testUserId).future,
+        );
         expect(initialResult.hasMoreContent, isFalse);
 
         // Act: Call loadMore
@@ -372,29 +391,34 @@ void main() {
     });
 
     group('provider keepAlive', () {
-      test('provider should be kept alive (not disposed on listener removal)',
-          () async {
-        // Setup
-        when(mockVideoEventService.authorVideos(testUserId)).thenReturn([]);
-        when(
-          mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
-        ).thenAnswer((_) async {});
+      test(
+        'provider should be kept alive (not disposed on listener removal)',
+        () async {
+          // Setup
+          when(mockVideoEventService.authorVideos(testUserId)).thenReturn([]);
+          when(
+            mockVideoEventService.subscribeToUserVideos(testUserId, limit: 100),
+          ).thenAnswer((_) async {});
 
-        container = ProviderContainer(
-          overrides: [
-            videoEventServiceProvider.overrideWithValue(mockVideoEventService),
-          ],
-        );
+          container = ProviderContainer(
+            overrides: [
+              videoEventServiceProvider.overrideWithValue(
+                mockVideoEventService,
+              ),
+            ],
+          );
 
-        // Read the provider to initialize it
-        await container.read(profileOriginalsFeedProvider(testUserId).future);
+          // Read the provider to initialize it
+          await container.read(profileOriginalsFeedProvider(testUserId).future);
 
-        // The provider has keepAlive: true, so it should persist
-        // Verify it's still accessible after initial read
-        final result =
-            await container.read(profileOriginalsFeedProvider(testUserId).future);
-        expect(result, isA<VideoFeedState>());
-      });
+          // The provider has keepAlive: true, so it should persist
+          // Verify it's still accessible after initial read
+          final result = await container.read(
+            profileOriginalsFeedProvider(testUserId).future,
+          );
+          expect(result, isA<VideoFeedState>());
+        },
+      );
     });
 
     group('different user IDs', () {
@@ -426,10 +450,12 @@ void main() {
           ),
         ];
 
-        when(mockVideoEventService.authorVideos(userId1))
-            .thenReturn(user1Videos);
-        when(mockVideoEventService.authorVideos(userId2))
-            .thenReturn(user2Videos);
+        when(
+          mockVideoEventService.authorVideos(userId1),
+        ).thenReturn(user1Videos);
+        when(
+          mockVideoEventService.authorVideos(userId2),
+        ).thenReturn(user2Videos);
         when(
           mockVideoEventService.subscribeToUserVideos(any, limit: 100),
         ).thenAnswer((_) async {});
@@ -441,10 +467,12 @@ void main() {
         );
 
         // Act
-        final result1 =
-            await container.read(profileOriginalsFeedProvider(userId1).future);
-        final result2 =
-            await container.read(profileOriginalsFeedProvider(userId2).future);
+        final result1 = await container.read(
+          profileOriginalsFeedProvider(userId1).future,
+        );
+        final result2 = await container.read(
+          profileOriginalsFeedProvider(userId2).future,
+        );
 
         // Assert: Each user should have their own videos
         expect(result1.videos.length, equals(1));
