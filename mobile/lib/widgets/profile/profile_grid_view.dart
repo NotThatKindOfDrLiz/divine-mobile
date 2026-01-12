@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/others_followers/others_followers_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/profile_provider_cache_manager.dart';
 import 'package:openvine/providers/profile_stats_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/profile/profile_action_buttons_widget.dart';
@@ -70,6 +71,11 @@ class _ProfileGridViewState extends ConsumerState<ProfileGridView>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Record profile access for LRU cache management
+    ref
+        .read(profileProviderCacheManagerProvider.notifier)
+        .recordAccess(widget.userIdHex);
   }
 
   @override

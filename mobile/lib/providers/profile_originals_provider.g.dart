@@ -80,7 +80,7 @@ final class ProfileOriginalsProvider
   }
 }
 
-String _$profileOriginalsHash() => r'23bf9eaab5d216d9eef625d2f902cdb574dfbd7e';
+String _$profileOriginalsHash() => r'8c7f4c00005f558f8ff176f92b3308b679655cba';
 
 /// Provider that returns only the user's original videos (excluding reposts)
 ///

@@ -81,7 +81,7 @@ final class ProfileOriginalsFeedProvider
 }
 
 String _$profileOriginalsFeedHash() =>
-    r'086a01ffed1eb2d9e8cd94d1285278d739638929';
+    r'5cbb2a29ed1b9377d67971eaf4babedcc4c66195';
 
 /// Feed provider for user's original videos (excluding reposts)
 ///
