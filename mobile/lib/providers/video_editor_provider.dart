@@ -256,7 +256,11 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
               .take(state.currentClipIndex)
               .fold(Duration.zero, (sum, clip) => sum + clip.duration);
 
-    state = state.copyWith(currentPosition: offset + position);
+    state = state.copyWith(
+      currentPosition: Duration(
+        milliseconds: (offset + position).inMilliseconds.clamp(0, 6300),
+      ),
+    );
   }
 
   /// Update video metadata (title, description, hashtags, etc.).

@@ -49,6 +49,7 @@ class VideoTimeDisplay extends ConsumerWidget {
           fontWeight: .w800,
           height: 1.33,
           letterSpacing: 0.15,
+          fontFeatures: [.tabularFigures()],
         );
 
     final defaultSeparatorStyle =

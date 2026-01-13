@@ -129,6 +129,7 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
           fontSize: 14,
           fontWeight: .w800,
           letterSpacing: 0.1,
+          fontFeatures: [.tabularFigures()],
         );
 
     return Text(_displayPosition.toFormattedSeconds(), style: style);

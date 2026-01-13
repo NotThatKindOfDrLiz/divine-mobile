@@ -122,7 +122,11 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
 
   /// Updates current playback position.
   void updatePosition(Duration position) {
-    state = state.copyWith(currentPosition: position);
+    state = state.copyWith(
+      currentPosition: Duration(
+        milliseconds: position.inMilliseconds.clamp(0, 6300),
+      ),
+    );
   }
 
   /// Sets total video duration.
