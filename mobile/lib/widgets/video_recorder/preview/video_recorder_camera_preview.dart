@@ -46,31 +46,33 @@ class _VideoRecorderCameraPreviewState
       ),
     );
 
-    return Center(
-      child: Padding(
-        padding: const .symmetric(horizontal: 4),
-        child: TweenAnimationBuilder<double>(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeInOut,
-          tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
-          builder: (context, aspectRatio, _) {
-            return AspectRatio(
-              aspectRatio: aspectRatio,
-              child: ClipRRect(
-                clipBehavior: .hardEdge,
-                borderRadius: .circular(widget.previewWidgetRadius),
-                child: Stack(
-                  fit: .expand,
-                  key: ValueKey('Camera-Count-${state.cameraRebuildCount}'),
-                  children: _buildStackItems(
-                    showGrid: state.showGrid,
-                    isCameraInitialized: state.isCameraInitialized,
-                    sensorAspectRatio: state.sensorAspectRatio,
+    return SafeArea(
+      child: Center(
+        child: Padding(
+          padding: const .symmetric(horizontal: 4),
+          child: TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
+            builder: (context, aspectRatio, _) {
+              return AspectRatio(
+                aspectRatio: aspectRatio,
+                child: ClipRRect(
+                  clipBehavior: .hardEdge,
+                  borderRadius: .circular(widget.previewWidgetRadius),
+                  child: Stack(
+                    fit: .expand,
+                    key: ValueKey('Camera-Count-${state.cameraRebuildCount}'),
+                    children: _buildStackItems(
+                      showGrid: state.showGrid,
+                      isCameraInitialized: state.isCameraInitialized,
+                      sensorAspectRatio: state.sensorAspectRatio,
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
