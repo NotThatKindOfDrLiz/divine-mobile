@@ -41,7 +41,7 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
       elevation: 0,
     ),
     body: SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -199,7 +199,7 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
                         ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 32),
 
               // Additional info
               Container(
