@@ -6,10 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
-// Import all camera test files
-import 'services/video_recorder/camera_permission_service_test.dart'
-    as permission_test;
-
 // Import widget tests
 import 'widgets/video_recorder/video_recorder_bottom_bar_test.dart'
     as bottom_bar_test;
@@ -99,10 +95,6 @@ void main() async {
 
   // Run test suites
   group('Camera Test Suite', () {
-    group('Camera Permission Service Tests', () {
-      permission_test.main();
-    });
-
     group('Video Recorder Widget Tests', () {
       group('Bottom Bar Widget', () {
         bottom_bar_test.main();

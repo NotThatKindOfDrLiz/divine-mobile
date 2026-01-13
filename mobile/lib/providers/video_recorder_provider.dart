@@ -13,7 +13,6 @@ import 'package:openvine/models/video_recorder/video_recorder_timer_duration.dar
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
-import 'package:openvine/services/video_recorder/camera/camera_permission_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -91,19 +90,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       name: 'VideoRecorderNotifier',
       category: .video,
     );
-
-    // Check permissions using the dedicated service
-    final hasPermissions = context != null && context.mounted
-        ? await CameraPermissionService.ensurePermissionsWithDialog(context)
-        : await CameraPermissionService.ensurePermissions();
-    if (!hasPermissions) {
-      Log.warning(
-        '⚠️ Camera permissions denied',
-        name: 'VideoRecorderNotifier',
-        category: .video,
-      );
-      return false;
-    }
 
     await _cameraService.initialize();
     updateState(aspectRatio: .vertical);
