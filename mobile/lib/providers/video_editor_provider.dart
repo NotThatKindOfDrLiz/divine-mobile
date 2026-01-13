@@ -298,7 +298,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     )) {
       Log.warning(
         '⚠️ Invalid split position ${splitPosition.inSeconds}s - '
-        'clips must be at least ${VideoEditorSplitService.minClipDuration.inMilliseconds}ms',
+        'clips must be at least '
+        '${VideoEditorSplitService.minClipDuration.inMilliseconds}ms',
         name: 'VideoEditorNotifier',
         category: .video,
       );
@@ -377,7 +378,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   ///
   /// Shows metadata sheet for user input, renders video with all clips,
   /// and navigates to publish screen on success.
-  void done(BuildContext context) async {
+  Future<void> done(BuildContext context) async {
     Log.info(
       '🎬 Starting final video render',
       name: 'VideoEditorNotifier',
@@ -408,8 +409,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
           )
         : null;
 
-    state = state.copyWith(isProcessing: false);
-
     if (!validToPublish) {
       Log.warning(
         '⚠️ Video render cancelled or failed',
@@ -422,7 +421,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     if (!context.mounted) return;
 
     Log.info(
-      '✅ Video rendered successfully - duration: ${metaData!.duration.inSeconds}s',
+      '✅ Video rendered successfully - duration: '
+      '${metaData!.duration.inSeconds}s',
       name: 'VideoEditorNotifier',
       category: .video,
     );
@@ -446,10 +446,13 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
 
     if (!context.mounted) return;
+
+    state = state.copyWith(isProcessing: false);
     await context.pushVideoPublish();
   }
 
-  /// Create a VineDraft from the rendered clip with metadata and proofmode data.
+  /// Create a VineDraft from the rendered clip with metadata and proofmode
+  /// data.
   ///
   /// Generates proofmode attestation for the video file and packages all
   /// metadata into a draft ready for publication.

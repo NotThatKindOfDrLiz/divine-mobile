@@ -23,6 +23,9 @@ enum VideoPublishState {
   /// Publishing video metadata to Nostr network.
   publishToNostr,
 
+  /// Video was successfully published.
+  completed,
+
   /// An error occurred during the publishing process.
   error,
 }
