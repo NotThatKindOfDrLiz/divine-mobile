@@ -91,8 +91,9 @@ void main() {
         true,
       );
       expect(
-        EnvironmentConfig(environment: AppEnvironment.productionNew)
-            .isProduction,
+        EnvironmentConfig(
+          environment: AppEnvironment.productionNew,
+        ).isProduction,
         true,
       );
       expect(
@@ -111,8 +112,9 @@ void main() {
         'Production',
       );
       expect(
-        EnvironmentConfig(environment: AppEnvironment.productionNew)
-            .displayName,
+        EnvironmentConfig(
+          environment: AppEnvironment.productionNew,
+        ).displayName,
         'Production (Funnelcake)',
       );
       expect(
