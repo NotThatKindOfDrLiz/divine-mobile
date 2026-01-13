@@ -187,6 +187,19 @@ class MockAuthService extends _i1.Mock implements _i2.AuthService {
           as _i4.Future<_i2.AuthResult>);
 
   @override
+  _i4.Future<_i2.AuthResult> connectWithBunker(String? bunkerUrl) =>
+      (super.noSuchMethod(
+            Invocation.method(#connectWithBunker, [bunkerUrl]),
+            returnValue: _i4.Future<_i2.AuthResult>.value(
+              _FakeAuthResult_0(
+                this,
+                Invocation.method(#connectWithBunker, [bunkerUrl]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.AuthResult>);
+
+  @override
   _i4.Future<void> refreshCurrentProfile(
     _i5.UserProfileService? userProfileService,
   ) =>
