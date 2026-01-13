@@ -2,7 +2,7 @@
 // ABOUTME: Each environment maps to exactly one relay URL and optional API base URL
 
 /// Available app environments
-enum AppEnvironment { production, staging, dev }
+enum AppEnvironment { production, productionNew, staging, dev }
 
 /// Dev environment relay options
 enum DevRelay { umbra, shugur, funnelcakeProd }
@@ -25,6 +25,8 @@ class EnvironmentConfig {
     switch (environment) {
       case AppEnvironment.production:
         return 'wss://relay.divine.video';
+      case AppEnvironment.productionNew:
+        return 'wss://relay.dvines.org';
       case AppEnvironment.staging:
         return 'wss://funnelcake.staging.dvines.org';
       case AppEnvironment.dev:
@@ -46,6 +48,8 @@ class EnvironmentConfig {
     switch (environment) {
       case AppEnvironment.production:
         return 'https://relay.dvines.org';
+      case AppEnvironment.productionNew:
+        return 'https://relay.dvines.org';
       case AppEnvironment.staging:
         return 'https://funnelcake.staging.dvines.org';
       case AppEnvironment.dev:
@@ -61,13 +65,17 @@ class EnvironmentConfig {
   String get blossomUrl => 'https://media.divine.video';
 
   /// Whether this is production environment
-  bool get isProduction => environment == AppEnvironment.production;
+  bool get isProduction =>
+      environment == AppEnvironment.production ||
+      environment == AppEnvironment.productionNew;
 
   /// Human readable display name
   String get displayName {
     switch (environment) {
       case AppEnvironment.production:
         return 'Production';
+      case AppEnvironment.productionNew:
+        return 'Production (Funnelcake)';
       case AppEnvironment.staging:
         return 'Staging (Funnelcake)';
       case AppEnvironment.dev:
@@ -88,6 +96,8 @@ class EnvironmentConfig {
     switch (environment) {
       case AppEnvironment.production:
         return 0xFF4CAF50; // Green
+      case AppEnvironment.productionNew:
+        return 0xFF2196F3; // Blue (Funnelcake production)
       case AppEnvironment.staging:
         return 0xFFFFC107; // Yellow/Amber
       case AppEnvironment.dev:
