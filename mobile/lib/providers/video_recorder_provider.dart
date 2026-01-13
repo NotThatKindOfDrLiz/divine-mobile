@@ -20,7 +20,7 @@ import 'package:pro_video_editor/pro_video_editor.dart';
 /// Notifier that wraps VideoRecorderNotifier and provides reactive updates.
 ///
 /// Manages camera lifecycle, recording state, and UI interactions including:
-/// - Camera initialization and permissions
+/// - Camera initialization
 /// - Recording start/stop with countdown timer
 /// - Focus, exposure, and zoom controls
 /// - Flash mode and aspect ratio toggles
@@ -78,11 +78,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     return const VideoRecorderProviderState();
   }
 
-  /// Initialize camera and request permissions.
-  ///
-  /// Returns `true` if successful, `false` if permissions denied.
-  /// Optionally shows permission dialog if [context] is provided.
-  Future<bool> initialize({BuildContext? context}) async {
+  /// Initialize camera.
+  Future<void> initialize({BuildContext? context}) async {
     _isDestroyed = false;
 
     Log.info(
@@ -99,8 +96,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       name: 'VideoRecorderNotifier',
       category: .video,
     );
-
-    return true;
   }
 
   /// Handle app lifecycle changes (pause/resume).

@@ -48,6 +48,7 @@ import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/video_stop_navigator_observer.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
+import 'package:openvine/widgets/camera_permission_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Navigator keys for per-tab state preservation
@@ -744,7 +745,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/video-recorder',
         name: 'video-recorder',
-        builder: (_, _) => const VideoRecorderScreen(),
+        builder: (_, _) =>
+            const CameraPermissionGate(child: VideoRecorderScreen()),
       ),
       // Video editor route
       GoRoute(
