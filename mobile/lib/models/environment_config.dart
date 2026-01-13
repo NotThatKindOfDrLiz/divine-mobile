@@ -28,7 +28,7 @@ class EnvironmentConfig {
       case AppEnvironment.productionNew:
         return 'wss://relay.dvines.org';
       case AppEnvironment.staging:
-        return 'wss://funnelcake.staging.dvines.org';
+        return 'wss://relay.staging.dvines.org';
       case AppEnvironment.dev:
         switch (devRelay) {
           case DevRelay.umbra:
@@ -51,7 +51,7 @@ class EnvironmentConfig {
       case AppEnvironment.productionNew:
         return 'https://relay.dvines.org';
       case AppEnvironment.staging:
-        return 'https://funnelcake.staging.dvines.org';
+        return 'https://relay.staging.dvines.org';
       case AppEnvironment.dev:
         // Only funnelcakeProd dev relay has REST API
         if (devRelay == DevRelay.funnelcakeProd) {

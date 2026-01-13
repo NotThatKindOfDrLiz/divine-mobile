@@ -37,9 +37,9 @@ void main() {
       expect(config.relayUrl, 'wss://relay.dvines.org');
     });
 
-    test('staging returns funnelcake staging relay', () {
+    test('staging returns staging relay', () {
       final config = EnvironmentConfig(environment: AppEnvironment.staging);
-      expect(config.relayUrl, 'wss://funnelcake.staging.dvines.org');
+      expect(config.relayUrl, 'wss://relay.staging.dvines.org');
     });
 
     test('dev with umbra returns poc relay', () {
