@@ -31,8 +31,7 @@ enum AuthenticationSource {
   divineOAuth('divineOAuth'),
   importedKeys('imported_keys'),
   automatic('automatic'),
-  bunker('bunker')
-  ;
+  bunker('bunker');
 
   const AuthenticationSource(this.code);
 

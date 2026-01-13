@@ -87,7 +87,8 @@ void main() {
           SharedPreferences.setMockInitialValues({
             StorageKeys.ageVerified16Plus: true,
             StorageKeys.currentUserPubkeyHex: testUserPubkey,
-            StorageKeys.followingListKey(testUserPubkey): '[]', // Current user empty
+            StorageKeys.followingListKey(testUserPubkey):
+                '[]', // Current user empty
             StorageKeys.followingListKey(otherUser):
                 '["pubkey1"]', // Other user has contacts
           });

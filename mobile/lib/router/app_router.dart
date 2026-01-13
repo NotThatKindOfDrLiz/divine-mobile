@@ -267,7 +267,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           name: 'AppRouter',
           category: LogCategory.ui,
         );
-        final hasAcceptedTerms = prefs.getBool(StorageKeys.ageVerified16Plus) ?? false;
+        final hasAcceptedTerms =
+            prefs.getBool(StorageKeys.ageVerified16Plus) ?? false;
         Log.debug(
           'TOS accepted: $hasAcceptedTerms',
           name: 'AppRouter',
@@ -299,7 +300,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       // Redirect FROM /welcome TO /explore when TOS is accepted AND user is authenticated
       if (location.startsWith('/welcome')) {
-        final hasAcceptedTerms = prefs.getBool(StorageKeys.ageVerified16Plus) ?? false;
+        final hasAcceptedTerms =
+            prefs.getBool(StorageKeys.ageVerified16Plus) ?? false;
         if (hasAcceptedTerms && authState == AuthState.authenticated) {
           Log.debug(
             'TOS accepted and authenticated, redirecting from /welcome to /explore',
