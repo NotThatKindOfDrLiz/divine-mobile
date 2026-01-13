@@ -15,10 +15,11 @@ void main() {
   });
 
   group('DevRelay', () {
-    test('has two values (umbra and shugur)', () {
-      expect(DevRelay.values.length, 2);
+    test('has three values (umbra, shugur, funnelcakeProd)', () {
+      expect(DevRelay.values.length, 3);
       expect(DevRelay.values, contains(DevRelay.umbra));
       expect(DevRelay.values, contains(DevRelay.shugur));
+      expect(DevRelay.values, contains(DevRelay.funnelcakeProd));
     });
   });
 
@@ -28,9 +29,9 @@ void main() {
       expect(config.relayUrl, 'wss://relay.divine.video');
     });
 
-    test('staging returns staging-relay', () {
+    test('staging returns funnelcake staging relay', () {
       final config = EnvironmentConfig(environment: AppEnvironment.staging);
-      expect(config.relayUrl, 'wss://staging-relay.divine.video');
+      expect(config.relayUrl, 'wss://funnelcake.staging.dvines.org');
     });
 
     test('dev with umbra returns poc relay', () {
@@ -52,6 +53,14 @@ void main() {
     test('dev without devRelay defaults to umbra', () {
       final config = EnvironmentConfig(environment: AppEnvironment.dev);
       expect(config.relayUrl, 'wss://relay.poc.dvines.org');
+    });
+
+    test('dev with funnelcakeProd returns dvines relay', () {
+      final config = EnvironmentConfig(
+        environment: AppEnvironment.dev,
+        devRelay: DevRelay.funnelcakeProd,
+      );
+      expect(config.relayUrl, 'wss://relay.dvines.org');
     });
 
     test('blossomUrl is same for all environments', () {
@@ -86,7 +95,7 @@ void main() {
       );
       expect(
         EnvironmentConfig(environment: AppEnvironment.staging).displayName,
-        'Staging',
+        'Staging (Funnelcake)',
       );
       expect(
         EnvironmentConfig(
@@ -101,6 +110,13 @@ void main() {
           devRelay: DevRelay.shugur,
         ).displayName,
         'Dev - Shugur',
+      );
+      expect(
+        EnvironmentConfig(
+          environment: AppEnvironment.dev,
+          devRelay: DevRelay.funnelcakeProd,
+        ).displayName,
+        'Dev - Funnelcake Prod',
       );
     });
   });
