@@ -89,7 +89,10 @@ void main() {
     });
 
     tearDown(() async {
-      await eventController.close();
+      // Controller may already be closed by the test
+      if (!eventController.isClosed) {
+        await eventController.close();
+      }
     });
 
     group('streamPublicListsFromRelays()', () {
@@ -101,9 +104,8 @@ void main() {
           (lists) => receivedLists.add(List.from(lists)),
         );
 
-        // CRITICAL: Wait for async generator to start up and enter await-for loop
-        // Without this, broadcast stream events are lost
-        await Future.delayed(const Duration(milliseconds: 100));
+        // Wait for the async generator to reach the await for loop
+        await Future.delayed(const Duration(milliseconds: 50));
 
         // Emit list events one at a time
         eventController.add(
@@ -136,6 +138,8 @@ void main() {
 
         await Future.delayed(const Duration(milliseconds: 50));
 
+        // Close the event controller first to complete the stream
+        await eventController.close();
         await subscription.cancel();
 
         // Should have received 3 progressive updates
@@ -152,8 +156,8 @@ void main() {
           (lists) => receivedLists.add(List.from(lists)),
         );
 
-        // Wait for async generator to start up
-        await Future.delayed(const Duration(milliseconds: 100));
+        // Wait for the async generator to reach the await for loop
+        await Future.delayed(const Duration(milliseconds: 50));
 
         // Emit a list WITH videos
         eventController.add(
@@ -184,6 +188,8 @@ void main() {
 
         await Future.delayed(const Duration(milliseconds: 50));
 
+        // Close the event controller first to complete the stream
+        await eventController.close();
         await subscription.cancel();
 
         // Should have received 2 yields (empty list was filtered)
@@ -206,8 +212,8 @@ void main() {
             .streamPublicListsFromRelays(excludeIds: {'list2'})
             .listen((lists) => receivedLists.add(List.from(lists)));
 
-        // Wait for async generator to start up
-        await Future.delayed(const Duration(milliseconds: 100));
+        // Wait for the async generator to reach the await for loop
+        await Future.delayed(const Duration(milliseconds: 50));
 
         // Emit list1 - should be yielded
         eventController.add(
@@ -242,6 +248,8 @@ void main() {
 
         await Future.delayed(const Duration(milliseconds: 50));
 
+        // Close the event controller first to complete the stream
+        await eventController.close();
         await subscription.cancel();
 
         // Should have received 2 yields (list2 was skipped)
@@ -263,8 +271,8 @@ void main() {
           (lists) => receivedLists.add(List.from(lists)),
         );
 
-        // Wait for async generator to start up
-        await Future.delayed(const Duration(milliseconds: 100));
+        // Wait for the async generator to reach the await for loop
+        await Future.delayed(const Duration(milliseconds: 50));
 
         // Emit older version of list1
         eventController.add(
@@ -290,6 +298,8 @@ void main() {
 
         await Future.delayed(const Duration(milliseconds: 50));
 
+        // Close the event controller first to complete the stream
+        await eventController.close();
         await subscription.cancel();
 
         // Should have received 2 yields (both versions triggered yield)
@@ -317,9 +327,10 @@ void main() {
             .streamPublicListsFromRelays(limit: 200)
             .listen((_) {});
 
-        // Wait for async generator to start up and call subscribe
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 50));
 
+        // Close the event controller first to complete the stream
+        await eventController.close();
         await subscription.cancel();
 
         expect(capturedFilter, isNotNull);
@@ -334,8 +345,8 @@ void main() {
           (lists) => receivedLists.add(List.from(lists)),
         );
 
-        // Wait for async generator to start up
-        await Future.delayed(const Duration(milliseconds: 100));
+        // Wait for the async generator to reach the await for loop
+        await Future.delayed(const Duration(milliseconds: 50));
 
         // Emit list with 1 video
         eventController.add(
@@ -370,6 +381,8 @@ void main() {
 
         await Future.delayed(const Duration(milliseconds: 50));
 
+        // Close the event controller first to complete the stream
+        await eventController.close();
         await subscription.cancel();
 
         // Final list should be sorted by video count descending
