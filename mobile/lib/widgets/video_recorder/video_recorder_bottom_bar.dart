@@ -32,7 +32,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           alignment: .bottomCenter,
           children: [
             /// Record button
-            _RecordButton(),
+            const _RecordButton(),
 
             /// BottomBar
             Stack(
@@ -51,7 +51,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                   ),
                   child: isRecording
                       ? const SizedBox.shrink()
-                      : _ActionButtonRow(),
+                      : const _ActionButtonRow(),
                 ),
 
                 /// Helper widget which create a inner radius for the camera
@@ -77,6 +77,8 @@ class VideoRecorderBottomBar extends ConsumerWidget {
 }
 
 class _RecordButton extends ConsumerWidget {
+  const _RecordButton();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isRecording = ref.watch(
@@ -141,6 +143,8 @@ class _RecordButton extends ConsumerWidget {
 }
 
 class _ActionButtonRow extends ConsumerWidget {
+  const _ActionButtonRow();
+
   /// Show more options menu
   Future<void> _showMoreOptions(BuildContext context) async {
     await showModalBottomSheet<void>(

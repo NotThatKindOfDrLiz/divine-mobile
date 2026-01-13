@@ -34,16 +34,8 @@ class _VideoRecorderCameraPreviewState
     extends ConsumerState<VideoRecorderCameraPreview> {
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(
-      videoRecorderProvider.select(
-        (s) => (
-          aspectRatio: s.aspectRatio.value,
-          sensorAspectRatio: s.cameraSensorAspectRatio,
-          showGrid: !s.isRecording,
-          isCameraInitialized: s.isCameraInitialized,
-          cameraRebuildCount: s.cameraRebuildCount,
-        ),
-      ),
+    final aspectRatio = ref.watch(
+      videoRecorderProvider.select((s) => s.aspectRatio.value),
     );
 
     return SafeArea(
@@ -53,22 +45,14 @@ class _VideoRecorderCameraPreviewState
           child: TweenAnimationBuilder<double>(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,
-            tween: Tween(begin: state.aspectRatio, end: state.aspectRatio),
+            tween: Tween(begin: aspectRatio, end: aspectRatio),
             builder: (context, aspectRatio, _) {
               return AspectRatio(
                 aspectRatio: aspectRatio,
                 child: ClipRRect(
                   clipBehavior: .hardEdge,
                   borderRadius: .circular(widget.previewWidgetRadius),
-                  child: Stack(
-                    fit: .expand,
-                    key: ValueKey('Camera-Count-${state.cameraRebuildCount}'),
-                    children: _buildStackItems(
-                      showGrid: state.showGrid,
-                      isCameraInitialized: state.isCameraInitialized,
-                      sensorAspectRatio: state.sensorAspectRatio,
-                    ),
-                  ),
+                  child: _StackItems(),
                 ),
               );
             },
@@ -77,23 +61,45 @@ class _VideoRecorderCameraPreviewState
       ),
     );
   }
+}
 
-  List<Widget> _buildStackItems({
-    required bool isCameraInitialized,
-    required bool showGrid,
-    required double sensorAspectRatio,
-  }) {
-    return [
-      if (isCameraInitialized)
-        _buildCameraPreview(sensorAspectRatio: sensorAspectRatio)
-      else
-        const VideoRecorderCameraPlaceholder(),
-      _buildOverlayGrid(showGrid),
-      const VideoRecorderFocusPoint(),
-    ];
+class _StackItems extends ConsumerWidget {
+  const _StackItems();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(
+      videoRecorderProvider.select(
+        (s) => (
+          isCameraInitialized: s.isCameraInitialized,
+          cameraRebuildCount: s.cameraRebuildCount,
+        ),
+      ),
+    );
+    return Stack(
+      fit: .expand,
+      key: ValueKey('Camera-Count-${state.cameraRebuildCount}'),
+      children: [
+        if (state.isCameraInitialized)
+          const _CameraPreview()
+        else
+          const VideoRecorderCameraPlaceholder(),
+        const _OverlayGrid(),
+        const VideoRecorderFocusPoint(),
+      ],
+    );
   }
+}
 
-  Widget _buildCameraPreview({required double sensorAspectRatio}) {
+class _CameraPreview extends ConsumerWidget {
+  const _CameraPreview();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sensorAspectRatio = ref.watch(
+      videoRecorderProvider.select((s) => s.cameraSensorAspectRatio),
+    );
+
     return FittedBox(
       fit: .cover,
       child: SizedBox(
@@ -101,7 +107,6 @@ class _VideoRecorderCameraPreviewState
         height: 1000,
         child: Stack(
           children: [
-            /// Skeleton when switching camera
             Container(color: const Color(0xFF141414)),
 
             /// Preview widget
@@ -114,11 +119,20 @@ class _VideoRecorderCameraPreviewState
       ),
     );
   }
+}
 
-  Widget _buildOverlayGrid(bool showGrid) {
+class _OverlayGrid extends ConsumerWidget {
+  const _OverlayGrid();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isRecording = ref.watch(
+      videoRecorderProvider.select((s) => s.isRecording),
+    );
+
     return IgnorePointer(
       child: AnimatedOpacity(
-        opacity: showGrid ? 1.0 : 0.0,
+        opacity: isRecording ? 0.0 : 1.0,
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeInOut,
         child: CustomPaint(painter: _GridPainter()),
