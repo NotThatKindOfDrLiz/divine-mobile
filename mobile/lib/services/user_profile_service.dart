@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/filter.dart';
 import 'package:openvine/models/user_profile.dart';
+import 'package:openvine/services/analytics_api_service.dart';
 import 'package:openvine/services/connection_status_service.dart';
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/services/profile_cache_service.dart';
@@ -57,6 +58,17 @@ class UserProfileService extends ChangeNotifier {
 
   final SubscriptionManager _subscriptionManager;
   ProfileCacheService? _persistentCache;
+  AnalyticsApiService? _analyticsApi;
+
+  /// Set analytics API service for REST-first profile fetching
+  void setAnalyticsApiService(AnalyticsApiService service) {
+    _analyticsApi = service;
+    Log.debug(
+      'AnalyticsApiService attached to UserProfileService',
+      name: 'UserProfileService',
+      category: LogCategory.system,
+    );
+  }
 
   /// Set persistent cache service for profile storage
   void setPersistentCache(ProfileCacheService cacheService) {
@@ -288,6 +300,51 @@ class UserProfileService extends ChangeNotifier {
         category: LogCategory.system,
       );
       return null;
+    }
+
+    // Try REST API first if available (funnelcake relay)
+    if (_analyticsApi?.isAvailable ?? false) {
+      try {
+        final userData = await _analyticsApi!.getUser(pubkey);
+        if (userData != null) {
+          // Convert RestUserProfile to UserProfile and cache
+          final profile = UserProfile(
+            pubkey: pubkey,
+            name: userData.profile.name,
+            displayName:
+                userData.profile.name, // REST API uses 'name' for display
+            picture: userData.profile.picture,
+            about: userData.profile.about,
+            nip05: userData.profile.nip05,
+            banner: userData.profile.banner,
+            lud16: userData.profile.lud16,
+            rawData: userData.profile.toJson(),
+            createdAt: userData.updatedAt,
+            eventId: 'rest-api-${pubkey.substring(0, 8)}', // Synthetic event ID
+          );
+          _profileCache[pubkey] = profile;
+
+          // Also save to persistent cache
+          if (_persistentCache?.isInitialized == true) {
+            _persistentCache!.cacheProfile(profile);
+          }
+
+          notifyListeners();
+          Log.info(
+            'Profile fetched via REST API: $pubkey',
+            name: 'UserProfileService',
+            category: LogCategory.system,
+          );
+          return profile;
+        }
+      } catch (e) {
+        Log.warning(
+          'REST profile fetch failed for $pubkey: $e, falling back to Nostr',
+          name: 'UserProfileService',
+          category: LogCategory.system,
+        );
+        // Fall through to Nostr batch fetch
+      }
     }
 
     try {

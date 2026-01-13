@@ -1,10 +1,12 @@
 // ABOUTME: Home feed provider that shows videos only from people you follow
 // ABOUTME: Filters video events by the user's following list for a personalized feed
+// ABOUTME: Uses REST API first for users with 20k+ follows, falls back to Nostr
 
 import 'dart:async';
 
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_filter_builder.dart';
@@ -36,6 +38,7 @@ class HomeFeed extends _$HomeFeed {
   Timer? _autoRefreshTimer;
   static int _buildCounter = 0;
   static DateTime? _lastBuildTime;
+  bool _usingRestApi = false;
 
   @override
   Future<VideoFeedState> build() async {
@@ -210,6 +213,128 @@ class HomeFeed extends _$HomeFeed {
     state = const AsyncData(
       VideoFeedState(videos: [], hasMoreContent: false, isInitialLoad: true),
     );
+
+    // Try REST API first if available (funnelcake relay handles 20k+ follows efficiently)
+    final analyticsApi = ref.read(analyticsApiServiceProvider);
+    final authService = ref.read(authServiceProvider);
+    final currentUserPubkey = authService.currentPublicKeyHex;
+
+    if (analyticsApi.isAvailable &&
+        followingPubkeys.isNotEmpty &&
+        currentUserPubkey != null) {
+      Log.info(
+        '🏠 HomeFeed: Trying REST API first (${followingPubkeys.length} follows)',
+        name: 'HomeFeedProvider',
+        category: LogCategory.video,
+      );
+
+      try {
+        final response = await analyticsApi.getUserFeed(
+          currentUserPubkey,
+          sort: 'recent',
+          limit: 100,
+        );
+
+        if (response.videos.isNotEmpty) {
+          _usingRestApi = true;
+          Log.info(
+            '✅ HomeFeed: Got ${response.videos.length} videos from REST API',
+            name: 'HomeFeedProvider',
+            category: LogCategory.video,
+          );
+
+          // Convert VideoStats to VideoEvent
+          var restVideos = response.videos
+              .map((stats) => stats.toVideoEvent())
+              .toList();
+
+          // Filter for followed authors (REST should already do this, but verify)
+          final followingSet = followingPubkeys.toSet();
+          final beforeFilter = restVideos.length;
+          restVideos = restVideos
+              .where((v) => followingSet.contains(v.pubkey))
+              .toList();
+
+          if (beforeFilter != restVideos.length) {
+            Log.info(
+              '🏠 HomeFeed: Filtered ${beforeFilter - restVideos.length} videos not from followed users',
+              name: 'HomeFeedProvider',
+              category: LogCategory.video,
+            );
+          }
+
+          // Filter out WebM videos on iOS/macOS (not supported by AVPlayer)
+          restVideos = restVideos
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
+
+          // Sort by creation time (newest first)
+          restVideos.sort((a, b) {
+            final timeCompare = b.createdAt.compareTo(a.createdAt);
+            if (timeCompare != 0) return timeCompare;
+            return a.id.compareTo(b.id);
+          });
+
+          // Fetch missing profiles
+          await _scheduleBatchProfileFetch(restVideos);
+
+          // Check if provider is still mounted after async gap
+          if (!ref.mounted) {
+            keepAliveLink.close();
+            return VideoFeedState(
+              videos: [],
+              hasMoreContent: false,
+              isLoadingMore: false,
+              error: null,
+              lastUpdated: null,
+            );
+          }
+
+          // Register for video update callbacks to auto-refresh
+          final unregisterVideoUpdate = videoEventService
+              .addVideoUpdateListener((updated) {
+                if (ref.mounted) {
+                  refreshFromService();
+                }
+              });
+
+          ref.onDispose(unregisterVideoUpdate);
+
+          final buildDuration = DateTime.now().difference(now).inMilliseconds;
+          Log.info(
+            '✅ HomeFeed: BUILD #$buildId COMPLETE (REST) - ${restVideos.length} videos in ${buildDuration}ms',
+            name: 'HomeFeedProvider',
+            category: LogCategory.video,
+          );
+
+          keepAliveLink.close();
+          return VideoFeedState(
+            videos: restVideos,
+            hasMoreContent: response.hasMore,
+            isLoadingMore: false,
+            isInitialLoad: false,
+            lastUpdated: DateTime.now(),
+            videoListSources: {},
+            listOnlyVideoIds: {},
+          );
+        } else {
+          Log.warning(
+            '🏠 HomeFeed: REST API returned empty, falling back to Nostr',
+            name: 'HomeFeedProvider',
+            category: LogCategory.video,
+          );
+        }
+      } catch (e) {
+        Log.warning(
+          '🏠 HomeFeed: REST API failed ($e), falling back to Nostr',
+          name: 'HomeFeedProvider',
+          category: LogCategory.video,
+        );
+      }
+    }
+
+    // Reset REST API flag since we're falling back to Nostr
+    _usingRestApi = false;
 
     // Only subscribe to home feed if we have following pubkeys
     if (followingPubkeys.isNotEmpty) {
@@ -578,7 +703,7 @@ class HomeFeed extends _$HomeFeed {
     if (!ref.mounted) return;
 
     Log.info(
-      'HomeFeed: loadMore() called - isLoadingMore: ${currentState.isLoadingMore}',
+      'HomeFeed: loadMore() called - isLoadingMore: ${currentState.isLoadingMore}, usingRestApi: $_usingRestApi',
       name: 'HomeFeedProvider',
       category: LogCategory.video,
     );
@@ -604,6 +729,97 @@ class HomeFeed extends _$HomeFeed {
         return;
       }
 
+      // If using REST API, load more from there
+      if (_usingRestApi) {
+        final analyticsApi = ref.read(analyticsApiServiceProvider);
+        final authService = ref.read(authServiceProvider);
+        final currentUserPubkey = authService.currentPublicKeyHex;
+
+        if (analyticsApi.isAvailable && currentUserPubkey != null) {
+          try {
+            // Get the oldest video's timestamp as cursor
+            final oldestVideo = currentState.videos.lastOrNull;
+            final before = oldestVideo?.createdAt;
+
+            Log.info(
+              'HomeFeed: Loading more via REST API (before: $before)',
+              name: 'HomeFeedProvider',
+              category: LogCategory.video,
+            );
+
+            final response = await analyticsApi.getUserFeed(
+              currentUserPubkey,
+              sort: 'recent',
+              limit: 50,
+              before: before,
+            );
+
+            if (!ref.mounted) return;
+
+            // Convert VideoStats to VideoEvent
+            var newVideos = response.videos
+                .map((stats) => stats.toVideoEvent())
+                .toList();
+
+            // Filter for followed authors
+            final followingSet = followingPubkeys.toSet();
+            newVideos = newVideos
+                .where((v) => followingSet.contains(v.pubkey))
+                .toList();
+
+            // Filter out WebM videos on iOS/macOS
+            newVideos = newVideos
+                .where((v) => v.isSupportedOnCurrentPlatform)
+                .toList();
+
+            // Deduplicate against existing videos
+            final existingIds = currentState.videos.map((v) => v.id).toSet();
+            newVideos = newVideos
+                .where((v) => !existingIds.contains(v.id))
+                .toList();
+
+            // Merge and sort
+            final allVideos = [...currentState.videos, ...newVideos];
+            allVideos.sort((a, b) {
+              final timeCompare = b.createdAt.compareTo(a.createdAt);
+              if (timeCompare != 0) return timeCompare;
+              return a.id.compareTo(b.id);
+            });
+
+            Log.info(
+              'HomeFeed: Loaded ${newVideos.length} new videos from REST API (total: ${allVideos.length})',
+              name: 'HomeFeedProvider',
+              category: LogCategory.video,
+            );
+
+            // Fetch profiles for new videos
+            await _scheduleBatchProfileFetch(newVideos);
+
+            if (!ref.mounted) return;
+
+            state = AsyncData(
+              VideoFeedState(
+                videos: allVideos,
+                hasMoreContent: response.hasMore || newVideos.isNotEmpty,
+                isLoadingMore: false,
+                lastUpdated: DateTime.now(),
+                videoListSources: currentState.videoListSources,
+                listOnlyVideoIds: currentState.listOnlyVideoIds,
+              ),
+            );
+            return;
+          } catch (e) {
+            Log.warning(
+              'HomeFeed: REST loadMore failed ($e), falling back to Nostr',
+              name: 'HomeFeedProvider',
+              category: LogCategory.video,
+            );
+            // Fall through to Nostr logic
+          }
+        }
+      }
+
+      // Nostr mode - load more from relay
       final eventCountBefore = videoEventService.getEventCount(
         SubscriptionType.homeFeed,
       );
@@ -709,12 +925,80 @@ class HomeFeed extends _$HomeFeed {
   /// Refresh the home feed
   Future<void> refresh() async {
     Log.info(
-      'HomeFeed: Refreshing home feed (following only)',
+      'HomeFeed: Refreshing home feed (following only, usingRestApi: $_usingRestApi)',
       name: 'HomeFeedProvider',
       category: LogCategory.video,
     );
 
-    // Get video event service and force a fresh subscription
+    // If using REST API, try to refresh from there first
+    if (_usingRestApi) {
+      try {
+        final analyticsApi = ref.read(analyticsApiServiceProvider);
+        final authService = ref.read(authServiceProvider);
+        final currentUserPubkey = authService.currentPublicKeyHex;
+        final followRepository = ref.read(followRepositoryProvider);
+        final followingPubkeys = followRepository.followingPubkeys;
+
+        if (analyticsApi.isAvailable && currentUserPubkey != null) {
+          final response = await analyticsApi.getUserFeed(
+            currentUserPubkey,
+            sort: 'recent',
+            limit: 100,
+          );
+
+          if (response.videos.isNotEmpty) {
+            // Convert VideoStats to VideoEvent
+            var restVideos = response.videos
+                .map((stats) => stats.toVideoEvent())
+                .toList();
+
+            // Filter for followed authors
+            final followingSet = followingPubkeys.toSet();
+            restVideos = restVideos
+                .where((v) => followingSet.contains(v.pubkey))
+                .toList();
+
+            // Filter out WebM videos on iOS/macOS
+            restVideos = restVideos
+                .where((v) => v.isSupportedOnCurrentPlatform)
+                .toList();
+
+            // Sort by creation time (newest first)
+            restVideos.sort((a, b) {
+              final timeCompare = b.createdAt.compareTo(a.createdAt);
+              if (timeCompare != 0) return timeCompare;
+              return a.id.compareTo(b.id);
+            });
+
+            state = AsyncData(
+              VideoFeedState(
+                videos: restVideos,
+                hasMoreContent: response.hasMore || restVideos.length >= 50,
+                isLoadingMore: false,
+                lastUpdated: DateTime.now(),
+                videoListSources: {},
+                listOnlyVideoIds: {},
+              ),
+            );
+
+            Log.info(
+              '✅ HomeFeed: Refreshed ${restVideos.length} videos from REST API',
+              name: 'HomeFeedProvider',
+              category: LogCategory.video,
+            );
+            return;
+          }
+        }
+      } catch (e) {
+        Log.warning(
+          'HomeFeed: REST API refresh failed ($e), falling back to Nostr',
+          name: 'HomeFeedProvider',
+          category: LogCategory.video,
+        );
+      }
+    }
+
+    // Nostr mode - Get video event service and force a fresh subscription
     final videoEventService = ref.read(videoEventServiceProvider);
     final followRepository = ref.read(followRepositoryProvider);
     final followingPubkeys = followRepository.followingPubkeys;
@@ -729,7 +1013,7 @@ class HomeFeed extends _$HomeFeed {
       );
     }
 
-    // Invalidate self to rebuild with fresh data
+    // Invalidate self to rebuild with fresh data (will try REST API first)
     ref.invalidateSelf();
   }
 }

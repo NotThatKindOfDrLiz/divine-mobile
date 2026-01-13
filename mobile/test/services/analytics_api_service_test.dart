@@ -309,12 +309,24 @@ void main() {
       expect(service.isAvailable, false);
     });
 
-    test('isAvailable returns true when baseUrl is set', () {
-      final service = AnalyticsApiService(
-        baseUrl: 'https://funnelcake.staging.dvines.org',
-      );
-      expect(service.isAvailable, true);
-    });
+    test(
+      'isAvailable returns true when baseUrl is set and reachable',
+      () async {
+        final mockClient = MockClient((request) async {
+          if (request.url.path == '/readyz') {
+            return http.Response('OK', 200);
+          }
+          return http.Response('Not Found', 404);
+        });
+
+        final service = AnalyticsApiService(
+          baseUrl: 'https://funnelcake.staging.dvines.org',
+          httpClient: mockClient,
+        );
+        await service.checkAvailability();
+        expect(service.isAvailable, true);
+      },
+    );
 
     test('getTrendingVideos returns empty list when not available', () async {
       final service = AnalyticsApiService(baseUrl: null);
@@ -342,6 +354,9 @@ void main() {
       ]);
 
       final mockClient = MockClient((request) async {
+        if (request.url.path == '/readyz') {
+          return http.Response('OK', 200);
+        }
         expect(request.url.path, '/api/videos');
         expect(request.url.queryParameters['sort'], 'trending');
         return http.Response(mockResponse, 200);
@@ -351,6 +366,7 @@ void main() {
         baseUrl: 'https://funnelcake.test',
         httpClient: mockClient,
       );
+      await service.checkAvailability();
 
       final videos = await service.getTrendingVideos();
 
@@ -380,6 +396,9 @@ void main() {
       ]);
 
       final mockClient = MockClient((request) async {
+        if (request.url.path == '/readyz') {
+          return http.Response('OK', 200);
+        }
         expect(request.url.path, '/api/search');
         expect(request.url.queryParameters['tag'], 'nostr');
         return http.Response(mockResponse, 200);
@@ -389,6 +408,7 @@ void main() {
         baseUrl: 'https://funnelcake.test',
         httpClient: mockClient,
       );
+      await service.checkAvailability();
 
       // Test with # prefix
       final videos = await service.getVideosByHashtag(hashtag: '#Nostr');
@@ -398,7 +418,14 @@ void main() {
     });
 
     test('handles API errors gracefully', () async {
+      var isReadyz = true;
       final mockClient = MockClient((request) async {
+        if (request.url.path == '/readyz') {
+          if (isReadyz) {
+            isReadyz = false;
+            return http.Response('OK', 200);
+          }
+        }
         return http.Response('Internal Server Error', 500);
       });
 
@@ -406,6 +433,7 @@ void main() {
         baseUrl: 'https://funnelcake.test',
         httpClient: mockClient,
       );
+      await service.checkAvailability();
 
       final videos = await service.getTrendingVideos();
       expect(videos, isEmpty);
@@ -444,6 +472,9 @@ void main() {
       ]);
 
       final mockClient = MockClient((request) async {
+        if (request.url.path == '/readyz') {
+          return http.Response('OK', 200);
+        }
         return http.Response(mockResponse, 200);
       });
 
@@ -451,6 +482,7 @@ void main() {
         baseUrl: 'https://funnelcake.test',
         httpClient: mockClient,
       );
+      await service.checkAvailability();
 
       final videos = await service.getTrendingVideos();
 

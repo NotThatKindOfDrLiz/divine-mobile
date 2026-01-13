@@ -8,6 +8,7 @@ import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/filter.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:openvine/services/analytics_api_service.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/immediate_completion_helper.dart';
 import 'package:nostr_client/nostr_client.dart';
@@ -98,6 +99,14 @@ class SocialService {
   final AuthService _authService;
   final SubscriptionManager _subscriptionManager;
   final PersonalEventCacheService? _personalEventCache;
+
+  // Optional REST API service for fast follower stats (funnelcake relay)
+  AnalyticsApiService? _analyticsApi;
+
+  /// Set the analytics API service for REST-first follower stats fetching
+  void setAnalyticsApiService(AnalyticsApiService service) {
+    _analyticsApi = service;
+  }
 
   // Cache for UI state - liked events by current user
   final Set<String> _likedEventIds = <String>{};
@@ -873,6 +882,8 @@ class SocialService {
   }
 
   /// Get follower and following counts for a specific pubkey
+  ///
+  /// Tries REST API first (fast ~50ms) then falls back to Nostr (~8s)
   Future<Map<String, int>> getFollowerStats(String pubkey) async {
     Log.debug(
       'Fetching follower stats for: $pubkey',
@@ -892,14 +903,40 @@ class SocialService {
         return cachedStats;
       }
 
-      // Fetch from network
+      // Try REST API first if available (funnelcake relay)
+      if (_analyticsApi?.isAvailable ?? false) {
+        try {
+          final userData = await _analyticsApi!.getUser(pubkey);
+          if (userData != null) {
+            final stats = {
+              'followers': userData.stats.followers,
+              'following': userData.stats.following,
+            };
+            _followerStats[pubkey] = stats;
+            Log.info(
+              'Follower stats fetched via REST API for: $pubkey',
+              name: 'SocialService',
+              category: LogCategory.system,
+            );
+            return stats;
+          }
+        } catch (e) {
+          Log.warning(
+            'REST follower stats failed for $pubkey: $e, falling back to Nostr',
+            name: 'SocialService',
+            category: LogCategory.system,
+          );
+        }
+      }
+
+      // Fetch from network via Nostr
       final stats = await _fetchFollowerStats(pubkey);
 
       // Cache the result
       _followerStats[pubkey] = stats;
 
       Log.debug(
-        'Follower stats fetched: $stats',
+        'Follower stats fetched via Nostr: $stats',
         name: 'SocialService',
         category: LogCategory.system,
       );

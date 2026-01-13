@@ -44,6 +44,7 @@ enum LogCategory {
   auth('AUTH'), // Authentication, key management, identity
   storage('STORAGE'), // Local storage, caching, persistence
   api('API'), // External API calls, network requests
+  social('SOCIAL'), // Social interactions, follows, likes, reposts
   system('SYSTEM'); // App lifecycle, initialization, configuration
 
   final String name;

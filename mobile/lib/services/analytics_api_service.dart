@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:openvine/models/rest_api_models.dart';
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/utils/hashtag_extractor.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -162,6 +163,9 @@ class AnalyticsApiService {
   final String? _baseUrl;
   final http.Client _httpClient;
 
+  // Reachability check result (null = not checked yet)
+  bool? _isReachable;
+
   // Cache for API responses
   List<VideoStats> _trendingVideosCache = [];
   List<VideoStats> _recentVideosCache = [];
@@ -178,8 +182,59 @@ class AnalyticsApiService {
     : _baseUrl = baseUrl,
       _httpClient = httpClient ?? http.Client();
 
-  /// Whether the API is available (has a configured base URL)
-  bool get isAvailable => _baseUrl != null && _baseUrl.isNotEmpty;
+  /// Whether the API is available (has a configured base URL and is reachable)
+  bool get isAvailable =>
+      _baseUrl != null && _baseUrl.isNotEmpty && (_isReachable ?? false);
+
+  /// Check if the Funnelcake API is reachable
+  ///
+  /// Makes a quick health check request to the /readyz endpoint.
+  /// Sets [_isReachable] based on the result.
+  Future<void> checkAvailability() async {
+    if (_baseUrl == null || _baseUrl.isEmpty) {
+      _isReachable = false;
+      Log.info(
+        'Funnelcake API availability check: no base URL configured',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+      return;
+    }
+
+    try {
+      final url = '$_baseUrl/readyz';
+      Log.debug(
+        'Checking Funnelcake API availability: $url',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+
+      final response = await _httpClient
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 2));
+
+      _isReachable = response.statusCode == 200;
+
+      Log.info(
+        'Funnelcake API availability check: ${_isReachable! ? 'reachable' : 'not reachable (status: ${response.statusCode})'}',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+    } catch (e) {
+      _isReachable = false;
+      Log.warning(
+        'Funnelcake API availability check failed: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+    }
+  }
 
   /// Fetch trending videos sorted by engagement score
   ///
@@ -723,6 +778,283 @@ class AnalyticsApiService {
       name: 'AnalyticsApiService',
       category: LogCategory.system,
     );
+  }
+
+  // ===========================================================================
+  // Phase 1: New REST API Endpoints
+  // ===========================================================================
+
+  /// Get user data by pubkey
+  ///
+  /// Fetches user profile and stats from /api/users/{pubkey}
+  Future<UserData?> getUser(String pubkey) async {
+    if (!isAvailable || pubkey.isEmpty) return null;
+
+    try {
+      final url = '$_baseUrl/api/users/$pubkey';
+      Log.debug(
+        'Fetching user data from Funnelcake: $url',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+
+      final response = await _httpClient
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return UserData.fromJson(data);
+      } else {
+        Log.warning(
+          'User data not found: ${response.statusCode}',
+          name: 'AnalyticsApiService',
+          category: LogCategory.system,
+        );
+        return null;
+      }
+    } catch (e) {
+      Log.warning(
+        'Error fetching user data: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+      return null;
+    }
+  }
+
+  /// Get user's video feed
+  ///
+  /// Fetches paginated feed from /api/users/{pubkey}/feed
+  Future<FeedResponse> getUserFeed(
+    String pubkey, {
+    String sort = 'recent',
+    int limit = 50,
+    int? before,
+  }) async {
+    if (!isAvailable || pubkey.isEmpty) {
+      return FeedResponse.empty();
+    }
+
+    try {
+      final queryParams = <String, String>{
+        'sort': sort,
+        'limit': limit.toString(),
+      };
+      if (before != null) {
+        queryParams['before'] = before.toString();
+      }
+
+      final uri = Uri.parse(
+        '$_baseUrl/api/users/$pubkey/feed',
+      ).replace(queryParameters: queryParams);
+
+      Log.debug(
+        'Fetching user feed from Funnelcake: $uri',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+
+      final response = await _httpClient
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return FeedResponse.fromJson(data);
+      } else {
+        Log.warning(
+          'User feed fetch failed: ${response.statusCode}',
+          name: 'AnalyticsApiService',
+          category: LogCategory.video,
+        );
+        return FeedResponse.empty();
+      }
+    } catch (e) {
+      Log.warning(
+        'Error fetching user feed: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+      return FeedResponse.empty();
+    }
+  }
+
+  /// Get social stats for a user
+  ///
+  /// Fetches follower/following counts from /api/users/{pubkey}/social
+  Future<SocialStats?> getSocialStats(String pubkey) async {
+    if (!isAvailable || pubkey.isEmpty) return null;
+
+    try {
+      final url = '$_baseUrl/api/users/$pubkey/social';
+      Log.debug(
+        'Fetching social stats from Funnelcake: $url',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+
+      final response = await _httpClient
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return SocialStats.fromJson(data);
+      } else {
+        Log.warning(
+          'Social stats not found: ${response.statusCode}',
+          name: 'AnalyticsApiService',
+          category: LogCategory.system,
+        );
+        return null;
+      }
+    } catch (e) {
+      Log.warning(
+        'Error fetching social stats: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+      return null;
+    }
+  }
+
+  /// Bulk fetch user data
+  ///
+  /// POST to /api/users/bulk with pubkeys or from_event reference
+  Future<BulkUsersResponse> getBulkUsers({
+    List<String>? pubkeys,
+    FromEventRef? fromEvent,
+  }) async {
+    if (!isAvailable) {
+      return BulkUsersResponse.empty();
+    }
+
+    try {
+      final url = '$_baseUrl/api/users/bulk';
+      Log.debug(
+        'Bulk fetching users from Funnelcake: $url',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+
+      final body = <String, dynamic>{};
+      if (pubkeys != null && pubkeys.isNotEmpty) {
+        body['pubkeys'] = pubkeys;
+      }
+      if (fromEvent != null) {
+        body['from_event'] = fromEvent.toJson();
+      }
+
+      final response = await _httpClient
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return BulkUsersResponse.fromJson(data);
+      } else {
+        Log.warning(
+          'Bulk users fetch failed: ${response.statusCode}',
+          name: 'AnalyticsApiService',
+          category: LogCategory.system,
+        );
+        return BulkUsersResponse.empty();
+      }
+    } catch (e) {
+      Log.warning(
+        'Error bulk fetching users: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.system,
+      );
+      return BulkUsersResponse.empty();
+    }
+  }
+
+  /// Bulk fetch video data
+  ///
+  /// POST to /api/videos/bulk with event_ids or from_event reference
+  Future<BulkVideosResponse> getBulkVideos({
+    List<String>? eventIds,
+    FromEventRef? fromEvent,
+  }) async {
+    if (!isAvailable) {
+      return BulkVideosResponse.empty();
+    }
+
+    try {
+      final url = '$_baseUrl/api/videos/bulk';
+      Log.debug(
+        'Bulk fetching videos from Funnelcake: $url',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+
+      final body = <String, dynamic>{};
+      if (eventIds != null && eventIds.isNotEmpty) {
+        body['event_ids'] = eventIds;
+      }
+      if (fromEvent != null) {
+        body['from_event'] = fromEvent.toJson();
+      }
+
+      final response = await _httpClient
+          .post(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return BulkVideosResponse.fromJson(data);
+      } else {
+        Log.warning(
+          'Bulk videos fetch failed: ${response.statusCode}',
+          name: 'AnalyticsApiService',
+          category: LogCategory.video,
+        );
+        return BulkVideosResponse.empty();
+      }
+    } catch (e) {
+      Log.warning(
+        'Error bulk fetching videos: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+      return BulkVideosResponse.empty();
+    }
   }
 
   /// Dispose of resources
