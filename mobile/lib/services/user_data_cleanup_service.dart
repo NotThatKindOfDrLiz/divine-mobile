@@ -1,6 +1,7 @@
 // ABOUTME: Service to clear user-specific cached data when identity changes
 // ABOUTME: Prevents data leakage between different Nostr accounts after reinstall
 
+import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -46,8 +47,8 @@ class UserDataCleanupService {
     'trusted_reporters',
     'report_cache',
     // TOS acceptance (user must re-accept on new account)
-    'age_verified_16_plus',
-    'terms_accepted_at',
+    StorageKeys.ageVerified16Plus,
+    StorageKeys.termsAcceptedAt,
   ];
 
   /// Checks if user-specific data should be cleared for the given pubkey.
@@ -60,7 +61,7 @@ class UserDataCleanupService {
   /// - Same user is logging in (pubkey matches)
   /// - Fresh install with no existing data
   bool shouldClearDataForUser(String currentPubkeyHex) {
-    final storedPubkey = _prefs.getString('current_user_pubkey_hex');
+    final storedPubkey = _prefs.getString(StorageKeys.currentUserPubkeyHex);
 
     // If same user, no cleanup needed
     if (storedPubkey == currentPubkeyHex) {

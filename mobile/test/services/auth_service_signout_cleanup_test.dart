@@ -4,6 +4,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
 import 'package:nostr_key_manager/nostr_key_manager.dart';
@@ -28,9 +29,9 @@ void main() {
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({
-        'current_user_pubkey_hex': 'existing_pubkey_hex_123',
-        'age_verified_16_plus': true,
-        'terms_accepted_at': '2024-01-01T00:00:00Z',
+        StorageKeys.currentUserPubkeyHex: 'existing_pubkey_hex_123',
+        StorageKeys.ageVerified16Plus: true,
+        StorageKeys.termsAcceptedAt: '2024-01-01T00:00:00Z',
       });
       prefs = await SharedPreferences.getInstance();
       mockKeyStorage = MockSecureKeyStorage();
@@ -51,7 +52,7 @@ void main() {
 
     test('signOut should clear current_user_pubkey_hex', () async {
       // Arrange: Verify pubkey is initially stored
-      expect(prefs.getString('current_user_pubkey_hex'), isNotNull);
+      expect(prefs.getString(StorageKeys.currentUserPubkeyHex), isNotNull);
 
       // Setup mock to not delete keys (just clearing cache)
       when(mockKeyStorage.clearCache()).thenReturn(null);
@@ -60,13 +61,13 @@ void main() {
       await authService.signOut(deleteKeys: false);
 
       // Assert: Pubkey should be cleared
-      expect(prefs.getString('current_user_pubkey_hex'), isNull);
+      expect(prefs.getString(StorageKeys.currentUserPubkeyHex), isNull);
     });
 
     test('signOut should clear TOS acceptance flags', () async {
       // Arrange: Verify TOS flags are initially set
-      expect(prefs.getBool('age_verified_16_plus'), isTrue);
-      expect(prefs.getString('terms_accepted_at'), isNotNull);
+      expect(prefs.getBool(StorageKeys.ageVerified16Plus), isTrue);
+      expect(prefs.getString(StorageKeys.termsAcceptedAt), isNotNull);
 
       // Setup mock
       when(mockKeyStorage.clearCache()).thenReturn(null);
@@ -75,8 +76,8 @@ void main() {
       await authService.signOut(deleteKeys: false);
 
       // Assert: TOS flags should be cleared
-      expect(prefs.getBool('age_verified_16_plus'), isNull);
-      expect(prefs.getString('terms_accepted_at'), isNull);
+      expect(prefs.getBool(StorageKeys.ageVerified16Plus), isNull);
+      expect(prefs.getString(StorageKeys.termsAcceptedAt), isNull);
     });
 
     test(

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
@@ -136,7 +137,7 @@ void resetNavigationState() {
 /// Exposed for testing
 Future<bool> hasAnyFollowingInCache(SharedPreferences prefs) async {
   // Get the current user's pubkey
-  final currentUserPubkey = prefs.getString('current_user_pubkey_hex');
+  final currentUserPubkey = prefs.getString(StorageKeys.currentUserPubkeyHex);
   Log.debug(
     'Current user pubkey from prefs: $currentUserPubkey',
     name: 'AppRouter',
@@ -154,7 +155,7 @@ Future<bool> hasAnyFollowingInCache(SharedPreferences prefs) async {
   }
 
   // Check only the current user's following list
-  final key = 'following_list_$currentUserPubkey';
+  final key = StorageKeys.followingListKey(currentUserPubkey);
   final value = prefs.getString(key);
 
   if (value == null || value.isEmpty) {
@@ -266,7 +267,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           name: 'AppRouter',
           category: LogCategory.ui,
         );
-        final hasAcceptedTerms = prefs.getBool('age_verified_16_plus') ?? false;
+        final hasAcceptedTerms = prefs.getBool(StorageKeys.ageVerified16Plus) ?? false;
         Log.debug(
           'TOS accepted: $hasAcceptedTerms',
           name: 'AppRouter',
@@ -298,7 +299,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       // Redirect FROM /welcome TO /explore when TOS is accepted AND user is authenticated
       if (location.startsWith('/welcome')) {
-        final hasAcceptedTerms = prefs.getBool('age_verified_16_plus') ?? false;
+        final hasAcceptedTerms = prefs.getBool(StorageKeys.ageVerified16Plus) ?? false;
         if (hasAcceptedTerms && authState == AuthState.authenticated) {
           Log.debug(
             'TOS accepted and authenticated, redirecting from /welcome to /explore',

@@ -1,13 +1,16 @@
-// ABOUTME: Authentication service managing user login, key generation, and auth state
-// ABOUTME: Handles Nostr identity creation, import, and session management with secure storage
+// ABOUTME: Authentication service managing user login, key generation, and
+// auth state
+// ABOUTME: Handles Nostr identity creation, import, and session management
+// with secure storage
 
 import 'dart:async';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:keycast_flutter/keycast_flutter.dart';
-import 'package:nostr_sdk/nostr_sdk.dart';
 import 'package:nostr_key_manager/nostr_key_manager.dart'
     show SecureKeyContainer, SecureKeyStorage;
+import 'package:nostr_sdk/nostr_sdk.dart';
+import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
 import 'package:openvine/services/user_profile_service.dart' as ups;
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -28,7 +31,8 @@ enum AuthenticationSource {
   divineOAuth('divineOAuth'),
   importedKeys('imported_keys'),
   automatic('automatic'),
-  bunker('bunker');
+  bunker('bunker')
+  ;
 
   const AuthenticationSource(this.code);
 
@@ -109,7 +113,8 @@ class UserProfile {
 }
 
 /// Main authentication service for the divine app
-/// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod
+/// REFACTORED: Removed ChangeNotifier - now uses pure state management via
+/// Riverpod
 class AuthService {
   AuthService({
     required UserDataCleanupService userDataCleanupService,
@@ -123,7 +128,7 @@ class AuthService {
        _flutterSecureStorage = flutterSecureStorage,
        _oauthConfig =
            oauthConfig ??
-           OAuthConfig(serverUrl: '', clientId: '', redirectUri: '');
+           const OAuthConfig(serverUrl: '', clientId: '', redirectUri: '');
   final SecureKeyStorage _keyStorage;
   final UserDataCleanupService _userDataCleanupService;
   final KeycastOAuth? _oauthClient;
@@ -140,7 +145,7 @@ class AuthService {
 
   /// Returns the active remote signer (bunker takes priority over OAuth RPC)
   NostrSigner? get rpcSigner => _bunkerSigner ?? _keycastSigner;
-  OAuthConfig _oauthConfig;
+  final OAuthConfig _oauthConfig;
 
   // Streaming controllers for reactive auth state
   final StreamController<AuthState> _authStateController =
@@ -251,7 +256,6 @@ class AuthService {
         case AuthenticationSource.automatic:
           // Default behavior: check for keys and auto-create if needed
           await _checkExistingAuth();
-          break;
 
         case AuthenticationSource.bunker:
           // Try to restore bunker connection from secure storage
@@ -410,7 +414,8 @@ class AuthService {
     }
   }
 
-  /// Sets up the auth URL callback for bunker operations that require user approval.
+  /// Sets up the auth URL callback for bunker operations that require user
+  /// approval.
   /// This must be called after creating a NostrRemoteSigner instance.
   void _setupBunkerAuthCallback() {
     if (_bunkerSigner == null) return;
@@ -453,7 +458,7 @@ class AuthService {
       await _bunkerSigner!.connect(sendConnectRequest: false);
 
       // Use saved public key if available, otherwise request it from bunker
-      String? userPubkey = info.userPubkey;
+      var userPubkey = info.userPubkey;
       if (userPubkey == null || userPubkey.isEmpty) {
         Log.info(
           'No saved userPubkey, requesting from bunker...',
@@ -641,7 +646,8 @@ class AuthService {
       const authTimeout = Duration(seconds: 120);
 
       Log.debug(
-        'Creating NostrRemoteSigner for bunker: ${bunkerInfo.remoteSignerPubkey}',
+        'Creating NostrRemoteSigner for '
+        'bunker: ${bunkerInfo.remoteSignerPubkey}',
         name: 'AuthService',
         category: LogCategory.auth,
       );
@@ -656,17 +662,15 @@ class AuthService {
           name: 'AuthService',
           category: LogCategory.auth,
         );
-        connectResult = await _bunkerSigner!
-            .connect(sendConnectRequest: true)
-            .timeout(
-              authTimeout,
-              onTimeout: () {
-                throw TimeoutException(
-                  'Bunker connection timed out. If an approval page opened, '
-                  'please approve the connection and try again.',
-                );
-              },
+        connectResult = await _bunkerSigner!.connect().timeout(
+          authTimeout,
+          onTimeout: () {
+            throw TimeoutException(
+              'Bunker connection timed out. If an approval page opened, '
+              'please approve the connection and try again.',
             );
+          },
+        );
       } on TimeoutException {
         rethrow;
       }
@@ -819,7 +823,8 @@ class AuthService {
   /// transitions to authenticated state w/o first creating or importing keys
   Future<void> signInAutomatically() async {
     try {
-      // If not authenticated (e.g., after logout), re-initialize to load existing keys
+      // If not authenticated (e.g., after logout), re-initialize to load
+      // existing keys
       if (_authState != AuthState.authenticated) {
         await _checkExistingAuth();
       }
@@ -867,7 +872,7 @@ class AuthService {
       );
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('current_user_pubkey_hex', publicKeyHex);
+      await prefs.setString(StorageKeys.currentUserPubkeyHex, publicKeyHex);
 
       Log.info(
         '✅ Divine oauth listener setting auth state to authenticated.',
@@ -904,11 +909,12 @@ class AuthService {
     );
 
     try {
-      // Clear TOS acceptance on any logout - user must re-accept when logging back in
+      // Clear TOS acceptance on any logout - user must re-accept when logging
+      // back in
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kAuthSourceKey);
-      await prefs.remove('age_verified_16_plus');
-      await prefs.remove('terms_accepted_at');
+      await prefs.remove(StorageKeys.ageVerified16Plus);
+      await prefs.remove(StorageKeys.termsAcceptedAt);
 
       // Clear user-specific cached data on explicit logout
       await _userDataCleanupService.clearUserSpecificData(
@@ -916,7 +922,7 @@ class AuthService {
       );
 
       // Clear the stored pubkey tracking so next login is treated as new
-      await prefs.remove('current_user_pubkey_hex');
+      await prefs.remove(StorageKeys.currentUserPubkeyHex);
 
       if (deleteKeys) {
         Log.debug(
@@ -1029,7 +1035,8 @@ class AuthService {
       // CRITICAL: divine relays require specific tags for storage
       final eventTags = List<List<String>>.from(tags ?? []);
 
-      // CRITICAL: Kind 0 events require expiration tag FIRST (matching Python script order)
+      // CRITICAL: Kind 0 events require expiration tag FIRST (matching Python
+      // script order)
       if (kind == 0) {
         final expirationTimestamp =
             (DateTime.now().millisecondsSinceEpoch ~/ 1000) +
@@ -1131,7 +1138,8 @@ class AuthService {
         final keyContainer = await _keyStorage.getKeyContainer();
         if (keyContainer != null) {
           Log.info(
-            'Loaded existing secure identity: ${NostrKeyUtils.maskKey(keyContainer.npub)}',
+            'Loaded existing secure identity: '
+            '${NostrKeyUtils.maskKey(keyContainer.npub)}',
             name: 'AuthService',
             category: LogCategory.auth,
           );
@@ -1153,16 +1161,19 @@ class AuthService {
       );
 
       // Auto-create identity like TikTok - seamless onboarding
-      // Note: createNewIdentity() sets state to authenticating immediately, so no need to set it here
+      // Note: createNewIdentity() sets state to authenticating immediately, so
+      // no need to set it here
       final result = await createNewIdentity();
       if (result.success && result.keyContainer != null) {
         Log.info(
-          'Auto-created NEW secure Nostr identity: ${NostrKeyUtils.maskKey(result.keyContainer!.npub)}',
+          'Auto-created NEW secure Nostr identity: '
+          '${NostrKeyUtils.maskKey(result.keyContainer!.npub)}',
           name: 'AuthService',
           category: LogCategory.auth,
         );
         Log.debug(
-          '📱 This identity is now securely saved and will be reused on next launch',
+          '📱 This identity is now securely saved '
+          'and will be reused on next launch',
           name: 'AuthService',
           category: LogCategory.auth,
         );
@@ -1189,10 +1200,10 @@ class AuthService {
   Future<void> _onTermsAccepted() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      'terms_accepted_at',
+      StorageKeys.termsAcceptedAt,
       DateTime.now().toIso8601String(),
     );
-    await prefs.setBool('age_verified_16_plus', true);
+    await prefs.setBool(StorageKeys.ageVerified16Plus, true);
   }
 
   /// Set up user session after successful authentication
@@ -1224,9 +1235,11 @@ class AuthService {
         await _userDataCleanupService.clearUserSpecificData(
           reason: 'identity_change',
         );
+        // restore the TOS acceptance since we wouldn't be here otherwise
+        await _onTermsAccepted();
       }
       await prefs.setString(
-        'current_user_pubkey_hex',
+        StorageKeys.currentUserPubkeyHex,
         keyContainer.publicKeyHex,
       );
 
@@ -1286,7 +1299,7 @@ class AuthService {
     'last_error': _lastError,
   };
 
-  void dispose() {
+  Future<void> dispose() async {
     Log.debug(
       '📱️ Disposing SecureAuthService',
       name: 'AuthService',
@@ -1297,8 +1310,8 @@ class AuthService {
     _currentKeyContainer?.dispose();
     _currentKeyContainer = null;
 
-    _authStateController.close();
-    _profileController.close();
+    await _authStateController.close();
+    await _profileController.close();
     _keyStorage.dispose();
   }
 }

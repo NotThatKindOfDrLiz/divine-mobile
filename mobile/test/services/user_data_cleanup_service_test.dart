@@ -2,6 +2,7 @@
 // ABOUTME: Validates that user-specific data is cleared when switching accounts
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,7 +20,7 @@ void main() {
     group('shouldClearDataForUser', () {
       test('returns false when same user is logging in', () async {
         const pubkey = 'abc123def456';
-        await prefs.setString('current_user_pubkey_hex', pubkey);
+        await prefs.setString(StorageKeys.currentUserPubkeyHex, pubkey);
 
         expect(service.shouldClearDataForUser(pubkey), isFalse);
       });
@@ -27,7 +28,7 @@ void main() {
       test('returns true when different user was stored', () async {
         const oldPubkey = 'old_user_pubkey';
         const newPubkey = 'new_user_pubkey';
-        await prefs.setString('current_user_pubkey_hex', oldPubkey);
+        await prefs.setString(StorageKeys.currentUserPubkeyHex, oldPubkey);
 
         expect(service.shouldClearDataForUser(newPubkey), isTrue);
       });
@@ -65,7 +66,7 @@ void main() {
         await prefs.setStringList('curated_lists', ['list1']);
         await prefs.setStringList('subscribed_list_ids', ['sub1']);
         await prefs.setString('seen_video_ids', 'video1');
-        await prefs.setBool('age_verified_16_plus', true);
+        await prefs.setBool(StorageKeys.ageVerified16Plus, true);
 
         // Also set some device/app settings that should NOT be cleared
         await prefs.setString('relay_url', 'wss://relay.example.com');
@@ -77,7 +78,7 @@ void main() {
         expect(prefs.containsKey('curated_lists'), isFalse);
         expect(prefs.containsKey('subscribed_list_ids'), isFalse);
         expect(prefs.containsKey('seen_video_ids'), isFalse);
-        expect(prefs.containsKey('age_verified_16_plus'), isFalse);
+        expect(prefs.containsKey(StorageKeys.ageVerified16Plus), isFalse);
 
         // Device/app settings should remain
         expect(prefs.getString('relay_url'), 'wss://relay.example.com');
@@ -124,7 +125,7 @@ void main() {
         // Set up some user-specific data
         await prefs.setStringList('curated_lists', ['list1']);
         await prefs.setString('seen_video_ids', 'video1');
-        await prefs.setBool('age_verified_16_plus', true);
+        await prefs.setBool(StorageKeys.ageVerified16Plus, true);
 
         final clearedCount = await service.clearUserSpecificData();
 
@@ -180,8 +181,8 @@ void main() {
         expect(keys, contains('vine_drafts'));
 
         // TOS
-        expect(keys, contains('age_verified_16_plus'));
-        expect(keys, contains('terms_accepted_at'));
+        expect(keys, contains(StorageKeys.ageVerified16Plus));
+        expect(keys, contains(StorageKeys.termsAcceptedAt));
       });
 
       test('does NOT contain device/app settings', () {
@@ -190,7 +191,7 @@ void main() {
         // These should NOT be in the cleanup list
         expect(keys, isNot(contains('relay_url')));
         expect(keys, isNot(contains('analytics_enabled')));
-        expect(keys, isNot(contains('current_user_pubkey_hex')));
+        expect(keys, isNot(contains(StorageKeys.currentUserPubkeyHex)));
       });
     });
   });

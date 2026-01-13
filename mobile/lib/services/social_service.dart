@@ -8,6 +8,7 @@ import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/filter.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/immediate_completion_helper.dart';
 import 'package:nostr_client/nostr_client.dart';
@@ -2013,7 +2014,7 @@ class SocialService {
       final prefs = await SharedPreferences.getInstance();
       final currentUserPubkey = _authService.currentPublicKeyHex;
       if (currentUserPubkey != null) {
-        final key = 'following_list_$currentUserPubkey';
+        final key = StorageKeys.followingListKey(currentUserPubkey);
         await prefs.setString(key, jsonEncode(_followingPubkeys));
         Log.debug(
           '💾 Saved following list to cache: ${_followingPubkeys.length} users',
@@ -2036,7 +2037,7 @@ class SocialService {
       final prefs = await SharedPreferences.getInstance();
       final currentUserPubkey = _authService.currentPublicKeyHex;
       if (currentUserPubkey != null) {
-        final key = 'following_list_$currentUserPubkey';
+        final key = StorageKeys.followingListKey(currentUserPubkey);
         final cached = prefs.getString(key);
         if (cached != null) {
           final List<dynamic> decoded = jsonDecode(cached);
