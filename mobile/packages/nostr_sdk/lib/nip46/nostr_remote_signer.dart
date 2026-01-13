@@ -73,17 +73,13 @@ class NostrRemoteSigner extends NostrSigner {
     log('[NIP46] connect: created localNostrSigner');
 
     for (var remoteRelayAddr in info.relays) {
-      log('[NIP46] connect: connecting to relay $remoteRelayAddr');
       var relay = await _connectToRelay(remoteRelayAddr);
       relays.add(relay);
-      log(
-        '[NIP46] connect: relay added, status=${relay.relayStatus.connected}',
-      );
     }
 
     if (sendConnectRequest) {
       // Small delay to ensure subscription is fully established
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 200));
       log(
         '[NIP46] connect: relays status after delay: ${relays.map((r) => "${r.relayStatus.addr}=${r.relayStatus.connected}").join(", ")}',
       );
@@ -105,16 +101,13 @@ class NostrRemoteSigner extends NostrSigner {
 
   Future<String?> pullPubkey() async {
     var request = NostrRemoteRequest("get_public_key", []);
-    log('[NIP46] pullPubkey: sending request id=${request.id}');
     var pubkey = await sendAndWaitForResult(request, timeout: 120);
-    log('[NIP46] pullPubkey: result=$pubkey');
     info.userPubkey = pubkey;
     return pubkey;
   }
 
   Future<void> onMessage(Relay relay, List<dynamic> json) async {
     final messageType = json[0];
-    log('[NIP46] onMessage: type=$messageType, full message=$json');
     if (messageType == 'EVENT') {
       try {
         relay.relayStatus.noteReceive();
@@ -125,17 +118,12 @@ class NostrRemoteSigner extends NostrSigner {
           '[NIP46] onMessage: received event subscriptionId=$subscriptionId, kind=${event.kind} from ${event.pubkey}, createdAt=${event.createdAt}',
         );
         if (event.kind == EventKind.nostrRemoteSigning) {
-          log('[NIP46] onMessage: decrypting NIP46 response...');
           var response = await NostrRemoteResponse.decrypt(
             event.content,
             localNostrSigner,
             event.pubkey,
           );
           if (response != null) {
-            log(
-              '[NIP46] onMessage: decrypted response id=${response.id}, result=${response.result}, error=${response.error}',
-            );
-
             // Check for auth_url challenge - this means user needs to approve
             if (response.result == 'auth_url' && response.error != null) {
               log(
@@ -164,14 +152,7 @@ class NostrRemoteSigner extends NostrSigner {
             // Also remove from pending requests since we got a response
             _pendingRequestEvents.remove(response.id);
             if (completer != null) {
-              log(
-                '[NIP46] onMessage: completing callback for id=${response.id}',
-              );
               completer.complete(response.result);
-            } else {
-              log(
-                '[NIP46] onMessage: no callback found for id=${response.id}, pending callbacks: ${callbacks.keys.toList()}',
-              );
             }
           } else {
             log('[NIP46] onMessage: failed to decrypt response');
@@ -232,7 +213,7 @@ class NostrRemoteSigner extends NostrSigner {
 
     try {
       // Small delay before reconnecting to avoid rapid reconnection loops
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 200));
 
       // Check if still disconnected (might have reconnected via another path)
       if (relay.relayStatus.connected == ClientConnected.connected) {
