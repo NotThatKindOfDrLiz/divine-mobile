@@ -144,8 +144,8 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     if (widget.selectionMode) {
       context.pop();
     } else {
-      // Navigate to ClipManager screen (push to preserve back navigation)
-      await context.push('/video-editor');
+      // Navigate to editor with fromLibrary flag so back goes to recorder
+      await context.pushVideoEditor(fromLibrary: true);
 
       // Clear selection
       _clearSelection();

@@ -198,8 +198,11 @@ extension NavX on BuildContext {
 
   // Optional pushes (non-tab routes)
   Future<void> pushVideoRecorder() => push('/video-recorder');
-  Future<void> pushVideoEditor({String? draftId}) =>
-      push('/video-editor${draftId != null ? '/$draftId' : ''}');
+  Future<void> pushVideoEditor({String? draftId, bool fromLibrary = false}) =>
+      push(
+        '/video-editor${draftId != null ? '/$draftId' : ''}',
+        extra: fromLibrary ? {'fromLibrary': true} : null,
+      );
   Future<void> pushVideoPublish() => push('/video-publish');
   Future<void> pushSettings() => push('/settings');
   Future<void> pushComments(VideoEvent video) =>

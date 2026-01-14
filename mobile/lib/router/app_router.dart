@@ -752,7 +752,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/video-editor',
         name: 'video-editor',
-        builder: (_, _) => const VideoEditorScreen(),
+        builder: (_, st) {
+          final extra = st.extra as Map<String, dynamic>?;
+          final fromLibrary = extra?['fromLibrary'] as bool? ?? false;
+          return VideoEditorScreen(fromLibrary: fromLibrary);
+        },
       ),
       GoRoute(
         path: '/video-editor/:draftId',

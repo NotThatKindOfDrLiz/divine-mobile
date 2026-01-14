@@ -12,7 +12,10 @@ import 'package:openvine/widgets/divine_icon_button.dart';
 /// Top bar with close button, clip counter, and done button.
 class VideoEditorTopBar extends ConsumerWidget {
   /// Creates a video editor top bar widget.
-  const VideoEditorTopBar({super.key});
+  const VideoEditorTopBar({super.key, this.fromLibrary = false});
+
+  /// Whether the editor was opened from the clip library.
+  final bool fromLibrary;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -43,7 +46,15 @@ class VideoEditorTopBar extends ConsumerWidget {
           else
             DivineIconButton(
               iconPath: 'assets/icon/video_camera.svg',
-              onTap: () => context.pop(),
+              onTap: () {
+                // If came from library, go to recorder (not in stack)
+                // Otherwise pop back to recorder
+                if (fromLibrary) {
+                  context.pushReplacement('/video-recorder');
+                } else {
+                  context.pop();
+                }
+              },
               // TODO(l10n): Replace with context.l10n when localization is added.
               semanticLabel: 'Go back to camera',
             ),
