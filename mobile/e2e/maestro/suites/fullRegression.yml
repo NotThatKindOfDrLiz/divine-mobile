@@ -25,34 +25,18 @@ env:
       EXISTING_USERNAME: "jaysonpotter"
 ---
 
-#Base tests
-- runFlow: ../tests/loginFreshInstall.yml
-- runFlow: ../tests/profileFreshInstall.yml
-- runFlow: ../tests/playPauseVideo.yml
-
 #Social interaction tests
-- runFlow: ../tests/follow.yml
-- runFlow: ../tests/unFollow.yml
-- runFlow: ../tests/searchVideos.yml
-- runFlow: ../tests/hideKeyboard.yml
-- tapOn:
-    id: explore_tab
+- runFlow: ../flows/followFlow.yml
+- runFlow: ../flows/likeFlow.yml
+- runFlow: ../flows/commentFlow.yml
 
-- runFlow: ../tests/searchUsers.yml
-- runFlow: ../tests/hideKeyboard.yml
-- tapOn:
-    id: explore_tab
+#Search tests
+- runFlow: ../flows/searchVideosFlow.yml
+- runFlow: ../flows/searchUsersFlow.yml
+- runFlow: ../flows/searchTagsFlow.yml
 
-- runFlow: ../tests/searchTags.yml
-- runFlow: ../tests/hideKeyboard.yml
-- tapOn:
-    id: explore_tab
-
-- runFlow: ../tests/videoLike.yml
-- runFlow: ../tests/videoUnlike.yml
-- runFlow: ../tests/commentVideo.yml
-- runFlow: ../tests/deleteComment.yml
-- runFlow: ../tests/profileNavigation.yml
+#Navigation tests
+- runFlow: ../flows/profileNavigationFlow.yml
 - runFlow: ../tests/logout.yml
 
 #Account data management tests

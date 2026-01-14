@@ -1,0 +1,9 @@
+appId: co.openvine.app
+---
+
+- runFlow: ../tests/loginFreshInstall.yml
+- runFlow: ../tests/profileFreshInstall.yml
+- runFlow: ../tests/profileNavigation.yml
+
+#Tear down
+- killApp
