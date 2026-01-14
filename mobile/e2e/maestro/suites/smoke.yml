@@ -1,0 +1,42 @@
+appId: co.openvine.app
+name: Divine smoke test
+env:
+  VIDEO_TITLE: "when you jammin to JB" # Setting the video title parameter
+  VIDEO_USER: "FunnyVines"
+  VIDEO_DESCRIPTION: "When you jammin to JB too hard and you grab a hot mic. " # Setting the video description parameter
+  COMMENT: "Boring automated comment"
+  DISPLAY_NAME: "AutomationUser"
+  USER_BIO: "AutomationUser bio"
+  USER_NAME: "Automation User"
+  USER_KEYS: "nsec16fvy70pyfw7cjegt4wry24z4nwaleqanrkwputmy5na0wrdyak4sdkn8l2" #A test user
+  USER_wKEYS_NAME: "AleB wKeys consumer"
+  USER_wKEYS_BIO: "user profile from Uy for testing with keys for login"
+---
+#Base tests
+- runFlow: ../flows/loginFreshInstall.yml
+- runFlow: ../flows/profileFreshInstall.yml
+- runFlow: ../flows/playPauseVideo.yml
+
+#Social interaction tests
+- runFlow: ../flows/follow.yml
+- runFlow: ../flows/unFollow.yml
+- runFlow: ../flows/searchVideos.yml
+- runFlow: ../utils/hideKeyboard.yml
+- tapOn: |-
+    Explore
+    Tab 2 of 4
+- runFlow: ../flows/videoLike.yml
+- runFlow: ../flows/videoUnlike.yml
+- runFlow: ../flows/commentVideo.yml
+- runFlow: ../flows/logout.yml
+
+#Account data management tests
+- runFlow:
+    file: ../flows/loginExistingKeys.yml
+    env:
+      USER_NAME: ${USER_wKEYS_NAME}
+      USER_BIO: ${USER_wKEYS_BIO}
+- runFlow: ../flows/editProfile.yml
+
+#Tear down
+- killApp
