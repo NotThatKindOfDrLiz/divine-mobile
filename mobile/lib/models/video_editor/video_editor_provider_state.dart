@@ -21,7 +21,8 @@ class VideoEditorProviderState {
     this.isPlaying = false,
     this.isMuted = false,
     this.isProcessing = false,
-  });
+    GlobalKey? deleteButtonKey,
+  }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
   /// Index of the currently active/selected clip (0-based).
   final int currentClipIndex;
@@ -51,7 +52,7 @@ class VideoEditorProviderState {
   final bool isProcessing;
 
   /// GlobalKey for the delete button to enable hit testing.
-  final GlobalKey deleteButtonKey = GlobalKey();
+  final GlobalKey deleteButtonKey;
 
   /// Creates a copy of this state with updated fields.
   ///
@@ -78,6 +79,7 @@ class VideoEditorProviderState {
       isPlaying: isPlaying ?? this.isPlaying,
       isMuted: isMuted ?? this.isMuted,
       isProcessing: isProcessing ?? this.isProcessing,
+      deleteButtonKey: deleteButtonKey,
     );
   }
 }

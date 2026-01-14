@@ -22,22 +22,35 @@ class VideoEditorClipGallery extends ConsumerStatefulWidget {
       _VideoEditorClipsState();
 }
 
-class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
+class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
+    with SingleTickerProviderStateMixin {
   late PageController _pageController;
   late ScrollController _scrollController;
+  late AnimationController _dragResetController;
   final _dragOffsetNotifier = ValueNotifier<double>(0);
   int _reorderTargetIndex = 0;
   double _accumulatedDragOffset = 0;
+  double _dragResetStartValue = 0;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 0.8);
     _scrollController = ScrollController();
+    _dragResetController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    )..addListener(_onDragResetTick);
+  }
+
+  void _onDragResetTick() {
+    final progress = Curves.easeOut.transform(_dragResetController.value);
+    _dragOffsetNotifier.value = _dragResetStartValue * (1 - progress);
   }
 
   @override
   void dispose() {
+    _dragResetController.dispose();
     _pageController.dispose();
     _scrollController.dispose();
     _dragOffsetNotifier.dispose();
@@ -69,15 +82,21 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     PointerMoveEvent event,
     BoxConstraints constraints,
   ) async {
-    final clips = ref.read(clipManagerProvider).clips;
+    final isLeavingClipArea =
+        event.localPosition.dy > constraints.maxHeight + 20;
 
+    final clips = ref.read(clipManagerProvider).clips;
     // Perform hit test on delete button
     final isOverDeleteZone = _isPointerOverDeleteButton(event.position);
     ref.read(videoEditorProvider.notifier).setOverDeleteZone(isOverDeleteZone);
 
-    // If over delete zone, reset drag offset and skip reorder logic
-    if (isOverDeleteZone) {
-      _dragOffsetNotifier.value = 0;
+    // If over delete zone, animate drag offset back and skip reorder logic
+    if (isLeavingClipArea || isOverDeleteZone) {
+      if (_dragOffsetNotifier.value.abs() > 0.1 &&
+          !_dragResetController.isAnimating) {
+        _dragResetStartValue = _dragOffsetNotifier.value;
+        _dragResetController.forward(from: 0);
+      }
       _accumulatedDragOffset = 0;
       return;
     }
@@ -155,25 +174,15 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       }
     }
 
-    // Animate drag offset back to 0
-    final startOffset = _dragOffsetNotifier.value;
-    if (startOffset.abs() > 0.1) {
-      const steps = 10;
-      const duration = Duration(milliseconds: 200);
-      final stepDuration = duration ~/ steps;
-
-      for (var i = 1; i <= steps; i++) {
-        final progress = Curves.easeOut.transform(i / steps);
-        _dragOffsetNotifier.value = startOffset * (1 - progress);
-        await Future<void>.delayed(stepDuration);
-        if (!mounted) return;
-      }
+    // Animate drag offset back to 0 and wait for completion
+    _dragResetStartValue = _dragOffsetNotifier.value;
+    if (_dragResetStartValue.abs() > 0.1) {
+      await _dragResetController.forward(from: 0).orCancel;
     }
-
     _dragOffsetNotifier.value = 0;
     _accumulatedDragOffset = 0;
 
-    // Exit reorder mode
+    // Exit reorder mode (after animation completes)
     ref.read(videoEditorProvider.notifier).stopClipReordering();
 
     // Recreate the PageController with the new position and trigger rebuild

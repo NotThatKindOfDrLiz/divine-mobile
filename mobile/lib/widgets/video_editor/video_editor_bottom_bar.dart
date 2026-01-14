@@ -184,7 +184,6 @@ class _ClipRemoveArea extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final deleteButtonKey = ref.read(videoEditorProvider).deleteButtonKey;
-
     return Align(
       child: Container(
         key: deleteButtonKey,
