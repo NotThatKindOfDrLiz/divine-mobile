@@ -60,12 +60,12 @@ void disposeAllVideoControllers(Object ref) {
     // Invalidate providers first (triggers checkin)
     ref.invalidate(individualVideoControllerProvider);
     // Then clear pool to dispose all controllers
-    ref.read(videoControllerRepositoryProvider).clear();
+    ref.read(videoControllerPoolProvider).clear();
   } else if (ref is ProviderContainer) {
     // Invalidate providers first (triggers checkin)
     ref.invalidate(individualVideoControllerProvider);
     // Then clear pool to dispose all controllers
-    ref.read(videoControllerRepositoryProvider).clear();
+    ref.read(videoControllerPoolProvider).clear();
   } else {
     throw ArgumentError(
       'Expected WidgetRef or ProviderContainer, got ${ref.runtimeType}',

@@ -66,7 +66,7 @@ import 'package:openvine/services/video_filter_builder.dart';
 import 'package:openvine/services/video_sharing_service.dart';
 import 'package:openvine/services/video_cache_manager.dart';
 import 'package:openvine/services/video_visibility_manager.dart';
-import 'package:openvine/repositories/video_controller_repository.dart';
+import 'package:openvine/repositories/video_controller_pool.dart';
 import 'package:openvine/services/web_auth_service.dart';
 import 'package:openvine/services/zendesk_support_service.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -111,17 +111,19 @@ VideoVisibilityManager videoVisibilityManager(Ref ref) {
 /// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
 /// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
 @Riverpod(keepAlive: true)
-VideoControllerRepository videoControllerRepository(Ref ref) {
+VideoControllerPool videoControllerPool(Ref ref) {
   final ageVerificationService = ref.watch(ageVerificationServiceProvider);
   final blossomAuthService = ref.watch(blossomAuthServiceProvider);
 
-  final repository = VideoControllerRepository(
+  final pool = VideoControllerPool(
     cacheManager: openVineVideoCache,
     ageVerificationService: ageVerificationService,
     blossomAuthService: blossomAuthService,
   );
-  ref.onDispose(repository.dispose);
-  return repository;
+
+  ref.onDispose(pool.dispose);
+
+  return pool;
 }
 
 /// Background activity manager singleton for tracking app foreground/background state

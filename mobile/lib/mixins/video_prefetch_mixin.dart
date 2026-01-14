@@ -164,9 +164,9 @@ mixin VideoPrefetchMixin {
   }) {
     if (videos.isEmpty) return;
 
-    // Check repository capacity before pre-initializing
-    final repository = ref.read(videoControllerRepositoryProvider);
-    final availableSlots = repository.availableSlots;
+    // Check pool capacity before pre-initializing
+    final pool = ref.read(videoControllerPoolProvider);
+    final availableSlots = pool.availableSlots;
 
     if (availableSlots <= 0) return;
 

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
-import 'package:openvine/repositories/video_controller_repository.dart';
+import 'package:openvine/repositories/video_controller_pool.dart';
 import 'package:openvine/services/age_verification_service.dart';
 import 'package:openvine/services/blossom_auth_service.dart';
 import 'package:openvine/services/video_cache_manager.dart';
@@ -15,21 +15,21 @@ import 'package:openvine/services/video_cache_manager.dart';
   MockSpec<BlossomAuthService>(),
   MockSpec<File>(),
 ])
-import 'video_controller_repository_test.mocks.dart';
+import 'video_controller_pool_test.mocks.dart';
 
 void main() {
-  group('VideoControllerRepository', () {
+  group('VideoControllerPool', () {
     late MockVideoCacheManager mockCacheManager;
     late MockAgeVerificationService mockAgeVerificationService;
     late MockBlossomAuthService mockBlossomAuthService;
-    late VideoControllerRepository repository;
+    late VideoControllerPool pool;
 
     setUp(() {
       mockCacheManager = MockVideoCacheManager();
       mockAgeVerificationService = MockAgeVerificationService();
       mockBlossomAuthService = MockBlossomAuthService();
 
-      repository = VideoControllerRepository(
+      pool = VideoControllerPool(
         cacheManager: mockCacheManager,
         ageVerificationService: mockAgeVerificationService,
         blossomAuthService: mockBlossomAuthService,
@@ -37,10 +37,10 @@ void main() {
     });
 
     tearDown(() {
-      repository.dispose();
+      pool.dispose();
     });
 
-    group('acquireController', () {
+    group('checkout', () {
       test('creates network controller when no cache exists', () {
         // Arrange
         when(mockCacheManager.getCachedVideoSync(any)).thenReturn(null);
@@ -54,14 +54,14 @@ void main() {
         );
 
         // Act
-        final result = repository.acquireController(params);
+        final result = pool.checkout(params);
 
         // Assert
         expect(result.controller, isNotNull);
         expect(result.isFromCache, isFalse);
         expect(result.wasExisting, isFalse);
         expect(result.videoUrl, equals('https://example.com/video.mp4'));
-        expect(repository.activeCount, equals(1));
+        expect(pool.activeCount, equals(1));
       });
 
       test('returns existing controller when already acquired', () {
@@ -77,13 +77,13 @@ void main() {
         );
 
         // Act - acquire twice
-        final result1 = repository.acquireController(params);
-        final result2 = repository.acquireController(params);
+        final result1 = pool.checkout(params);
+        final result2 = pool.checkout(params);
 
         // Assert
         expect(result2.wasExisting, isTrue);
         expect(result2.controller, same(result1.controller));
-        expect(repository.activeCount, equals(1)); // Only one in pool
+        expect(pool.activeCount, equals(1)); // Only one in pool
       });
 
       test('normalizes .bin URL to .mp4 based on MIME type', () {
@@ -101,7 +101,7 @@ void main() {
         );
 
         // Act
-        final result = repository.acquireController(params);
+        final result = pool.checkout(params);
 
         // Assert
         expect(result.videoUrl, equals('https://example.com/abc123.mp4'));
@@ -122,7 +122,7 @@ void main() {
         );
 
         // Act
-        final result = repository.acquireController(params);
+        final result = pool.checkout(params);
 
         // Assert
         expect(result.videoUrl, equals('https://example.com/abc123.webm'));
@@ -141,7 +141,7 @@ void main() {
         );
 
         // Act
-        final result = repository.acquireController(params);
+        final result = pool.checkout(params);
 
         // Assert
         expect(result.videoUrl, equals('https://example.com/video.mp4'));
@@ -157,27 +157,27 @@ void main() {
         ).thenReturn(false);
 
         // Act & Assert
-        expect(repository.activeCount, equals(0));
-        expect(repository.availableSlots, equals(4));
-        expect(repository.isAtLimit, isFalse);
+        expect(pool.activeCount, equals(0));
+        expect(pool.availableSlots, equals(4));
+        expect(pool.isAtLimit, isFalse);
 
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-1',
             videoUrl: 'https://example.com/1.mp4',
           ),
         );
-        expect(repository.activeCount, equals(1));
-        expect(repository.availableSlots, equals(3));
+        expect(pool.activeCount, equals(1));
+        expect(pool.availableSlots, equals(3));
 
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-2',
             videoUrl: 'https://example.com/2.mp4',
           ),
         );
-        expect(repository.activeCount, equals(2));
-        expect(repository.availableSlots, equals(2));
+        expect(pool.activeCount, equals(2));
+        expect(pool.availableSlots, equals(2));
       });
 
       test('evicts LRU controller when at capacity', () {
@@ -189,22 +189,22 @@ void main() {
 
         // Fill up the pool (4 controllers)
         for (int i = 1; i <= 4; i++) {
-          final result = repository.acquireController(
+          final result = pool.checkout(
             VideoControllerParams(
               videoId: 'video-$i',
               videoUrl: 'https://example.com/$i.mp4',
             ),
           );
           // Mark as initialized so they can be evicted
-          repository.markInitialized('video-$i');
+          pool.markInitialized('video-$i');
           expect(result.wasExisting, isFalse);
         }
 
-        expect(repository.activeCount, equals(4));
-        expect(repository.isAtLimit, isTrue);
+        expect(pool.activeCount, equals(4));
+        expect(pool.isAtLimit, isTrue);
 
         // Act - add one more, should evict video-1 (LRU)
-        final newResult = repository.acquireController(
+        final newResult = pool.checkout(
           VideoControllerParams(
             videoId: 'video-5',
             videoUrl: 'https://example.com/5.mp4',
@@ -213,9 +213,9 @@ void main() {
 
         // Assert
         expect(newResult.wasExisting, isFalse);
-        expect(repository.activeCount, equals(4)); // Still at limit
-        expect(repository.hasController('video-1'), isFalse); // Evicted
-        expect(repository.hasController('video-5'), isTrue); // New one added
+        expect(pool.activeCount, equals(4)); // Still at limit
+        expect(pool.hasController('video-1'), isFalse); // Evicted
+        expect(pool.hasController('video-5'), isTrue); // New one added
       });
 
       test('does not evict currently playing controller', () {
@@ -227,20 +227,20 @@ void main() {
 
         // Fill up the pool
         for (int i = 1; i <= 4; i++) {
-          repository.acquireController(
+          pool.checkout(
             VideoControllerParams(
               videoId: 'video-$i',
               videoUrl: 'https://example.com/$i.mp4',
             ),
           );
-          repository.markInitialized('video-$i');
+          pool.markInitialized('video-$i');
         }
 
         // Mark video-1 as playing (would normally be LRU candidate)
-        repository.markPlaying('video-1');
+        pool.markPlaying('video-1');
 
         // Act - add one more
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-5',
             videoUrl: 'https://example.com/5.mp4',
@@ -248,9 +248,9 @@ void main() {
         );
 
         // Assert - video-1 should NOT be evicted because it's playing
-        expect(repository.hasController('video-1'), isTrue);
+        expect(pool.hasController('video-1'), isTrue);
         // video-2 should be evicted instead (next LRU)
-        expect(repository.hasController('video-2'), isFalse);
+        expect(pool.hasController('video-2'), isFalse);
       });
 
       test('does not evict controllers still initializing', () {
@@ -261,7 +261,7 @@ void main() {
         ).thenReturn(false);
 
         // Fill up the pool but don't mark video-1 as initialized
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-1',
             videoUrl: 'https://example.com/1.mp4',
@@ -270,17 +270,17 @@ void main() {
         // video-1 is NOT marked as initialized
 
         for (int i = 2; i <= 4; i++) {
-          repository.acquireController(
+          pool.checkout(
             VideoControllerParams(
               videoId: 'video-$i',
               videoUrl: 'https://example.com/$i.mp4',
             ),
           );
-          repository.markInitialized('video-$i');
+          pool.markInitialized('video-$i');
         }
 
         // Act - add one more
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-5',
             videoUrl: 'https://example.com/5.mp4',
@@ -288,9 +288,9 @@ void main() {
         );
 
         // Assert - video-1 should NOT be evicted because it's initializing
-        expect(repository.hasController('video-1'), isTrue);
+        expect(pool.hasController('video-1'), isTrue);
         // video-2 should be evicted instead
-        expect(repository.hasController('video-2'), isFalse);
+        expect(pool.hasController('video-2'), isFalse);
       });
     });
 
@@ -307,19 +307,19 @@ void main() {
           videoUrl: 'https://example.com/video.mp4',
         );
 
-        repository.checkout(params);
-        expect(repository.activeCount, equals(1));
-        expect(repository.checkedOutCount, equals(1));
+        pool.checkout(params);
+        expect(pool.activeCount, equals(1));
+        expect(pool.checkedOutCount, equals(1));
 
         // Act - checkin returns to pool but does NOT remove
-        repository.checkin('test-video-id');
+        pool.checkin('test-video-id');
 
         // Assert - controller still in pool
-        expect(repository.activeCount, equals(1));
-        expect(repository.hasController('test-video-id'), isTrue);
+        expect(pool.activeCount, equals(1));
+        expect(pool.hasController('test-video-id'), isTrue);
         // But now idle (not checked out)
-        expect(repository.checkedOutCount, equals(0));
-        expect(repository.idleCount, equals(1));
+        expect(pool.checkedOutCount, equals(0));
+        expect(pool.idleCount, equals(1));
       });
 
       test('idle controllers are evicted first', () {
@@ -331,21 +331,21 @@ void main() {
 
         // Fill up pool with 4 controllers
         for (int i = 1; i <= 4; i++) {
-          repository.checkout(
+          pool.checkout(
             VideoControllerParams(
               videoId: 'video-$i',
               videoUrl: 'https://example.com/$i.mp4',
             ),
           );
-          repository.markInitialized('video-$i');
+          pool.markInitialized('video-$i');
         }
 
         // Checkin video-1 (make it idle)
-        repository.checkin('video-1');
-        expect(repository.idleCount, equals(1));
+        pool.checkin('video-1');
+        expect(pool.idleCount, equals(1));
 
         // Act - add new controller, should evict idle video-1
-        repository.checkout(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-5',
             videoUrl: 'https://example.com/5.mp4',
@@ -353,10 +353,10 @@ void main() {
         );
 
         // Assert - video-1 (idle) was evicted, not the checked-out ones
-        expect(repository.hasController('video-1'), isFalse);
-        expect(repository.hasController('video-5'), isTrue);
+        expect(pool.hasController('video-1'), isFalse);
+        expect(pool.hasController('video-5'), isTrue);
         // video-2,3,4 still present (were checked out)
-        expect(repository.hasController('video-2'), isTrue);
+        expect(pool.hasController('video-2'), isTrue);
       });
     });
 
@@ -368,20 +368,20 @@ void main() {
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        repository.checkout(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'test-video-id',
             videoUrl: 'https://example.com/video.mp4',
           ),
         );
-        expect(repository.activeCount, equals(1));
+        expect(pool.activeCount, equals(1));
 
         // Act
-        repository.evict('test-video-id');
+        pool.evict('test-video-id');
 
         // Assert
-        expect(repository.activeCount, equals(0));
-        expect(repository.hasController('test-video-id'), isFalse);
+        expect(pool.activeCount, equals(0));
+        expect(pool.hasController('test-video-id'), isFalse);
       });
 
       test('clears currently playing if evicted', () {
@@ -391,20 +391,20 @@ void main() {
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        repository.checkout(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'test-video-id',
             videoUrl: 'https://example.com/video.mp4',
           ),
         );
-        repository.markPlaying('test-video-id');
-        expect(repository.currentlyPlayingVideoId, equals('test-video-id'));
+        pool.markPlaying('test-video-id');
+        expect(pool.currentlyPlayingVideoId, equals('test-video-id'));
 
         // Act
-        repository.evict('test-video-id');
+        pool.evict('test-video-id');
 
         // Assert
-        expect(repository.currentlyPlayingVideoId, isNull);
+        expect(pool.currentlyPlayingVideoId, isNull);
       });
     });
 
@@ -416,13 +416,13 @@ void main() {
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-1',
             videoUrl: 'https://example.com/1.mp4',
           ),
         );
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'video-2',
             videoUrl: 'https://example.com/2.mp4',
@@ -430,16 +430,16 @@ void main() {
         );
 
         // Act & Assert
-        expect(repository.currentlyPlayingVideoId, isNull);
+        expect(pool.currentlyPlayingVideoId, isNull);
 
-        repository.markPlaying('video-1');
-        expect(repository.currentlyPlayingVideoId, equals('video-1'));
+        pool.markPlaying('video-1');
+        expect(pool.currentlyPlayingVideoId, equals('video-1'));
 
-        repository.markPlaying('video-2');
-        expect(repository.currentlyPlayingVideoId, equals('video-2'));
+        pool.markPlaying('video-2');
+        expect(pool.currentlyPlayingVideoId, equals('video-2'));
 
-        repository.markNotPlaying('video-2');
-        expect(repository.currentlyPlayingVideoId, isNull);
+        pool.markNotPlaying('video-2');
+        expect(pool.currentlyPlayingVideoId, isNull);
       });
     });
 
@@ -456,7 +456,7 @@ void main() {
         );
 
         // Act
-        final shouldCache = repository.shouldCacheVideo(params);
+        final shouldCache = pool.shouldCacheVideo(params);
 
         // Assert
         expect(shouldCache, isFalse);
@@ -472,7 +472,7 @@ void main() {
         );
 
         // Act
-        final shouldCache = repository.shouldCacheVideo(params);
+        final shouldCache = pool.shouldCacheVideo(params);
 
         // Assert
         expect(shouldCache, isTrue);
@@ -490,7 +490,7 @@ void main() {
         );
 
         // Act
-        final shouldCache = repository.shouldCacheVideo(params);
+        final shouldCache = pool.shouldCacheVideo(params);
 
         // Assert
         expect(shouldCache, isTrue);
@@ -510,7 +510,7 @@ void main() {
         );
 
         // Act
-        await repository.cacheAuthHeaders(params);
+        await pool.cacheAuthHeaders(params);
 
         // Assert
         verifyNever(
@@ -543,7 +543,7 @@ void main() {
         );
 
         // Act
-        await repository.cacheAuthHeaders(params);
+        await pool.cacheAuthHeaders(params);
 
         // Assert - verify the method was called
         verify(
@@ -564,27 +564,27 @@ void main() {
         ).thenReturn(false);
 
         for (int i = 1; i <= 3; i++) {
-          repository.acquireController(
+          pool.checkout(
             VideoControllerParams(
               videoId: 'video-$i',
               videoUrl: 'https://example.com/$i.mp4',
             ),
           );
         }
-        repository.markPlaying('video-1');
+        pool.markPlaying('video-1');
 
-        expect(repository.activeCount, equals(3));
-        expect(repository.currentlyPlayingVideoId, equals('video-1'));
+        expect(pool.activeCount, equals(3));
+        expect(pool.currentlyPlayingVideoId, equals('video-1'));
 
         // Act
-        repository.clear();
+        pool.clear();
 
         // Assert
-        expect(repository.activeCount, equals(0));
-        expect(repository.currentlyPlayingVideoId, isNull);
-        expect(repository.hasController('video-1'), isFalse);
-        expect(repository.hasController('video-2'), isFalse);
-        expect(repository.hasController('video-3'), isFalse);
+        expect(pool.activeCount, equals(0));
+        expect(pool.currentlyPlayingVideoId, isNull);
+        expect(pool.hasController('video-1'), isFalse);
+        expect(pool.hasController('video-2'), isFalse);
+        expect(pool.hasController('video-3'), isFalse);
       });
     });
 
@@ -596,21 +596,21 @@ void main() {
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        repository.acquireController(
+        pool.checkout(
           VideoControllerParams(
             videoId: 'test-video',
             videoUrl: 'https://example.com/video.mp4',
           ),
         );
-        repository.markPlaying('test-video');
+        pool.markPlaying('test-video');
 
         // Act
-        final result = repository.toString();
+        final result = pool.toString();
 
         // Assert
         expect(
           result,
-          equals('VideoControllerRepository(active: 1/4, playing: test-video)'),
+          equals('VideoControllerPool(active: 1/4, playing: test-video)'),
         );
       });
     });

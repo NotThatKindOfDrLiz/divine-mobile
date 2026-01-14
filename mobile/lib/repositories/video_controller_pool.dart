@@ -88,8 +88,8 @@ class _ControllerEntry {
 /// // Return to pool when done (provider's onDispose) - does NOT dispose
 /// pool.checkin(videoId);
 /// ```
-class VideoControllerRepository extends ChangeNotifier {
-  VideoControllerRepository({
+class VideoControllerPool extends ChangeNotifier {
+  VideoControllerPool({
     required VideoCacheManager cacheManager,
     required AgeVerificationService ageVerificationService,
     required BlossomAuthService blossomAuthService,
@@ -138,7 +138,7 @@ class VideoControllerRepository extends ChangeNotifier {
       _recordAccess(videoId);
       Log.debug(
         '🎬 [POOL] Returning pooled controller for $videoId',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
       return VideoControllerResult(
@@ -170,7 +170,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
     Log.info(
       '🎬 [POOL] Created controller for $videoId (count: ${_controllers.length}/$maxConcurrentControllers)',
-      name: 'VideoControllerRepository',
+      name: 'VideoControllerPool',
       category: LogCategory.video,
     );
 
@@ -204,7 +204,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
       Log.debug(
         '📥 [POOL] Checked in controller for $videoId (stays in pool, count: ${_controllers.length}/$maxConcurrentControllers)',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
       notifyListeners();
@@ -223,7 +223,7 @@ class VideoControllerRepository extends ChangeNotifier {
       entry.isInitializing = false;
       Log.debug(
         '✅ [REPO] Controller initialized: $videoId',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
     }
@@ -241,7 +241,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
     Log.debug(
       '▶️ [REPO] Now playing: $videoId',
-      name: 'VideoControllerRepository',
+      name: 'VideoControllerPool',
       category: LogCategory.video,
     );
 
@@ -260,7 +260,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
       Log.debug(
         '⏸️ [REPO] Stopped playing: $videoId',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
 
@@ -302,7 +302,7 @@ class VideoControllerRepository extends ChangeNotifier {
       } catch (e) {
         Log.warning(
           'Failed to parse video URL for server: $e',
-          name: 'VideoControllerRepository',
+          name: 'VideoControllerPool',
           category: LogCategory.video,
         );
         return;
@@ -317,14 +317,14 @@ class VideoControllerRepository extends ChangeNotifier {
         _authHeadersCache[params.videoId] = {'Authorization': authHeader};
         Log.info(
           '✅ Cached auth header for video ${params.videoId}',
-          name: 'VideoControllerRepository',
+          name: 'VideoControllerPool',
           category: LogCategory.video,
         );
       }
     } catch (error) {
       Log.debug(
         'Failed to generate auth headers: $error',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
     }
@@ -384,7 +384,7 @@ class VideoControllerRepository extends ChangeNotifier {
       } catch (e) {
         Log.warning(
           'Failed to dispose controller during clear: $e',
-          name: 'VideoControllerRepository',
+          name: 'VideoControllerPool',
           category: LogCategory.video,
         );
       }
@@ -395,7 +395,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
     Log.info(
       '🧹 [POOL] Cleared and disposed $count controllers',
-      name: 'VideoControllerRepository',
+      name: 'VideoControllerPool',
       category: LogCategory.video,
     );
 
@@ -419,7 +419,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
   @override
   String toString() {
-    return 'VideoControllerRepository('
+    return 'VideoControllerPool('
         'active: $activeCount/$maxConcurrentControllers, '
         'playing: $_currentlyPlayingVideoId'
         ')';
@@ -461,7 +461,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
       Log.debug(
         '🎯 [POOL] Eviction candidate (idle): $videoId',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
       return videoId;
@@ -479,7 +479,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
       Log.warning(
         '🎯 [POOL] Force eviction candidate (checked out): $videoId',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
       return videoId;
@@ -496,7 +496,7 @@ class VideoControllerRepository extends ChangeNotifier {
     if (entry != null) {
       Log.info(
         '🗑️ [POOL] Evicting and disposing controller for $videoId',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
 
@@ -506,7 +506,7 @@ class VideoControllerRepository extends ChangeNotifier {
       } catch (e) {
         Log.warning(
           'Failed to dispose evicted controller: $e',
-          name: 'VideoControllerRepository',
+          name: 'VideoControllerPool',
           category: LogCategory.video,
         );
       }
@@ -541,7 +541,7 @@ class VideoControllerRepository extends ChangeNotifier {
   ) {
     Log.debug(
       '🌐 Web platform - using NETWORK URL for video ${params.videoId}',
-      name: 'VideoControllerRepository',
+      name: 'VideoControllerPool',
       category: LogCategory.video,
     );
 
@@ -569,7 +569,7 @@ class VideoControllerRepository extends ChangeNotifier {
     if (cachedFile != null && cachedFile.existsSync()) {
       Log.info(
         '✅ Using CACHED FILE for video ${params.videoId}: ${cachedFile.path}',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
 
@@ -585,7 +585,7 @@ class VideoControllerRepository extends ChangeNotifier {
 
     Log.debug(
       '📡 Using NETWORK URL for video ${params.videoId}',
-      name: 'VideoControllerRepository',
+      name: 'VideoControllerPool',
       category: LogCategory.video,
     );
 
@@ -622,7 +622,7 @@ class VideoControllerRepository extends ChangeNotifier {
           videoUrl = videoUrl.substring(0, videoUrl.length - 4) + newExtension;
           Log.debug(
             '🔧 Normalized .bin URL based on MIME type $mimeType: $newExtension',
-            name: 'VideoControllerRepository',
+            name: 'VideoControllerPool',
             category: LogCategory.video,
           );
         }
@@ -646,7 +646,7 @@ class VideoControllerRepository extends ChangeNotifier {
     if (cachedHeaders != null) {
       Log.debug(
         '🔐 Using cached auth headers for video ${params.videoId}',
-        name: 'VideoControllerRepository',
+        name: 'VideoControllerPool',
         category: LogCategory.video,
       );
       return cachedHeaders;

@@ -201,7 +201,7 @@ VideoPlayerController individualVideoController(
   VideoControllerParams params,
 ) {
   // Get the global controller pool
-  final pool = ref.read(videoControllerRepositoryProvider);
+  final pool = ref.read(videoControllerPoolProvider);
 
   Timer? loopEnforcementTimer;
 

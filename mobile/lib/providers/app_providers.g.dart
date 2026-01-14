@@ -225,62 +225,62 @@ String _$videoVisibilityManagerHash() =>
 /// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
 /// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
 
-@ProviderFor(videoControllerRepository)
-const videoControllerRepositoryProvider = VideoControllerRepositoryProvider._();
+@ProviderFor(videoControllerPool)
+const videoControllerPoolProvider = VideoControllerPoolProvider._();
 
 /// Video controller pool for managing video player controllers.
 /// Owns controller lifecycle - controllers are only disposed on eviction or clear().
 /// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
 /// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
 
-final class VideoControllerRepositoryProvider
+final class VideoControllerPoolProvider
     extends
         $FunctionalProvider<
-          VideoControllerRepository,
-          VideoControllerRepository,
-          VideoControllerRepository
+          VideoControllerPool,
+          VideoControllerPool,
+          VideoControllerPool
         >
-    with $Provider<VideoControllerRepository> {
+    with $Provider<VideoControllerPool> {
   /// Video controller pool for managing video player controllers.
   /// Owns controller lifecycle - controllers are only disposed on eviction or clear().
   /// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
   /// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
-  const VideoControllerRepositoryProvider._()
+  const VideoControllerPoolProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'videoControllerRepositoryProvider',
+        name: r'videoControllerPoolProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$videoControllerRepositoryHash();
+  String debugGetCreateSourceHash() => _$videoControllerPoolHash();
 
   @$internal
   @override
-  $ProviderElement<VideoControllerRepository> $createElement(
+  $ProviderElement<VideoControllerPool> $createElement(
     $ProviderPointer pointer,
   ) => $ProviderElement(pointer);
 
   @override
-  VideoControllerRepository create(Ref ref) {
-    return videoControllerRepository(ref);
+  VideoControllerPool create(Ref ref) {
+    return videoControllerPool(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(VideoControllerRepository value) {
+  Override overrideWithValue(VideoControllerPool value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<VideoControllerRepository>(value),
+      providerOverride: $SyncValueProvider<VideoControllerPool>(value),
     );
   }
 }
 
-String _$videoControllerRepositoryHash() =>
-    r'834b4356309d2ca83727b011169ca8f02e61b188';
+String _$videoControllerPoolHash() =>
+    r'31a8daba60d31b5d14c9dedfe362a262d478687a';
 
 /// Background activity manager singleton for tracking app foreground/background state
 
