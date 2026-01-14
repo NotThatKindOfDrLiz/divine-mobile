@@ -20,7 +20,7 @@ env:
 # 2. Tap on the 1st video: User is taken to the playback screen
 - tapOn:
     id: play_button
-- runFlow: ../asserts/assertVideoPlayback.yml
+- runFlow: ../asserts/assertVideoPlayback.yaml
 
 # 3. Tap on the middle of the screen. Expected: Play button is displayed, the video is paused
 - waitForAnimationToEnd

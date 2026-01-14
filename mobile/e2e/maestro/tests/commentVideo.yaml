@@ -16,19 +16,19 @@ env:
 # 4. Close the comments section: Validate playback screen is displayed
 
 # 1. Open specific video VIDEO_TITLE
-- runFlow: ../utils/openSpecificVideo.yml
+- runFlow: ../utils/openSpecificVideo.yaml
 
 # 2. Tap on Comment: Validate Comments section is displayed
 - tapOn:
     id: comments_button
-- runFlow: "../asserts/assertCommentsModal.yml"
+- runFlow: "../asserts/assertCommentsModal.yaml"
 
 # 3. Input comment COMMENT with current timestamp: Validate comment is displayed with "now" as timestamp
 - tapOn: Add comment...
 - evalScript: ${output.runId = new Date().toISOString().replace('T',' ').split('.')[0]}
 - inputText: ${COMMENT} on ${output.runId}
 #Send comment
-- runFlow: ../utils/hideKeyboard.yml #if displayed, hide the keyboard
+- runFlow: ../utils/hideKeyboard.yaml #if displayed, hide the keyboard
 - tapOn:
     id: send_comment_button
 - assertVisible: ${COMMENT} # TO-DO Validate undefined on ${output.runId} - the variable is loosing the value
@@ -39,4 +39,4 @@ env:
 - tapOn:
     point: 50%,15%
 
-- runFlow: ../asserts/assertVideoPlayback.yml
+- runFlow: ../asserts/assertVideoPlayback.yaml

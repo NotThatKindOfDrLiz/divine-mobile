@@ -13,7 +13,7 @@ appId: co.openvine.app
     id: explore_tab
     delay: 100
 - tapOn: Search
-- runFlow: ../asserts/assertSearch.yml
+- runFlow: ../asserts/assertSearch.yaml
 
 # 2. Input text ${VIDEO_TITLE}: Validate video is found
 - tapOn: Find something cool...
@@ -26,4 +26,4 @@ appId: co.openvine.app
 # 3. Tap on the 1st video returned: Validate playback screen
 - tapOn:
     id: play_button
-- runFlow: ../asserts/assertVideoPlayback.yml
+- runFlow: ../asserts/assertVideoPlayback.yaml

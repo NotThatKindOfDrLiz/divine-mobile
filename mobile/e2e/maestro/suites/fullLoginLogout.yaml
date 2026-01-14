@@ -5,5 +5,5 @@ appId: co.openvine.app
 # 1. Login with a freshly installed app
 # 2. Reopen the app, login and logout. Log back in and validate that user data is not preserved by going to the profile
 
-- runFlow: "../loginFreshInstall.yml"
-- runFlow: "../logoutExtendedCheck.yml"
+- runFlow: "../loginFreshInstall.yaml"
+- runFlow: "../logoutExtendedCheck.yaml"

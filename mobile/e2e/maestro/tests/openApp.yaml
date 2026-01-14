@@ -6,4 +6,4 @@ appId: co.openvine.app
 
 # 1. Open the app
 - launchApp
-- runFlow: "../asserts/assertHome.yml"
+- runFlow: "../asserts/assertHome.yaml"

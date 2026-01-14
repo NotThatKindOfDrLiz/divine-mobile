@@ -8,22 +8,22 @@ env:
 tags:
   - Social
 ---
-#TC to follow a user,
+#TC to unfollow a user,
 # given the user is logged in in the app,
-# by starting to follow and validate it on the home screen and on the following count
+# by starting to unfollow and validate it on the home screen and on the following count
 #Steps:
 # 1. Given an already logged in user, tap on Explore: Explore screen is presented
-# 2. Tap on a VIDEO_USER video and follow the user VIDEO_USER. Expected: Following is displayed
-# 3. Browse to the home screen: VIDEO_USER videos are displayed validated thru username
-# 4. Tap on profile: validate 1 following user
-# 5. Tap on Following: VIDEO_USER is listed in User's Following
+# 2. Tap on a VIDEO_USER video and unfollow the user VIDEO_USER. Expected: Follow is displayed
+# 3. Browse to the home screen: Home screen is empty
+# 4. Tap on profile: validate 0 following user
 
 # 1. Given an already logged in user, tap on Explore: Explore screen is presented
 - doubleTapOn:
     id: explore_tab
     delay: 100
-- runFlow: ../asserts/assertExplore.yml
-# 2. Scroll until VIDEO_USER + VIDEO_DESCRIPTION is visible, tap on the video and follow the user VIDEO_USER. Expected: Unfollow is displayed
+- runFlow: ../asserts/assertExplore.yaml
+
+# 2. Tap on a VIDEO_USER video and unfollow the user VIDEO_USER. Expected: Follow is displayed
 - waitForAnimationToEnd
 # TO-DO: add regext to match likes. Something like "^\\d{3}\\.\\d{k}$"
 # TO-DO: add regext to match loops. Something like "^\\d{2}\\.\\d{M}$"
@@ -32,34 +32,22 @@ tags:
 - tapOn:
     id: play_button
     index: 0
-- runFlow: "../asserts/assertVideoUser&Description.yml"
-- assertVisible: Follow
-#Follow VIDEO_USER
-- tapOn: Follow
+- runFlow: "../asserts/assertVideoUser&Description.yaml"
 - assertVisible: Following
+#Follow VIDEO_USER
+- tapOn: Following
+- assertVisible: Follow
 
 # 3. Browse to the home screen: VIDEO_USER videos are displayed validated thru username
 - doubleTapOn:
     id: home_tab
     delay: 100
-- assertVisible:
-    text: ${VIDEO_USER}
-    optional: true
-- assertVisible: Following
+- runFlow: ../asserts/assertFreshHome.yaml
 
-# 4. Tap on profile: validate 1 following user
+# 4. Tap on profile: validate 0 following user
 - doubleTapOn:
     id: profile_tab
     delay: 100
 - assertVisible: |-
-    1
+    0
     Following
-
-# 5. Tap on Following: VIDEO_USER is listed in User's Following
-- tapOn: |-
-    1
-    Following
-- assertVisible:
-    text: ${VIDEO_USER_BIO}
-- runFlow: ../asserts/assertUsersFollowing.yml
-- tapOn: Back

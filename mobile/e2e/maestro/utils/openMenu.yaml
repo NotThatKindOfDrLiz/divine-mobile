@@ -6,4 +6,4 @@ appId: co.openvine.app
 
 # 1. Tap on Menu: validate menu is displayed
 - tapOn: "Menu"
-- runFlow: "../asserts/assertMenu.yml"
+- runFlow: "../asserts/assertMenu.yaml"

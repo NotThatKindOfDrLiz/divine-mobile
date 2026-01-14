@@ -11,13 +11,13 @@ appId: co.openvine.app
 # 5.
 
 # 1. Open the settings page: Validate the settings modal is displayed
-- runFlow: "../utils/openSettings.yml"
+- runFlow: "../utils/openSettings.yaml"
 
 # 2. Tap on Remove Keys from Device: The modal Remove Keys from Device is displayed
 - tapOn: |-
     Edit Profile
     Update your display name, bio, and avatar
-- runFlow: ../asserts/assertEditYourProfile.yml
+- runFlow: ../asserts/assertEditYourProfile.yaml
 # 3. Tap on cancel button: Validate Cancel button works
 - tapOn: Cancel
 
@@ -25,5 +25,5 @@ appId: co.openvine.app
 - tapOn: |-
     Edit Profile
     Update your display name, bio, and avatar
-- runFlow: ../asserts/assertEditYourProfile.yml
+- runFlow: ../asserts/assertEditYourProfile.yaml
 # 5. To do... receiving yellow box on the display

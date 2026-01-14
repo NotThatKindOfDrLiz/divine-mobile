@@ -13,15 +13,15 @@ appId: co.openvine.app
 - doubleTapOn:
     id: explore_tab
     delay: 100
-- runFlow: ../asserts/assertExplore.yml
+- runFlow: ../asserts/assertExplore.yaml
 
 # 2. Open the hamb menu: The menu is displayed
 - tapOn: Menu
-- runFlow: ../asserts/assertMenu.yml
+- runFlow: ../asserts/assertMenu.yaml
 
 # 3. Tap on settings: Settings modal is displayed
 - tapOn: Settings
-- runFlow: ../asserts/assertSettings.yml
+- runFlow: ../asserts/assertSettings.yaml
 - scroll
 
 # 4. Tap on Logout and log out again. Expected: The logout modal is displayed and finally, user is taken to the login screen.
@@ -29,6 +29,6 @@ appId: co.openvine.app
     Log Out
     Sign out of your account. Your keys stay on this device and you can log back in later. Your content remains on relays.
 
-- runFlow: ../asserts/assertLogOutModal.yml
+- runFlow: ../asserts/assertLogOutModal.yaml
 - tapOn: Log Out
-- runFlow: "../asserts/assertLogin.yml"
+- runFlow: "../asserts/assertLogin.yaml"

@@ -19,19 +19,19 @@ env:
 # 7. Close the comments section: Validate playback screen is displayed
 
 # 1. Open specific video VIDEO_TITLE
-- runFlow: ../utils/openSpecificVideo.yml
+- runFlow: ../utils/openSpecificVideo.yaml
 
 # 2. Tap on Comment: Validate Comments section is displayed
 - tapOn:
     id: comments_button
-- runFlow: "../asserts/assertCommentsModal.yml"
+- runFlow: "../asserts/assertCommentsModal.yaml"
 
 # 3. Input comment COMMENT with current timestamp: Validate comment is displayed with "now" as timestamp
 - tapOn: Add a comment...
 - evalScript: ${output.runId = new Date().toISOString().replace('T',' ').split('.')[0]}
 - inputText: ${COMMENT} on ${output.runId}
 #Send comment
-- runFlow: ../utils/hideKeyboard.yml #if displayed, hide the keyboard
+- runFlow: ../utils/hideKeyboard.yaml #if displayed, hide the keyboard
 - tapOn:
     id: send_comment_button
 - assertVisible: ${COMMENT} on ${output.runId}
@@ -39,11 +39,11 @@ env:
 # 4. Tap on the 3 dots menu next to the comment: Validate delete modal displayed
 - tapOn:
     id: comment_options_button
-- runFlow: ../asserts/assertCommentsOptions.yml
+- runFlow: ../asserts/assertCommentsOptions.yaml
 
 # 5. Tap on "Delete Comment": Validate Confirmation modal is displayed
 - tapOn: Delete Comment
-- runFlow: ../asserts/assertDeleteCommentModal.yml
+- runFlow: ../asserts/assertDeleteCommentModal.yaml
 
 # 6. Tap on Delete: The comments section is displayed without the deleted comment
 - tapOn: Delete
@@ -52,4 +52,4 @@ env:
 # 7. Close the comments section: Validate playback screen is displayed
 - tapOn:
     id: close_comments_button
-- runFlow: ../asserts/assertVideoPlayback.yml
+- runFlow: ../asserts/assertVideoPlayback.yaml

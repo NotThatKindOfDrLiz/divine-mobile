@@ -13,11 +13,11 @@ appId: co.openvine.app
 # 1. Open the app in clear state
 - launchApp:
     clearState: true
-- runFlow: "../asserts/assertSplash.yml"
+- runFlow: "../asserts/assertSplash.yaml"
 
 # 2. Open the import identity flow: the menu is displayed
 - tapOn: Already have keys? Import them here →
-- runFlow: "../asserts/assertImportIdentity.yml"
+- runFlow: "../asserts/assertImportIdentity.yaml"
 
 # 3. Insert an invalid key for the user: Message invalid key is displayed
 - tapOn: Private Key
@@ -34,16 +34,16 @@ appId: co.openvine.app
 - tapOn:
     text: "Continue"
     optional: true
-- runFlow: ../utils/hideKeyboard.yml
+- runFlow: ../utils/hideKeyboard.yaml
 #Import keys
 - tapOn:
     text: Import Identity
     index: 1
 #User is taken to the Explore screen, validate it:
-- runFlow: "../asserts/assertHome.yml"
+- runFlow: "../asserts/assertHome.yaml"
 
 # 5. Tap on profile: Validate user name and bio are displayed.
 - doubleTapOn:
     id: profile_tab
     delay: 100
-- runFlow: "../asserts/assertSpecificUserProfile.yml"
+- runFlow: "../asserts/assertSpecificUserProfile.yaml"

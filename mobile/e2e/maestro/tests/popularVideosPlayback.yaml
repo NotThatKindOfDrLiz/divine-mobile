@@ -16,11 +16,11 @@ appId: co.openvine.app
 - tapOn: |-
     Popular Videos
     Tab 2 of 3
-- runFlow: ../asserts/assertExplore.yml
+- runFlow: ../asserts/assertExplore.yaml
 # 2. Tap on the 1st video: Validate playback
 - tapOn:
     id: play_button
-- runFlow: ../asserts/assertVideoPlayback.yml
+- runFlow: ../asserts/assertVideoPlayback.yaml
 
 # 3. Retrieve video description to validate next video has a different one
 - copyTextFrom:

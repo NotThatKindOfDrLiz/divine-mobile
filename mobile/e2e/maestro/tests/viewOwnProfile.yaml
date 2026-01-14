@@ -10,5 +10,5 @@ appId: co.openvine.app
 - tapOn: |-
     Profile
     Tab 4 of 4
-- runFlow: "../asserts/assertProfile.yml"
-- runFlow: "../asserts/assertUserProfile.yml"
+- runFlow: "../asserts/assertProfile.yaml"
+- runFlow: "../asserts/assertUserProfile.yaml"

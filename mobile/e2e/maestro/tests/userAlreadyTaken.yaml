@@ -11,4 +11,4 @@ appId: co.openvine.app
     username
 - inputText: ${EXISTING_USERNAME}
 - waitForAnimationToEnd
-- runFlow: ../asserts/assertUserTaken.yml
+- runFlow: ../asserts/assertUserTaken.yaml

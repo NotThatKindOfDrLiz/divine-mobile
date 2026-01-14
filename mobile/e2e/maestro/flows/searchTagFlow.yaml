@@ -2,8 +2,8 @@ appId: co.openvine.app
 ---
 - launchApp:
     clearState: true
-- runFlow: ../tests/loginFreshInstall.yml
-- runFlow: ../tests/searchTags.yml
+- runFlow: ../tests/loginFreshInstall.yaml
+- runFlow: ../tests/searchTags.yaml
 
 #Tear down
 - killApp

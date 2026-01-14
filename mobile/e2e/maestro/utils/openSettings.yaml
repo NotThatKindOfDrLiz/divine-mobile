@@ -10,8 +10,8 @@ appId: co.openvine.app
     id: home_tab
     delay: 100
 - tapOn: "Menu"
-- runFlow: "../asserts/assertMenu.yml"
+- runFlow: "../asserts/assertMenu.yaml"
 
 # 2. Tap on Settings: validate
 - tapOn: "Settings"
-- runFlow: "../asserts/assertSettings.yml"
+- runFlow: "../asserts/assertSettings.yaml"
