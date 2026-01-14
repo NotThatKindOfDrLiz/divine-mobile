@@ -151,41 +151,77 @@ void main() {
     );
   });
 
-  group('Bulk Endpoints (not yet implemented)', () {
-    test(
-      'POST /api/users/bulk - not implemented yet',
-      () async {
-        final response = await httpClient.post(
-          Uri.parse('$baseUrl/api/users/bulk'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'pubkeys': [testPubkey],
-          }),
-        );
+  group('Bulk Endpoints', () {
+    test('POST /api/users/bulk returns user data for multiple pubkeys',
+        () async {
+      final response = await httpClient.post(
+        Uri.parse('$baseUrl/api/users/bulk'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'pubkeys': [testPubkey],
+        }),
+      );
 
-        print('POST /api/users/bulk status: ${response.statusCode}');
-        // Currently returns 405 Method Not Allowed - endpoint not implemented
-        expect(response.statusCode, 405);
-      },
-      skip: 'Bulk endpoints not yet implemented on server',
-    );
+      print('POST /api/users/bulk status: ${response.statusCode}');
+      print('Response: ${response.body}');
 
-    test(
-      'POST /api/videos/bulk - not implemented yet',
-      () async {
-        final response = await httpClient.post(
-          Uri.parse('$baseUrl/api/videos/bulk'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'event_ids': ['test'],
-          }),
-        );
+      expect(response.statusCode, 200);
 
-        print('POST /api/videos/bulk status: ${response.statusCode}');
-        expect(response.statusCode, anyOf(404, 405));
-      },
-      skip: 'Bulk endpoints not yet implemented on server',
-    );
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      expect(json.containsKey('users'), isTrue);
+      expect(json.containsKey('missing'), isTrue);
+
+      final users = json['users'] as List;
+      print('Bulk users returned: ${users.length}');
+      expect(users, isNotEmpty);
+    });
+
+    test('POST /api/videos/bulk returns video data for multiple event IDs',
+        () async {
+      // First get a valid event ID from trending videos
+      final trendingResponse = await httpClient.get(
+        Uri.parse('$baseUrl/api/videos?sort=trending&limit=1'),
+      );
+      final trendingVideos = jsonDecode(trendingResponse.body) as List;
+      if (trendingVideos.isEmpty) {
+        print('No trending videos available to test bulk endpoint');
+        return;
+      }
+
+      final eventId = _parseId(trendingVideos.first['id']);
+      print('Testing bulk videos with event ID: $eventId');
+
+      final response = await httpClient.post(
+        Uri.parse('$baseUrl/api/videos/bulk'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'event_ids': [eventId],
+        }),
+      );
+
+      print('POST /api/videos/bulk status: ${response.statusCode}');
+      print('Response: ${response.body}');
+
+      expect(response.statusCode, 200);
+
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      expect(json.containsKey('videos'), isTrue);
+      expect(json.containsKey('missing'), isTrue);
+
+      final videos = json['videos'] as List;
+      print('Bulk videos returned: ${videos.length}');
+      expect(videos, isNotEmpty);
+    });
+
+    test('AnalyticsApiService.getBulkUsers works', () async {
+      final result = await apiService.getBulkUsers(pubkeys: [testPubkey]);
+
+      print('getBulkUsers result: $result');
+      print('Users: ${result.users.length}, Missing: ${result.missing.length}');
+
+      expect(result.users, isNotEmpty);
+      expect(result.users.first.pubkey, testPubkey);
+    });
   });
 
   group('Video Endpoints (existing)', () {
