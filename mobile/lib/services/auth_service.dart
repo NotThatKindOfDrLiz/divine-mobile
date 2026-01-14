@@ -1246,7 +1246,7 @@ class AuthService {
       _setAuthState(AuthState.authenticated);
     } catch (e) {
       Log.warning(
-        'Failed to check TOS status: $e',
+        'error in _setupUserSession: $e',
         name: 'AuthService',
         category: LogCategory.auth,
       );
