@@ -1521,7 +1521,7 @@ class _VideoMetadataScreenPureState
       await draftService.deleteDraft(_currentDraft!.id);
 
       // Mark recording as published to prevent auto-save on dispose
-      /* TODO(@hm21): Implement
+      /*
      ref.read(vineRecordingProvider.notifier).markAsPublished();
 
       // Clean up recording segments and temp files after successful publish

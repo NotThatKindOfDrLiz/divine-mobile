@@ -40,7 +40,8 @@ final videoEditorProvider =
 /// - Metadata management
 class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Current draft ID for save/load operations.
-  String? _draftId;
+  @visibleForTesting
+  String? draftId;
 
   /// Video metadata including title, description, hashtags.
   VideoEditorMeta _metadata = VideoEditorMeta.draft();
@@ -64,7 +65,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   Future<void> initialize({String? draftId}) async {
     reset();
 
-    _draftId = draftId;
+    this.draftId = draftId;
     // If the editor screen is opened from a draft, we initialize it here.
     if (draftId != null && draftId.isNotEmpty) {
       Log.info(
@@ -74,7 +75,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       );
       final prefs = await SharedPreferences.getInstance();
       final draftService = DraftStorageService(prefs);
-      final draft = await draftService.getDraftById(_draftId!);
+      final draft = await draftService.getDraftById(this.draftId!);
       if (draft != null) {
         _metadata = VideoEditorMeta.fromVineDraft(draft);
         _clipManager.addMultipleClips(draft.clips);
@@ -284,7 +285,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       name: 'VideoEditorNotifier',
       category: .video,
     );
-    _draftId = id;
+    draftId = id;
   }
 
   /// Split the currently selected clip at the current split position.
@@ -400,7 +401,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       showDragHandle: true,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => VideoEditorMetaSheet(draftId: _draftId),
+      builder: (context) => VideoEditorMetaSheet(draftId: draftId),
     );
 
     final (outputPath, proofManifestJson) = await completer.future;
@@ -462,7 +463,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     String? proofManifestJson,
   ) async {
     return VineDraft.create(
-      id: _draftId,
+      id: draftId,
       clips: [clip],
       title: _metadata.title,
       description: _metadata.description,

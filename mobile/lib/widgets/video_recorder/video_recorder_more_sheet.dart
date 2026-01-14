@@ -23,7 +23,11 @@ class _VideoRecorderMoreSheetState
     extends ConsumerState<VideoRecorderMoreSheet> {
   @override
   Widget build(BuildContext context) {
-    final hasClips = ref.watch(clipManagerProvider.select((p) => p.hasClips));
+    final state = ref.watch(
+      clipManagerProvider.select(
+        (p) => (hasClips: p.hasClips, clipCount: p.clipCount),
+      ),
+    );
     final clipsNotifier = ref.read(clipManagerProvider.notifier);
 
     return SafeArea(
@@ -32,31 +36,25 @@ class _VideoRecorderMoreSheetState
           mainAxisSize: .min,
           children: [
             BottomSheetListTile(
-              iconPath: 'assets/icon/folder_open.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              title: 'Add clip from Library',
-              onTap: () => ref
-                  .read(clipManagerProvider.notifier)
-                  .pickFromLibrary(context),
-            ),
-            BottomSheetListTile(
               iconPath: 'assets/icon/save.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
-              title: 'Save clip to Library',
-              onTap: hasClips ? clipsNotifier.saveClipsToLibrary : null,
+              title: state.clipCount > 1
+                  ? 'Save clips to Library'
+                  : 'Save clip to Library',
+              onTap: state.hasClips ? clipsNotifier.saveClipsToLibrary : null,
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/undo.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Remove last clip',
-              onTap: hasClips ? clipsNotifier.removeLastClip : null,
+              onTap: state.hasClips ? clipsNotifier.removeLastClip : null,
               color: const Color(0xFFF44336),
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/trash.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Clear all clips',
-              onTap: hasClips ? clipsNotifier.clearAll : null,
+              onTap: state.hasClips ? clipsNotifier.clearAll : null,
               color: const Color(0xFFF44336),
             ),
           ],
