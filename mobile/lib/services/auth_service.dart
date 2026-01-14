@@ -750,6 +750,194 @@ class AuthService {
     }
   }
 
+  // ============================================================
+  // NostrConnect Flow (Client-Initiated NIP-46)
+  // ============================================================
+
+  /// Active nostrconnect session info (for QR code display).
+  NostrConnectInfo? _nostrConnectInfo;
+
+  /// Signer for active nostrconnect session.
+  NostrRemoteSigner? _nostrConnectSigner;
+
+  /// Gets the current nostrconnect session info (for QR code generation).
+  NostrConnectInfo? get nostrConnectInfo => _nostrConnectInfo;
+
+  /// Starts a nostrconnect:// session for QR code display.
+  ///
+  /// This generates an ephemeral keypair and creates a nostrconnect:// URL
+  /// that can be displayed as a QR code for users to scan with their
+  /// bunker app (Amber, Nsec.app, etc.).
+  ///
+  /// After calling this, display the QR code from [nostrConnectInfo] and
+  /// call [waitForNostrConnectApproval] to wait for the bunker's response.
+  ///
+  /// The [relays] parameter defaults to the app's default relay if not provided.
+  Future<NostrConnectInfo> startNostrConnectSession({
+    List<String>? relays,
+  }) async {
+    Log.info(
+      'Starting nostrconnect session...',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    // Cancel any existing session
+    cancelNostrConnectSession();
+
+    // Use provided relays or default to app relay
+    final sessionRelays = relays ?? ['wss://relay.divine.video'];
+
+    // Generate nostrconnect info with ephemeral keypair
+    _nostrConnectInfo = NostrConnectInfo.generate(
+      relays: sessionRelays,
+      appName: 'Divine',
+      appUrl: 'https://divine.video',
+      permissions:
+          'sign_event,get_public_key,nip44_encrypt,nip44_decrypt,nip04_encrypt,nip04_decrypt',
+    );
+
+    Log.debug(
+      'Generated nostrconnect URL: ${_nostrConnectInfo!.toNostrConnectUrl()}',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    // Create the signer and connect to relays
+    _nostrConnectSigner = NostrRemoteSigner.fromNostrConnect(
+      RelayMode.baseMode,
+      _nostrConnectInfo!,
+    );
+
+    // Connect to relays and start listening for bunker response
+    await _nostrConnectSigner!.connectForNostrConnect();
+
+    Log.info(
+      'NostrConnect session started, ready for QR scan',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    return _nostrConnectInfo!;
+  }
+
+  /// Waits for the bunker to approve the nostrconnect:// request.
+  ///
+  /// This should be called after displaying the QR code to the user.
+  /// It waits for the bunker to scan the QR and send a connect response.
+  ///
+  /// Returns [AuthResult.success] when bunker approves, or failure on timeout.
+  Future<AuthResult> waitForNostrConnectApproval({
+    Duration timeout = const Duration(seconds: 120),
+  }) async {
+    if (_nostrConnectInfo == null || _nostrConnectSigner == null) {
+      return AuthResult.failure(
+        'No active nostrconnect session. Call startNostrConnectSession first.',
+      );
+    }
+
+    Log.info(
+      'Waiting for bunker to scan QR code...',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    _setAuthState(AuthState.authenticating);
+    await _onTermsAccepted();
+    _lastError = null;
+
+    try {
+      // Wait for the bunker to respond
+      await _nostrConnectSigner!.waitForConnectResponse(
+        expectedSecret: _nostrConnectInfo!.secret,
+        timeout: timeout,
+      );
+
+      Log.info(
+        'Bunker connected! Fetching user public key...',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+
+      // Get user's public key from the bunker
+      final userPubkey = await _nostrConnectSigner!.pullPubkey();
+
+      if (userPubkey == null || userPubkey.isEmpty) {
+        throw Exception(
+          'Failed to get public key from bunker after connection.',
+        );
+      }
+
+      _nostrConnectInfo!.userPubkey = userPubkey;
+
+      // Convert to bunker-style info for persistence
+      final bunkerInfo = NostrRemoteSignerInfo(
+        remoteSignerPubkey: _nostrConnectInfo!.remoteSignerPubkey!,
+        relays: _nostrConnectInfo!.relays,
+        optionalSecret: _nostrConnectInfo!.secret,
+        nsec: _nostrConnectInfo!.clientNsec,
+        userPubkey: userPubkey,
+      );
+
+      // Save for reconnection
+      await _saveBunkerInfo(bunkerInfo);
+
+      // Transfer the signer to the main bunker signer
+      _bunkerSigner = _nostrConnectSigner;
+      _nostrConnectSigner = null;
+      _nostrConnectInfo = null;
+
+      // Set up user session
+      await _setupUserSession(
+        SecureKeyContainer.fromPublicKey(userPubkey),
+        AuthenticationSource.bunker,
+      );
+
+      Log.info(
+        'NostrConnect authentication successful for user: $userPubkey',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+
+      return const AuthResult(success: true);
+    } on TimeoutException {
+      Log.warning(
+        'NostrConnect timed out waiting for bunker',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      _lastError = 'Timed out waiting for signer app. Please try again.';
+      _setAuthState(AuthState.unauthenticated);
+      return AuthResult.failure(_lastError!);
+    } catch (e) {
+      Log.error(
+        'NostrConnect failed: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      _lastError = 'Connection failed: $e';
+      _setAuthState(AuthState.unauthenticated);
+      return AuthResult.failure(_lastError!);
+    }
+  }
+
+  /// Cancels an in-progress nostrconnect session.
+  ///
+  /// Call this when the user navigates away from the QR code screen
+  /// or wants to cancel the connection attempt.
+  void cancelNostrConnectSession() {
+    if (_nostrConnectSigner != null) {
+      Log.debug(
+        'Cancelling nostrconnect session',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      _nostrConnectSigner!.close();
+      _nostrConnectSigner = null;
+    }
+    _nostrConnectInfo = null;
+  }
+
   /// Refresh the current user's profile from UserProfileService
   Future<void> refreshCurrentProfile(
     ups.UserProfileService userProfileService,

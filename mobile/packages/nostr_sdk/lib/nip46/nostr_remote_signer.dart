@@ -15,6 +15,7 @@ import '../relay/relay_status.dart';
 import '../signer/local_nostr_signer.dart';
 import '../signer/nostr_signer.dart';
 import '../utils/string_util.dart';
+import 'nostr_connect_info.dart';
 import 'nostr_remote_request.dart';
 import 'nostr_remote_response.dart';
 import 'nostr_remote_signer_info.dart';
@@ -38,6 +39,137 @@ class NostrRemoteSigner extends NostrSigner {
   late LocalNostrSigner localNostrSigner;
 
   NostrRemoteSigner(this.relayMode, this.info);
+
+  /// NostrConnectInfo for client-initiated (nostrconnect://) sessions.
+  /// Set when using [fromNostrConnect] factory.
+  NostrConnectInfo? _nostrConnectInfo;
+
+  /// Whether this signer is using the nostrconnect:// flow (client-initiated).
+  bool get isNostrConnectFlow => _nostrConnectInfo != null;
+
+  /// Creates a [NostrRemoteSigner] for the nostrconnect:// flow.
+  ///
+  /// Unlike the bunker:// flow, in nostrconnect:// the client:
+  /// - Generates ephemeral keypair and creates URL for bunker to scan
+  /// - Does NOT send connect REQUEST
+  /// - WAITS for connect RESPONSE from bunker
+  /// - Discovers remoteSignerPubkey from response event author
+  /// - Validates secret in response matches expected
+  ///
+  /// After creating the signer, call [connectForNostrConnect] to establish
+  /// the relay connection, then call [waitForConnectResponse] to wait for
+  /// the bunker's response after the user scans the QR code.
+  factory NostrRemoteSigner.fromNostrConnect(
+    int relayMode,
+    NostrConnectInfo connectInfo,
+  ) {
+    // Create a NostrRemoteSignerInfo with placeholder for remoteSignerPubkey
+    // (will be discovered from the connect response)
+    final signerInfo = NostrRemoteSignerInfo(
+      remoteSignerPubkey: '', // Unknown until bunker responds
+      relays: connectInfo.relays,
+      optionalSecret: connectInfo.secret,
+      nsec: connectInfo.clientNsec,
+      userPubkey: connectInfo.userPubkey,
+    );
+
+    final signer = NostrRemoteSigner(relayMode, signerInfo);
+    signer._nostrConnectInfo = connectInfo;
+    return signer;
+  }
+
+  /// Connects to relays for nostrconnect:// flow without sending connect request.
+  ///
+  /// This sets up the relay connections and subscriptions to listen for
+  /// the bunker's connect response. After calling this, display the QR code
+  /// and call [waitForConnectResponse] to wait for the bunker.
+  Future<void> connectForNostrConnect() async {
+    if (_nostrConnectInfo == null) {
+      throw StateError(
+        'connectForNostrConnect called but not using nostrconnect flow',
+      );
+    }
+
+    log('[NIP46] connectForNostrConnect: STARTING nostrconnect flow');
+
+    if (StringUtil.isBlank(_nostrConnectInfo!.clientNsec)) {
+      throw StateError('nostrconnect: clientNsec is required');
+    }
+
+    // Use the client's ephemeral keypair for this session
+    localNostrSigner = LocalNostrSigner(
+      Nip19.decode(_nostrConnectInfo!.clientNsec!),
+    );
+    log('[NIP46] connectForNostrConnect: created localNostrSigner');
+
+    // Connect to all relays
+    for (var remoteRelayAddr in info.relays) {
+      var relay = await _connectToRelay(remoteRelayAddr);
+      relays.add(relay);
+    }
+
+    log(
+      '[NIP46] connectForNostrConnect: connected to ${relays.length} relays, waiting for bunker response',
+    );
+  }
+
+  /// Waits for the bunker to send a connect response after user scans QR code.
+  ///
+  /// Returns the secret from the response on success (which should match
+  /// the expected secret). Also discovers and stores the remoteSignerPubkey
+  /// from the response event author.
+  ///
+  /// Throws [TimeoutException] if no response received within timeout.
+  /// Throws [StateError] if secret doesn't match (possible spoofing attack).
+  Future<String> waitForConnectResponse({
+    required String expectedSecret,
+    Duration timeout = const Duration(seconds: 120),
+  }) async {
+    log(
+      '[NIP46] waitForConnectResponse: waiting for bunker response '
+      '(timeout=${timeout.inSeconds}s)',
+    );
+
+    // Create a completer for the connect response
+    final completer = Completer<_ConnectResponseData>();
+    _nostrConnectResponseCompleter = completer;
+
+    try {
+      final responseData = await completer.future.timeout(
+        timeout,
+        onTimeout: () {
+          throw TimeoutException(
+            'Timed out waiting for bunker to scan QR code',
+          );
+        },
+      );
+
+      // Validate the secret
+      if (responseData.secret != expectedSecret) {
+        throw StateError(
+          'Security error: received secret does not match expected. '
+          'Possible spoofing attack.',
+        );
+      }
+
+      // Store the discovered remoteSignerPubkey
+      info.remoteSignerPubkey = responseData.remoteSignerPubkey;
+      _nostrConnectInfo!.remoteSignerPubkey = responseData.remoteSignerPubkey;
+      _remotePubkeyTags = null; // Clear cache to use new pubkey
+
+      log(
+        '[NIP46] waitForConnectResponse: SUCCESS - discovered remoteSignerPubkey='
+        '${responseData.remoteSignerPubkey}',
+      );
+
+      return responseData.secret;
+    } finally {
+      _nostrConnectResponseCompleter = null;
+    }
+  }
+
+  /// Completer for nostrconnect response, used by [waitForConnectResponse].
+  Completer<_ConnectResponseData>? _nostrConnectResponseCompleter;
 
   List<Relay> relays = [];
 
@@ -124,6 +256,29 @@ class NostrRemoteSigner extends NostrSigner {
             event.pubkey,
           );
           if (response != null) {
+            // Handle nostrconnect:// flow - bunker sends connect response
+            // In this flow, we're waiting for the bunker to initiate connection
+            if (_nostrConnectResponseCompleter != null &&
+                !_nostrConnectResponseCompleter!.isCompleted) {
+              // This is a connect response from bunker for nostrconnect flow
+              // The response.result contains the secret, event.pubkey is the
+              // remoteSignerPubkey
+              log(
+                '[NIP46] onMessage: nostrconnect response received from '
+                '${event.pubkey}, result=${response.result}',
+              );
+
+              // The bunker's connect response has result=secret (or "ack")
+              final secret = response.result;
+              _nostrConnectResponseCompleter!.complete(
+                _ConnectResponseData(
+                  remoteSignerPubkey: event.pubkey,
+                  secret: secret,
+                ),
+              );
+              return;
+            }
+
             // Check for auth_url challenge - this means user needs to approve
             if (response.result == 'auth_url' && response.error != null) {
               log(
@@ -465,4 +620,15 @@ class NostrRemoteSigner extends NostrSigner {
 
   @override
   void close() {}
+}
+
+/// Internal class to hold connect response data for nostrconnect flow.
+class _ConnectResponseData {
+  final String remoteSignerPubkey;
+  final String secret;
+
+  _ConnectResponseData({
+    required this.remoteSignerPubkey,
+    required this.secret,
+  });
 }

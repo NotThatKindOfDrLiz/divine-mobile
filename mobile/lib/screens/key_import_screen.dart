@@ -1,5 +1,5 @@
 // ABOUTME: Screen for importing existing Nostr private keys (nsec or hex format)
-// ABOUTME: Also supports NIP-46 bunker URLs for remote signing
+// ABOUTME: Also supports NIP-46 bunker URLs for remote signing and nostrconnect QR
 // ABOUTME: Validates keys and imports them securely for existing Nostr users
 
 import 'dart:async';
@@ -11,6 +11,8 @@ import 'package:nostr_sdk/nostr_sdk.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class KeyImportScreen extends ConsumerStatefulWidget {
   const KeyImportScreen({super.key});
@@ -25,10 +27,18 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
   bool _isImporting = false;
   bool _obscureKey = true;
 
+  // QR code flow state
+  bool _showQrCode = false;
+  NostrConnectInfo? _nostrConnectInfo;
+  Timer? _countdownTimer;
+  int _remainingSeconds = 120;
+  bool _waitingForApproval = false;
+
   @override
   void dispose() {
     _keyController.dispose();
-
+    _countdownTimer?.cancel();
+    _cancelQrCodeFlow();
     super.dispose();
   }
 
@@ -234,6 +244,29 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
                   ],
                 ),
               ),
+              const SizedBox(height: 32),
+
+              // Divider with "OR"
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey[700])),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey[700])),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              // QR code section
+              _buildQrCodeSection(),
             ],
           ),
         ),
@@ -317,6 +350,360 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
           _isImporting = false;
         });
       }
+    }
+  }
+
+  Widget _buildQrCodeSection() {
+    if (_showQrCode && _nostrConnectInfo != null) {
+      return _buildQrCodeDisplay();
+    }
+    return _buildQrCodeButton();
+  }
+
+  Widget _buildQrCodeButton() => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.grey[900],
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      children: [
+        const Icon(
+          Icons.qr_code_2,
+          color: Colors.purple,
+          size: 32,
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Connect with Signer App',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Scan with Amber, Nsec.app, or another NIP-46 signer',
+          style: TextStyle(color: Colors.grey[300], fontSize: 14),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _isImporting ? null : _startQrCodeFlow,
+            icon: const Icon(Icons.qr_code),
+            label: const Text('Show QR Code'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.purple,
+              side: const BorderSide(color: Colors.purple),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildQrCodeDisplay() {
+    final nostrConnectUrl = _nostrConnectInfo!.toNostrConnectUrl();
+    final minutes = _remainingSeconds ~/ 60;
+    final seconds = _remainingSeconds % 60;
+    final timeString = '$minutes:${seconds.toString().padLeft(2, '0')}';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[900],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Scan with your signer app',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // QR Code
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: GestureDetector(
+              onTap: () => launchUrl(Uri.parse(nostrConnectUrl)),
+              child: QrImageView(
+                data: nostrConnectUrl,
+                size: 220,
+                backgroundColor: Colors.white,
+                errorCorrectionLevel: QrErrorCorrectLevel.H,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Status
+          if (_waitingForApproval) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.purple,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Waiting for approval...',
+                  style: TextStyle(color: Colors.grey[300], fontSize: 14),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          // Countdown
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.timer, color: Colors.grey[500], size: 18),
+              const SizedBox(width: 4),
+              Text(
+                '$timeString remaining',
+                style: TextStyle(color: Colors.grey[400], fontSize: 14),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _copyNostrConnectUrl,
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('Copy URL'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.grey[300],
+                    side: BorderSide(color: Colors.grey[600]!),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _cancelQrCodeFlow,
+                  icon: const Icon(Icons.close, size: 18),
+                  label: const Text('Cancel'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red[300],
+                    side: BorderSide(color: Colors.red[400]!),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startQrCodeFlow() async {
+    setState(() {
+      _isImporting = true;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final connectInfo = await authService.startNostrConnectSession();
+
+      if (!mounted) return;
+
+      setState(() {
+        _nostrConnectInfo = connectInfo;
+        _showQrCode = true;
+        _remainingSeconds = 120;
+        _waitingForApproval = true;
+        _isImporting = false;
+      });
+
+      // Start countdown timer
+      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
+
+        setState(() {
+          _remainingSeconds--;
+        });
+
+        if (_remainingSeconds <= 0) {
+          timer.cancel();
+          _onQrCodeTimeout();
+        }
+      });
+
+      // Wait for approval in background
+      unawaited(_waitForApproval());
+    } catch (e) {
+      Log.error(
+        'Failed to start nostrconnect session: $e',
+        name: 'KeyImportScreen',
+        category: LogCategory.auth,
+      );
+      if (mounted) {
+        setState(() {
+          _isImporting = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate QR code: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _waitForApproval() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final result = await authService.waitForNostrConnectApproval(
+        timeout: Duration(seconds: _remainingSeconds),
+      );
+
+      if (!mounted) return;
+
+      _countdownTimer?.cancel();
+
+      if (result.success) {
+        // Clear state
+        setState(() {
+          _showQrCode = false;
+          _nostrConnectInfo = null;
+          _waitingForApproval = false;
+        });
+
+        // Start fetching user profile in background
+        final pubkeyHex = authService.currentPublicKeyHex;
+        if (pubkeyHex != null) {
+          final userProfileService = ref.read(userProfileServiceProvider);
+          unawaited(userProfileService.fetchProfile(pubkeyHex));
+          Log.info(
+            '📥 Started background fetch for nostrconnect user profile',
+            name: 'KeyImportScreen',
+            category: LogCategory.auth,
+          );
+        }
+      } else if (result.errorMessage != null) {
+        setState(() {
+          _waitingForApproval = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      Log.error(
+        'Error waiting for nostrconnect approval: $e',
+        name: 'KeyImportScreen',
+        category: LogCategory.auth,
+      );
+      if (mounted) {
+        setState(() {
+          _waitingForApproval = false;
+        });
+      }
+    }
+  }
+
+  void _onQrCodeTimeout() {
+    if (!mounted) return;
+
+    setState(() {
+      _waitingForApproval = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('QR code expired. Tap to generate a new one.'),
+        backgroundColor: Colors.orange[700],
+        action: SnackBarAction(
+          label: 'Retry',
+          textColor: Colors.white,
+          onPressed: () {
+            _cancelQrCodeFlow();
+            unawaited(_startQrCodeFlow());
+          },
+        ),
+      ),
+    );
+  }
+
+  void _cancelQrCodeFlow() {
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+
+    ref.read(authServiceProvider).cancelNostrConnectSession();
+
+    if (mounted) {
+      setState(() {
+        _showQrCode = false;
+        _nostrConnectInfo = null;
+        _waitingForApproval = false;
+        _remainingSeconds = 120;
+      });
+    }
+  }
+
+  Future<void> _copyNostrConnectUrl() async {
+    if (_nostrConnectInfo == null) return;
+
+    try {
+      final url = _nostrConnectInfo!.toNostrConnectUrl();
+      await Clipboard.setData(ClipboardData(text: url));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('URL copied to clipboard'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      Log.error(
+        'Failed to copy nostrconnect URL: $e',
+        name: 'KeyImportScreen',
+        category: LogCategory.ui,
+      );
     }
   }
 }
