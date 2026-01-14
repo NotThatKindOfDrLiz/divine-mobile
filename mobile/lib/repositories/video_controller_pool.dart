@@ -274,11 +274,6 @@ class VideoControllerPool extends ChangeNotifier {
     );
   }
 
-  /// Alias for [checkout] to maintain backward compatibility.
-  @Deprecated('Use checkout() instead')
-  VideoControllerResult acquireController(VideoControllerParams params) =>
-      checkout(params);
-
   /// Return a controller to the pool (checkin).
   ///
   /// Call in provider's onDispose callback. The controller stays in the pool
@@ -300,11 +295,6 @@ class VideoControllerPool extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  /// Alias for [checkin] to maintain backward compatibility.
-  /// Note: The old releaseController removed from pool; checkin keeps it.
-  @Deprecated('Use checkin() instead - controller stays in pool')
-  void releaseController(String videoId) => checkin(videoId);
 
   /// Mark controller as initialized (no longer initializing).
   void markInitialized(String videoId) {
