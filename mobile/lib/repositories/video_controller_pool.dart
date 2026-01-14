@@ -928,9 +928,13 @@ class VideoControllerPool extends ChangeNotifier {
   }
 
   /// Log detailed initialization error with Nostr event info if available.
-  void _logInitializationError(VideoControllerParams params, String errorMessage) {
+  void _logInitializationError(
+    VideoControllerParams params,
+    String errorMessage,
+  ) {
     final videoId = params.videoId;
-    var logMessage = '❌ VideoPlayerController initialization failed for video $videoId: $errorMessage';
+    var logMessage =
+        '❌ VideoPlayerController initialization failed for video $videoId: $errorMessage';
 
     if (params.videoEvent != null) {
       final event = params.videoEvent as dynamic;
@@ -947,7 +951,8 @@ class VideoControllerPool extends ChangeNotifier {
       logMessage += '\n   • SHA256: ${event.sha256 ?? 'null'}';
       logMessage += '\n   • Thumbnail URL: ${event.thumbnailUrl ?? 'null'}';
       logMessage += '\n   • Hashtags: ${event.hashtags ?? []}';
-      logMessage += '\n   • Created At: ${DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000)}';
+      logMessage +=
+          '\n   • Created At: ${DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000)}';
       if (event.rawTags != null && event.rawTags.isNotEmpty) {
         logMessage += '\n   • Raw Tags: ${event.rawTags}';
       }
@@ -983,8 +988,7 @@ class VideoControllerPool extends ChangeNotifier {
     }
 
     // Check for timeout
-    if (lowerError.contains('timeout') ||
-        lowerError.contains('timed out')) {
+    if (lowerError.contains('timeout') || lowerError.contains('timed out')) {
       return VideoControllerErrorType.timeout;
     }
 

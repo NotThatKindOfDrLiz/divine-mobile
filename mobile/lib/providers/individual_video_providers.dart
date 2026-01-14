@@ -242,42 +242,48 @@ void _handleControllerError(
           category: LogCategory.video,
         );
 
-        openVineVideoCache.removeCorruptedVideo(params.videoId).then((_) {
-          if (ref.mounted) {
-            Log.info(
-              '🔄 Invalidating provider to retry download for video ${params.videoId}',
-              name: 'IndividualVideoController',
-              category: LogCategory.video,
-            );
-            ref.invalidateSelf();
-          }
-        }).catchError((removeError) {
-          Log.error(
-            '❌ Failed to remove corrupted cache: $removeError',
-            name: 'IndividualVideoController',
-            category: LogCategory.video,
-          );
-        });
+        openVineVideoCache
+            .removeCorruptedVideo(params.videoId)
+            .then((_) {
+              if (ref.mounted) {
+                Log.info(
+                  '🔄 Invalidating provider to retry download for video ${params.videoId}',
+                  name: 'IndividualVideoController',
+                  category: LogCategory.video,
+                );
+                ref.invalidateSelf();
+              }
+            })
+            .catchError((removeError) {
+              Log.error(
+                '❌ Failed to remove corrupted cache: $removeError',
+                name: 'IndividualVideoController',
+                category: LogCategory.video,
+              );
+            });
       }
 
     case VideoControllerErrorType.videoBroken:
     case VideoControllerErrorType.timeout:
       // Mark video as broken for filtering
       if (ref.mounted) {
-        ref.read(brokenVideoTrackerProvider.future).then((tracker) {
-          if (ref.mounted) {
-            tracker.markVideoBroken(
-              params.videoId,
-              'Playback initialization failed: $errorMessage',
-            );
-          }
-        }).catchError((trackerError) {
-          Log.warning(
-            'Failed to mark video as broken: $trackerError',
-            name: 'IndividualVideoController',
-            category: LogCategory.system,
-          );
-        });
+        ref
+            .read(brokenVideoTrackerProvider.future)
+            .then((tracker) {
+              if (ref.mounted) {
+                tracker.markVideoBroken(
+                  params.videoId,
+                  'Playback initialization failed: $errorMessage',
+                );
+              }
+            })
+            .catchError((trackerError) {
+              Log.warning(
+                'Failed to mark video as broken: $trackerError',
+                name: 'IndividualVideoController',
+                category: LogCategory.system,
+              );
+            });
       }
 
     case VideoControllerErrorType.none:
