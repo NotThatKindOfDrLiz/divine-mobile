@@ -145,13 +145,6 @@ class _ExploreVideoScreenPureState extends ConsumerState<ExploreVideoScreenPure>
             currentIndex: index,
             videos: videos,
           );
-
-          // Dispose controllers outside the keep range to free memory
-          disposeControllersOutsideRange(
-            ref: ref,
-            currentIndex: index,
-            videos: videos,
-          );
         },
         itemBuilder: (context, index) {
           // Use PageController as source of truth for active video (synchronous)

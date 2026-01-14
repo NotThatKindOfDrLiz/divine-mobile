@@ -1,6 +1,6 @@
 // ABOUTME: Reusable video prefetch mixin for PageView-based video feeds
-// ABOUTME: Handles both file caching and controller pre-initialization for instant playback
-// ABOUTME: Repository-aware to respect max concurrent controller limits
+// ABOUTME: Handles file caching and controller pre-initialization for instant playback
+// ABOUTME: Pool-aware to respect max concurrent controller limits
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,13 +8,18 @@ import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
+import 'package:openvine/repositories/video_controller_pool.dart';
 import 'package:openvine/services/video_cache_manager.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Mixin that provides video prefetching logic for PageView-based feeds
 ///
-/// Automatically prefetches videos before and after the current index
-/// to enable instant playback when user scrolls.
+/// Provides two complementary prefetch mechanisms:
+/// 1. File caching - downloads video files to disk for faster loading
+/// 2. Controller pre-init - warms up controllers for instant playback
+///
+/// Note: Controller cleanup is handled automatically by the VideoControllerPool's
+/// LRU eviction. No manual disposal is needed.
 ///
 /// Usage:
 /// ```dart
@@ -24,20 +29,14 @@ import 'package:openvine/utils/unified_logger.dart';
 ///
 ///   PageView.builder(
 ///     onPageChanged: (index) {
-///       checkForPrefetch(
-///         currentIndex: index,
-///         videos: myVideos,
-///       );
+///       checkForPrefetch(currentIndex: index, videos: myVideos);
+///       preInitializeControllers(ref: ref, currentIndex: index, videos: myVideos);
 ///     },
 ///   );
 /// }
 /// ```
 mixin VideoPrefetchMixin {
   DateTime? _lastPrefetchCall;
-
-  /// Tracks video IDs that we've pre-initialized controllers for.
-  /// Maps videoId -> videoUrl to enable disposal without full video data.
-  final Map<String, String> _preInitializedControllers = {};
 
   /// Override this to provide the cache manager instance
   /// Default uses the global singleton
@@ -151,7 +150,7 @@ mixin VideoPrefetchMixin {
   /// This complements [checkForPrefetch] which caches video files to disk.
   /// Controller initialization happens in memory and includes codec setup.
   ///
-  /// Pool-aware: Checks available slots before pre-initializing to avoid
+  /// Pool-aware: Checks available slots and existing controllers to avoid
   /// exceeding the platform's concurrent controller limit.
   ///
   /// - [ref]: WidgetRef for reading the controller provider
@@ -173,6 +172,7 @@ mixin VideoPrefetchMixin {
     final videoList = _getVideosToPreInitialize(
       currentIndex: currentIndex,
       videos: videos,
+      pool: pool,
     );
 
     // If there are no videos to pre-initialize, return
@@ -189,7 +189,6 @@ mixin VideoPrefetchMixin {
       // Read the controller provider for the video
       // This is a fire-and-forget call to warm up the video controller
       ref.read(individualVideoControllerProvider(params));
-      _preInitializedControllers[video.id] = video.videoUrl!;
     }
 
     Log.debug(
@@ -199,101 +198,10 @@ mixin VideoPrefetchMixin {
     );
   }
 
-  /// Dispose video controllers that are far outside the current viewing range.
-  ///
-  /// This prevents memory buildup when scrolling through many videos.
-  /// Controllers within the keep range are preserved for smooth scrolling.
-  /// Controllers outside this range are invalidated to free memory.
-  ///
-  /// Note: With the VideoControllerRepository in place, this method is less critical
-  /// as the pool enforces hard limits. However, it still helps with proactive
-  /// cleanup and tracking state management.
-  ///
-  /// - [ref]: WidgetRef for invalidating controller providers
-  /// - [currentIndex]: Current video index in the feed
-  /// - [videos]: Full list of videos in the feed
-  /// - [keepBefore]: Videos to keep before current
-  /// - [keepAfter]: Videos to keep after current
-  void disposeControllersOutsideRange({
-    required WidgetRef ref,
-    required int currentIndex,
-    required List<VideoEvent> videos,
-    int keepBefore = AppConstants.controllerKeepBefore,
-    int keepAfter = AppConstants.controllerKeepAfter,
-  }) {
-    if (videos.isEmpty || _preInitializedControllers.isEmpty) {
-      return;
-    }
-
-    // Build set of video IDs that should be kept alive
-    final keepStart = (currentIndex - keepBefore).clamp(0, videos.length);
-    final keepEnd = (currentIndex + keepAfter + 1).clamp(0, videos.length);
-
-    final idsToKeep = <String>{};
-    for (int i = keepStart; i < keepEnd; i++) {
-      idsToKeep.add(videos[i].id);
-    }
-
-    // Find IDs to dispose (pre-initialized but now outside keep range)
-    final idsToDispose = <String>[];
-    for (final videoId in _preInitializedControllers.keys) {
-      if (!idsToKeep.contains(videoId)) {
-        idsToDispose.add(videoId);
-      }
-    }
-
-    if (idsToDispose.isEmpty) {
-      return;
-    }
-
-    Log.debug(
-      '🧹 Disposing ${idsToDispose.length} controllers outside range '
-      '(keeping indices $keepStart-${keepEnd - 1} around index $currentIndex)',
-      name: 'VideoPrefetchMixin',
-      category: LogCategory.video,
-    );
-
-    // Invalidate providers for videos outside the range
-    for (final videoId in idsToDispose) {
-      final videoUrl = _preInitializedControllers[videoId];
-      if (videoUrl == null) continue;
-
-      // Find the video event in the list for the params
-      VideoEvent? videoEvent;
-      for (final v in videos) {
-        if (v.id == videoId) {
-          videoEvent = v;
-          break;
-        }
-      }
-
-      final params = VideoControllerParams(
-        videoId: videoId,
-        videoUrl: videoUrl,
-        videoEvent: videoEvent,
-      );
-
-      // Invalidate triggers disposal via Riverpod's autoDispose
-      ref.invalidate(individualVideoControllerProvider(params));
-
-      // Remove from tracking
-      _preInitializedControllers.remove(videoId);
-    }
-  }
-
-  /// Clear all tracked controllers (useful when feed changes completely)
-  void clearTrackedControllers() {
-    _preInitializedControllers.clear();
-    Log.debug(
-      '🧹 Cleared all tracked controllers',
-      name: 'VideoPrefetchMixin',
-      category: LogCategory.video,
-    );
-  }
-
   List<VideoEvent> _getVideosToPreInitialize({
     required int currentIndex,
     required List<VideoEvent> videos,
+    required VideoControllerPool pool,
   }) {
     final videoList = <VideoEvent>[];
 
@@ -302,8 +210,9 @@ mixin VideoPrefetchMixin {
     var afterCount = 0;
 
     bool canContinue() {
-      if (currentIndex + offset >= videos.length) return false;
-      if (currentIndex - offset < 0) return false;
+      if (currentIndex + offset >= videos.length && currentIndex - offset < 0) {
+        return false;
+      }
 
       return _canAddBefore(beforeCount) || _canAddAfter(afterCount);
     }
@@ -314,8 +223,7 @@ mixin VideoPrefetchMixin {
 
       if (_canAddBefore(beforeCount) && beforeIndex >= 0) {
         final before = videos[beforeIndex];
-
-        if (_canPreInitialize(before)) {
+        if (_canPreInitialize(before, pool)) {
           videoList.add(before);
           beforeCount++;
         }
@@ -323,8 +231,7 @@ mixin VideoPrefetchMixin {
 
       if (_canAddAfter(afterCount) && afterIndex < videos.length) {
         final after = videos[afterIndex];
-
-        if (_canPreInitialize(after)) {
+        if (_canPreInitialize(after, pool)) {
           videoList.add(after);
           afterCount++;
         }
@@ -338,10 +245,13 @@ mixin VideoPrefetchMixin {
 
   bool _canAddBefore(int count) => count < AppConstants.controllerPreInitBefore;
   bool _canAddAfter(int count) => count < AppConstants.controllerPreInitAfter;
-  bool _canPreInitialize(VideoEvent video) {
-    final url = video.videoUrl ?? '';
-    final initialized = _preInitializedControllers.containsKey(video.id);
 
-    return url.isNotEmpty && !initialized;
+  /// Check if video can be pre-initialized (has URL and not already in pool)
+  bool _canPreInitialize(VideoEvent video, dynamic pool) {
+    final url = video.videoUrl ?? '';
+    if (url.isEmpty) return false;
+
+    // Use pool to check if controller already exists
+    return !pool.hasController(video.id);
   }
 }

@@ -203,13 +203,6 @@ class _FullscreenVideoFeedScreenState
 
     // Pre-initialize controllers for adjacent videos
     preInitializeControllers(ref: ref, currentIndex: newIndex, videos: videos);
-
-    // Dispose controllers outside the keep range to free memory
-    disposeControllersOutsideRange(
-      ref: ref,
-      currentIndex: newIndex,
-      videos: videos,
-    );
   }
 
   @override

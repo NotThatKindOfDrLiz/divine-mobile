@@ -151,13 +151,6 @@ class _ProfileVideoFeedViewState extends ConsumerState<ProfileVideoFeedView>
       currentIndex: newIndex,
       videos: widget.videos,
     );
-
-    // Dispose controllers outside the keep range to free memory
-    disposeControllersOutsideRange(
-      ref: ref,
-      currentIndex: newIndex,
-      videos: widget.videos,
-    );
   }
 
   @override
