@@ -54,35 +54,56 @@ class RestUserProfile {
 class UserStats {
   const UserStats({
     this.videoCount = 0,
-    this.followers = 0,
-    this.following = 0,
+    this.followerCount = 0,
+    this.followingCount = 0,
     this.totalViews = 0,
   });
 
+  /// Parse from the combined user response which has separate stats and social objects
+  factory UserStats.fromUserResponse(Map<String, dynamic> json) {
+    final stats = json['stats'] as Map<String, dynamic>? ?? {};
+    final social = json['social'] as Map<String, dynamic>? ?? {};
+
+    return UserStats(
+      videoCount: _parseIntField(stats, 'video_count', 'videoCount'),
+      followerCount: _parseIntField(social, 'follower_count', 'followerCount'),
+      followingCount: _parseIntField(
+        social,
+        'following_count',
+        'followingCount',
+      ),
+      totalViews: _parseIntField(stats, 'total_views', 'totalViews'),
+    );
+  }
+
   factory UserStats.fromJson(Map<String, dynamic> json) {
     return UserStats(
-      videoCount: _parseIntField(json, 'videoCount', 'video_count'),
-      followers: _parseIntField(json, 'followers', null),
-      following: _parseIntField(json, 'following', null),
-      totalViews: _parseIntField(json, 'totalViews', 'total_views'),
+      videoCount: _parseIntField(json, 'video_count', 'videoCount'),
+      followerCount: _parseIntField(json, 'follower_count', 'followerCount'),
+      followingCount: _parseIntField(json, 'following_count', 'followingCount'),
+      totalViews: _parseIntField(json, 'total_views', 'totalViews'),
     );
   }
 
   final int videoCount;
-  final int followers;
-  final int following;
+  final int followerCount;
+  final int followingCount;
   final int totalViews;
 
+  // Convenience getters for backward compatibility
+  int get followers => followerCount;
+  int get following => followingCount;
+
   Map<String, dynamic> toJson() => {
-    'videoCount': videoCount,
-    'followers': followers,
-    'following': following,
-    'totalViews': totalViews,
+    'video_count': videoCount,
+    'follower_count': followerCount,
+    'following_count': followingCount,
+    'total_views': totalViews,
   };
 
   @override
   String toString() =>
-      'UserStats(videos: $videoCount, followers: $followers, following: $following)';
+      'UserStats(videos: $videoCount, followers: $followerCount, following: $followingCount)';
 }
 
 /// Combined user data response from GET /api/users/{pubkey}
@@ -105,11 +126,14 @@ class UserData {
       pubkey = json['pubkey']?.toString() ?? '';
     }
 
-    // Parse nested profile object (may be at top level or nested)
-    final profileJson = json['profile'] as Map<String, dynamic>? ?? json;
+    // Parse nested profile object (may be null or a map)
+    final profileJson = json['profile'] as Map<String, dynamic>?;
+    final profile = profileJson != null
+        ? RestUserProfile.fromJson(profileJson)
+        : const RestUserProfile();
 
-    // Parse nested stats object (may be at top level or nested)
-    final statsJson = json['stats'] as Map<String, dynamic>? ?? json;
+    // Parse stats from combined response (stats + social objects)
+    final stats = UserStats.fromUserResponse(json);
 
     // Parse updatedAt timestamp
     DateTime updatedAt;
@@ -117,14 +141,21 @@ class UserData {
       updatedAt = _parseDateTime(json['updatedAt']);
     } else if (json['updated_at'] != null) {
       updatedAt = _parseDateTime(json['updated_at']);
+    } else if (json['stats'] != null) {
+      final statsMap = json['stats'] as Map<String, dynamic>;
+      if (statsMap['last_activity'] != null) {
+        updatedAt = _parseDateTime(statsMap['last_activity']);
+      } else {
+        updatedAt = DateTime.now();
+      }
     } else {
       updatedAt = DateTime.now();
     }
 
     return UserData(
       pubkey: pubkey,
-      profile: RestUserProfile.fromJson(profileJson),
-      stats: UserStats.fromJson(statsJson),
+      profile: profile,
+      stats: stats,
       updatedAt: updatedAt,
     );
   }
@@ -151,26 +182,84 @@ class UserData {
 ///
 /// Lighter response containing only follower/following counts.
 class SocialStats {
-  const SocialStats({this.followers = 0, this.following = 0});
+  const SocialStats({this.followerCount = 0, this.followingCount = 0});
 
   factory SocialStats.fromJson(Map<String, dynamic> json) {
     return SocialStats(
-      followers: _parseIntField(json, 'followers', null),
-      following: _parseIntField(json, 'following', null),
+      followerCount: _parseIntField(json, 'follower_count', 'followerCount'),
+      followingCount: _parseIntField(json, 'following_count', 'followingCount'),
     );
   }
 
-  final int followers;
-  final int following;
+  final int followerCount;
+  final int followingCount;
+
+  // Convenience getters for backward compatibility
+  int get followers => followerCount;
+  int get following => followingCount;
 
   Map<String, dynamic> toJson() => {
-    'followers': followers,
-    'following': following,
+    'follower_count': followerCount,
+    'following_count': followingCount,
   };
 
   @override
   String toString() =>
-      'SocialStats(followers: $followers, following: $following)';
+      'SocialStats(followers: $followerCount, following: $followingCount)';
+}
+
+/// Paginated list of followers from GET /api/users/{pubkey}/followers
+class FollowersResponse {
+  const FollowersResponse({
+    required this.followers,
+    this.total = 0,
+    this.offset = 0,
+    this.limit = 50,
+  });
+
+  factory FollowersResponse.fromJson(Map<String, dynamic> json) {
+    final followersList = json['followers'] as List<dynamic>? ?? [];
+    return FollowersResponse(
+      followers: followersList.map((f) => f.toString()).toList(),
+      total: json['total'] as int? ?? 0,
+      offset: json['offset'] as int? ?? 0,
+      limit: json['limit'] as int? ?? 50,
+    );
+  }
+
+  final List<String> followers;
+  final int total;
+  final int offset;
+  final int limit;
+
+  bool get hasMore => offset + followers.length < total;
+}
+
+/// Paginated list of following from GET /api/users/{pubkey}/following
+class FollowingResponse {
+  const FollowingResponse({
+    required this.following,
+    this.total = 0,
+    this.offset = 0,
+    this.limit = 50,
+  });
+
+  factory FollowingResponse.fromJson(Map<String, dynamic> json) {
+    final followingList = json['following'] as List<dynamic>? ?? [];
+    return FollowingResponse(
+      following: followingList.map((f) => f.toString()).toList(),
+      total: json['total'] as int? ?? 0,
+      offset: json['offset'] as int? ?? 0,
+      limit: json['limit'] as int? ?? 50,
+    );
+  }
+
+  final List<String> following;
+  final int total;
+  final int offset;
+  final int limit;
+
+  bool get hasMore => offset + following.length < total;
 }
 
 /// Paginated feed response from GET /api/users/{pubkey}/feed
