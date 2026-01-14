@@ -4,7 +4,7 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i6;
-import 'dart:ui' as _i11;
+import 'dart:ui' as _i12;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
@@ -12,8 +12,9 @@ import 'package:nostr_client/nostr_client.dart' as _i4;
 import 'package:nostr_client/src/models/models.dart' as _i2;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i7;
 import 'package:openvine/models/user_profile.dart' as _i9;
+import 'package:openvine/services/analytics_api_service.dart' as _i10;
 import 'package:openvine/services/auth_service.dart' as _i3;
-import 'package:openvine/services/profile_cache_service.dart' as _i10;
+import 'package:openvine/services/profile_cache_service.dart' as _i11;
 import 'package:openvine/services/user_profile_service.dart' as _i8;
 
 // ignore_for_file: type=lint
@@ -703,7 +704,14 @@ class MockUserProfileService extends _i1.Mock
           as bool);
 
   @override
-  void setPersistentCache(_i10.ProfileCacheService? cacheService) =>
+  void setAnalyticsApiService(_i10.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void setPersistentCache(_i11.ProfileCacheService? cacheService) =>
       super.noSuchMethod(
         Invocation.method(#setPersistentCache, [cacheService]),
         returnValueForMissingStub: null,
@@ -834,13 +842,13 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  void addListener(_i11.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i12.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#addListener, [listener]),
     returnValueForMissingStub: null,
   );
 
   @override
-  void removeListener(_i11.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i12.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#removeListener, [listener]),
     returnValueForMissingStub: null,
   );

@@ -13,8 +13,9 @@ import 'package:nostr_sdk/event.dart' as _i9;
 import 'package:openvine/models/user_profile.dart' as _i13;
 import 'package:openvine/models/video_event.dart' as _i3;
 import 'package:openvine/services/age_verification_service.dart' as _i7;
+import 'package:openvine/services/analytics_api_service.dart' as _i14;
 import 'package:openvine/services/content_blocklist_service.dart' as _i6;
-import 'package:openvine/services/profile_cache_service.dart' as _i14;
+import 'package:openvine/services/profile_cache_service.dart' as _i15;
 import 'package:openvine/services/user_profile_service.dart' as _i12;
 import 'package:openvine/services/video_event_service.dart' as _i2;
 import 'package:openvine/services/video_filter_builder.dart' as _i11;
@@ -879,7 +880,14 @@ class MockUserProfileService extends _i1.Mock
           as bool);
 
   @override
-  void setPersistentCache(_i14.ProfileCacheService? cacheService) =>
+  void setAnalyticsApiService(_i14.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void setPersistentCache(_i15.ProfileCacheService? cacheService) =>
       super.noSuchMethod(
         Invocation.method(#setPersistentCache, [cacheService]),
         returnValueForMissingStub: null,

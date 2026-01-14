@@ -15,10 +15,11 @@ import 'package:nostr_key_manager/nostr_key_manager.dart' as _i3;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i8;
 import 'package:openvine/models/video_event.dart' as _i10;
 import 'package:openvine/services/age_verification_service.dart' as _i13;
+import 'package:openvine/services/analytics_api_service.dart' as _i17;
 import 'package:openvine/services/auth_service.dart' as _i4;
 import 'package:openvine/services/content_blocklist_service.dart' as _i12;
 import 'package:openvine/services/social_service.dart' as _i16;
-import 'package:openvine/services/user_profile_service.dart' as _i17;
+import 'package:openvine/services/user_profile_service.dart' as _i18;
 import 'package:openvine/services/video_event_service.dart' as _i9;
 import 'package:openvine/services/video_filter_builder.dart' as _i15;
 
@@ -1292,6 +1293,13 @@ class MockSocialService extends _i1.Mock implements _i16.SocialService {
           as List<_i16.FollowSet>);
 
   @override
+  void setAnalyticsApiService(_i17.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
   bool isLiked(String? eventId) =>
       (super.noSuchMethod(
             Invocation.method(#isLiked, [eventId]),
@@ -1828,7 +1836,7 @@ class MockAuthService extends _i1.Mock implements _i4.AuthService {
 
   @override
   _i7.Future<void> refreshCurrentProfile(
-    _i17.UserProfileService? userProfileService,
+    _i18.UserProfileService? userProfileService,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#refreshCurrentProfile, [userProfileService]),

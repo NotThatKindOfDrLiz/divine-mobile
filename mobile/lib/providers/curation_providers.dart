@@ -1,6 +1,8 @@
 // ABOUTME: Riverpod provider for content curation with reactive updates
 // ABOUTME: Manages only editor picks - trending/popular handled by infinite feeds
 
+import 'dart:async';
+
 import 'package:openvine/models/curation_set.dart';
 import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -15,11 +17,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 part 'curation_providers.g.dart';
 
 /// Provider for analytics API service
+///
+/// Creates the service and kicks off a non-blocking availability check.
+/// The check runs in the background - first REST call may use Nostr fallback
+/// if the check hasn't completed yet, but subsequent calls will use REST.
 @riverpod
 AnalyticsApiService analyticsApiService(Ref ref) {
   final environmentConfig = ref.watch(currentEnvironmentProvider);
+  final service = AnalyticsApiService(baseUrl: environmentConfig.apiBaseUrl);
 
-  return AnalyticsApiService(baseUrl: environmentConfig.apiBaseUrl);
+  // Fire-and-forget availability check - doesn't block provider creation
+  // If baseUrl is null/empty, checkAvailability returns immediately
+  unawaited(service.checkAvailability());
+
+  return service;
 }
 
 /// Main curation provider that manages curated content sets

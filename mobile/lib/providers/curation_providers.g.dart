@@ -9,11 +9,19 @@ part of 'curation_providers.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Provider for analytics API service
+///
+/// Creates the service and kicks off a non-blocking availability check.
+/// The check runs in the background - first REST call may use Nostr fallback
+/// if the check hasn't completed yet, but subsequent calls will use REST.
 
 @ProviderFor(analyticsApiService)
 const analyticsApiServiceProvider = AnalyticsApiServiceProvider._();
 
 /// Provider for analytics API service
+///
+/// Creates the service and kicks off a non-blocking availability check.
+/// The check runs in the background - first REST call may use Nostr fallback
+/// if the check hasn't completed yet, but subsequent calls will use REST.
 
 final class AnalyticsApiServiceProvider
     extends
@@ -24,6 +32,10 @@ final class AnalyticsApiServiceProvider
         >
     with $Provider<AnalyticsApiService> {
   /// Provider for analytics API service
+  ///
+  /// Creates the service and kicks off a non-blocking availability check.
+  /// The check runs in the background - first REST call may use Nostr fallback
+  /// if the check hasn't completed yet, but subsequent calls will use REST.
   const AnalyticsApiServiceProvider._()
     : super(
         from: null,
@@ -59,7 +71,7 @@ final class AnalyticsApiServiceProvider
 }
 
 String _$analyticsApiServiceHash() =>
-    r'b47808c5318ce0b2f956bcd4b6f290e4dcf48846';
+    r'4b711170168c512b4cb59e15a74029cd01987b19';
 
 /// Main curation provider that manages curated content sets
 /// keepAlive ensures provider persists across tab navigation

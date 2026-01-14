@@ -3,14 +3,15 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i5;
-import 'dart:ui' as _i8;
+import 'dart:async' as _i6;
+import 'dart:ui' as _i9;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i6;
-import 'package:nostr_sdk/event.dart' as _i7;
+import 'package:mockito/src/dummies.dart' as _i7;
+import 'package:nostr_sdk/event.dart' as _i8;
 import 'package:openvine/models/user_profile.dart' as _i3;
-import 'package:openvine/services/profile_cache_service.dart' as _i4;
+import 'package:openvine/services/analytics_api_service.dart' as _i4;
+import 'package:openvine/services/profile_cache_service.dart' as _i5;
 import 'package:openvine/services/user_profile_service.dart' as _i2;
 
 // ignore_for_file: type=lint
@@ -51,7 +52,14 @@ class MockUserProfileService extends _i1.Mock
           as bool);
 
   @override
-  void setPersistentCache(_i4.ProfileCacheService? cacheService) =>
+  void setAnalyticsApiService(_i4.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void setPersistentCache(_i5.ProfileCacheService? cacheService) =>
       super.noSuchMethod(
         Invocation.method(#setPersistentCache, [cacheService]),
         returnValueForMissingStub: null,
@@ -85,25 +93,25 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  _i5.Future<void> updateCachedProfile(_i3.UserProfile? profile) =>
+  _i6.Future<void> updateCachedProfile(_i3.UserProfile? profile) =>
       (super.noSuchMethod(
             Invocation.method(#updateCachedProfile, [profile]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i5.Future<void> initialize() =>
+  _i6.Future<void> initialize() =>
       (super.noSuchMethod(
             Invocation.method(#initialize, []),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i5.Future<_i3.UserProfile?> fetchProfile(
+  _i6.Future<_i3.UserProfile?> fetchProfile(
     String? pubkey, {
     bool? forceRefresh = false,
   }) =>
@@ -113,21 +121,21 @@ class MockUserProfileService extends _i1.Mock
               [pubkey],
               {#forceRefresh: forceRefresh},
             ),
-            returnValue: _i5.Future<_i3.UserProfile?>.value(),
+            returnValue: _i6.Future<_i3.UserProfile?>.value(),
           )
-          as _i5.Future<_i3.UserProfile?>);
+          as _i6.Future<_i3.UserProfile?>);
 
   @override
-  _i5.Future<void> prefetchProfilesImmediately(List<String>? pubkeys) =>
+  _i6.Future<void> prefetchProfilesImmediately(List<String>? pubkeys) =>
       (super.noSuchMethod(
             Invocation.method(#prefetchProfilesImmediately, [pubkeys]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i5.Future<void> fetchMultipleProfiles(
+  _i6.Future<void> fetchMultipleProfiles(
     List<String>? pubkeys, {
     bool? forceRefresh = false,
   }) =>
@@ -137,16 +145,16 @@ class MockUserProfileService extends _i1.Mock
               [pubkeys],
               {#forceRefresh: forceRefresh},
             ),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i5.Future<void>);
+          as _i6.Future<void>);
 
   @override
   String getDisplayName(String? pubkey) =>
       (super.noSuchMethod(
             Invocation.method(#getDisplayName, [pubkey]),
-            returnValue: _i6.dummyValue<String>(
+            returnValue: _i7.dummyValue<String>(
               this,
               Invocation.method(#getDisplayName, [pubkey]),
             ),
@@ -160,17 +168,17 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  _i5.Future<List<_i3.UserProfile>> searchUsers(String? query, {int? limit}) =>
+  _i6.Future<List<_i3.UserProfile>> searchUsers(String? query, {int? limit}) =>
       (super.noSuchMethod(
             Invocation.method(#searchUsers, [query], {#limit: limit}),
-            returnValue: _i5.Future<List<_i3.UserProfile>>.value(
+            returnValue: _i6.Future<List<_i3.UserProfile>>.value(
               <_i3.UserProfile>[],
             ),
           )
-          as _i5.Future<List<_i3.UserProfile>>);
+          as _i6.Future<List<_i3.UserProfile>>);
 
   @override
-  void handleProfileEventForTesting(_i7.Event? event) => super.noSuchMethod(
+  void handleProfileEventForTesting(_i8.Event? event) => super.noSuchMethod(
     Invocation.method(#handleProfileEventForTesting, [event]),
     returnValueForMissingStub: null,
   );
@@ -182,13 +190,13 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  void addListener(_i8.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i9.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#addListener, [listener]),
     returnValueForMissingStub: null,
   );
 
   @override
-  void removeListener(_i8.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i9.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#removeListener, [listener]),
     returnValueForMissingStub: null,
   );

@@ -4,7 +4,7 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i6;
-import 'dart:ui' as _i11;
+import 'dart:ui' as _i12;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
@@ -12,10 +12,11 @@ import 'package:nostr_client/nostr_client.dart' as _i4;
 import 'package:nostr_client/src/models/models.dart' as _i2;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i7;
 import 'package:openvine/models/user_profile.dart' as _i9;
-import 'package:openvine/models/video_event.dart' as _i13;
+import 'package:openvine/models/video_event.dart' as _i14;
+import 'package:openvine/services/analytics_api_service.dart' as _i10;
 import 'package:openvine/services/auth_service.dart' as _i3;
-import 'package:openvine/services/profile_cache_service.dart' as _i10;
-import 'package:openvine/services/social_service.dart' as _i12;
+import 'package:openvine/services/profile_cache_service.dart' as _i11;
+import 'package:openvine/services/social_service.dart' as _i13;
 import 'package:openvine/services/user_profile_service.dart' as _i8;
 
 // ignore_for_file: type=lint
@@ -705,7 +706,14 @@ class MockUserProfileService extends _i1.Mock
           as bool);
 
   @override
-  void setPersistentCache(_i10.ProfileCacheService? cacheService) =>
+  void setAnalyticsApiService(_i10.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void setPersistentCache(_i11.ProfileCacheService? cacheService) =>
       super.noSuchMethod(
         Invocation.method(#setPersistentCache, [cacheService]),
         returnValueForMissingStub: null,
@@ -836,13 +844,13 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  void addListener(_i11.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i12.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#addListener, [listener]),
     returnValueForMissingStub: null,
   );
 
   @override
-  void removeListener(_i11.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i12.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#removeListener, [listener]),
     returnValueForMissingStub: null,
   );
@@ -857,7 +865,7 @@ class MockUserProfileService extends _i1.Mock
 /// A class which mocks [SocialService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSocialService extends _i1.Mock implements _i12.SocialService {
+class MockSocialService extends _i1.Mock implements _i13.SocialService {
   MockSocialService() {
     _i1.throwOnMissingStub(this);
   }
@@ -879,12 +887,19 @@ class MockSocialService extends _i1.Mock implements _i12.SocialService {
           as List<String>);
 
   @override
-  List<_i12.FollowSet> get followSets =>
+  List<_i13.FollowSet> get followSets =>
       (super.noSuchMethod(
             Invocation.getter(#followSets),
-            returnValue: <_i12.FollowSet>[],
+            returnValue: <_i13.FollowSet>[],
           )
-          as List<_i12.FollowSet>);
+          as List<_i13.FollowSet>);
+
+  @override
+  void setAnalyticsApiService(_i10.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
 
   @override
   bool isLiked(String? eventId) =>
@@ -925,9 +940,9 @@ class MockSocialService extends _i1.Mock implements _i12.SocialService {
           as Map<String, int>?);
 
   @override
-  _i12.FollowSet? getFollowSetById(String? setId) =>
+  _i13.FollowSet? getFollowSetById(String? setId) =>
       (super.noSuchMethod(Invocation.method(#getFollowSetById, [setId]))
-          as _i12.FollowSet?);
+          as _i13.FollowSet?);
 
   @override
   bool isInFollowSet(String? setId, String? pubkey) =>
@@ -982,7 +997,7 @@ class MockSocialService extends _i1.Mock implements _i12.SocialService {
           as _i6.Future<Map<String, int>>);
 
   @override
-  _i6.Future<_i12.FollowSet?> createFollowSet({
+  _i6.Future<_i13.FollowSet?> createFollowSet({
     required String? name,
     String? description,
     String? imageUrl,
@@ -995,9 +1010,9 @@ class MockSocialService extends _i1.Mock implements _i12.SocialService {
               #imageUrl: imageUrl,
               #initialPubkeys: initialPubkeys,
             }),
-            returnValue: _i6.Future<_i12.FollowSet?>.value(),
+            returnValue: _i6.Future<_i13.FollowSet?>.value(),
           )
-          as _i6.Future<_i12.FollowSet?>);
+          as _i6.Future<_i13.FollowSet?>);
 
   @override
   _i6.Future<bool> addToFollowSet(String? setId, String? pubkey) =>
@@ -1104,7 +1119,7 @@ class MockSocialService extends _i1.Mock implements _i12.SocialService {
           as _i6.Future<void>);
 
   @override
-  _i6.Future<void> toggleRepost(_i13.VideoEvent? videoToRepost) =>
+  _i6.Future<void> toggleRepost(_i14.VideoEvent? videoToRepost) =>
       (super.noSuchMethod(
             Invocation.method(#toggleRepost, [videoToRepost]),
             returnValue: _i6.Future<void>.value(),

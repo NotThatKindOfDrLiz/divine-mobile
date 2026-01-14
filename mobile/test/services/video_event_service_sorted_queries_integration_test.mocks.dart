@@ -4,7 +4,7 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i7;
-import 'dart:ui' as _i13;
+import 'dart:ui' as _i14;
 
 import 'package:db_client/db_client.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
@@ -13,8 +13,9 @@ import 'package:nostr_client/nostr_client.dart' as _i5;
 import 'package:nostr_client/src/models/models.dart' as _i2;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i8;
 import 'package:openvine/models/user_profile.dart' as _i11;
-import 'package:openvine/services/event_router.dart' as _i14;
-import 'package:openvine/services/profile_cache_service.dart' as _i12;
+import 'package:openvine/services/analytics_api_service.dart' as _i12;
+import 'package:openvine/services/event_router.dart' as _i15;
+import 'package:openvine/services/profile_cache_service.dart' as _i13;
 import 'package:openvine/services/relay_capability_service.dart' as _i4;
 import 'package:openvine/services/subscription_manager.dart' as _i9;
 import 'package:openvine/services/user_profile_service.dart' as _i10;
@@ -635,7 +636,14 @@ class MockUserProfileService extends _i1.Mock
           as bool);
 
   @override
-  void setPersistentCache(_i12.ProfileCacheService? cacheService) =>
+  void setAnalyticsApiService(_i12.AnalyticsApiService? service) =>
+      super.noSuchMethod(
+        Invocation.method(#setAnalyticsApiService, [service]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  void setPersistentCache(_i13.ProfileCacheService? cacheService) =>
       super.noSuchMethod(
         Invocation.method(#setPersistentCache, [cacheService]),
         returnValueForMissingStub: null,
@@ -766,13 +774,13 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  void addListener(_i13.VoidCallback? listener) => super.noSuchMethod(
+  void addListener(_i14.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#addListener, [listener]),
     returnValueForMissingStub: null,
   );
 
   @override
-  void removeListener(_i13.VoidCallback? listener) => super.noSuchMethod(
+  void removeListener(_i14.VoidCallback? listener) => super.noSuchMethod(
     Invocation.method(#removeListener, [listener]),
     returnValueForMissingStub: null,
   );
@@ -787,7 +795,7 @@ class MockUserProfileService extends _i1.Mock
 /// A class which mocks [EventRouter].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockEventRouter extends _i1.Mock implements _i14.EventRouter {
+class MockEventRouter extends _i1.Mock implements _i15.EventRouter {
   MockEventRouter() {
     _i1.throwOnMissingStub(this);
   }
