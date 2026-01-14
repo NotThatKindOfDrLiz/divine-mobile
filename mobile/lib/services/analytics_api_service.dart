@@ -403,6 +403,136 @@ class AnalyticsApiService {
     }
   }
 
+  /// Fetch videos with flexible filtering options
+  ///
+  /// Supports all Funnelcake video API parameters:
+  /// - [sort]: 'trending', 'recent', or 'loops'
+  /// - [before]: Unix timestamp - only videos created before this date
+  /// - [after]: Unix timestamp - only videos created after this date
+  /// - [platform]: Filter by platform (e.g., 'vine')
+  /// - [hasEmbeddedStats]: Only videos with imported loop counts
+  /// - [classic]: Shortcut for classic Vine archive (sets sort=loops)
+  Future<List<VideoEvent>> getVideosWithFilters({
+    String sort = 'trending',
+    int limit = 50,
+    int? before,
+    int? after,
+    String? platform,
+    bool? hasEmbeddedStats,
+    bool classic = false,
+  }) async {
+    if (!isAvailable) return [];
+
+    try {
+      final queryParams = <String, String>{'limit': limit.toString()};
+
+      // Classic mode defaults to sort by loops
+      if (classic) {
+        queryParams['classic'] = 'true';
+      } else {
+        queryParams['sort'] = sort;
+      }
+
+      if (before != null) {
+        queryParams['before'] = before.toString();
+      }
+      if (after != null) {
+        queryParams['after'] = after.toString();
+      }
+      if (platform != null) {
+        queryParams['platform'] = platform;
+      }
+      if (hasEmbeddedStats == true) {
+        queryParams['has_embedded_stats'] = 'true';
+      }
+
+      final uri = Uri.parse(
+        '$_baseUrl/api/videos',
+      ).replace(queryParameters: queryParams);
+
+      Log.info(
+        'Fetching filtered videos from Funnelcake: $uri',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+
+      final response = await _httpClient
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        final videos = data
+            .map((v) => VideoStats.fromJson(v as Map<String, dynamic>))
+            .where((v) => v.id.isNotEmpty && v.videoUrl.isNotEmpty)
+            .map((v) => v.toVideoEvent())
+            .toList();
+
+        Log.info(
+          'Returning ${videos.length} filtered videos',
+          name: 'AnalyticsApiService',
+          category: LogCategory.video,
+        );
+
+        return videos;
+      } else {
+        Log.error(
+          'Funnelcake API error: ${response.statusCode}',
+          name: 'AnalyticsApiService',
+          category: LogCategory.video,
+        );
+        return [];
+      }
+    } catch (e) {
+      Log.error(
+        'Error fetching filtered videos: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+      return [];
+    }
+  }
+
+  /// Fetch classic Vine archive videos (pre-2017, sorted by loops)
+  ///
+  /// Convenience method for accessing the classic Vine archive.
+  /// Returns videos from before Jan 1, 2017 sorted by loop count.
+  Future<List<VideoEvent>> getClassicVines({int limit = 50}) async {
+    // Jan 1, 2017 00:00:00 UTC
+    const classicVineEra = 1483228800;
+
+    return getVideosWithFilters(
+      before: classicVineEra,
+      hasEmbeddedStats: true,
+      classic: true,
+      limit: limit,
+    );
+  }
+
+  /// Fetch videos sorted by loop count
+  ///
+  /// Returns videos with embedded stats, sorted by most loops.
+  Future<List<VideoEvent>> getVideosByLoops({
+    int limit = 50,
+    int? before,
+    int? after,
+  }) async {
+    return getVideosWithFilters(
+      sort: 'loops',
+      hasEmbeddedStats: true,
+      before: before,
+      after: after,
+      limit: limit,
+    );
+  }
+
   /// Search videos by hashtag
   ///
   /// Uses funnelcake's /api/search?tag= endpoint for hashtag discovery.

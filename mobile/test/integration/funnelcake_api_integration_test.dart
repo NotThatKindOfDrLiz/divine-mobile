@@ -152,66 +152,70 @@ void main() {
   });
 
   group('Bulk Endpoints', () {
-    test('POST /api/users/bulk returns user data for multiple pubkeys',
-        () async {
-      final response = await httpClient.post(
-        Uri.parse('$baseUrl/api/users/bulk'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'pubkeys': [testPubkey],
-        }),
-      );
+    test(
+      'POST /api/users/bulk returns user data for multiple pubkeys',
+      () async {
+        final response = await httpClient.post(
+          Uri.parse('$baseUrl/api/users/bulk'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'pubkeys': [testPubkey],
+          }),
+        );
 
-      print('POST /api/users/bulk status: ${response.statusCode}');
-      print('Response: ${response.body}');
+        print('POST /api/users/bulk status: ${response.statusCode}');
+        print('Response: ${response.body}');
 
-      expect(response.statusCode, 200);
+        expect(response.statusCode, 200);
 
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      expect(json.containsKey('users'), isTrue);
-      expect(json.containsKey('missing'), isTrue);
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        expect(json.containsKey('users'), isTrue);
+        expect(json.containsKey('missing'), isTrue);
 
-      final users = json['users'] as List;
-      print('Bulk users returned: ${users.length}');
-      expect(users, isNotEmpty);
-    });
+        final users = json['users'] as List;
+        print('Bulk users returned: ${users.length}');
+        expect(users, isNotEmpty);
+      },
+    );
 
-    test('POST /api/videos/bulk returns video data for multiple event IDs',
-        () async {
-      // First get a valid event ID from trending videos
-      final trendingResponse = await httpClient.get(
-        Uri.parse('$baseUrl/api/videos?sort=trending&limit=1'),
-      );
-      final trendingVideos = jsonDecode(trendingResponse.body) as List;
-      if (trendingVideos.isEmpty) {
-        print('No trending videos available to test bulk endpoint');
-        return;
-      }
+    test(
+      'POST /api/videos/bulk returns video data for multiple event IDs',
+      () async {
+        // First get a valid event ID from trending videos
+        final trendingResponse = await httpClient.get(
+          Uri.parse('$baseUrl/api/videos?sort=trending&limit=1'),
+        );
+        final trendingVideos = jsonDecode(trendingResponse.body) as List;
+        if (trendingVideos.isEmpty) {
+          print('No trending videos available to test bulk endpoint');
+          return;
+        }
 
-      final eventId = _parseId(trendingVideos.first['id']);
-      print('Testing bulk videos with event ID: $eventId');
+        final eventId = _parseId(trendingVideos.first['id']);
+        print('Testing bulk videos with event ID: $eventId');
 
-      final response = await httpClient.post(
-        Uri.parse('$baseUrl/api/videos/bulk'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'event_ids': [eventId],
-        }),
-      );
+        final response = await httpClient.post(
+          Uri.parse('$baseUrl/api/videos/bulk'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'event_ids': [eventId],
+          }),
+        );
 
-      print('POST /api/videos/bulk status: ${response.statusCode}');
-      print('Response: ${response.body}');
+        print('POST /api/videos/bulk status: ${response.statusCode}');
+        print('Response: ${response.body}');
 
-      expect(response.statusCode, 200);
+        expect(response.statusCode, 200);
 
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      expect(json.containsKey('videos'), isTrue);
-      expect(json.containsKey('missing'), isTrue);
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        expect(json.containsKey('videos'), isTrue);
+        expect(json.containsKey('missing'), isTrue);
 
-      final videos = json['videos'] as List;
-      print('Bulk videos returned: ${videos.length}');
-      expect(videos, isNotEmpty);
-    });
+        final videos = json['videos'] as List;
+        print('Bulk videos returned: ${videos.length}');
+        expect(videos, isNotEmpty);
+      },
+    );
 
     test('AnalyticsApiService.getBulkUsers works', () async {
       final result = await apiService.getBulkUsers(pubkeys: [testPubkey]);
@@ -271,6 +275,129 @@ void main() {
       final videos = await apiService.getRecentVideos(limit: 5);
 
       print('getRecentVideos: ${videos.length} videos');
+
+      for (final video in videos) {
+        print('  - ${video.id}: ${video.title}');
+      }
+    });
+  });
+
+  group('Video Filtering Endpoints', () {
+    test(
+      'GET /api/videos?classic=true returns classic vines sorted by loops',
+      () async {
+        final response = await httpClient.get(
+          Uri.parse('$baseUrl/api/videos?classic=true&limit=5'),
+        );
+
+        print('GET /api/videos?classic=true status: ${response.statusCode}');
+        print('Response: ${response.body}');
+
+        expect(response.statusCode, 200);
+
+        final videos = jsonDecode(response.body) as List;
+        print('Classic videos: ${videos.length}');
+      },
+    );
+
+    test('GET /api/videos?before=timestamp filters by date', () async {
+      // Jan 1, 2017 - classic Vine era cutoff
+      const beforeTimestamp = 1483228800;
+
+      final response = await httpClient.get(
+        Uri.parse(
+          '$baseUrl/api/videos?before=$beforeTimestamp&sort=loops&limit=5',
+        ),
+      );
+
+      print(
+        'GET /api/videos?before=$beforeTimestamp status: ${response.statusCode}',
+      );
+
+      expect(response.statusCode, 200);
+
+      final videos = jsonDecode(response.body) as List;
+      print('Videos before 2017: ${videos.length}');
+
+      // Verify all returned videos are before the cutoff
+      for (final video in videos) {
+        final createdAt = video['created_at'] as int?;
+        if (createdAt != null) {
+          expect(
+            createdAt,
+            lessThan(beforeTimestamp),
+            reason: 'Video should be created before 2017',
+          );
+        }
+      }
+    });
+
+    test('GET /api/videos?after=timestamp filters recent videos', () async {
+      // Jan 1, 2026
+      const afterTimestamp = 1735689600;
+
+      final response = await httpClient.get(
+        Uri.parse('$baseUrl/api/videos?after=$afterTimestamp&limit=5'),
+      );
+
+      print(
+        'GET /api/videos?after=$afterTimestamp status: ${response.statusCode}',
+      );
+
+      expect(response.statusCode, 200);
+
+      final videos = jsonDecode(response.body) as List;
+      print('Videos after Jan 2026: ${videos.length}');
+    });
+
+    test(
+      'GET /api/videos?has_embedded_stats=true returns videos with loops',
+      () async {
+        final response = await httpClient.get(
+          Uri.parse(
+            '$baseUrl/api/videos?has_embedded_stats=true&sort=loops&limit=5',
+          ),
+        );
+
+        print(
+          'GET /api/videos?has_embedded_stats=true status: ${response.statusCode}',
+        );
+
+        expect(response.statusCode, 200);
+
+        final videos = jsonDecode(response.body) as List;
+        print('Videos with embedded stats: ${videos.length}');
+      },
+    );
+
+    test('AnalyticsApiService.getVideosWithFilters works', () async {
+      final videos = await apiService.getVideosWithFilters(
+        sort: 'loops',
+        hasEmbeddedStats: true,
+        limit: 5,
+      );
+
+      print('getVideosWithFilters (loops): ${videos.length} videos');
+
+      for (final video in videos) {
+        print('  - ${video.id}: ${video.title}');
+      }
+    });
+
+    test('AnalyticsApiService.getClassicVines works', () async {
+      final videos = await apiService.getClassicVines(limit: 5);
+
+      print('getClassicVines: ${videos.length} videos');
+
+      for (final video in videos) {
+        print('  - ${video.id}: ${video.title}');
+      }
+    });
+
+    test('AnalyticsApiService.getVideosByLoops works', () async {
+      final videos = await apiService.getVideosByLoops(limit: 5);
+
+      print('getVideosByLoops: ${videos.length} videos');
 
       for (final video in videos) {
         print('  - ${video.id}: ${video.title}');
