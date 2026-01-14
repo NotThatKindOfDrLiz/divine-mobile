@@ -619,8 +619,35 @@ void main() {
 
 /// Mock video event for testing
 class _MockVideoEvent {
-  _MockVideoEvent({this.mimeType, this.sha256});
+  _MockVideoEvent({
+    this.mimeType,
+    this.sha256,
+    this.id = 'mock-event-id',
+    this.pubkey = 'mock-pubkey',
+    this.content = 'mock-content',
+    this.videoUrl = 'https://example.com/mock.mp4',
+    this.title,
+    this.duration,
+    this.dimensions,
+    this.fileSize,
+    this.thumbnailUrl,
+    this.hashtags,
+    this.createdAt = 0,
+    this.rawTags,
+  });
 
+  final String id;
+  final String pubkey;
+  final String content;
+  final String videoUrl;
+  final String? title;
+  final int? duration;
+  final String? dimensions;
   final String? mimeType;
+  final int? fileSize;
   final String? sha256;
+  final String? thumbnailUrl;
+  final List<String>? hashtags;
+  final int createdAt;
+  final List<List<String>>? rawTags;
 }

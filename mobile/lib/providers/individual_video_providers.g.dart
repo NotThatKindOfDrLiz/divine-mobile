@@ -8,28 +8,40 @@ part of 'individual_video_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Provider for individual video controllers with autoDispose
-/// Each video gets its own controller instance
+/// Provider for individual video controllers with autoDispose.
 ///
-/// Integrates with VideoControllerRepository pool to enforce max concurrent
-/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+/// This is a thin wrapper around VideoControllerPool. The pool handles:
+/// - Controller creation (platform-specific, cache-aware)
+/// - Initialization with retry logic (in background)
+/// - Loop enforcement for long videos
+/// - State change tracking
+/// - LRU eviction when at capacity
 ///
-/// **Important:** Controllers are owned by the pool, not this provider.
-/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
-/// The pool handles disposal during LRU eviction or clear().
+/// This provider only handles:
+/// - Ref-specific error reactions (cache corruption retry, broken video tracking)
+/// - Lifecycle management (checkin on dispose)
+///
+/// **Important:** The controller is returned immediately but may not be
+/// initialized yet. Callers should check `controller.value.isInitialized`.
 
 @ProviderFor(individualVideoController)
 const individualVideoControllerProvider = IndividualVideoControllerFamily._();
 
-/// Provider for individual video controllers with autoDispose
-/// Each video gets its own controller instance
+/// Provider for individual video controllers with autoDispose.
 ///
-/// Integrates with VideoControllerRepository pool to enforce max concurrent
-/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+/// This is a thin wrapper around VideoControllerPool. The pool handles:
+/// - Controller creation (platform-specific, cache-aware)
+/// - Initialization with retry logic (in background)
+/// - Loop enforcement for long videos
+/// - State change tracking
+/// - LRU eviction when at capacity
 ///
-/// **Important:** Controllers are owned by the pool, not this provider.
-/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
-/// The pool handles disposal during LRU eviction or clear().
+/// This provider only handles:
+/// - Ref-specific error reactions (cache corruption retry, broken video tracking)
+/// - Lifecycle management (checkin on dispose)
+///
+/// **Important:** The controller is returned immediately but may not be
+/// initialized yet. Callers should check `controller.value.isInitialized`.
 
 final class IndividualVideoControllerProvider
     extends
@@ -39,15 +51,21 @@ final class IndividualVideoControllerProvider
           VideoPlayerController
         >
     with $Provider<VideoPlayerController> {
-  /// Provider for individual video controllers with autoDispose
-  /// Each video gets its own controller instance
+  /// Provider for individual video controllers with autoDispose.
   ///
-  /// Integrates with VideoControllerRepository pool to enforce max concurrent
-  /// controller limit. When pool is at capacity, oldest idle controller is evicted.
+  /// This is a thin wrapper around VideoControllerPool. The pool handles:
+  /// - Controller creation (platform-specific, cache-aware)
+  /// - Initialization with retry logic (in background)
+  /// - Loop enforcement for long videos
+  /// - State change tracking
+  /// - LRU eviction when at capacity
   ///
-  /// **Important:** Controllers are owned by the pool, not this provider.
-  /// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
-  /// The pool handles disposal during LRU eviction or clear().
+  /// This provider only handles:
+  /// - Ref-specific error reactions (cache corruption retry, broken video tracking)
+  /// - Lifecycle management (checkin on dispose)
+  ///
+  /// **Important:** The controller is returned immediately but may not be
+  /// initialized yet. Callers should check `controller.value.isInitialized`.
   const IndividualVideoControllerProvider._({
     required IndividualVideoControllerFamily super.from,
     required VideoControllerParams super.argument,
@@ -102,17 +120,23 @@ final class IndividualVideoControllerProvider
 }
 
 String _$individualVideoControllerHash() =>
-    r'deabc87b33e28d3581cc2619df99126ef5ae7d44';
+    r'a03936f5533ddbf9d06184427db581ac2039b1e1';
 
-/// Provider for individual video controllers with autoDispose
-/// Each video gets its own controller instance
+/// Provider for individual video controllers with autoDispose.
 ///
-/// Integrates with VideoControllerRepository pool to enforce max concurrent
-/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+/// This is a thin wrapper around VideoControllerPool. The pool handles:
+/// - Controller creation (platform-specific, cache-aware)
+/// - Initialization with retry logic (in background)
+/// - Loop enforcement for long videos
+/// - State change tracking
+/// - LRU eviction when at capacity
 ///
-/// **Important:** Controllers are owned by the pool, not this provider.
-/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
-/// The pool handles disposal during LRU eviction or clear().
+/// This provider only handles:
+/// - Ref-specific error reactions (cache corruption retry, broken video tracking)
+/// - Lifecycle management (checkin on dispose)
+///
+/// **Important:** The controller is returned immediately but may not be
+/// initialized yet. Callers should check `controller.value.isInitialized`.
 
 final class IndividualVideoControllerFamily extends $Family
     with
@@ -129,15 +153,21 @@ final class IndividualVideoControllerFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Provider for individual video controllers with autoDispose
-  /// Each video gets its own controller instance
+  /// Provider for individual video controllers with autoDispose.
   ///
-  /// Integrates with VideoControllerRepository pool to enforce max concurrent
-  /// controller limit. When pool is at capacity, oldest idle controller is evicted.
+  /// This is a thin wrapper around VideoControllerPool. The pool handles:
+  /// - Controller creation (platform-specific, cache-aware)
+  /// - Initialization with retry logic (in background)
+  /// - Loop enforcement for long videos
+  /// - State change tracking
+  /// - LRU eviction when at capacity
   ///
-  /// **Important:** Controllers are owned by the pool, not this provider.
-  /// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
-  /// The pool handles disposal during LRU eviction or clear().
+  /// This provider only handles:
+  /// - Ref-specific error reactions (cache corruption retry, broken video tracking)
+  /// - Lifecycle management (checkin on dispose)
+  ///
+  /// **Important:** The controller is returned immediately but may not be
+  /// initialized yet. Callers should check `controller.value.isInitialized`.
 
   IndividualVideoControllerProvider call(VideoControllerParams params) =>
       IndividualVideoControllerProvider._(argument: params, from: this);

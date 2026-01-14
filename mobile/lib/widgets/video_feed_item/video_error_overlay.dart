@@ -107,81 +107,45 @@ class VideoErrorOverlay extends ConsumerWidget {
                             .verifyAdultContentAccess(context);
 
                         Log.info(
-                          '🔐 [AGE-GATE] Dialog result: verified=$verified, isAdultContentVerified=${ageVerificationService.isAdultContentVerified}',
+                          '🔐 [AGE-GATE] Dialog result: verified=$verified',
                           name: 'VideoErrorOverlay',
                           category: LogCategory.video,
                         );
 
                         if (verified && context.mounted) {
-                          // Pre-cache auth headers before retrying
-                          // This ensures the retry will have headers available immediately
-                          Log.info(
-                            '🔐 [AGE-GATE] Starting _precacheAuthHeaders for video ${video.id}',
-                            name: 'VideoErrorOverlay',
-                            category: LogCategory.video,
-                          );
-                          await _precacheAuthHeaders(ref, controllerParams);
-
-                          // Check if headers were actually cached
-                          final cachedHeaders = ref.read(
-                            authHeadersCacheProvider,
-                          );
-                          final hasHeaders = cachedHeaders.containsKey(
-                            video.id,
-                          );
-                          Log.info(
-                            '🔐 [AGE-GATE] After precache: hasHeaders=$hasHeaders, cacheSize=${cachedHeaders.length}',
-                            name: 'VideoErrorOverlay',
-                            category: LogCategory.video,
-                          );
-
-                          // CRITICAL: Only retry if this video is still active
-                          // If user swiped away during verification, don't invalidate -
-                          // the new active video's controller is already correct
-                          // NOTE: activeVideoIdProvider returns stableId (vineId ?? id),
-                          // but we check both to be defensive against future changes.
+                          // Only retry if this video is still active
                           final activeVideoId = ref.read(activeVideoIdProvider);
                           final isThisVideoActive =
                               activeVideoId == video.stableId ||
                               activeVideoId == video.id;
-                          Log.info(
-                            '🔐 [AGE-GATE] Checking active video: activeVideoId=$activeVideoId, stableId=${video.stableId}, id=${video.id}, match=$isThisVideoActive',
-                            name: 'VideoErrorOverlay',
-                            category: LogCategory.video,
-                          );
 
-                          if (isThisVideoActive) {
-                            // Video is still active - safe to invalidate and retry
-                            if (context.mounted) {
-                              Log.info(
-                                '🔐 [AGE-GATE] Invalidating provider to retry video ${video.id}',
-                                name: 'VideoErrorOverlay',
-                                category: LogCategory.video,
-                              );
-                              ref.invalidate(
-                                individualVideoControllerProvider(
-                                  controllerParams,
-                                ),
-                              );
-                            }
+                          if (isThisVideoActive && context.mounted) {
+                            Log.info(
+                              '🔐 [AGE-GATE] Evicting and retrying video ${video.id}',
+                              name: 'VideoErrorOverlay',
+                              category: LogCategory.video,
+                            );
+                            // Evict failed controller from pool, then invalidate provider
+                            // Pool will create fresh controller with auth headers
+                            final pool = ref.read(videoControllerPoolProvider);
+                            pool.evict(controllerParams.videoId);
+                            ref.invalidate(
+                              individualVideoControllerProvider(
+                                controllerParams,
+                              ),
+                            );
                           } else {
-                            // User swiped to different video during verification
-                            // Auth headers are cached, so when user swipes back, it will work
                             Log.debug(
-                              'Age verification completed but video no longer active (active=$activeVideoId, stableId=${video.stableId}, id=${video.id})',
+                              'Age verification completed but video no longer active',
                               name: 'VideoErrorOverlay',
                               category: LogCategory.video,
                             );
                           }
-                        } else {
-                          Log.warning(
-                            '🔐 [AGE-GATE] Verification failed or context not mounted: verified=$verified, mounted=${context.mounted}',
-                            name: 'VideoErrorOverlay',
-                            category: LogCategory.video,
-                          );
                         }
                       } else {
-                        // Regular retry for other errors
+                        // Regular retry - evict failed controller first
+                        final pool = ref.read(videoControllerPoolProvider);
+                        pool.evict(controllerParams.videoId);
                         ref.invalidate(
                           individualVideoControllerProvider(controllerParams),
                         );
@@ -198,107 +162,6 @@ class VideoErrorOverlay extends ConsumerWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// Pre-cache authentication headers for a video before retrying
-/// This ensures the retry will have headers available immediately without a second 401 failure
-Future<void> _precacheAuthHeaders(
-  WidgetRef ref,
-  VideoControllerParams controllerParams,
-) async {
-  Log.debug(
-    '🔐 [PRECACHE] Starting precache for video ${controllerParams.videoId}',
-    name: 'VideoErrorOverlay',
-    category: LogCategory.video,
-  );
-  try {
-    final blossomAuthService = ref.read(blossomAuthServiceProvider);
-
-    if (!blossomAuthService.canCreateHeaders) {
-      Log.warning(
-        '🔐 [PRECACHE] Cannot create headers - canCreateHeaders=false',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-      return;
-    }
-
-    if (controllerParams.videoEvent == null) {
-      Log.warning(
-        '🔐 [PRECACHE] No videoEvent on controllerParams',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-      return;
-    }
-
-    final videoEvent = controllerParams.videoEvent as dynamic;
-    final sha256 = videoEvent.sha256 as String?;
-
-    if (sha256 == null || sha256.isEmpty) {
-      Log.warning(
-        '🔐 [PRECACHE] No sha256 hash on video event',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-      return;
-    }
-
-    // Extract server URL from video URL
-    String? serverUrl;
-    try {
-      final uri = Uri.parse(controllerParams.videoUrl);
-      serverUrl = '${uri.scheme}://${uri.host}';
-      Log.debug(
-        '🔐 [PRECACHE] Extracted serverUrl: $serverUrl',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-    } catch (e) {
-      Log.warning(
-        '🔐 [PRECACHE] Failed to parse video URL: $e',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-      return;
-    }
-
-    // Generate auth header
-    Log.debug(
-      '🔐 [PRECACHE] Generating auth header with sha256=${sha256.substring(0, 16)}...',
-      name: 'VideoErrorOverlay',
-      category: LogCategory.video,
-    );
-    final authHeader = await blossomAuthService.createGetAuthHeader(
-      sha256Hash: sha256,
-      serverUrl: serverUrl,
-    );
-
-    if (authHeader != null) {
-      // Cache the header for immediate use
-      final cache = {...ref.read(authHeadersCacheProvider)};
-      cache[controllerParams.videoId] = {'Authorization': authHeader};
-      ref.read(authHeadersCacheProvider.notifier).state = cache;
-      Log.info(
-        '🔐 [PRECACHE] Successfully cached auth header for video ${controllerParams.videoId}',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-    } else {
-      Log.warning(
-        '🔐 [PRECACHE] createGetAuthHeader returned null',
-        name: 'VideoErrorOverlay',
-        category: LogCategory.video,
-      );
-    }
-  } catch (e) {
-    // Log error but don't block retry - retry will attempt without cached headers
-    Log.error(
-      '🔐 [PRECACHE] Exception during precache: $e',
-      name: 'VideoErrorOverlay',
-      category: LogCategory.video,
     );
   }
 }

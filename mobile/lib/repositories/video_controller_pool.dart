@@ -1,8 +1,11 @@
 // ABOUTME: Pool for managing video player controllers with LRU eviction
 // ABOUTME: Owns controller lifecycle - controllers are only disposed on eviction or clear()
 // ABOUTME: Providers "checkout" controllers and "checkin" when done (no disposal in provider)
+// ABOUTME: Handles full initialization including retry, loop enforcement, and state tracking
 
+import 'dart:async';
 import 'dart:collection';
+import 'dart:ui' show VoidCallback;
 
 import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb;
 import 'package:openvine/providers/individual_video_providers.dart'
@@ -13,16 +16,47 @@ import 'package:openvine/services/video_cache_manager.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:video_player/video_player.dart';
 
-/// Result of acquiring a controller from the repository.
+/// Maximum playback duration before looping (6.3 seconds)
+/// Videos longer than this will loop back to beginning at this mark
+const maxPlaybackDuration = Duration(milliseconds: 6300);
+
+/// Interval for checking playback position (200ms = 5 checks/sec)
+/// Balances responsiveness with performance (vs 60 checks/sec for per-frame)
+const loopCheckInterval = Duration(milliseconds: 200);
+
+/// Error types that can occur during controller initialization.
+enum VideoControllerErrorType {
+  /// No error occurred
+  none,
+
+  /// 401 Unauthorized - likely NSFW content requiring age verification
+  unauthorized,
+
+  /// Cache file is corrupted and should be cleared
+  cacheCorrupted,
+
+  /// Video URL is broken/non-functional (404, timeout, etc.)
+  videoBroken,
+
+  /// Initialization timed out
+  timeout,
+
+  /// Other initialization error
+  other,
+}
+
+/// Result of acquiring a controller from the pool.
 class VideoControllerResult {
   const VideoControllerResult({
     required this.controller,
     required this.videoUrl,
     required this.isFromCache,
     required this.wasExisting,
+    this.errorType = VideoControllerErrorType.none,
+    this.errorMessage,
   });
 
-  /// The video player controller (not yet initialized if newly created).
+  /// The video player controller (initialized if no error).
   final VideoPlayerController controller;
 
   /// The final video URL used (may be normalized from .bin).
@@ -31,9 +65,17 @@ class VideoControllerResult {
   /// Whether the controller was created from a cached file.
   final bool isFromCache;
 
-  /// Whether this controller already existed in the repository.
-  /// If false, the controller was just created and needs initialization.
+  /// Whether this controller already existed in the pool.
   final bool wasExisting;
+
+  /// Error type if initialization failed.
+  final VideoControllerErrorType errorType;
+
+  /// Error message if initialization failed.
+  final String? errorMessage;
+
+  /// Whether the controller initialized successfully.
+  bool get hasError => errorType != VideoControllerErrorType.none;
 }
 
 /// Metadata tracked for each controller in the pool.
@@ -54,8 +96,24 @@ class _ControllerEntry {
   bool isPlaying = false;
   bool isCheckedOut = true; // Starts as checked out when created
 
+  /// Timer for enforcing 6.3s loop on long videos.
+  Timer? loopEnforcementTimer;
+
+  /// State change listener attached to controller.
+  VoidCallback? stateListener;
+
   void recordAccess() {
     lastAccessTime = DateTime.now();
+  }
+
+  /// Cleanup timers and listeners before disposal.
+  void cleanup() {
+    loopEnforcementTimer?.cancel();
+    loopEnforcementTimer = null;
+    if (stateListener != null) {
+      controller.removeListener(stateListener!);
+      stateListener = null;
+    }
   }
 }
 
@@ -123,12 +181,18 @@ class VideoControllerPool extends ChangeNotifier {
   /// Checkout a controller for the given params.
   ///
   /// Returns existing controller if already in pool, otherwise creates new.
-  /// Handles pool limits internally - may evict LRU controller if at capacity.
-  /// Controller is NOT initialized if newly created - caller must initialize.
+  /// Initialization happens in the background - callers should check
+  /// `controller.value.isInitialized` before using.
   ///
   /// The controller is marked as "checked out" and protected from eviction
   /// until [checkin] is called.
-  VideoControllerResult checkout(VideoControllerParams params) {
+  ///
+  /// [onError] is called if initialization fails, allowing the caller to
+  /// handle errors (e.g., mark video as broken, clear corrupted cache).
+  VideoControllerResult checkout(
+    VideoControllerParams params, {
+    void Function(VideoControllerErrorType type, String message)? onError,
+  }) {
     final videoId = params.videoId;
 
     // Check if we already have this controller in pool
@@ -158,15 +222,17 @@ class VideoControllerPool extends ChangeNotifier {
     }
 
     // Create new controller
-    final result = _createController(params);
+    final createResult = _createController(params);
+    final controller = createResult.controller;
 
-    // Store in pool (starts as checked out)
-    _controllers[videoId] = _ControllerEntry(
-      controller: result.controller,
-      videoUrl: result.videoUrl,
-      isFromCache: result.isFromCache,
+    // Store in pool (starts as checked out and initializing)
+    final entry = _ControllerEntry(
+      controller: controller,
+      videoUrl: createResult.videoUrl,
+      isFromCache: createResult.isFromCache,
       params: params,
     );
+    _controllers[videoId] = entry;
 
     Log.info(
       '🎬 [POOL] Created controller for $videoId (count: ${_controllers.length}/$maxConcurrentControllers)',
@@ -176,10 +242,34 @@ class VideoControllerPool extends ChangeNotifier {
 
     notifyListeners();
 
+    // Trigger background caching if needed
+    if (!createResult.isFromCache && shouldCacheVideo(params)) {
+      unawaited(
+        _cacheVideoInBackground(params).catchError((error) {
+          Log.warning(
+            '⚠️ Background video caching failed: $error',
+            name: 'VideoControllerPool',
+            category: LogCategory.video,
+          );
+          return null;
+        }),
+      );
+      unawaited(cacheAuthHeaders(params));
+    }
+
+    // Start initialization in background (fire-and-forget)
+    unawaited(
+      _initializeController(entry, params).then((result) {
+        if (result.hasError && onError != null) {
+          onError(result.errorType, result.errorMessage ?? 'Unknown error');
+        }
+      }),
+    );
+
     return VideoControllerResult(
-      controller: result.controller,
-      videoUrl: result.videoUrl,
-      isFromCache: result.isFromCache,
+      controller: controller,
+      videoUrl: createResult.videoUrl,
+      isFromCache: createResult.isFromCache,
       wasExisting: false,
     );
   }
@@ -377,8 +467,9 @@ class VideoControllerPool extends ChangeNotifier {
   void clear() {
     final count = _controllers.length;
 
-    // Dispose each controller before clearing
+    // Cleanup and dispose each controller before clearing
     for (final entry in _controllers.values) {
+      entry.cleanup();
       try {
         entry.controller.dispose();
       } catch (e) {
@@ -404,12 +495,13 @@ class VideoControllerPool extends ChangeNotifier {
 
   @override
   void dispose() {
-    // Dispose all controllers before clearing
+    // Cleanup and dispose all controllers before clearing
     for (final entry in _controllers.values) {
+      entry.cleanup();
       try {
         entry.controller.dispose();
       } catch (e) {
-        // Ignore disposal errors during repository dispose
+        // Ignore disposal errors during pool dispose
       }
     }
     _controllers.clear();
@@ -500,7 +592,9 @@ class VideoControllerPool extends ChangeNotifier {
         category: LogCategory.video,
       );
 
-      // Remove state listener if any (prevent callbacks to disposed controller)
+      // Cleanup timers and listeners before disposing
+      entry.cleanup();
+
       try {
         entry.controller.dispose();
       } catch (e) {
@@ -653,5 +747,395 @@ class VideoControllerPool extends ChangeNotifier {
     }
 
     return null;
+  }
+
+  // ===========================================================================
+  // Controller Initialization
+  // ===========================================================================
+
+  /// Initialize controller with retry logic, loop enforcement, and state tracking.
+  Future<VideoControllerResult> _initializeController(
+    _ControllerEntry entry,
+    VideoControllerParams params,
+  ) async {
+    final controller = entry.controller;
+    final videoId = params.videoId;
+
+    // Set up state change listener
+    _setupStateListener(entry, params);
+
+    // Determine timeout based on video format
+    final isHls =
+        params.videoUrl.toLowerCase().contains('.m3u8') ||
+        params.videoUrl.toLowerCase().contains('hls');
+    final timeoutDuration = isHls
+        ? const Duration(seconds: 60)
+        : const Duration(seconds: 30);
+    final formatType = isHls ? 'HLS' : 'MP4';
+
+    // Initialize with retry logic
+    const maxAttempts = 3;
+    const retryDelay = Duration(milliseconds: 500);
+
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await controller.initialize().timeout(
+          timeoutDuration,
+          onTimeout: () => throw TimeoutException(
+            'Video initialization timed out after ${timeoutDuration.inSeconds} seconds ($formatType format)',
+          ),
+        );
+
+        // Success! Exit retry loop
+        if (attempt > 1) {
+          Log.info(
+            '✅ Video $videoId initialized successfully on attempt $attempt',
+            name: 'VideoControllerPool',
+            category: LogCategory.video,
+          );
+        }
+
+        // Post-initialization setup
+        return _completeInitialization(entry, params);
+      } catch (error) {
+        final errorStr = error.toString().toLowerCase();
+        final isRetryable =
+            errorStr.contains('byte range') ||
+            errorStr.contains('coremediaerrordomain') ||
+            errorStr.contains('network') ||
+            errorStr.contains('connection');
+
+        if (isRetryable && attempt < maxAttempts) {
+          Log.warning(
+            '⚠️ Video $videoId initialization attempt $attempt failed (retryable): $error',
+            name: 'VideoControllerPool',
+            category: LogCategory.video,
+          );
+          await Future.delayed(retryDelay);
+          // Continue to next attempt
+        } else {
+          // Non-retryable error or max attempts reached
+          if (attempt == maxAttempts) {
+            Log.error(
+              '❌ Video $videoId initialization failed after $maxAttempts attempts',
+              name: 'VideoControllerPool',
+              category: LogCategory.video,
+            );
+          }
+
+          return _handleInitializationError(entry, params, error);
+        }
+      }
+    }
+
+    // Should never reach here, but return error result just in case
+    return VideoControllerResult(
+      controller: controller,
+      videoUrl: entry.videoUrl,
+      isFromCache: entry.isFromCache,
+      wasExisting: false,
+      errorType: VideoControllerErrorType.other,
+      errorMessage: 'Unexpected initialization failure',
+    );
+  }
+
+  /// Complete initialization after successful controller.initialize().
+  VideoControllerResult _completeInitialization(
+    _ControllerEntry entry,
+    VideoControllerParams params,
+  ) {
+    final controller = entry.controller;
+    final videoId = params.videoId;
+
+    final initialPosition = controller.value.position;
+    final initialSize = controller.value.size;
+
+    Log.info(
+      '✅ VideoPlayerController initialized for video $videoId\n'
+      '   • Initial position: ${initialPosition.inMilliseconds}ms\n'
+      '   • Duration: ${controller.value.duration.inMilliseconds}ms\n'
+      '   • Size: ${initialSize.width.toInt()}x${initialSize.height.toInt()}\n'
+      '   • Buffered: ${controller.value.buffered.isNotEmpty ? controller.value.buffered.last.end.inMilliseconds : 0}ms',
+      name: 'VideoControllerPool',
+      category: LogCategory.system,
+    );
+
+    // Set looping for Vine-like behavior
+    controller.setLooping(true);
+
+    // Mark as initialized
+    entry.isInitializing = false;
+
+    // Set up loop enforcement for long videos
+    _setupLoopEnforcement(entry, params);
+
+    // Seek to beginning if video started at non-zero position
+    if (initialPosition.inMilliseconds > 0) {
+      Log.warning(
+        '⚠️ VIDEO NOT AT START! Video $videoId initialized at ${initialPosition.inMilliseconds}ms instead of 0ms',
+        name: 'VideoControllerPool',
+        category: LogCategory.video,
+      );
+      controller.seekTo(Duration.zero).catchError((e) {
+        Log.error(
+          '❌ Failed to seek video $videoId to start: $e',
+          name: 'VideoControllerPool',
+          category: LogCategory.video,
+        );
+      });
+    }
+
+    Log.debug(
+      '⏸️ Video $videoId initialized and paused (widget controls playback)',
+      name: 'VideoControllerPool',
+      category: LogCategory.system,
+    );
+
+    return VideoControllerResult(
+      controller: controller,
+      videoUrl: entry.videoUrl,
+      isFromCache: entry.isFromCache,
+      wasExisting: false,
+    );
+  }
+
+  /// Handle initialization errors and categorize them.
+  VideoControllerResult _handleInitializationError(
+    _ControllerEntry entry,
+    VideoControllerParams params,
+    dynamic error,
+  ) {
+    final controller = entry.controller;
+    final errorMessage = error.toString();
+
+    // Log detailed error
+    _logInitializationError(params, errorMessage);
+
+    // Mark as no longer initializing
+    entry.isInitializing = false;
+
+    // Categorize the error
+    final errorType = _categorizeError(errorMessage);
+
+    return VideoControllerResult(
+      controller: controller,
+      videoUrl: entry.videoUrl,
+      isFromCache: entry.isFromCache,
+      wasExisting: false,
+      errorType: errorType,
+      errorMessage: errorMessage,
+    );
+  }
+
+  /// Log detailed initialization error with Nostr event info if available.
+  void _logInitializationError(VideoControllerParams params, String errorMessage) {
+    final videoId = params.videoId;
+    var logMessage = '❌ VideoPlayerController initialization failed for video $videoId: $errorMessage';
+
+    if (params.videoEvent != null) {
+      final event = params.videoEvent as dynamic;
+      logMessage += '\n📋 Full Nostr Event Details:';
+      logMessage += '\n   • Event ID: ${event.id}';
+      logMessage += '\n   • Pubkey: ${event.pubkey}';
+      logMessage += '\n   • Content: ${event.content}';
+      logMessage += '\n   • Video URL: ${event.videoUrl}';
+      logMessage += '\n   • Title: ${event.title ?? 'null'}';
+      logMessage += '\n   • Duration: ${event.duration ?? 'null'}';
+      logMessage += '\n   • Dimensions: ${event.dimensions ?? 'null'}';
+      logMessage += '\n   • MIME Type: ${event.mimeType ?? 'null'}';
+      logMessage += '\n   • File Size: ${event.fileSize ?? 'null'}';
+      logMessage += '\n   • SHA256: ${event.sha256 ?? 'null'}';
+      logMessage += '\n   • Thumbnail URL: ${event.thumbnailUrl ?? 'null'}';
+      logMessage += '\n   • Hashtags: ${event.hashtags ?? []}';
+      logMessage += '\n   • Created At: ${DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000)}';
+      if (event.rawTags != null && event.rawTags.isNotEmpty) {
+        logMessage += '\n   • Raw Tags: ${event.rawTags}';
+      }
+    } else {
+      logMessage += '\n⚠️  No Nostr event details available';
+    }
+
+    Log.error(
+      logMessage,
+      name: 'VideoControllerPool',
+      category: LogCategory.system,
+    );
+  }
+
+  /// Categorize an error message into an error type.
+  VideoControllerErrorType _categorizeError(String errorMessage) {
+    final lowerError = errorMessage.toLowerCase();
+
+    // Check for 401 Unauthorized
+    if (lowerError.contains('401') ||
+        lowerError.contains('unauthorized') ||
+        lowerError.contains('invalid statuscode: 401')) {
+      return VideoControllerErrorType.unauthorized;
+    }
+
+    // Check for cache corruption
+    if (lowerError.contains('osstatus error -12848') ||
+        lowerError.contains('media may be damaged') ||
+        lowerError.contains('cannot open') ||
+        (lowerError.contains('failed to load video') &&
+            lowerError.contains('damaged'))) {
+      return VideoControllerErrorType.cacheCorrupted;
+    }
+
+    // Check for timeout
+    if (lowerError.contains('timeout') ||
+        lowerError.contains('timed out')) {
+      return VideoControllerErrorType.timeout;
+    }
+
+    // Check for broken video (404, network errors, etc.)
+    if (lowerError.contains('404') ||
+        lowerError.contains('not found') ||
+        lowerError.contains('invalid statuscode: 404') ||
+        lowerError.contains('httpexception') ||
+        lowerError.contains('connection refused') ||
+        lowerError.contains('network error')) {
+      return VideoControllerErrorType.videoBroken;
+    }
+
+    return VideoControllerErrorType.other;
+  }
+
+  /// Set up loop enforcement timer for videos longer than 6.3 seconds.
+  void _setupLoopEnforcement(
+    _ControllerEntry entry,
+    VideoControllerParams params,
+  ) {
+    final controller = entry.controller;
+    final videoId = params.videoId;
+    final videoDuration = controller.value.duration;
+
+    if (videoDuration > maxPlaybackDuration) {
+      entry.loopEnforcementTimer = Timer.periodic(loopCheckInterval, (timer) {
+        // Skip check if video is paused
+        if (!controller.value.isPlaying) return;
+
+        // Enforce loop at 6.3s mark
+        if (controller.value.position >= maxPlaybackDuration) {
+          Log.debug(
+            '🔄 Loop enforcement: $videoId at ${controller.value.position.inMilliseconds}ms → seeking to 0',
+            name: 'LoopEnforcement',
+            category: LogCategory.video,
+          );
+          controller.seekTo(Duration.zero).catchError((e) {
+            Log.warning(
+              'Loop seek failed: $e',
+              name: 'LoopEnforcement',
+              category: LogCategory.video,
+            );
+          });
+        }
+      });
+      Log.info(
+        '⏱️ Started loop enforcement timer for $videoId (duration: ${videoDuration.inMilliseconds}ms > ${maxPlaybackDuration.inMilliseconds}ms)',
+        name: 'LoopEnforcement',
+        category: LogCategory.video,
+      );
+    }
+  }
+
+  /// Set up state change listener for logging significant state changes.
+  void _setupStateListener(
+    _ControllerEntry entry,
+    VideoControllerParams params,
+  ) {
+    final controller = entry.controller;
+    final videoId = params.videoId;
+
+    // Track previous state to avoid logging every frame update
+    bool? lastIsInitialized;
+    bool? lastIsBuffering;
+    bool? lastHasError;
+
+    void stateChangeListener() {
+      final value = controller.value;
+      final isInitialized = value.isInitialized;
+      final isBuffering = value.isBuffering;
+      final hasError = value.hasError;
+
+      // Log only when significant state changes occur
+      if (isInitialized != lastIsInitialized ||
+          isBuffering != lastIsBuffering ||
+          hasError != lastHasError) {
+        final position = value.position;
+        final duration = value.duration;
+        final buffered = value.buffered.isNotEmpty
+            ? value.buffered.last.end
+            : Duration.zero;
+
+        Log.debug(
+          '🎬 VIDEO STATE CHANGE [$videoId]:\n'
+          '   • Position: ${position.inMilliseconds}ms / ${duration.inMilliseconds}ms\n'
+          '   • Buffered: ${buffered.inMilliseconds}ms\n'
+          '   • Initialized: $isInitialized\n'
+          '   • Playing: ${value.isPlaying}\n'
+          '   • Buffering: $isBuffering\n'
+          '   • Size: ${value.size.width.toInt()}x${value.size.height.toInt()}\n'
+          '   • HasError: $hasError',
+          name: 'VideoControllerPool',
+          category: LogCategory.video,
+        );
+
+        lastIsInitialized = isInitialized;
+        lastIsBuffering = isBuffering;
+        lastHasError = hasError;
+      }
+    }
+
+    controller.addListener(stateChangeListener);
+    entry.stateListener = stateChangeListener;
+  }
+
+  /// Cache video in background with authentication if needed.
+  Future<void> _cacheVideoInBackground(VideoControllerParams params) async {
+    // Get auth headers if needed for NSFW content
+    Map<String, String>? authHeaders;
+
+    if (_ageVerificationService.isAdultContentVerified &&
+        _blossomAuthService.canCreateHeaders &&
+        params.videoEvent != null) {
+      final videoEvent = params.videoEvent as dynamic;
+      final sha256 = videoEvent.sha256 as String?;
+
+      if (sha256 != null && sha256.isNotEmpty) {
+        String? serverUrl;
+        try {
+          final uri = Uri.parse(params.videoUrl);
+          serverUrl = '${uri.scheme}://${uri.host}';
+        } catch (e) {
+          Log.warning(
+            'Failed to parse video URL for server: $e',
+            name: 'VideoControllerPool',
+            category: LogCategory.video,
+          );
+        }
+
+        final authHeader = await _blossomAuthService.createGetAuthHeader(
+          sha256Hash: sha256,
+          serverUrl: serverUrl,
+        );
+
+        if (authHeader != null) {
+          authHeaders = {'Authorization': authHeader};
+          Log.info(
+            '✅ Added Blossom auth header for NSFW video cache',
+            name: 'VideoControllerPool',
+            category: LogCategory.video,
+          );
+        }
+      }
+    }
+
+    // Cache video with optional auth headers
+    await _cacheManager.cacheVideo(
+      params.videoUrl,
+      params.videoId,
+      authHeaders: authHeaders,
+    );
   }
 }
