@@ -356,7 +356,7 @@ class _ScrollStack extends ConsumerWidget {
   ///
   /// Returns 1.0 for the centered clip and 0.85 for clips far from center,
   /// with linear interpolation in between.
-  double _calculateScale(int index, int currentClipIndex) {
+  double _calculateScale(int index) {
     if (!pageController.hasClients || !pageController.position.haveDimensions) {
       return index == currentClipIndex ? 1 : 0.85;
     }
@@ -377,13 +377,9 @@ class _ScrollStack extends ConsumerWidget {
   }
 
   /// Calculates the horizontal offset for a clip to create depth effect.
-  double _calculateXOffset(
-    int index,
-    int currentClipIndex,
-    double screenWidth,
-  ) {
+  double _calculateXOffset(int index) {
     // Calculate maxOffset as percentage of screen width (10%)
-    final maxOffset = screenWidth * 0.2;
+    final maxOffset = constraints.maxWidth * 0.2;
 
     if (!pageController.hasClients || !pageController.position.haveDimensions) {
       if (index < currentClipIndex) return maxOffset;
@@ -398,12 +394,19 @@ class _ScrollStack extends ConsumerWidget {
     // Offset is 0 for clips beyond distance 1.3
     if (absDifference > 1.3) return 0;
 
-    // From 0.0 to 1.0: cubic easing, offset increases
-    // From 1.0 to 1.3: gradual falloff, offset decreases to 0
+    const offsetStart = 0.4;
+    // X-Offset only applies from [offsetStart] to 1.0 distance
+    // From 0.0 to [offsetStart]: no offset (clips wait)
+    // From [offsetStart] to 1.0: offset increases to max
+    // From 1.0 to 1.3: gradual falloff
     double effectStrength;
-    if (absDifference <= 1.0) {
-      // Cubic easing: 0.0→1.0
-      effectStrength = absDifference * absDifference * absDifference;
+    if (absDifference < offsetStart) {
+      // No offset until clip is almost at edge
+      effectStrength = 0;
+    } else if (absDifference <= 1.0) {
+      // Remap [offsetStart, 1.0] to [0.0, 1.0]
+      final remapped = (absDifference - offsetStart) / (1.0 - offsetStart);
+      effectStrength = remapped * remapped * remapped;
     } else {
       // Gradual falloff: 1.0→0.0 over distance 1.0→1.3
       final falloff =
@@ -440,12 +443,8 @@ class _ScrollStack extends ConsumerWidget {
             currentClipIndex: currentClipIndex,
             constraints: constraints,
             onStartReordering: onStartReordering,
-            calculateScale: (index) => _calculateScale(index, currentClipIndex),
-            calculateXOffset: (index) => _calculateXOffset(
-              index,
-              currentClipIndex,
-              constraints.maxWidth,
-            ),
+            calculateScale: _calculateScale,
+            calculateXOffset: _calculateXOffset,
           )
         else
           _SwipeView(
@@ -455,12 +454,8 @@ class _ScrollStack extends ConsumerWidget {
             currentClipIndex: currentClipIndex,
             page: page,
             onStartReordering: onStartReordering,
-            calculateScale: (index) => _calculateScale(index, currentClipIndex),
-            calculateXOffset: (index) => _calculateXOffset(
-              index,
-              currentClipIndex,
-              constraints.maxWidth,
-            ),
+            calculateScale: _calculateScale,
+            calculateXOffset: _calculateXOffset,
           ),
 
         if (showCenterOverlay) ...[
@@ -476,12 +471,8 @@ class _ScrollStack extends ConsumerWidget {
             isReordering: state.isReordering,
             isOverDeleteZone: state.isOverDeleteZone,
             dragOffsetNotifier: dragOffsetNotifier,
-            scale: _calculateScale(centerIndex, currentClipIndex),
-            xOffset: _calculateXOffset(
-              centerIndex,
-              currentClipIndex,
-              constraints.maxWidth,
-            ),
+            scale: _calculateScale(centerIndex),
+            xOffset: _calculateXOffset(centerIndex),
           ),
 
           // Gradient overlays on sides
