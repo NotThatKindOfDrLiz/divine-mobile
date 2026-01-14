@@ -3,6 +3,7 @@
 // ABOUTME: Provider only handles ref-specific error reactions and lifecycle
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:openvine/models/video_event.dart';
 import 'package:video_player/video_player.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:openvine/repositories/video_controller_pool.dart';
@@ -25,7 +26,7 @@ class VideoControllerParams {
 
   final String videoId;
   final String videoUrl;
-  final dynamic videoEvent; // VideoEvent for enhanced error reporting
+  final VideoEvent? videoEvent; // VideoEvent for enhanced error reporting
 
   @override
   bool operator ==(Object other) =>

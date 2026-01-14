@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
+import 'package:openvine/models/video_event.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
 import 'package:openvine/repositories/video_controller_pool.dart';
 import 'package:openvine/services/age_verification_service.dart';
@@ -93,11 +94,17 @@ void main() {
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        final mockVideoEvent = _MockVideoEvent(mimeType: 'video/mp4');
         final params = VideoControllerParams(
           videoId: 'test-video-id',
           videoUrl: 'https://example.com/abc123.bin',
-          videoEvent: mockVideoEvent,
+          videoEvent: VideoEvent(
+            mimeType: 'video/mp4',
+            id: 'test-video-id',
+            pubkey: 'test-pubkey',
+            createdAt: 0,
+            content: 'test-content',
+            timestamp: DateTime.now(),
+          ),
         );
 
         // Act
@@ -114,11 +121,17 @@ void main() {
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        final mockVideoEvent = _MockVideoEvent(mimeType: 'video/webm');
         final params = VideoControllerParams(
           videoId: 'test-video-id',
           videoUrl: 'https://example.com/abc123.bin',
-          videoEvent: mockVideoEvent,
+          videoEvent: VideoEvent(
+            mimeType: 'video/webm',
+            id: 'test-video-id',
+            pubkey: 'test-pubkey',
+            createdAt: 0,
+            content: 'test-content',
+            timestamp: DateTime.now(),
+          ),
         );
 
         // Act
@@ -535,11 +548,17 @@ void main() {
         ).thenAnswer((_) async => 'Bearer new-token');
         when(mockCacheManager.getCachedVideoSync(any)).thenReturn(null);
 
-        final mockVideoEvent = _MockVideoEvent(sha256: 'abc123');
         final params = VideoControllerParams(
           videoId: 'test-video-id',
           videoUrl: 'https://example.com/video.mp4',
-          videoEvent: mockVideoEvent,
+          videoEvent: VideoEvent(
+            sha256: 'abc123',
+            id: 'test-video-id',
+            pubkey: 'test-pubkey',
+            createdAt: 0,
+            content: 'test-content',
+            timestamp: DateTime.now(),
+          ),
         );
 
         // Act
@@ -615,39 +634,4 @@ void main() {
       });
     });
   });
-}
-
-/// Mock video event for testing
-class _MockVideoEvent {
-  _MockVideoEvent({
-    this.mimeType,
-    this.sha256,
-    this.id = 'mock-event-id',
-    this.pubkey = 'mock-pubkey',
-    this.content = 'mock-content',
-    this.videoUrl = 'https://example.com/mock.mp4',
-    this.title,
-    this.duration,
-    this.dimensions,
-    this.fileSize,
-    this.thumbnailUrl,
-    this.hashtags,
-    this.createdAt = 0,
-    this.rawTags,
-  });
-
-  final String id;
-  final String pubkey;
-  final String content;
-  final String videoUrl;
-  final String? title;
-  final int? duration;
-  final String? dimensions;
-  final String? mimeType;
-  final int? fileSize;
-  final String? sha256;
-  final String? thumbnailUrl;
-  final List<String>? hashtags;
-  final int createdAt;
-  final List<List<String>>? rawTags;
 }
