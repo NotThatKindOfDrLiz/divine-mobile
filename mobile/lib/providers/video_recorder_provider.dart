@@ -284,7 +284,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
 
     // We block the recording if the video is already recording or if the
     // remaining duration is less than one frame.
-    if (state.isRecording || remainingDuration < Duration(milliseconds: 30)) {
+    if (!_cameraService.canRecord ||
+        state.isRecording ||
+        remainingDuration < Duration(milliseconds: 30)) {
       return;
     }
 
