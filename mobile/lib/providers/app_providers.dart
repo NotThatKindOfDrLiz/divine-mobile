@@ -106,9 +106,10 @@ VideoVisibilityManager videoVisibilityManager(Ref ref) {
   return VideoVisibilityManager();
 }
 
-/// Video controller repository for managing video player controllers.
-/// Consolidates pool management, controller creation, and resource limits.
-/// Uses LRU eviction to dispose oldest non-playing controller when at capacity.
+/// Video controller pool for managing video player controllers.
+/// Owns controller lifecycle - controllers are only disposed on eviction or clear().
+/// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
+/// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
 @Riverpod(keepAlive: true)
 VideoControllerRepository videoControllerRepository(Ref ref) {
   final ageVerificationService = ref.watch(ageVerificationServiceProvider);

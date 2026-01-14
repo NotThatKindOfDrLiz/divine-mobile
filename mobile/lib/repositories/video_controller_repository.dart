@@ -1,5 +1,6 @@
-// ABOUTME: Repository for managing video player controllers with pooling and caching
-// ABOUTME: Consolidates pool management, controller creation, and resource limits into single service
+// ABOUTME: Pool for managing video player controllers with LRU eviction
+// ABOUTME: Owns controller lifecycle - controllers are only disposed on eviction or clear()
+// ABOUTME: Providers "checkout" controllers and "checkin" when done (no disposal in provider)
 
 import 'dart:collection';
 
@@ -35,7 +36,7 @@ class VideoControllerResult {
   final bool wasExisting;
 }
 
-/// Metadata tracked for each controller in the repository.
+/// Metadata tracked for each controller in the pool.
 class _ControllerEntry {
   _ControllerEntry({
     required this.controller,
@@ -51,13 +52,21 @@ class _ControllerEntry {
   DateTime lastAccessTime;
   bool isInitializing = true;
   bool isPlaying = false;
+  bool isCheckedOut = true; // Starts as checked out when created
 
   void recordAccess() {
     lastAccessTime = DateTime.now();
   }
 }
 
-/// Repository for managing video player controllers.
+/// Pool for managing video player controllers.
+///
+/// **Key Principle:** The pool OWNS controller lifecycle. Controllers are only
+/// disposed during LRU eviction or when clear() is called. Providers "borrow"
+/// controllers via checkout/checkin but never dispose them.
+///
+/// This prevents crashes from controller churn - iOS/Android have limited
+/// concurrent players (~4-6), and rapid dispose/create exhausts resources.
 ///
 /// Consolidates:
 /// - Pool management (LRU eviction, concurrent controller limits)
@@ -65,23 +74,19 @@ class _ControllerEntry {
 /// - URL normalization (.bin extension rewriting)
 /// - Auth header computation (NSFW content)
 ///
-/// Uses shared ownership model:
-/// - Repository handles: creation, caching, pool limits
-/// - Provider handles: initialization, disposal (via Riverpod autoDispose)
-///
 /// Usage:
 /// ```dart
-/// final repository = ref.read(videoControllerRepositoryProvider);
+/// final pool = ref.read(videoControllerRepositoryProvider);
 ///
-/// // Acquire a controller (handles pool limits, eviction, creation)
-/// final result = repository.acquireController(params);
+/// // Checkout a controller (handles pool limits, eviction, creation)
+/// final result = pool.checkout(params);
 ///
 /// // Mark playback state (protects from eviction)
-/// repository.markPlaying(videoId);
-/// repository.markNotPlaying(videoId);
+/// pool.markPlaying(videoId);
+/// pool.markNotPlaying(videoId);
 ///
-/// // Release when done (in provider's onDispose)
-/// repository.releaseController(videoId);
+/// // Return to pool when done (provider's onDispose) - does NOT dispose
+/// pool.checkin(videoId);
 /// ```
 class VideoControllerRepository extends ChangeNotifier {
   VideoControllerRepository({
@@ -115,20 +120,24 @@ class VideoControllerRepository extends ChangeNotifier {
   // Public API
   // ===========================================================================
 
-  /// Acquire a controller for the given params.
+  /// Checkout a controller for the given params.
   ///
-  /// Returns existing controller if already in repository, otherwise creates new.
+  /// Returns existing controller if already in pool, otherwise creates new.
   /// Handles pool limits internally - may evict LRU controller if at capacity.
   /// Controller is NOT initialized if newly created - caller must initialize.
-  VideoControllerResult acquireController(VideoControllerParams params) {
+  ///
+  /// The controller is marked as "checked out" and protected from eviction
+  /// until [checkin] is called.
+  VideoControllerResult checkout(VideoControllerParams params) {
     final videoId = params.videoId;
 
-    // Check if we already have this controller
+    // Check if we already have this controller in pool
     final existing = _controllers[videoId];
     if (existing != null) {
+      existing.isCheckedOut = true; // Mark as in-use
       _recordAccess(videoId);
       Log.debug(
-        '🎬 [REPO] Returning existing controller for $videoId',
+        '🎬 [POOL] Returning pooled controller for $videoId',
         name: 'VideoControllerRepository',
         category: LogCategory.video,
       );
@@ -151,7 +160,7 @@ class VideoControllerRepository extends ChangeNotifier {
     // Create new controller
     final result = _createController(params);
 
-    // Store in cache
+    // Store in pool (starts as checked out)
     _controllers[videoId] = _ControllerEntry(
       controller: result.controller,
       videoUrl: result.videoUrl,
@@ -160,7 +169,7 @@ class VideoControllerRepository extends ChangeNotifier {
     );
 
     Log.info(
-      '🎬 [REPO] Created controller for $videoId (count: ${_controllers.length}/$maxConcurrentControllers)',
+      '🎬 [POOL] Created controller for $videoId (count: ${_controllers.length}/$maxConcurrentControllers)',
       name: 'VideoControllerRepository',
       category: LogCategory.video,
     );
@@ -175,26 +184,37 @@ class VideoControllerRepository extends ChangeNotifier {
     );
   }
 
-  /// Release a controller from the repository.
-  ///
-  /// Call in provider's onDispose callback.
-  /// Does NOT dispose the controller - caller handles disposal.
-  void releaseController(String videoId) {
-    final entry = _controllers.remove(videoId);
+  /// Alias for [checkout] to maintain backward compatibility.
+  @Deprecated('Use checkout() instead')
+  VideoControllerResult acquireController(VideoControllerParams params) =>
+      checkout(params);
 
-    if (_currentlyPlayingVideoId == videoId) {
-      _currentlyPlayingVideoId = null;
-    }
+  /// Return a controller to the pool (checkin).
+  ///
+  /// Call in provider's onDispose callback. The controller stays in the pool
+  /// for potential reuse - it is NOT disposed. Controllers are only disposed
+  /// during LRU eviction or when [clear] is called.
+  ///
+  /// This is the key difference from the old model: checkin does NOT dispose.
+  void checkin(String videoId) {
+    final entry = _controllers[videoId];
 
     if (entry != null) {
+      entry.isCheckedOut = false; // Mark as available for eviction
+
       Log.debug(
-        '🗑️ [REPO] Released controller for $videoId (count: ${_controllers.length}/$maxConcurrentControllers)',
+        '📥 [POOL] Checked in controller for $videoId (stays in pool, count: ${_controllers.length}/$maxConcurrentControllers)',
         name: 'VideoControllerRepository',
         category: LogCategory.video,
       );
       notifyListeners();
     }
   }
+
+  /// Alias for [checkin] to maintain backward compatibility.
+  /// Note: The old releaseController removed from pool; checkin keeps it.
+  @Deprecated('Use checkin() instead - controller stays in pool')
+  void releaseController(String videoId) => checkin(videoId);
 
   /// Mark controller as initialized (no longer initializing).
   void markInitialized(String videoId) {
@@ -333,13 +353,48 @@ class VideoControllerRepository extends ChangeNotifier {
   /// All registered video IDs (for debugging).
   List<String> get registeredVideoIds => _controllers.keys.toList();
 
-  /// Clear all controllers (useful when navigating away from feed).
+  /// Number of controllers currently checked out (in active provider use).
+  int get checkedOutCount =>
+      _controllers.values.where((e) => e.isCheckedOut).length;
+
+  /// Number of idle controllers (checked in, available for reuse or eviction).
+  int get idleCount => _controllers.values.where((e) => !e.isCheckedOut).length;
+
+  /// Force evict and dispose a specific controller.
+  ///
+  /// Use this for explicit cleanup, e.g., after a video load error or
+  /// cache corruption. Unlike [checkin], this removes the controller
+  /// from the pool entirely.
+  void evict(String videoId) {
+    _evictController(videoId);
+    notifyListeners();
+  }
+
+  /// Clear all controllers and dispose them.
+  ///
+  /// Call when navigating away from video feeds to release all platform
+  /// video player resources.
   void clear() {
+    final count = _controllers.length;
+
+    // Dispose each controller before clearing
+    for (final entry in _controllers.values) {
+      try {
+        entry.controller.dispose();
+      } catch (e) {
+        Log.warning(
+          'Failed to dispose controller during clear: $e',
+          name: 'VideoControllerRepository',
+          category: LogCategory.video,
+        );
+      }
+    }
+
     _controllers.clear();
     _currentlyPlayingVideoId = null;
 
     Log.info(
-      '🧹 [REPO] Cleared all controllers',
+      '🧹 [POOL] Cleared and disposed $count controllers',
       name: 'VideoControllerRepository',
       category: LogCategory.video,
     );
@@ -349,6 +404,14 @@ class VideoControllerRepository extends ChangeNotifier {
 
   @override
   void dispose() {
+    // Dispose all controllers before clearing
+    for (final entry in _controllers.values) {
+      try {
+        entry.controller.dispose();
+      } catch (e) {
+        // Ignore disposal errors during repository dispose
+      }
+    }
     _controllers.clear();
     _authHeadersCache.clear();
     super.dispose();
@@ -375,19 +438,47 @@ class VideoControllerRepository extends ChangeNotifier {
     }
   }
 
-  /// Get the video ID to evict (oldest non-playing, non-initializing).
+  /// Get the video ID to evict (oldest idle, non-playing, non-initializing).
+  ///
+  /// Priority for eviction (first match wins):
+  /// 1. Skip currently playing video
+  /// 2. Skip checked-out controllers (in active provider use)
+  /// 3. Skip controllers still initializing
+  /// 4. Return oldest idle controller
   String? _getEvictionCandidate() {
+    // First pass: look for idle (checked-in) controllers
     for (final videoId in _controllers.keys) {
       final entry = _controllers[videoId]!;
 
       // Skip currently playing video
       if (videoId == _currentlyPlayingVideoId) continue;
 
+      // Skip checked-out controllers (in active use by providers)
+      if (entry.isCheckedOut) continue;
+
       // Skip controllers still initializing
       if (entry.isInitializing) continue;
 
       Log.debug(
-        '🎯 [REPO] Eviction candidate: $videoId',
+        '🎯 [POOL] Eviction candidate (idle): $videoId',
+        name: 'VideoControllerRepository',
+        category: LogCategory.video,
+      );
+      return videoId;
+    }
+
+    // Second pass: if all idle controllers are protected, force evict oldest non-playing
+    for (final videoId in _controllers.keys) {
+      final entry = _controllers[videoId]!;
+
+      // Never evict currently playing video
+      if (videoId == _currentlyPlayingVideoId) continue;
+
+      // Never evict initializing controllers (would cause crashes)
+      if (entry.isInitializing) continue;
+
+      Log.warning(
+        '🎯 [POOL] Force eviction candidate (checked out): $videoId',
         name: 'VideoControllerRepository',
         category: LogCategory.video,
       );
@@ -397,15 +488,32 @@ class VideoControllerRepository extends ChangeNotifier {
     return null;
   }
 
-  /// Evict a controller from the repository.
+  /// Evict and dispose a controller from the pool.
+  ///
+  /// This is where disposal happens - NOT in the provider's onDispose.
   void _evictController(String videoId) {
     final entry = _controllers.remove(videoId);
     if (entry != null) {
       Log.info(
-        '🔄 [REPO] Evicting controller for $videoId',
+        '🗑️ [POOL] Evicting and disposing controller for $videoId',
         name: 'VideoControllerRepository',
         category: LogCategory.video,
       );
+
+      // Remove state listener if any (prevent callbacks to disposed controller)
+      try {
+        entry.controller.dispose();
+      } catch (e) {
+        Log.warning(
+          'Failed to dispose evicted controller: $e',
+          name: 'VideoControllerRepository',
+          category: LogCategory.video,
+        );
+      }
+
+      if (_currentlyPlayingVideoId == videoId) {
+        _currentlyPlayingVideoId = null;
+      }
     }
   }
 

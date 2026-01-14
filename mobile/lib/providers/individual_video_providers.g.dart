@@ -11,8 +11,12 @@ part of 'individual_video_providers.dart';
 /// Provider for individual video controllers with autoDispose
 /// Each video gets its own controller instance
 ///
-/// Integrates with VideoControllerRepository to enforce max concurrent controller limit.
-/// When repository is at capacity, oldest non-playing controller is evicted.
+/// Integrates with VideoControllerRepository pool to enforce max concurrent
+/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+///
+/// **Important:** Controllers are owned by the pool, not this provider.
+/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
+/// The pool handles disposal during LRU eviction or clear().
 
 @ProviderFor(individualVideoController)
 const individualVideoControllerProvider = IndividualVideoControllerFamily._();
@@ -20,8 +24,12 @@ const individualVideoControllerProvider = IndividualVideoControllerFamily._();
 /// Provider for individual video controllers with autoDispose
 /// Each video gets its own controller instance
 ///
-/// Integrates with VideoControllerRepository to enforce max concurrent controller limit.
-/// When repository is at capacity, oldest non-playing controller is evicted.
+/// Integrates with VideoControllerRepository pool to enforce max concurrent
+/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+///
+/// **Important:** Controllers are owned by the pool, not this provider.
+/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
+/// The pool handles disposal during LRU eviction or clear().
 
 final class IndividualVideoControllerProvider
     extends
@@ -34,8 +42,12 @@ final class IndividualVideoControllerProvider
   /// Provider for individual video controllers with autoDispose
   /// Each video gets its own controller instance
   ///
-  /// Integrates with VideoControllerRepository to enforce max concurrent controller limit.
-  /// When repository is at capacity, oldest non-playing controller is evicted.
+  /// Integrates with VideoControllerRepository pool to enforce max concurrent
+  /// controller limit. When pool is at capacity, oldest idle controller is evicted.
+  ///
+  /// **Important:** Controllers are owned by the pool, not this provider.
+  /// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
+  /// The pool handles disposal during LRU eviction or clear().
   const IndividualVideoControllerProvider._({
     required IndividualVideoControllerFamily super.from,
     required VideoControllerParams super.argument,
@@ -90,13 +102,17 @@ final class IndividualVideoControllerProvider
 }
 
 String _$individualVideoControllerHash() =>
-    r'a1af1f2b152fff4a6682608d2ec2f9ef0b98ca46';
+    r'c27217adf0587e45cf346784790ad02337204b2e';
 
 /// Provider for individual video controllers with autoDispose
 /// Each video gets its own controller instance
 ///
-/// Integrates with VideoControllerRepository to enforce max concurrent controller limit.
-/// When repository is at capacity, oldest non-playing controller is evicted.
+/// Integrates with VideoControllerRepository pool to enforce max concurrent
+/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+///
+/// **Important:** Controllers are owned by the pool, not this provider.
+/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
+/// The pool handles disposal during LRU eviction or clear().
 
 final class IndividualVideoControllerFamily extends $Family
     with
@@ -116,8 +132,12 @@ final class IndividualVideoControllerFamily extends $Family
   /// Provider for individual video controllers with autoDispose
   /// Each video gets its own controller instance
   ///
-  /// Integrates with VideoControllerRepository to enforce max concurrent controller limit.
-  /// When repository is at capacity, oldest non-playing controller is evicted.
+  /// Integrates with VideoControllerRepository pool to enforce max concurrent
+  /// controller limit. When pool is at capacity, oldest idle controller is evicted.
+  ///
+  /// **Important:** Controllers are owned by the pool, not this provider.
+  /// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
+  /// The pool handles disposal during LRU eviction or clear().
 
   IndividualVideoControllerProvider call(VideoControllerParams params) =>
       IndividualVideoControllerProvider._(argument: params, from: this);

@@ -220,16 +220,18 @@ final class VideoVisibilityManagerProvider
 String _$videoVisibilityManagerHash() =>
     r'e1a7642e6cb5e4c1733981be738064df7c3c0a91';
 
-/// Video controller repository for managing video player controllers.
-/// Consolidates pool management, controller creation, and resource limits.
-/// Uses LRU eviction to dispose oldest non-playing controller when at capacity.
+/// Video controller pool for managing video player controllers.
+/// Owns controller lifecycle - controllers are only disposed on eviction or clear().
+/// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
+/// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
 
 @ProviderFor(videoControllerRepository)
 const videoControllerRepositoryProvider = VideoControllerRepositoryProvider._();
 
-/// Video controller repository for managing video player controllers.
-/// Consolidates pool management, controller creation, and resource limits.
-/// Uses LRU eviction to dispose oldest non-playing controller when at capacity.
+/// Video controller pool for managing video player controllers.
+/// Owns controller lifecycle - controllers are only disposed on eviction or clear().
+/// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
+/// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
 
 final class VideoControllerRepositoryProvider
     extends
@@ -239,9 +241,10 @@ final class VideoControllerRepositoryProvider
           VideoControllerRepository
         >
     with $Provider<VideoControllerRepository> {
-  /// Video controller repository for managing video player controllers.
-  /// Consolidates pool management, controller creation, and resource limits.
-  /// Uses LRU eviction to dispose oldest non-playing controller when at capacity.
+  /// Video controller pool for managing video player controllers.
+  /// Owns controller lifecycle - controllers are only disposed on eviction or clear().
+  /// Providers "checkout" controllers and "checkin" when done (no disposal in provider).
+  /// Uses LRU eviction to dispose oldest idle controller when pool is at capacity.
   const VideoControllerRepositoryProvider._()
     : super(
         from: null,

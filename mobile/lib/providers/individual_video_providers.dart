@@ -189,36 +189,32 @@ class VideoLoadingState {
 /// Provider for individual video controllers with autoDispose
 /// Each video gets its own controller instance
 ///
-/// Integrates with VideoControllerRepository to enforce max concurrent controller limit.
-/// When repository is at capacity, oldest non-playing controller is evicted.
+/// Integrates with VideoControllerRepository pool to enforce max concurrent
+/// controller limit. When pool is at capacity, oldest idle controller is evicted.
+///
+/// **Important:** Controllers are owned by the pool, not this provider.
+/// On dispose, we checkin the controller (return to pool) but do NOT dispose it.
+/// The pool handles disposal during LRU eviction or clear().
 @riverpod
 VideoPlayerController individualVideoController(
   Ref ref,
   VideoControllerParams params,
 ) {
-  // Get the global controller repository
-  final repository = ref.read(videoControllerRepositoryProvider);
+  // Get the global controller pool
+  final pool = ref.read(videoControllerRepositoryProvider);
 
   Timer? loopEnforcementTimer;
 
-  // Acquire controller from repository (handles pool limits, caching, creation)
-  final result = repository.acquireController(params);
+  // Checkout controller from pool (handles pool limits, caching, creation)
+  final result = pool.checkout(params);
   final controller = result.controller;
 
   // If controller already existed and is initialized, return it directly
   if (result.wasExisting && controller.value.isInitialized) {
     ref.onDispose(() {
       loopEnforcementTimer?.cancel();
-      repository.releaseController(params.videoId);
-      try {
-        controller.dispose();
-      } catch (e) {
-        Log.warning(
-          'Failed to dispose controller: $e',
-          name: 'IndividualVideoController',
-          category: LogCategory.system,
-        );
-      }
+      // Return to pool - do NOT dispose (pool owns controller lifecycle)
+      pool.checkin(params.videoId);
     });
     return controller;
   }
@@ -226,11 +222,9 @@ VideoPlayerController individualVideoController(
   // Trigger background caching if needed (not from cache and not existing)
   if (!result.isFromCache &&
       !result.wasExisting &&
-      repository.shouldCacheVideo(params)) {
+      pool.shouldCacheVideo(params)) {
     unawaited(
-      _cacheVideoWithAuth(ref, repository.cacheManager, params).catchError((
-        error,
-      ) {
+      _cacheVideoWithAuth(ref, pool.cacheManager, params).catchError((error) {
         Log.warning(
           '⚠️ Background video caching failed: $error',
           name: 'IndividualVideoController',
@@ -241,7 +235,7 @@ VideoPlayerController individualVideoController(
     );
 
     // Also trigger async auth header caching for future requests
-    unawaited(repository.cacheAuthHeaders(params));
+    unawaited(pool.cacheAuthHeaders(params));
   }
 
   // Initialize the controller (async in background)
@@ -377,7 +371,7 @@ VideoPlayerController individualVideoController(
         controller.setLooping(true);
 
         // Mark controller as initialized in repository (no longer initializing)
-        repository.markInitialized(params.videoId);
+        pool.markInitialized(params.videoId);
 
         // Start loop enforcement timer for videos longer than 6.3s
         // Short videos use native looping; long videos get enforced loop at 6.3s
@@ -567,35 +561,26 @@ VideoPlayerController individualVideoController(
         }
       });
 
-  // AutoDispose: Cleanup controller when provider is disposed
+  // AutoDispose: Return controller to pool when provider is disposed
   ref.onDispose(() {
     // Cancel loop enforcement timer first
     loopEnforcementTimer?.cancel();
 
-    // Release controller from repository SYNCHRONOUSLY before disposal
-    // This ensures repository state is updated immediately
-    repository.releaseController(params.videoId);
-
     Log.info(
-      '🧹 Disposing VideoPlayerController for video ${params.videoId.length > 8 ? params.videoId : params.videoId}...',
+      '📥 Checking in VideoPlayerController for video ${params.videoId}',
       name: 'IndividualVideoController',
       category: LogCategory.system,
     );
 
-    // Remove state change listener before disposal
+    // Remove state change listener
     controller.removeListener(stateChangeListener);
 
-    // Dispose controller synchronously to free platform resources immediately
-    // This prevents resource exhaustion from accumulated controllers
-    try {
-      controller.dispose();
-    } catch (e) {
-      Log.warning(
-        'Failed to dispose controller: $e',
-        name: 'IndividualVideoController',
-        category: LogCategory.system,
-      );
-    }
+    // Return controller to pool - do NOT dispose!
+    // The pool owns controller lifecycle and handles disposal during:
+    // - LRU eviction (when pool is full and new controller needed)
+    // - clear() (when navigating away from video feeds)
+    // This prevents crashes from excessive controller churn.
+    pool.checkin(params.videoId);
   });
 
   // NOTE: Play/pause logic has been moved to VideoFeedItem widget

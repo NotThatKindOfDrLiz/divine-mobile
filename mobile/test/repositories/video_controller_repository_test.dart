@@ -294,8 +294,8 @@ void main() {
       });
     });
 
-    group('releaseController', () {
-      test('removes controller from repository', () {
+    group('checkin (pool model)', () {
+      test('keeps controller in pool but marks as idle', () {
         // Arrange
         when(mockCacheManager.getCachedVideoSync(any)).thenReturn(null);
         when(
@@ -307,25 +307,91 @@ void main() {
           videoUrl: 'https://example.com/video.mp4',
         );
 
-        repository.acquireController(params);
+        repository.checkout(params);
         expect(repository.activeCount, equals(1));
+        expect(repository.checkedOutCount, equals(1));
 
-        // Act
-        repository.releaseController('test-video-id');
+        // Act - checkin returns to pool but does NOT remove
+        repository.checkin('test-video-id');
 
-        // Assert
-        expect(repository.activeCount, equals(0));
-        expect(repository.hasController('test-video-id'), isFalse);
+        // Assert - controller still in pool
+        expect(repository.activeCount, equals(1));
+        expect(repository.hasController('test-video-id'), isTrue);
+        // But now idle (not checked out)
+        expect(repository.checkedOutCount, equals(0));
+        expect(repository.idleCount, equals(1));
       });
 
-      test('clears currently playing if released', () {
+      test('idle controllers are evicted first', () {
         // Arrange
         when(mockCacheManager.getCachedVideoSync(any)).thenReturn(null);
         when(
           mockAgeVerificationService.isAdultContentVerified,
         ).thenReturn(false);
 
-        repository.acquireController(
+        // Fill up pool with 4 controllers
+        for (int i = 1; i <= 4; i++) {
+          repository.checkout(
+            VideoControllerParams(
+              videoId: 'video-$i',
+              videoUrl: 'https://example.com/$i.mp4',
+            ),
+          );
+          repository.markInitialized('video-$i');
+        }
+
+        // Checkin video-1 (make it idle)
+        repository.checkin('video-1');
+        expect(repository.idleCount, equals(1));
+
+        // Act - add new controller, should evict idle video-1
+        repository.checkout(
+          VideoControllerParams(
+            videoId: 'video-5',
+            videoUrl: 'https://example.com/5.mp4',
+          ),
+        );
+
+        // Assert - video-1 (idle) was evicted, not the checked-out ones
+        expect(repository.hasController('video-1'), isFalse);
+        expect(repository.hasController('video-5'), isTrue);
+        // video-2,3,4 still present (were checked out)
+        expect(repository.hasController('video-2'), isTrue);
+      });
+    });
+
+    group('evict (explicit disposal)', () {
+      test('removes and disposes controller from pool', () {
+        // Arrange
+        when(mockCacheManager.getCachedVideoSync(any)).thenReturn(null);
+        when(
+          mockAgeVerificationService.isAdultContentVerified,
+        ).thenReturn(false);
+
+        repository.checkout(
+          VideoControllerParams(
+            videoId: 'test-video-id',
+            videoUrl: 'https://example.com/video.mp4',
+          ),
+        );
+        expect(repository.activeCount, equals(1));
+
+        // Act
+        repository.evict('test-video-id');
+
+        // Assert
+        expect(repository.activeCount, equals(0));
+        expect(repository.hasController('test-video-id'), isFalse);
+      });
+
+      test('clears currently playing if evicted', () {
+        // Arrange
+        when(mockCacheManager.getCachedVideoSync(any)).thenReturn(null);
+        when(
+          mockAgeVerificationService.isAdultContentVerified,
+        ).thenReturn(false);
+
+        repository.checkout(
           VideoControllerParams(
             videoId: 'test-video-id',
             videoUrl: 'https://example.com/video.mp4',
@@ -335,7 +401,7 @@ void main() {
         expect(repository.currentlyPlayingVideoId, equals('test-video-id'));
 
         // Act
-        repository.releaseController('test-video-id');
+        repository.evict('test-video-id');
 
         // Assert
         expect(repository.currentlyPlayingVideoId, isNull);
