@@ -11,23 +11,30 @@ class VideoEditorClipProcessingOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
+    return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
-      opacity: clip.isProcessing ? 1 : 0,
-      child: const ColoredBox(
-        color: Color.fromARGB(140, 0, 0, 0),
-        child: Center(
-          child: CircularProgressIndicator.adaptive(),
-          /* Optional progress tracking: 
-          StreamBuilder<ProgressModel>(
-            stream: ProVideoEditor.instance.progressStreamById(widget.clip.id),
-            builder: (context, snapshot) {
-              final progress = snapshot.data?.progress ?? 0;
-              return CircularProgressIndicator(value: progress);
-            },
-          ), */
-        ),
-      ),
+      child: clip.isProcessing
+          ? const ColoredBox(
+              color: Color.fromARGB(140, 0, 0, 0),
+              child: Center(
+                // Without RepaintBoundary, the progress indicator repaints
+                // the entire screen while it's running.
+                child: RepaintBoundary(
+                  child: CircularProgressIndicator.adaptive(),
+                ),
+                /* Optional progress tracking: 
+                   
+                   StreamBuilder<ProgressModel>(
+                      stream: ProVideoEditor.instance.progressStreamById(widget.clip.id),
+                      builder: (context, snapshot) {
+                        final progress = snapshot.data?.progress ?? 0;
+                        return CircularProgressIndicator(value: progress);
+                      },
+                    ), 
+                */
+              ),
+            )
+          : SizedBox.shrink(),
     );
   }
 }

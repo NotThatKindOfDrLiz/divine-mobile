@@ -92,22 +92,24 @@ class _VideoRecorderFocusPointState
               Positioned(
                 left: x - VideoRecorderFocusPoint.indicatorSize / 2,
                 top: y - VideoRecorderFocusPoint.indicatorSize / 2,
-                child: AnimatedOpacity(
-                  opacity: isVisible ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  child: TweenAnimationBuilder<double>(
-                    key: ValueKey('Focus-Point-${state.focusPoint}'),
-                    duration: const Duration(milliseconds: 300),
-                    tween: Tween(
-                      begin: isVisible ? 1.2 : 1.0,
-                      end: isVisible ? 1.0 : 0.8,
+                child: RepaintBoundary(
+                  child: AnimatedOpacity(
+                    opacity: isVisible ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey('Focus-Point-${state.focusPoint}'),
+                      duration: const Duration(milliseconds: 300),
+                      tween: Tween(
+                        begin: isVisible ? 1.2 : 1.0,
+                        end: isVisible ? 1.0 : 0.8,
+                      ),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, scale, child) {
+                        return Transform.scale(scale: scale, child: child);
+                      },
+                      child: const _FocusPoint(),
                     ),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, scale, child) {
-                      return Transform.scale(scale: scale, child: child);
-                    },
-                    child: const _FocusPoint(),
                   ),
                 ),
               ),

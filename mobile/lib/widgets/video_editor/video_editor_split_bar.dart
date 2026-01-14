@@ -46,28 +46,30 @@ class VideoEditorSplitBar extends ConsumerWidget {
 
     final videoPosition = videoEditorState.trimPosition;
 
-    return SliderTheme(
-      data: SliderThemeData(
-        padding: .zero,
-        activeTrackColor: VineTheme.tabIndicatorGreen,
-        inactiveTrackColor: disabledColor,
-        trackHeight: 8,
-        trackShape: const RoundedRectSliderTrackShape(),
-        thumbColor: handleColor,
-        thumbShape: const _TallRectangularThumbShape(),
-        overlayShape: .noOverlay,
-        showValueIndicator: .never,
-      ),
-      child: Slider(
-        value: videoPosition.inMilliseconds.toDouble(),
-        onChanged: (value) {
-          final position = Duration(milliseconds: value.toInt());
-          ref.read(videoEditorProvider.notifier).seekToTrimPosition(position);
-        },
-        max: max(
-          videoPosition.inMilliseconds,
-          clipDuration.inMilliseconds,
-        ).toDouble(),
+    return RepaintBoundary(
+      child: SliderTheme(
+        data: SliderThemeData(
+          padding: .zero,
+          activeTrackColor: VineTheme.tabIndicatorGreen,
+          inactiveTrackColor: disabledColor,
+          trackHeight: 8,
+          trackShape: const RoundedRectSliderTrackShape(),
+          thumbColor: handleColor,
+          thumbShape: const _TallRectangularThumbShape(),
+          overlayShape: .noOverlay,
+          showValueIndicator: .never,
+        ),
+        child: Slider(
+          value: videoPosition.inMilliseconds.toDouble(),
+          onChanged: (value) {
+            final position = Duration(milliseconds: value.toInt());
+            ref.read(videoEditorProvider.notifier).seekToTrimPosition(position);
+          },
+          max: max(
+            videoPosition.inMilliseconds,
+            clipDuration.inMilliseconds,
+          ).toDouble(),
+        ),
       ),
     );
   }

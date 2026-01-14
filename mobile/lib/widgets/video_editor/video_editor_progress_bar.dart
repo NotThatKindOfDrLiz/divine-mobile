@@ -117,82 +117,84 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
       clipStartOffset += clips[i].duration;
     }
 
-    return Row(
-      spacing: 3,
-      children: List.generate(clips.length, (i) {
-        final clip = clips[i];
-        final isFirst = i == 0;
-        final isLast = i == clips.length - 1;
-        final isCompleted = i < state.currentClipIndex;
-        final isCurrent = i == state.currentClipIndex;
-        final isReorderingClip = state.isReordering && isCurrent;
+    return RepaintBoundary(
+      child: Row(
+        spacing: 3,
+        children: List.generate(clips.length, (i) {
+          final clip = clips[i];
+          final isFirst = i == 0;
+          final isLast = i == clips.length - 1;
+          final isCompleted = i < state.currentClipIndex;
+          final isCurrent = i == state.currentClipIndex;
+          final isReorderingClip = state.isReordering && isCurrent;
 
-        // Calculate progress within current clip (0.0 to 1.0)
-        double clipProgress = 0.0;
-        if (isCurrent && clip.duration.inMilliseconds > 0) {
-          final positionInClip = _smoothPosition - clipStartOffset;
-          clipProgress =
-              (positionInClip.inMilliseconds / clip.duration.inMilliseconds)
-                  .clamp(0.0, 1.0);
-        }
+          // Calculate progress within current clip (0.0 to 1.0)
+          double clipProgress = 0.0;
+          if (isCurrent && clip.duration.inMilliseconds > 0) {
+            final positionInClip = _smoothPosition - clipStartOffset;
+            clipProgress =
+                (positionInClip.inMilliseconds / clip.duration.inMilliseconds)
+                    .clamp(0.0, 1.0);
+          }
 
-        // Determine color based on state
-        final segmentColor = isReorderingClip
-            ? VineTheme.tabIndicatorGreen
-            : isCompleted
-            ? const Color(0xFF146346) // Dark-Green for completed
-            : const Color(0xFF404040); // Gray for uncompleted
+          // Determine color based on state
+          final segmentColor = isReorderingClip
+              ? VineTheme.tabIndicatorGreen
+              : isCompleted
+              ? const Color(0xFF146346) // Dark-Green for completed
+              : const Color(0xFF404040); // Gray for uncompleted
 
-        return Expanded(
-          flex: clip.duration.inMilliseconds,
-          child: Stack(
-            children: [
-              AnimatedContainer(
-                duration: state.isReordering
-                    ? Duration.zero
-                    : const Duration(milliseconds: 100),
-                height: 8,
-                decoration: BoxDecoration(
-                  color: segmentColor,
-                  border: isReorderingClip
-                      ? Border.all(
-                          color: const Color(0xFFEBDE3B),
-                          width: 3,
-                          strokeAlign: BorderSide.strokeAlignOutside,
-                        )
-                      : null,
-                  borderRadius: .horizontal(
-                    left: isFirst || isReorderingClip
-                        ? const .circular(999)
-                        : .zero,
-                    right: isLast || isReorderingClip
-                        ? const .circular(999)
-                        : .zero,
-                  ),
-                ),
-              ),
-              // Progress overlay for current clip
-              if (isCurrent && clipProgress > 0)
-                FractionallySizedBox(
-                  widthFactor: clipProgress,
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: VineTheme.tabIndicatorGreen,
-                      borderRadius: .horizontal(
-                        left: isFirst ? const .circular(999) : .zero,
-                        right: clipProgress >= 0.99 && isLast
-                            ? const .circular(999)
-                            : .zero,
-                      ),
+          return Expanded(
+            flex: clip.duration.inMilliseconds,
+            child: Stack(
+              children: [
+                AnimatedContainer(
+                  duration: state.isReordering
+                      ? Duration.zero
+                      : const Duration(milliseconds: 100),
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: segmentColor,
+                    border: isReorderingClip
+                        ? Border.all(
+                            color: const Color(0xFFEBDE3B),
+                            width: 3,
+                            strokeAlign: BorderSide.strokeAlignOutside,
+                          )
+                        : null,
+                    borderRadius: .horizontal(
+                      left: isFirst || isReorderingClip
+                          ? const .circular(999)
+                          : .zero,
+                      right: isLast || isReorderingClip
+                          ? const .circular(999)
+                          : .zero,
                     ),
                   ),
                 ),
-            ],
-          ),
-        );
-      }),
+                // Progress overlay for current clip
+                if (isCurrent && clipProgress > 0)
+                  FractionallySizedBox(
+                    widthFactor: clipProgress,
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: VineTheme.tabIndicatorGreen,
+                        borderRadius: .horizontal(
+                          left: isFirst ? const .circular(999) : .zero,
+                          right: clipProgress >= 0.99 && isLast
+                              ? const .circular(999)
+                              : .zero,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ),
     );
   }
 }

@@ -132,6 +132,8 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
           fontFeatures: [.tabularFigures()],
         );
 
-    return Text(_displayPosition.toFormattedSeconds(), style: style);
+    return RepaintBoundary(
+      child: Text(_displayPosition.toFormattedSeconds(), style: style),
+    );
   }
 }
