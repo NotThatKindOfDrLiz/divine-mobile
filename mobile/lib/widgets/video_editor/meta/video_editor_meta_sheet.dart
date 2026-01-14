@@ -257,20 +257,27 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
               ],
             ),
 
-            ?_buildTopics(),
+            if (_topics.isNotEmpty)
+              _Topics(topics: _topics, onRemove: _removeHashtag),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget? _buildTopics() {
-    if (_topics.isEmpty) return null;
+class _Topics extends StatelessWidget {
+  const _Topics({required this.topics, required this.onRemove});
 
+  final List<String> topics;
+  final ValueChanged<String> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
     return Wrap(
       spacing: 8,
       runSpacing: 4,
-      children: _topics
+      children: topics
           .map(
             (hashtag) => Chip(
               label: Text('#$hashtag'),
@@ -281,7 +288,7 @@ class _VideoEditorMetaSheetState extends ConsumerState<VideoEditorMetaSheet> {
                 color: Colors.white,
                 size: 18,
               ),
-              onDeleted: () => _removeHashtag(hashtag),
+              onDeleted: () => onRemove(hashtag),
             ),
           )
           .toList(),

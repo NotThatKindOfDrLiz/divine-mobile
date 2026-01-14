@@ -4,7 +4,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -112,104 +111,88 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
         ),
       ),
     );
-
-    return Row(
-      spacing: 3,
-      children: _buildSegments(
-        clips,
-        state.currentClipIndex,
-        state.isReordering,
-        _smoothPosition,
-      ),
-    );
-  }
-
-  /// Builds segment widgets for each clip with proportional widths.
-  List<Widget> _buildSegments(
-    List<RecordingClip> clips,
-    int currentClipIndex,
-    bool isReordering,
-    Duration currentPosition,
-  ) {
     // Calculate offset for current clip
     Duration clipStartOffset = Duration.zero;
-    for (var i = 0; i < currentClipIndex && i < clips.length; i++) {
+    for (var i = 0; i < state.currentClipIndex && i < clips.length; i++) {
       clipStartOffset += clips[i].duration;
     }
 
-    return List.generate(clips.length, (i) {
-      final clip = clips[i];
-      final isFirst = i == 0;
-      final isLast = i == clips.length - 1;
-      final isCompleted = i < currentClipIndex;
-      final isCurrent = i == currentClipIndex;
-      final isReorderingClip = isReordering && isCurrent;
+    return Row(
+      spacing: 3,
+      children: List.generate(clips.length, (i) {
+        final clip = clips[i];
+        final isFirst = i == 0;
+        final isLast = i == clips.length - 1;
+        final isCompleted = i < state.currentClipIndex;
+        final isCurrent = i == state.currentClipIndex;
+        final isReorderingClip = state.isReordering && isCurrent;
 
-      // Calculate progress within current clip (0.0 to 1.0)
-      double clipProgress = 0.0;
-      if (isCurrent && clip.duration.inMilliseconds > 0) {
-        final positionInClip = currentPosition - clipStartOffset;
-        clipProgress =
-            (positionInClip.inMilliseconds / clip.duration.inMilliseconds)
-                .clamp(0.0, 1.0);
-      }
+        // Calculate progress within current clip (0.0 to 1.0)
+        double clipProgress = 0.0;
+        if (isCurrent && clip.duration.inMilliseconds > 0) {
+          final positionInClip = _smoothPosition - clipStartOffset;
+          clipProgress =
+              (positionInClip.inMilliseconds / clip.duration.inMilliseconds)
+                  .clamp(0.0, 1.0);
+        }
 
-      // Determine color based on state
-      final segmentColor = isReorderingClip
-          ? const Color(0xFF27C58B)
-          : isCompleted
-          ? const Color(0xFF146346) // Green for completed
-          : const Color(0xFF404040); // Gray for uncompleted
+        // Determine color based on state
+        final segmentColor = isReorderingClip
+            ? VineTheme.tabIndicatorGreen
+            : isCompleted
+            ? const Color(0xFF146346) // Dark-Green for completed
+            : const Color(0xFF404040); // Gray for uncompleted
 
-      return Expanded(
-        flex: clip.duration.inMilliseconds,
-        child: Stack(
-          children: [
-            AnimatedContainer(
-              duration: isReordering
-                  ? Duration.zero
-                  : const Duration(milliseconds: 100),
-              height: 8,
-              decoration: BoxDecoration(
-                color: segmentColor,
-                border: isReorderingClip
-                    ? Border.all(
-                        color: const Color(0xFFEBDE3B),
-                        width: 3,
-                        strokeAlign: BorderSide.strokeAlignOutside,
-                      )
-                    : null,
-                borderRadius: .horizontal(
-                  left: isFirst || isReorderingClip
-                      ? const .circular(999)
-                      : .zero,
-                  right: isLast || isReorderingClip
-                      ? const .circular(999)
-                      : .zero,
-                ),
-              ),
-            ),
-            // Progress overlay for current clip
-            if (isCurrent && clipProgress > 0)
-              FractionallySizedBox(
-                widthFactor: clipProgress,
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: VineTheme.tabIndicatorGreen,
-                    borderRadius: .horizontal(
-                      left: isFirst ? const .circular(999) : .zero,
-                      right: clipProgress >= 0.99 && isLast
-                          ? const .circular(999)
-                          : .zero,
-                    ),
+        return Expanded(
+          flex: clip.duration.inMilliseconds,
+          child: Stack(
+            children: [
+              AnimatedContainer(
+                duration: state.isReordering
+                    ? Duration.zero
+                    : const Duration(milliseconds: 100),
+                height: 8,
+                decoration: BoxDecoration(
+                  color: segmentColor,
+                  border: isReorderingClip
+                      ? Border.all(
+                          color: const Color(0xFFEBDE3B),
+                          width: 3,
+                          strokeAlign: BorderSide.strokeAlignOutside,
+                        )
+                      : null,
+                  borderRadius: .horizontal(
+                    left: isFirst || isReorderingClip
+                        ? const .circular(999)
+                        : .zero,
+                    right: isLast || isReorderingClip
+                        ? const .circular(999)
+                        : .zero,
                   ),
                 ),
               ),
-          ],
-        ),
-      );
-    });
+              // Progress overlay for current clip
+              if (isCurrent && clipProgress > 0)
+                FractionallySizedBox(
+                  widthFactor: clipProgress,
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: VineTheme.tabIndicatorGreen,
+                      borderRadius: .horizontal(
+                        left: isFirst ? const .circular(999) : .zero,
+                        right: clipProgress >= 0.99 && isLast
+                            ? const .circular(999)
+                            : .zero,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      }),
+    );
   }
 }

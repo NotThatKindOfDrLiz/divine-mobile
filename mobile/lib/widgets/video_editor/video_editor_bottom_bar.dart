@@ -85,7 +85,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
         child: state.isReordering
-            ? _buildClipRemoveButton(ref)
+            ? const _ClipRemoveArea()
             : Row(
                 mainAxisAlignment: .spaceBetween,
                 children: [
@@ -176,9 +176,15 @@ class VideoEditorBottomBar extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildClipRemoveButton(WidgetRef ref) {
+class _ClipRemoveArea extends ConsumerWidget {
+  const _ClipRemoveArea();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final deleteButtonKey = ref.read(videoEditorProvider).deleteButtonKey;
+
     return Align(
       child: Container(
         key: deleteButtonKey,

@@ -65,71 +65,6 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     return renderBox.paintBounds.contains(localPosition);
   }
 
-  /// Calculates the scale factor for a clip based on its distance from center.
-  ///
-  /// Returns 1.0 for the centered clip and 0.85 for clips far from center,
-  /// with linear interpolation in between.
-  double _calculateScale(int index, int currentClipIndex) {
-    if (!_pageController.hasClients ||
-        !_pageController.position.haveDimensions) {
-      return index == currentClipIndex ? 1 : 0.85;
-    }
-
-    final page = _pageController.page ?? currentClipIndex.toDouble();
-    final difference = (page - index).abs();
-    // Scale from 1.0 (center) to 0.85 (far away)
-    // difference 0.0 = scale 1.0
-    // difference 1.0+ = scale 0.85
-    const minScale = 0.85;
-    const maxScale = 1;
-
-    if (difference >= 1) {
-      return minScale;
-    }
-
-    return maxScale - (difference * (maxScale - minScale));
-  }
-
-  /// Calculates the horizontal offset for a clip to create depth effect.
-  double _calculateXOffset(
-    int index,
-    int currentClipIndex,
-    double screenWidth,
-  ) {
-    // Calculate maxOffset as percentage of screen width (10%)
-    final maxOffset = screenWidth * 0.2;
-
-    if (!_pageController.hasClients ||
-        !_pageController.position.haveDimensions) {
-      if (index < currentClipIndex) return maxOffset;
-      if (index > currentClipIndex) return -maxOffset;
-      return 0;
-    }
-
-    final page = _pageController.page ?? currentClipIndex.toDouble();
-    final difference = index - page;
-    final absDifference = difference.abs();
-
-    // Offset is 0 for clips beyond distance 1.3
-    if (absDifference > 1.3) return 0;
-
-    // From 0.0 to 1.0: cubic easing, offset increases
-    // From 1.0 to 1.3: gradual falloff, offset decreases to 0
-    double effectStrength;
-    if (absDifference <= 1.0) {
-      // Cubic easing: 0.0→1.0
-      effectStrength = absDifference * absDifference * absDifference;
-    } else {
-      // Gradual falloff: 1.0→0.0 over distance 1.0→1.3
-      final falloff =
-          (1.3 - absDifference) / 0.3; // 1.0 at distance 1.0, 0.0 at 1.3
-      effectStrength = falloff;
-    }
-
-    final scaledEased = effectStrength * 0.8;
-    return -(difference.sign * scaledEased * maxOffset);
-  }
-
   Future<void> _handleReorderEvent(
     PointerMoveEvent event,
     BoxConstraints constraints,
@@ -241,11 +176,14 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     // Exit reorder mode
     ref.read(videoEditorProvider.notifier).stopClipReordering();
 
-    _pageController.dispose();
-    _pageController = PageController(
-      initialPage: _reorderTargetIndex,
-      viewportFraction: 0.8,
-    );
+    // Recreate the PageController with the new position and trigger rebuild
+    setState(() {
+      _pageController.dispose();
+      _pageController = PageController(
+        initialPage: _reorderTargetIndex,
+        viewportFraction: 0.8,
+      );
+    });
   }
 
   void _startReordering() {
@@ -262,25 +200,16 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
     // Switch to reorder mode
     ref.read(videoEditorProvider.notifier).startClipReordering();
 
-    _scrollController.dispose();
-    _scrollController = ScrollController(initialScrollOffset: currentOffset);
+    // Recreate ScrollController and trigger rebuild
+    setState(() {
+      _scrollController.dispose();
+      _scrollController = ScrollController(initialScrollOffset: currentOffset);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final clips = ref.watch(clipManagerProvider.select((state) => state.clips));
-    final state = ref.watch(
-      videoEditorProvider.select(
-        (s) => (
-          currentClipIndex: s.currentClipIndex,
-          isEditing: s.isEditing,
-          isReordering: s.isReordering,
-          isOverDeleteZone: s.isOverDeleteZone,
-        ),
-      ),
-    );
-    final isEditing = state.isEditing;
-    final currentClipIndex = state.currentClipIndex;
 
     if (clips.isEmpty) {
       return const SizedBox.shrink();
@@ -291,11 +220,14 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       crossAxisAlignment: .stretch,
       children: [
         Flexible(
-          child: _buildGalleryViewer(
+          child: _GalleryViewer(
+            scrollController: _scrollController,
+            pageController: _pageController,
             clips: clips,
-            state: state,
-            isEditing: isEditing,
-            currentClipIndex: currentClipIndex,
+            onStartReordering: _startReordering,
+            onReorderCancel: _handleReorderCancel,
+            onReorderEvent: _handleReorderEvent,
+            dragOffsetNotifier: _dragOffsetNotifier,
           ),
         ),
         const ClipGalleryInstructionText(),
@@ -303,43 +235,63 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       ],
     );
   }
+}
 
-  /// Builds the gallery viewer with pointer detection and animation.
-  Widget _buildGalleryViewer({
-    required List<RecordingClip> clips,
-    required ({
-      bool isEditing,
-      bool isReordering,
-      bool isOverDeleteZone,
-      int currentClipIndex,
-    })
-    state,
-    required bool isEditing,
-    required int currentClipIndex,
-  }) {
+class _GalleryViewer extends ConsumerWidget {
+  const _GalleryViewer({
+    required this.scrollController,
+    required this.pageController,
+    required this.clips,
+    required this.onStartReordering,
+    required this.onReorderCancel,
+    required this.onReorderEvent,
+    required this.dragOffsetNotifier,
+  });
+
+  final ScrollController scrollController;
+  final PageController pageController;
+  final List<RecordingClip> clips;
+  final VoidCallback onStartReordering;
+  final VoidCallback onReorderCancel;
+  final Function(PointerMoveEvent event, BoxConstraints constraints)
+  onReorderEvent;
+  final ValueNotifier<double> dragOffsetNotifier;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(
+      videoEditorProvider.select(
+        (s) => (
+          currentClipIndex: s.currentClipIndex,
+          isEditing: s.isEditing,
+          isReordering: s.isReordering,
+          isOverDeleteZone: s.isOverDeleteZone,
+        ),
+      ),
+    );
+    final currentClipIndex = state.currentClipIndex;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return Listener(
           onPointerMove: (event) async {
-            if (state.isReordering) {
-              await _handleReorderEvent(event, constraints);
-            }
+            if (state.isReordering) onReorderEvent(event, constraints);
           },
           onPointerUp: (event) async {
-            if (state.isReordering) await _handleReorderCancel();
+            if (state.isReordering) onReorderCancel();
           },
           onPointerCancel: (event) async {
-            if (state.isReordering) await _handleReorderCancel();
+            if (state.isReordering) onReorderCancel();
           },
           child: AnimatedBuilder(
-            animation: _pageController,
+            animation: pageController,
             builder: (context, child) {
               // Calculate common values once
               final hasClients =
-                  _pageController.hasClients &&
-                  _pageController.position.haveDimensions;
+                  pageController.hasClients &&
+                  pageController.position.haveDimensions;
               final page = hasClients
-                  ? (_pageController.page ?? currentClipIndex.toDouble())
+                  ? (pageController.page ?? currentClipIndex.toDouble())
                   : currentClipIndex.toDouble();
               final centerIndex = page.round();
               final difference = (centerIndex - page).abs();
@@ -349,16 +301,19 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                   ? 1.0 - (difference / 0.2)
                   : 0.0;
 
-              return _buildGalleryStack(
+              return _ScrollStack(
+                scrollController: scrollController,
+                pageController: pageController,
                 clips: clips,
-                state: state,
-                isEditing: isEditing,
+                isEditing: state.isEditing,
                 currentClipIndex: currentClipIndex,
                 constraints: constraints,
                 page: page,
                 centerIndex: centerIndex,
                 showCenterOverlay: showCenterOverlay,
                 shadowOpacity: shadowOpacity,
+                dragOffsetNotifier: dragOffsetNotifier,
+                onStartReordering: onStartReordering,
               );
             },
           ),
@@ -366,43 +321,146 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       },
     );
   }
+}
 
-  /// Builds the main gallery stack with clips and overlays.
-  Widget _buildGalleryStack({
-    required List<RecordingClip> clips,
-    required ({
-      bool isEditing,
-      bool isReordering,
-      bool isOverDeleteZone,
-      int currentClipIndex,
-    })
-    state,
-    required bool isEditing,
-    required int currentClipIndex,
-    required BoxConstraints constraints,
-    required double page,
-    required int centerIndex,
-    required bool showCenterOverlay,
-    required double shadowOpacity,
-  }) {
+class _ScrollStack extends ConsumerWidget {
+  const _ScrollStack({
+    required this.scrollController,
+    required this.pageController,
+    required this.clips,
+    required this.onStartReordering,
+    required this.dragOffsetNotifier,
+    required this.isEditing,
+    required this.currentClipIndex,
+    required this.constraints,
+    required this.page,
+    required this.centerIndex,
+    required this.showCenterOverlay,
+    required this.shadowOpacity,
+  });
+
+  final ScrollController scrollController;
+  final PageController pageController;
+  final List<RecordingClip> clips;
+  final VoidCallback onStartReordering;
+  final ValueNotifier<double> dragOffsetNotifier;
+  final BoxConstraints constraints;
+  final bool isEditing;
+  final int currentClipIndex;
+  final double page;
+  final int centerIndex;
+  final bool showCenterOverlay;
+  final double shadowOpacity;
+
+  /// Calculates the scale factor for a clip based on its distance from center.
+  ///
+  /// Returns 1.0 for the centered clip and 0.85 for clips far from center,
+  /// with linear interpolation in between.
+  double _calculateScale(int index, int currentClipIndex) {
+    if (!pageController.hasClients || !pageController.position.haveDimensions) {
+      return index == currentClipIndex ? 1 : 0.85;
+    }
+
+    final page = pageController.page ?? currentClipIndex.toDouble();
+    final difference = (page - index).abs();
+    // Scale from 1.0 (center) to 0.85 (far away)
+    // difference 0.0 = scale 1.0
+    // difference 1.0+ = scale 0.85
+    const minScale = 0.85;
+    const maxScale = 1;
+
+    if (difference >= 1) {
+      return minScale;
+    }
+
+    return maxScale - (difference * (maxScale - minScale));
+  }
+
+  /// Calculates the horizontal offset for a clip to create depth effect.
+  double _calculateXOffset(
+    int index,
+    int currentClipIndex,
+    double screenWidth,
+  ) {
+    // Calculate maxOffset as percentage of screen width (10%)
+    final maxOffset = screenWidth * 0.2;
+
+    if (!pageController.hasClients || !pageController.position.haveDimensions) {
+      if (index < currentClipIndex) return maxOffset;
+      if (index > currentClipIndex) return -maxOffset;
+      return 0;
+    }
+
+    final page = pageController.page ?? currentClipIndex.toDouble();
+    final difference = index - page;
+    final absDifference = difference.abs();
+
+    // Offset is 0 for clips beyond distance 1.3
+    if (absDifference > 1.3) return 0;
+
+    // From 0.0 to 1.0: cubic easing, offset increases
+    // From 1.0 to 1.3: gradual falloff, offset decreases to 0
+    double effectStrength;
+    if (absDifference <= 1.0) {
+      // Cubic easing: 0.0→1.0
+      effectStrength = absDifference * absDifference * absDifference;
+    } else {
+      // Gradual falloff: 1.0→0.0 over distance 1.0→1.3
+      final falloff =
+          (1.3 - absDifference) / 0.3; // 1.0 at distance 1.0, 0.0 at 1.3
+      effectStrength = falloff;
+    }
+
+    final scaledEased = effectStrength * 0.8;
+    return -(difference.sign * scaledEased * maxOffset);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(
+      videoEditorProvider.select(
+        (s) => (
+          currentClipIndex: s.currentClipIndex,
+          isEditing: s.isEditing,
+          isReordering: s.isReordering,
+          isOverDeleteZone: s.isOverDeleteZone,
+        ),
+      ),
+    );
+
     return Stack(
-      clipBehavior: Clip.none,
+      clipBehavior: .none,
       children: [
         // Use different scroll widget based on reorder state
         if (state.isReordering)
-          _buildReorderingScrollView(
+          _ReorderingView(
+            scrollController: scrollController,
             clips: clips,
             isEditing: isEditing,
             currentClipIndex: currentClipIndex,
             constraints: constraints,
+            onStartReordering: onStartReordering,
+            calculateScale: (index) => _calculateScale(index, currentClipIndex),
+            calculateXOffset: (index) => _calculateXOffset(
+              index,
+              currentClipIndex,
+              constraints.maxWidth,
+            ),
           )
         else
-          _buildPageView(
+          _SwipeView(
+            pageController: pageController,
             clips: clips,
             isEditing: isEditing,
             currentClipIndex: currentClipIndex,
-            constraints: constraints,
             page: page,
+            onStartReordering: onStartReordering,
+            calculateScale: (index) => _calculateScale(index, currentClipIndex),
+            calculateXOffset: (index) => _calculateXOffset(
+              index,
+              currentClipIndex,
+              constraints.maxWidth,
+            ),
           ),
 
         if (showCenterOverlay) ...[
@@ -417,7 +475,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
             maxWidth: constraints.maxWidth,
             isReordering: state.isReordering,
             isOverDeleteZone: state.isOverDeleteZone,
-            dragOffsetNotifier: _dragOffsetNotifier,
+            dragOffsetNotifier: dragOffsetNotifier,
             scale: _calculateScale(centerIndex, currentClipIndex),
             xOffset: _calculateXOffset(
               centerIndex,
@@ -435,28 +493,42 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       ],
     );
   }
+}
 
-  /// Builds the SingleChildScrollView for reordering mode.
-  Widget _buildReorderingScrollView({
-    required List<RecordingClip> clips,
-    required bool isEditing,
-    required int currentClipIndex,
-    required BoxConstraints constraints,
-  }) {
+class _ReorderingView extends ConsumerWidget {
+  const _ReorderingView({
+    required this.clips,
+    required this.isEditing,
+    required this.currentClipIndex,
+    required this.constraints,
+    required this.onStartReordering,
+    required this.scrollController,
+    required this.calculateScale,
+    required this.calculateXOffset,
+  });
+
+  final List<RecordingClip> clips;
+  final bool isEditing;
+  final int currentClipIndex;
+  final BoxConstraints constraints;
+  final VoidCallback onStartReordering;
+  final ScrollController scrollController;
+  final double Function(int index) calculateScale;
+  final double Function(int index) calculateXOffset;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
-      controller: _scrollController,
+      controller: scrollController,
       scrollDirection: Axis.horizontal,
       physics: const NeverScrollableScrollPhysics(),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: constraints.maxWidth * 0.1),
+        padding: .symmetric(horizontal: constraints.maxWidth * 0.1),
         child: Row(
           children: List.generate(clips.length, (index) {
-            final scale = _calculateScale(index, currentClipIndex);
-            final xOffset = _calculateXOffset(
-              index,
-              currentClipIndex,
-              constraints.maxWidth,
-            );
+            final scale = calculateScale(index);
+            final xOffset = calculateXOffset(index);
+
             return SizedBox(
               width: constraints.maxWidth * 0.8,
               child: VideoEditorGalleryItem(
@@ -474,7 +546,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
                   }
                 },
                 onLongPress: index == currentClipIndex && !isEditing
-                    ? _startReordering
+                    ? onStartReordering
                     : null,
               ),
             );
@@ -483,28 +555,40 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
       ),
     );
   }
+}
 
-  /// Builds the PageView for normal scrolling mode.
-  Widget _buildPageView({
-    required List<RecordingClip> clips,
-    required bool isEditing,
-    required int currentClipIndex,
-    required BoxConstraints constraints,
-    required double page,
-  }) {
+class _SwipeView extends ConsumerWidget {
+  const _SwipeView({
+    required this.clips,
+    required this.isEditing,
+    required this.currentClipIndex,
+    required this.page,
+    required this.pageController,
+    required this.onStartReordering,
+    required this.calculateScale,
+    required this.calculateXOffset,
+  });
+
+  final PageController pageController;
+  final List<RecordingClip> clips;
+  final bool isEditing;
+  final int currentClipIndex;
+  final double page;
+  final VoidCallback onStartReordering;
+  final double Function(int index) calculateScale;
+  final double Function(int index) calculateXOffset;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return PageView.builder(
-      controller: _pageController,
+      controller: pageController,
       onPageChanged: (page) {
         ref.read(videoEditorProvider.notifier).selectClip(page);
       },
       itemCount: clips.length,
       itemBuilder: (context, index) {
-        final scale = _calculateScale(index, currentClipIndex);
-        final xOffset = _calculateXOffset(
-          index,
-          currentClipIndex,
-          constraints.maxWidth,
-        );
+        final scale = calculateScale(index);
+        final xOffset = calculateXOffset(index);
         return VideoEditorGalleryItem(
           clip: clips[index],
           index: index,
@@ -514,7 +598,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
           xOffset: xOffset,
           onTap: () async {
             if (index != currentClipIndex) {
-              await _pageController.animateToPage(
+              await pageController.animateToPage(
                 index,
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.ease,
@@ -524,7 +608,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery> {
             }
           },
           onLongPress: index == currentClipIndex && !isEditing
-              ? _startReordering
+              ? onStartReordering
               : null,
         );
       },
