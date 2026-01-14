@@ -20,10 +20,10 @@ env:
 - doubleTapOn:
     id: profile_tab
     delay: 100
-- runFlow: ../asserts/assertProfile.yml
+- runFlow: ../asserts/assertProfile.yaml
 # 2. Tap on Edit profile: Edit modal is displayed
 - tapOn: Edit Profile
-- runFlow: ../asserts/assertEditProfileModal.yml
+- runFlow: ../asserts/assertEditProfileModal.yaml
 
 # 3. Tap on anywhere on the screen: Validate modal is closed
 - tapOn:
@@ -33,7 +33,7 @@ env:
 #TO-DO: Once issue on the back button of clips is fixed, uncomment and re-arrange the following steps.
 # 4. Tap on Clips: Edit modal is displayed
 #- tapOn: Clips
-#- runFlow: ../asserts/assertClipsScreen.yml
+#- runFlow: ../asserts/assertClipsScreen.yaml
 
 # 5. Tap on the back arrow: Profile screen is displayed
 #- tapOn:

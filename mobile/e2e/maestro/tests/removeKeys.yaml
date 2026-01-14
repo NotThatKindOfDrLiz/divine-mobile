@@ -11,14 +11,14 @@ appId: co.openvine.app
 # 5. To do... receiving yellow box on the display
 
 # 1. Open the settings page: Validate the settings modal is displayed
-- runFlow: '../utils/openSettings.yml'
+- runFlow: '../utils/openSettings.yaml'
 
 # 2. Tap on Remove Keys from Device: The modal Remove Keys from Device is displayed
 - scroll
 - tapOn: |-
     Remove Keys from Device
     Delete your private key from this device only. Your content stays on relays, but you'll need your nsec backup to access your account again.
-- runFlow: ../asserts/assertRemoveKeysModal.yml
+- runFlow: ../asserts/assertRemoveKeysModal.yaml
 # 3. Tap on cancel button: Validate Cancel button works
 - tapOn: Cancel
 

@@ -9,4 +9,4 @@ appId: co.openvine.app
 # 1. Tap on the profile icon: Validate profile screen, Complete profile modal is displayed and validate user data
 - tapOn:
     id: profile_tab
-- runFlow: "../asserts/assertProfileFresh.yml"
+- runFlow: "../asserts/assertProfileFresh.yaml"

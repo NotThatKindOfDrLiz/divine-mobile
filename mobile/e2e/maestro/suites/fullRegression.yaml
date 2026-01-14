@@ -30,9 +30,9 @@ env:
 - runFlow: ../flows/commentFlow.yaml
 
 #Search tests
-- runFlow: ../flows/searchVideosFlow.yaml
-- runFlow: ../flows/searchUsersFlow.yaml
-- runFlow: ../flows/searchTagsFlow.yaml
+- runFlow: ../flows/searchVideoFlow.yaml
+- runFlow: ../flows/searchUserFlow.yaml
+- runFlow: ../flows/searchTagFlow.yaml
 
 #Navigation tests
 - runFlow: ../flows/profileNavigationFlow.yaml

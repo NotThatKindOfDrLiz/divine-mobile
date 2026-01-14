@@ -11,7 +11,7 @@ appId: co.openvine.app
 
 # 1. Tap on Search: Validate search screen
 - tapOn: Search
-- runFlow: ../asserts/assertSearch.yml
+- runFlow: ../asserts/assertSearch.yaml
 
 # 2. Input text VIDEO_TITLE: Validate video and a user is found
 - tapOn: Find something cool...
@@ -27,10 +27,10 @@ appId: co.openvine.app
 # 3. Tap on the 1st video returned and validate playback
 - tapOn:
     id: play_button
-- runFlow: ../asserts/assertVideoPlayback.yml
+- runFlow: ../asserts/assertVideoPlayback.yaml
 
 # 4. Tap on the back arrow and validate user is on the explore screen
 - doubleTapOn:
     point: 4%,8%
 
-- runFlow: ../asserts/assertExplore.yml
+- runFlow: ../asserts/assertExplore.yaml

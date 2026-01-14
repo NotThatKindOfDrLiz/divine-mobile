@@ -13,7 +13,7 @@ appId: co.openvine.app
 - assertVisible: Share your first video to see it here
 
 #assert other profile items:
-- runFlow: assertProfile.yml
+- runFlow: assertProfile.yaml
 
 - assertNotVisible:
     text: Loading...

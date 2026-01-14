@@ -11,7 +11,7 @@ appId: co.openvine.app
 
 # 1. Tap on Search: Validate search screen
 - tapOn: Search
-- runFlow: ../asserts/assertSearch.yml
+- runFlow: ../asserts/assertSearch.yaml
 
 # 2. Input text "lele": Validate user is found
 - tapOn: Find something cool...
@@ -35,7 +35,7 @@ appId: co.openvine.app
 - tapOn:
     id: ${SEARCH_USER_ID}
 - runFlow:
-    file: ../asserts/assertUserProfile.yml
+    file: ../asserts/assertUserProfile.yaml
     env:
       USER_NAME: ${SEARCH_USER}
       USER_BIO: ${SEARCH_USER_BIO}

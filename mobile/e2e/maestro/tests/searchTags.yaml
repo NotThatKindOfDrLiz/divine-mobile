@@ -14,7 +14,7 @@ env:
 
 # 1. Tap on Search: Validate search screen
 - tapOn: Search
-- runFlow: ../asserts/assertSearch.yml
+- runFlow: ../asserts/assertSearch.yaml
 
 # 2. Input text SEARCH_TAG: Validate videos, users and a tag is found
 - tapOn: Find something cool...
