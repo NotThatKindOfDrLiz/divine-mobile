@@ -5,7 +5,7 @@
 enum AppEnvironment { production, productionNew, staging, dev }
 
 /// Dev environment relay options
-enum DevRelay { umbra, shugur, funnelcakeProd }
+enum DevRelay { umbra, shugur, funnelcakeProd, local }
 
 /// Configuration for the current app environment
 class EnvironmentConfig {
@@ -38,6 +38,8 @@ class EnvironmentConfig {
             return 'wss://shugur.poc.dvines.org';
           case DevRelay.funnelcakeProd:
             return 'wss://relay.dvines.org';
+          case DevRelay.local:
+            return 'ws://localhost:7777';
         }
     }
   }
@@ -53,9 +55,12 @@ class EnvironmentConfig {
       case AppEnvironment.staging:
         return 'https://relay.staging.dvines.org';
       case AppEnvironment.dev:
-        // Only funnelcakeProd dev relay has REST API
+        // Only funnelcakeProd and local dev relays have REST API
         if (devRelay == DevRelay.funnelcakeProd) {
           return 'https://relay.dvines.org';
+        }
+        if (devRelay == DevRelay.local) {
+          return 'http://localhost:8080';
         }
         return null;
     }
@@ -87,6 +92,8 @@ class EnvironmentConfig {
             return 'Dev - Shugur';
           case DevRelay.funnelcakeProd:
             return 'Dev - Funnelcake Prod';
+          case DevRelay.local:
+            return 'Dev - Local';
         }
     }
   }
