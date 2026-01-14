@@ -390,7 +390,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
     state = state.copyWith(isProcessing: true);
 
-    final completer = Completer<String?>();
+    final completer = Completer<(String? filePath, String? proofManifest)>();
 
     unawaited(_renderVideo(completer));
 
@@ -403,7 +403,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       builder: (context) => VideoEditorMetaSheet(draftId: _draftId),
     );
 
-    final outputPath = await completer.future;
+    final (outputPath, proofManifestJson) = await completer.future;
 
     final validToPublish = outputPath != null;
 
@@ -441,7 +441,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
     ref.read(videoPublishProvider.notifier)
       ..reset()
-      ..initialize(draft: await getDraft(clip));
+      ..initialize(draft: await getDraft(clip, proofManifestJson));
 
     Log.info(
       '📤 Navigating to publish screen',
@@ -457,35 +457,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
   /// Create a VineDraft from the rendered clip with metadata and proofmode
   /// data.
-  ///
-  /// Generates proofmode attestation for the video file and packages all
-  /// metadata into a draft ready for publication.
-  Future<VineDraft> getDraft(RecordingClip clip) async {
-    final filePath = await clip.video.safeFilePath();
-
-    Log.debug(
-      '🔐 Generating proofmode attestation for video',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-
-    final proofData = await NativeProofModeService.proofFile(File(filePath));
-    final proofManifestJson = proofData == null ? null : jsonEncode(proofData);
-
-    if (proofData != null) {
-      Log.info(
-        '✅ Proofmode attestation generated',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-    } else {
-      Log.warning(
-        '⚠️ No proofmode data available',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-    }
-
+  Future<VineDraft> getDraft(
+    RecordingClip clip,
+    String? proofManifestJson,
+  ) async {
     return VineDraft.create(
       id: _draftId,
       clips: [clip],
@@ -502,33 +477,72 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Render all clips into a single video file with aspect ratio cropping.
   ///
   /// Applies center cropping based on target aspect ratio (square or vertical).
-  Future<void> _renderVideo(Completer<String?> completer) async {
+  Future<void> _renderVideo(
+    Completer<(String? filePath, String? proof)> completer,
+  ) async {
     Log.info(
       '🎥 Rendering ${_clips.length} clip(s) into final video',
       name: 'VideoEditorNotifier',
       category: .video,
     );
 
-    final outputPath = await VideoEditorRenderService.renderVideo(
-      clips: _clips,
-      aspectRatio: _clips.first.aspectRatio,
-    );
-
-    if (outputPath != null) {
-      Log.info(
-        '✅ Video rendered to: $outputPath',
-        name: 'VideoEditorNotifier',
-        category: .video,
+    try {
+      final outputPath = await VideoEditorRenderService.renderVideo(
+        clips: _clips,
+        aspectRatio: _clips.first.aspectRatio,
       );
-    } else {
+      String? proofManifestJson;
+
+      if (outputPath != null) {
+        Log.info(
+          '✅ Video rendered to: $outputPath',
+          name: 'VideoEditorNotifier',
+          category: .video,
+        );
+
+        Log.debug(
+          '🔐 Generating proofmode attestation for video',
+          name: 'VideoEditorNotifier',
+          category: .video,
+        );
+        final proofData = await NativeProofModeService.proofFile(
+          File(outputPath),
+        );
+
+        if (proofData != null) {
+          proofManifestJson = jsonEncode(proofData);
+          Log.info(
+            '✅ Proofmode attestation generated',
+            name: 'VideoEditorNotifier',
+            category: .video,
+          );
+        } else {
+          Log.warning(
+            '⚠️ No proofmode data available',
+            name: 'VideoEditorNotifier',
+            category: .video,
+          );
+        }
+      } else {
+        Log.error(
+          '❌ Video rendering failed',
+          name: 'VideoEditorNotifier',
+          category: .video,
+        );
+      }
+
+      state = state.copyWith(isProcessing: false);
+      completer.complete((outputPath, proofManifestJson));
+    } catch (e, stackTrace) {
       Log.error(
-        '❌ Video rendering failed',
+        '❌ Video rendering error: $e',
         name: 'VideoEditorNotifier',
         category: .video,
+        error: e,
+        stackTrace: stackTrace,
       );
+      state = state.copyWith(isProcessing: false);
+      completer.complete((null, null));
     }
-
-    state = state.copyWith(isProcessing: false);
-    completer.complete(outputPath);
   }
 }
