@@ -390,16 +390,17 @@ class _ScrollStack extends ConsumerWidget {
     // Calculate maxOffset as percentage of screen width (10%)
     final maxOffset = constraints.maxWidth * 0.2;
 
-    if (!pageController.hasClients || !pageController.position.haveDimensions) {
-      if (index < currentClipIndex) return maxOffset;
-      if (index > currentClipIndex) return -maxOffset;
-      return 0;
+    // During reordering, use fixed currentClipIndex (clips move discretely)
+    // During normal swiping, use pageController for smooth animation
+    final double page;
+    if (pageController.hasClients && pageController.position.haveDimensions) {
+      page = pageController.page ?? currentClipIndex.toDouble();
+    } else {
+      page = currentClipIndex.toDouble();
     }
 
-    final page = pageController.page ?? currentClipIndex.toDouble();
     final difference = index - page;
     final absDifference = difference.abs();
-
     // Offset is 0 for clips beyond distance 1.3
     if (absDifference > 1.3) return 0;
 
@@ -446,22 +447,22 @@ class _ScrollStack extends ConsumerWidget {
         // Use different scroll widget based on reorder state
         if (state.isReordering)
           _ReorderingView(
-            scrollController: scrollController,
             clips: clips,
             isEditing: isEditing,
-            currentClipIndex: currentClipIndex,
             constraints: constraints,
+            currentClipIndex: currentClipIndex,
+            scrollController: scrollController,
             onStartReordering: onStartReordering,
             calculateScale: _calculateScale,
             calculateXOffset: _calculateXOffset,
           )
         else
           _SwipeView(
-            pageController: pageController,
+            page: page,
             clips: clips,
             isEditing: isEditing,
             currentClipIndex: currentClipIndex,
-            page: page,
+            pageController: pageController,
             onStartReordering: onStartReordering,
             calculateScale: _calculateScale,
             calculateXOffset: _calculateXOffset,
