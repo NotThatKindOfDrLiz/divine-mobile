@@ -49,9 +49,7 @@ void main() {
         selectedApproach: 'test',
       ),
     );
-    registerFallbackValue(
-      _createPendingUpload(status: UploadStatus.pending),
-    );
+    registerFallbackValue(_createPendingUpload(status: UploadStatus.pending));
   });
 
   setUp(() {
@@ -154,9 +152,8 @@ void main() {
             nostrPubkey: any(named: 'nostrPubkey'),
           ),
         ).thenAnswer(
-          (_) async => _createPendingUpload(
-            status: UploadStatus.readyToPublish,
-          ),
+          (_) async =>
+              _createPendingUpload(status: UploadStatus.readyToPublish),
         );
         when(
           () => mockUploadManager.getUpload(any()),
@@ -221,9 +218,8 @@ void main() {
             nostrPubkey: any(named: 'nostrPubkey'),
           ),
         ).thenAnswer(
-          (_) async => _createPendingUpload(
-            status: UploadStatus.readyToPublish,
-          ),
+          (_) async =>
+              _createPendingUpload(status: UploadStatus.readyToPublish),
         );
         when(
           () => mockUploadManager.getUpload(any()),
@@ -395,9 +391,7 @@ void main() {
             nostrPubkey: any(named: 'nostrPubkey'),
           ),
         ).thenAnswer(
-          (_) async => _createPendingUpload(
-            status: UploadStatus.uploading,
-          ),
+          (_) async => _createPendingUpload(status: UploadStatus.uploading),
         );
         when(
           () => mockUploadManager.getUpload(any()),
@@ -474,9 +468,7 @@ void _setupSuccessfulPublish({
       nostrPubkey: any(named: 'nostrPubkey'),
     ),
   ).thenAnswer(
-    (_) async => _createPendingUpload(
-      status: UploadStatus.readyToPublish,
-    ),
+    (_) async => _createPendingUpload(status: UploadStatus.readyToPublish),
   );
   when(
     () => mockUploadManager.getUpload(any()),
