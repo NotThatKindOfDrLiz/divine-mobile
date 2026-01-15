@@ -17,13 +17,7 @@ import 'package:openvine/widgets/video_recorder/video_recorder_focus_point.dart'
 /// functionality.
 class VideoRecorderCameraPreview extends ConsumerStatefulWidget {
   /// Creates a camera preview widget.
-  const VideoRecorderCameraPreview({
-    required this.previewWidgetRadius,
-    super.key,
-  });
-
-  /// Radius for rounded corners of the preview widget.
-  final double previewWidgetRadius;
+  const VideoRecorderCameraPreview({super.key});
 
   @override
   ConsumerState<ConsumerStatefulWidget> createState() =>
@@ -41,7 +35,7 @@ class _VideoRecorderCameraPreviewState
     return SafeArea(
       child: Center(
         child: Padding(
-          padding: const .symmetric(horizontal: 4),
+          padding: const .only(top: 8),
           child: TweenAnimationBuilder<double>(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,
@@ -51,7 +45,7 @@ class _VideoRecorderCameraPreviewState
                 aspectRatio: aspectRatio,
                 child: ClipRRect(
                   clipBehavior: .hardEdge,
-                  borderRadius: .circular(widget.previewWidgetRadius),
+                  borderRadius: .circular(16),
                   child: _StackItems(),
                 ),
               );

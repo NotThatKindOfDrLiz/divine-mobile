@@ -11,7 +11,7 @@ class VideoRecorderFocusPoint extends ConsumerStatefulWidget {
   const VideoRecorderFocusPoint({super.key});
 
   /// Size of the focus indicator in pixels.
-  static const indicatorSize = 36.0;
+  static const indicatorSize = 88.0;
 
   @override
   ConsumerState<VideoRecorderFocusPoint> createState() =>
@@ -102,7 +102,7 @@ class _VideoRecorderFocusPointState
                       duration: const Duration(milliseconds: 300),
                       tween: Tween(
                         begin: isVisible ? 1.2 : 1.0,
-                        end: isVisible ? 1.0 : 0.8,
+                        end: isVisible ? 1.0 : 0.4,
                       ),
                       curve: Curves.easeOutCubic,
                       builder: (context, scale, child) {
@@ -130,21 +130,8 @@ class _FocusPoint extends StatelessWidget {
       width: VideoRecorderFocusPoint.indicatorSize,
       height: VideoRecorderFocusPoint.indicatorSize,
       decoration: BoxDecoration(
-        border: .all(
-          color: const Color(0xFFFFFFFF),
-          width: VideoRecorderFocusPoint.indicatorSize * 0.025,
-        ),
-        shape: .circle,
-      ),
-      child: Center(
-        child: Container(
-          width: VideoRecorderFocusPoint.indicatorSize * 0.05,
-          height: VideoRecorderFocusPoint.indicatorSize * 0.05,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFFFFF),
-            shape: .circle,
-          ),
-        ),
+        border: .all(color: const Color(0xFFFFF140), width: 4),
+        borderRadius: .circular(32),
       ),
     );
   }

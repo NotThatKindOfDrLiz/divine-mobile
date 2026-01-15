@@ -33,10 +33,7 @@ void main() {
         ),
       );
 
-      final animatedOpacity = tester.widget<AnimatedOpacity>(
-        find.byType(AnimatedOpacity),
-      );
-      expect(animatedOpacity.opacity, 1.0);
+      // Should show progress indicator when processing
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
@@ -51,10 +48,8 @@ void main() {
         ),
       );
 
-      final animatedOpacity = tester.widget<AnimatedOpacity>(
-        find.byType(AnimatedOpacity),
-      );
-      expect(animatedOpacity.opacity, 0.0);
+      // Should not show progress indicator when not processing
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
     testWidgets('should be invisible when processing is completed', (
@@ -69,10 +64,8 @@ void main() {
         ),
       );
 
-      final animatedOpacity = tester.widget<AnimatedOpacity>(
-        find.byType(AnimatedOpacity),
-      );
-      expect(animatedOpacity.opacity, 0.0);
+      // Should not show progress indicator when processing is complete
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 }

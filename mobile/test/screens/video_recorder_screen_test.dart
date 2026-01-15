@@ -114,11 +114,9 @@ void main() {
 
         final stackChildren = tester.widget<Stack>(stackFinder.first).children;
 
-        // Check order: Preview, TopBar, BottomBar, Countdown
-        expect(stackChildren[0], isA<VideoRecorderCameraPreview>());
-        expect(stackChildren[1], isA<VideoRecorderTopBar>());
-        expect(stackChildren[2], isA<VideoRecorderBottomBar>());
-        expect(stackChildren[3], isA<VideoRecorderCountdownOverlay>());
+        // Check order: Column (with camera + controls), Countdown overlay
+        expect(stackChildren[0], isA<Column>());
+        expect(stackChildren[1], isA<VideoRecorderCountdownOverlay>());
       });
     });
 
@@ -140,28 +138,6 @@ void main() {
 
         // Observer should be registered (verified by no exception)
         expect(find.byType(VideoRecorderScreen), findsOneWidget);
-      });
-
-      testWidgets('camera preview receives correct radius', (tester) async {
-        await tester.pumpWidget(buildTestWidget());
-
-        await tester.pump();
-
-        final cameraPreview = tester.widget<VideoRecorderCameraPreview>(
-          find.byType(VideoRecorderCameraPreview),
-        );
-        expect(cameraPreview.previewWidgetRadius, equals(16.0));
-      });
-
-      testWidgets('bottom bar receives correct radius', (tester) async {
-        await tester.pumpWidget(buildTestWidget());
-
-        await tester.pump();
-
-        final bottomBar = tester.widget<VideoRecorderBottomBar>(
-          find.byType(VideoRecorderBottomBar),
-        );
-        expect(bottomBar.previewWidgetRadius, equals(16.0));
       });
     });
 
@@ -305,7 +281,11 @@ void main() {
         );
         final stack = tester.widget<Stack>(stackFinder.first);
 
-        expect(stack.children.first, isA<VideoRecorderCameraPreview>());
+        // The first child is now a Column containing the camera preview
+        expect(stack.children.first, isA<Column>());
+
+        // Verify camera preview exists within the Column
+        expect(find.byType(VideoRecorderCameraPreview), findsOneWidget);
       });
 
       testWidgets('countdown overlay is the top-most layer', (tester) async {
@@ -418,28 +398,6 @@ void main() {
 
         // Should handle without crashing
         expect(find.byType(VideoRecorderScreen), findsOneWidget);
-      });
-    });
-
-    group('Constants and Configuration', () {
-      testWidgets('uses correct preview radius value', (tester) async {
-        await tester.pumpWidget(buildTestWidget());
-
-        await tester.pump();
-
-        final cameraPreview = tester.widget<VideoRecorderCameraPreview>(
-          find.byType(VideoRecorderCameraPreview),
-        );
-        final bottomBar = tester.widget<VideoRecorderBottomBar>(
-          find.byType(VideoRecorderBottomBar),
-        );
-
-        // Both should use the same radius for consistency
-        expect(
-          cameraPreview.previewWidgetRadius,
-          equals(bottomBar.previewWidgetRadius),
-        );
-        expect(cameraPreview.previewWidgetRadius, equals(16.0));
       });
     });
   });

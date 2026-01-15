@@ -87,7 +87,6 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       name: 'VideoRecorderNotifier',
       category: .video,
     );
-
     await _cameraService.initialize();
     updateState(aspectRatio: .vertical);
 

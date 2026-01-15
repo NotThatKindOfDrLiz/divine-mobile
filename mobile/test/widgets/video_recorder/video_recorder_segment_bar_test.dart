@@ -18,7 +18,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+            home: Scaffold(body: Stack(children: [VideoRecorderSegmentBar()])),
           ),
         ),
       );
@@ -30,7 +30,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           child: MaterialApp(
-            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+            home: Scaffold(body: Stack(children: [VideoRecorderSegmentBar()])),
           ),
         ),
       );
@@ -66,7 +66,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            home: Scaffold(body: Row(children: [VideoRecorderSegmentBar()])),
+            home: Scaffold(body: Stack(children: [VideoRecorderSegmentBar()])),
           ),
         ),
       );
@@ -76,7 +76,7 @@ void main() {
       // Should render segment bar with clips
       expect(find.byType(VideoRecorderSegmentBar), findsOneWidget);
 
-      // Row contains the segments as children
+      // Row contains the segments as children (inside LayoutBuilder)
       final row = tester.widget<Row>(
         find.descendant(
           of: find.byType(VideoRecorderSegmentBar),

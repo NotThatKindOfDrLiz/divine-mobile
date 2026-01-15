@@ -12,6 +12,8 @@ import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
 import 'package:openvine/widgets/video_recorder/preview/video_recorder_camera_preview.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_record_button.dart';
+import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
 
 /// Video recorder screen with camera preview and recording controls.
@@ -26,7 +28,6 @@ class VideoRecorderScreen extends ConsumerStatefulWidget {
 
 class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     with WidgetsBindingObserver {
-  final double _previewRadius = 16;
   VideoRecorderNotifier? _notifier;
 
   @override
@@ -85,8 +86,8 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+    return const AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.black,
         statusBarIconBrightness: .light,
         statusBarBrightness: .dark,
@@ -96,17 +97,34 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
         body: Stack(
           fit: .expand,
           children: [
-            // Camera preview
-            VideoRecorderCameraPreview(previewWidgetRadius: _previewRadius),
+            Column(
+              spacing: 12,
+              children: [
+                Expanded(
+                  child: Stack(
+                    fit: .expand,
+                    children: [
+                      // Camera preview
+                      VideoRecorderCameraPreview(),
 
-            // Top bar with close-button, clip-duration, and confirm-button
-            const VideoRecorderTopBar(),
+                      // Segment bar
+                      VideoRecorderSegmentBar(),
 
-            // Bottom controls
-            VideoRecorderBottomBar(previewWidgetRadius: _previewRadius),
+                      // Top bar with close-button and confirm-button
+                      VideoRecorderTopBar(),
+
+                      /// Record button
+                      RecordButton(),
+                    ],
+                  ),
+                ),
+                // Bottom controls
+                VideoRecorderBottomBar(),
+              ],
+            ),
 
             // Countdown overlay
-            const VideoRecorderCountdownOverlay(),
+            VideoRecorderCountdownOverlay(),
           ],
         ),
       ),

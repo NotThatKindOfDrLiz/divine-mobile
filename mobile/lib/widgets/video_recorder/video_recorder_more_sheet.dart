@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/bottom_sheet_list_tile.dart';
 
 /// Bottom sheet for managing recording clips.
@@ -35,6 +36,15 @@ class _VideoRecorderMoreSheetState
         child: Column(
           mainAxisSize: .min,
           children: [
+            Container(
+              margin: .fromLTRB(0, 8, 0, 24),
+              width: 64,
+              height: 4,
+              decoration: BoxDecoration(
+                color: VineTheme.alphaLight25,
+                borderRadius: .circular(8),
+              ),
+            ),
             BottomSheetListTile(
               iconPath: 'assets/icon/save.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
