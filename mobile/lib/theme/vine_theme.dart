@@ -11,11 +11,13 @@ class VineTheme {
     double fontSize = 22,
     double? height,
     Color color = whiteText,
+    double? letterSpacing,
   }) => GoogleFonts.bricolageGrotesque(
     fontSize: fontSize,
     fontWeight: FontWeight.w800,
     height: height ?? 28 / 22,
     color: color,
+    letterSpacing: letterSpacing,
   );
 
   // Inter for body and small text
@@ -24,11 +26,13 @@ class VineTheme {
     FontWeight fontWeight = FontWeight.w400,
     Color color = primaryText,
     double? height,
+    double? letterSpacing,
   }) => GoogleFonts.inter(
     fontSize: fontSize,
     fontWeight: fontWeight,
     color: color,
     height: height,
+    letterSpacing: letterSpacing,
   );
 
   // Classic Vine green color palette

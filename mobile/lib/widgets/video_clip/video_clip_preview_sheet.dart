@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/theme/vine_theme.dart';
+import 'package:openvine/widgets/bottom_sheets/bottom_sheets.dart';
 import 'package:video_player/video_player.dart';
 
 /// Preview sheet for playing a video clip in a modal bottom sheet.
@@ -79,20 +80,15 @@ class _VideoClipPreviewSheetState extends State<VideoClipPreviewSheet> {
     return Container(
       height: MediaQuery.sizeOf(context).height * 0.7,
       decoration: const BoxDecoration(
-        color: Colors.black,
+        color: VineTheme.surfaceBackground,
         borderRadius: .vertical(top: .circular(16)),
       ),
       child: Column(
         children: [
           // Handle bar
-          Container(
-            width: 40,
-            height: 4,
-            margin: const .symmetric(vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.grey[600],
-              borderRadius: .circular(2),
-            ),
+          Padding(
+            padding: .fromLTRB(0, 8, 0, 16),
+            child: VineBottomSheetDragHandle(),
           ),
           // Video preview
           Expanded(

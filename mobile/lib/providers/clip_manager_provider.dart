@@ -12,7 +12,6 @@ import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -444,36 +443,6 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       category: .video,
     );
     state = ClipManagerState();
-  }
-
-  /// Opens the clip library screen in selection mode.
-  ///
-  /// Shows a modal bottom sheet with the clip library. When a clip is selected,
-  /// it is imported into the current editing session.
-  Future<void> pickFromLibrary(BuildContext context) async {
-    Log.info(
-      '📹 Opening clip library in selection mode',
-      name: 'ClipManagerNotifier',
-      category: .video,
-    );
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF101111),
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: .vertical(top: .circular(32)),
-      ),
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => const ClipLibraryScreen(selectionMode: true),
-    );
-
-    Log.info(
-      '📹 Closed clip library',
-      name: 'ClipManagerNotifier',
-      category: .video,
-    );
   }
 
   /// Save clip(s) to library.

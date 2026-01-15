@@ -76,6 +76,7 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
     final aspectRatio = widget.clip.aspectRatio == 'vertical' ? 9 / 16 : 1.0;
 
     return Semantics(
+      // TODO(l10n): Replace with context.l10n when localization is added.
       label: 'Video clip, ${widget.clip.duration.toFormattedSeconds()} seconds',
       value: widget.isSelected ? 'Selected' : 'Not selected',
       button: true,
@@ -83,6 +84,7 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
       enabled: !widget.disabled,
       onTap: widget.disabled ? null : widget.onTap,
       onLongPress: widget.disabled ? null : widget.onLongPress,
+      // TODO(l10n): Replace with context.l10n when localization is added.
       hint: widget.disabled
           ? 'Disabled'
           : 'Tap to ${widget.isSelected ? 'deselect' : 'select'}, '
@@ -104,9 +106,16 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
                   children: [
                     // Thumbnail or placeholder
                     _buildThumbnail(), // Duration badge - bottom left
-                    _buildDurationBadge(),
+                    _DurationBadge(
+                      durationInSeconds: widget.clip.durationInSeconds,
+                    ),
                     // Selection check circle - top right
-                    if (widget.isSelected) ..._buildSelectionOverlay(),
+                    AnimatedSwitcher(
+                      duration: Duration(milliseconds: 120),
+                      child: widget.isSelected
+                          ? const _SelectionOverlay()
+                          : const SizedBox.shrink(),
+                    ),
                   ],
                 ),
               ),
@@ -147,11 +156,18 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
       },
     );
   }
+}
 
-  /// Builds the duration badge shown at the bottom-left corner.
-  ///
-  /// Displays the clip duration in seconds with 2 decimal places.
-  Widget _buildDurationBadge() {
+/// Builds the duration badge shown at the bottom-left corner.
+///
+/// Displays the clip duration in seconds with 2 decimal places.
+class _DurationBadge extends StatelessWidget {
+  const _DurationBadge({required this.durationInSeconds});
+
+  final double durationInSeconds;
+
+  @override
+  Widget build(BuildContext context) {
     return Positioned(
       left: 12,
       bottom: 12,
@@ -162,53 +178,61 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
           borderRadius: .circular(4),
         ),
         child: Text(
-          widget.clip.durationInSeconds.toStringAsFixed(2),
+          durationInSeconds.toStringAsFixed(2),
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 14,
+            fontFamily: 'BricolageGrotesque',
             fontWeight: .w800,
-            height: 1.33,
-            letterSpacing: 0.15,
+            height: 1.43,
+            letterSpacing: 0.10,
+            fontFeatures: [.tabularFigures()],
           ),
         ),
       ),
     );
   }
+}
 
-  /// Builds the selection overlay with green border and check icon.
-  ///
-  /// Returns a list containing:
-  /// - A [DecoratedBox] for the 4px green border
-  /// - A positioned check icon in a circular green background
-  List<Widget> _buildSelectionOverlay() {
-    return [
-      Positioned.fill(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: .circular(4),
-            border: widget.isSelected
-                ? .all(color: VineTheme.tabIndicatorGreen, width: 4)
-                : null,
+/// Builds the selection overlay with green border and check icon.
+///
+/// Returns a list containing:
+/// - A [DecoratedBox] for the 4px green border
+/// - A positioned check icon in a circular green background
+class _SelectionOverlay extends StatelessWidget {
+  const _SelectionOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: .circular(4),
+              border: .all(color: VineTheme.tabIndicatorGreen, width: 4),
+            ),
           ),
         ),
-      ),
-      Positioned(
-        right: 14,
-        top: 14,
-        child: Container(
-          width: 32,
-          height: 32,
-          padding: const .all(8),
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: VineTheme.tabIndicatorGreen,
-          ),
-          child: SvgPicture.asset(
-            'assets/icon/check.svg',
-            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+        Positioned(
+          right: 14,
+          top: 14,
+          child: Container(
+            width: 32,
+            height: 32,
+            padding: const .all(8),
+            decoration: const BoxDecoration(
+              shape: .circle,
+              color: VineTheme.tabIndicatorGreen,
+            ),
+            child: SvgPicture.asset(
+              'assets/icon/check.svg',
+              colorFilter: const ColorFilter.mode(Color(0xFF002C1C), .srcIn),
+            ),
           ),
         ),
-      ),
-    ];
+      ],
+    );
   }
 }
