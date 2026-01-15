@@ -11,7 +11,7 @@ class VideoRecorderCameraPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Color(0xFF141414),
+      color: const Color(0xFF141414),
       child: Center(
         child: Container(
           width: 120,
@@ -20,10 +20,10 @@ class VideoRecorderCameraPlaceholder extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: const Color(0x33FFFFFF), width: 2),
           ),
-          child: Icon(
+          child: const Icon(
             Icons.videocam_rounded,
             size: 56,
-            color: const Color(0xB3FFFFFF),
+            color: Color(0xB3FFFFFF),
           ),
         ),
       ),

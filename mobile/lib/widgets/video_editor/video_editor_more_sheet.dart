@@ -9,8 +9,11 @@ import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/theme/vine_theme.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/bottom_sheet_list_tile.dart';
+import 'package:openvine/widgets/bottom_sheets/vine_bottom_sheet_drag_handle.dart';
 
 /// Bottom sheet for video editor more options.
 ///
@@ -42,7 +45,33 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
 
     final clipIndex = ref.read(videoEditorProvider).currentClipIndex;
 
-    clipManager.saveClipToLibrary(clipManager.clips[clipIndex]);
+    await clipManager.saveClipToLibrary(clipManager.clips[clipIndex]);
+  }
+
+  /// Opens the clip library screen in selection mode.
+  ///
+  /// Shows a modal bottom sheet with the clip library. When a clip is selected,
+  /// it is imported into the current editing session.
+  Future<void> _pickFromLibrary(BuildContext context) async {
+    Log.info(
+      '📹 Opening clip library in selection mode',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VineTheme.surfaceBackground,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (_) => const ClipLibraryScreen(selectionMode: true),
+    );
+
+    Log.info(
+      '📹 Closed clip library',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
   }
 
   @override
@@ -52,22 +81,15 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              margin: .fromLTRB(0, 8, 0, 24),
-              width: 64,
-              height: 4,
-              decoration: BoxDecoration(
-                color: VineTheme.alphaLight25,
-                borderRadius: .circular(8),
-              ),
+            const Padding(
+              padding: .fromLTRB(0, 8, 0, 24),
+              child: VineBottomSheetDragHandle(),
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/folder_open.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Add clip from Library',
-              onTap: () => ref
-                  .read(clipManagerProvider.notifier)
-                  .pickFromLibrary(context),
+              onTap: () => _pickFromLibrary(context),
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/save.svg',

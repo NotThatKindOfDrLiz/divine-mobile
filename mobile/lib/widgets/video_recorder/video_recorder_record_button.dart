@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 
+/// Circular record button for starting/stopping video recording.
 class RecordButton extends ConsumerWidget {
   const RecordButton();
 

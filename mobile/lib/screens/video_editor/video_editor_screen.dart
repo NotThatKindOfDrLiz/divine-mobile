@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
 import 'package:openvine/widgets/video_editor/gallery/video_editor_clip_gallery.dart';
+import 'package:openvine/widgets/video_editor/video_editor_bottom_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_processing_overlay.dart';
 import 'package:openvine/widgets/video_editor/video_editor_progress_bar.dart';
 import 'package:openvine/widgets/video_editor/video_editor_split_bar.dart';
@@ -17,6 +17,7 @@ class VideoEditorScreen extends ConsumerStatefulWidget {
   /// Creates a video editor screen.
   const VideoEditorScreen({super.key, this.draftId, this.fromLibrary = false});
 
+  /// Optional draft ID to load an existing draft.
   final String? draftId;
 
   /// Whether the editor was opened from the clip library.

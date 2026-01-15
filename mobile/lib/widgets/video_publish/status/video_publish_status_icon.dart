@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:openvine/models/video_publish/video_publish_state.dart';
 import 'package:openvine/theme/vine_theme.dart';
 
+/// Displays an icon representing the current video publish state.
 class VideoPublishStatusIcon extends StatelessWidget {
   const VideoPublishStatusIcon({super.key, required this.publishState});
 
+  /// The current publish state to display an icon for.
   final VideoPublishState publishState;
 
   @override

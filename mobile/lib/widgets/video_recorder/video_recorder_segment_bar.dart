@@ -78,7 +78,7 @@ class _Segments extends ConsumerWidget {
       if (i < recordSegments.length - 1 || activeRecordingDuration > .zero) {
         if (used < _maxDuration) {
           segments.add(
-            Container(height: 16, width: 2, color: Color(0xFF000A06)),
+            Container(height: 16, width: 2, color: const Color(0xFF000A06)),
           );
         }
       }

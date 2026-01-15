@@ -28,7 +28,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           child: isRecording
-              ? SizedBox.shrink()
+              ? const SizedBox.shrink()
               : Padding(
                   padding: const .fromLTRB(16, 40, 16, 0),
                   child: Row(
@@ -67,10 +67,9 @@ class _CloseButton extends StatelessWidget {
       label: 'Close video recorder',
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
+        child: SizedBox(
           width: 32,
           height: 32,
-
           child: Stack(
             children: [
               // Imitate drop-shadow effect
@@ -95,7 +94,7 @@ class _CloseButton extends StatelessWidget {
                 'assets/icon/close.svg',
                 height: 32,
                 width: 32,
-                colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                colorFilter: const ColorFilter.mode(Colors.white, .srcIn),
               ),
             ],
           ),
@@ -123,20 +122,20 @@ class _NextButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: .circular(16),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: const Color(0x1A000000),
-                offset: const Offset(1, 1),
+                color: Color(0x1A000000),
+                offset: Offset(1, 1),
                 blurRadius: 1,
               ),
               BoxShadow(
-                color: const Color(0x1A000000),
-                offset: const Offset(0.4, 0.4),
+                color: Color(0x1A000000),
+                offset: Offset(0.4, 0.4),
                 blurRadius: 0.6,
               ),
             ],
           ),
-          child: Text(
+          child: const Text(
             // TODO(l10n): Replace with context.l10n when localization is added.
             'Next',
             style: TextStyle(
@@ -145,7 +144,7 @@ class _NextButton extends StatelessWidget {
               fontWeight: .w800,
               height: 1.33,
               letterSpacing: 0.15,
-              color: const Color(0xFF00452D),
+              color: Color(0xFF00452D),
             ),
           ),
         ),

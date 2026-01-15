@@ -262,7 +262,7 @@ class _GalleryViewer extends ConsumerWidget {
   final List<RecordingClip> clips;
   final VoidCallback onStartReordering;
   final VoidCallback onReorderCancel;
-  final Function(PointerMoveEvent event, BoxConstraints constraints)
+  final void Function(PointerMoveEvent event, BoxConstraints constraints)
   onReorderEvent;
   final ValueNotifier<double> dragOffsetNotifier;
 

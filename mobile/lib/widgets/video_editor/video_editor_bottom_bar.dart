@@ -216,7 +216,7 @@ class _ClipRemoveArea extends ConsumerWidget {
           width: 32,
           child: SvgPicture.asset(
             'assets/icon/delete.svg',
-            colorFilter: ColorFilter.mode(Color(0xFF410001), .srcIn),
+            colorFilter: const ColorFilter.mode(Color(0xFF410001), .srcIn),
           ),
         ),
       ),

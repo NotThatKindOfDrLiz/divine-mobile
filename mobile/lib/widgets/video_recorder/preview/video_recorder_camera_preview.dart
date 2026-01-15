@@ -46,7 +46,7 @@ class _VideoRecorderCameraPreviewState
                 child: ClipRRect(
                   clipBehavior: .hardEdge,
                   borderRadius: .circular(16),
-                  child: _StackItems(),
+                  child: const _StackItems(),
                 ),
               );
             },
@@ -105,9 +105,9 @@ class _CameraPreview extends ConsumerWidget {
 
             /// Preview widget
             if (!kIsWeb && Platform.isMacOS)
-              VideoRecorderMacosPreview()
+              const VideoRecorderMacosPreview()
             else
-              VideoRecorderMobilePreview(),
+              const VideoRecorderMobilePreview(),
           ],
         ),
       ),

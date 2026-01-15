@@ -44,7 +44,7 @@ import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/screens/video_detail_screen.dart';
-import 'package:openvine/screens/video_editor_screen.dart';
+import 'package:openvine/screens/video_editor/video_editor_screen.dart';
 import 'package:openvine/screens/video_publish_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';

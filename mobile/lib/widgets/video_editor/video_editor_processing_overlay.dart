@@ -29,7 +29,6 @@ class VideoEditorProcessingOverlay extends StatelessWidget {
                 color: Color(0x51000000),
                 blurRadius: 3,
                 offset: Offset(0, 1),
-                spreadRadius: 0,
               ),
               BoxShadow(
                 color: Color(0x28000000),

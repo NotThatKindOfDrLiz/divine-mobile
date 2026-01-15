@@ -40,7 +40,7 @@ class VideoEditorTopBar extends ConsumerWidget {
           children: [
             Expanded(
               child: state.isReordering
-                  ? SizedBox.shrink()
+                  ? const SizedBox.shrink()
                   : state.isEditing
                   ? Align(
                       alignment: .centerLeft,
@@ -51,11 +51,11 @@ class VideoEditorTopBar extends ConsumerWidget {
                       ),
                     )
                   : _BackToCameraButton(
-                      onTap: () {
+                      onTap: () async {
                         // If came from library, go to recorder (not in stack)
                         // Otherwise pop back to recorder
                         if (fromLibrary) {
-                          context.pushVideoRecorder();
+                          await context.pushVideoRecorder();
                         } else {
                           context.pop();
                         }
@@ -79,7 +79,7 @@ class VideoEditorTopBar extends ConsumerWidget {
 
             Expanded(
               child: state.isEditing || state.isReordering
-                  ? SizedBox.shrink()
+                  ? const SizedBox.shrink()
                   : Align(
                       alignment: .centerRight,
                       child: _NextButton(
@@ -117,7 +117,7 @@ class _BackToCameraButton extends StatelessWidget {
               width: 32,
               child: SvgPicture.asset(
                 'assets/icon/CaretLeft.svg',
-                colorFilter: ColorFilter.mode(Colors.white, .srcIn),
+                colorFilter: const ColorFilter.mode(Colors.white, .srcIn),
               ),
             ),
             SizedBox(
@@ -125,7 +125,7 @@ class _BackToCameraButton extends StatelessWidget {
               width: 32,
               child: SvgPicture.asset(
                 'assets/icon/video_camera.svg',
-                colorFilter: ColorFilter.mode(Colors.white, .srcIn),
+                colorFilter: const ColorFilter.mode(Colors.white, .srcIn),
               ),
             ),
           ],
@@ -153,7 +153,7 @@ class _CloseButton extends StatelessWidget {
           width: 32,
           child: SvgPicture.asset(
             'assets/icon/close.svg',
-            colorFilter: ColorFilter.mode(Colors.white, .srcIn),
+            colorFilter: const ColorFilter.mode(Colors.white, .srcIn),
           ),
         ),
       ),
@@ -179,20 +179,20 @@ class _NextButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: .circular(16),
-            boxShadow: [
+            boxShadow: const [
               BoxShadow(
-                color: const Color(0x1A000000),
-                offset: const Offset(1, 1),
+                color: Color(0x1A000000),
+                offset: Offset(1, 1),
                 blurRadius: 1,
               ),
               BoxShadow(
-                color: const Color(0x1A000000),
-                offset: const Offset(0.4, 0.4),
+                color: Color(0x1A000000),
+                offset: Offset(0.4, 0.4),
                 blurRadius: 0.6,
               ),
             ],
           ),
-          child: Text(
+          child: const Text(
             // TODO(l10n): Replace with context.l10n when localization is added.
             'Next',
             style: TextStyle(
@@ -201,7 +201,7 @@ class _NextButton extends StatelessWidget {
               fontWeight: .w800,
               height: 1.33,
               letterSpacing: 0.15,
-              color: const Color(0xFF00452D),
+              color: Color(0xFF00452D),
             ),
           ),
         ),

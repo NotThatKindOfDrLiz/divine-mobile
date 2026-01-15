@@ -7,6 +7,7 @@ import 'package:openvine/models/recording_clip.dart';
 class VideoEditorClipProcessingOverlay extends StatelessWidget {
   const VideoEditorClipProcessingOverlay({required this.clip, super.key});
 
+  /// The clip to show processing status for.
   final RecordingClip clip;
 
   @override
@@ -34,7 +35,7 @@ class VideoEditorClipProcessingOverlay extends StatelessWidget {
                 */
               ),
             )
-          : SizedBox.shrink(),
+          : const SizedBox.shrink(),
     );
   }
 }
