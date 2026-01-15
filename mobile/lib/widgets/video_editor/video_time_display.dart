@@ -45,7 +45,7 @@ class VideoTimeDisplay extends ConsumerWidget {
         const TextStyle(
           color: Colors.white,
           fontSize: 18,
-          fontFamily: 'Bricolage Grotesque',
+          fontFamily: 'BricolageGrotesque',
           fontWeight: .w800,
           height: 1.33,
           letterSpacing: 0.15,

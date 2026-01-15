@@ -9,6 +9,7 @@ import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/bottom_sheet_list_tile.dart';
 
 /// Bottom sheet for video editor more options.
@@ -36,15 +37,30 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
     context.pop();
   }
 
+  Future<void> _saveClipToLibrary() async {
+    final clipManager = ref.read(clipManagerProvider.notifier);
+
+    final clipIndex = ref.read(videoEditorProvider).currentClipIndex;
+
+    clipManager.saveClipToLibrary(clipManager.clips[clipIndex]);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final hasClips = ref.watch(clipManagerProvider.select((p) => p.hasClips));
-
     return SafeArea(
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              margin: .fromLTRB(0, 8, 0, 24),
+              width: 64,
+              height: 4,
+              decoration: BoxDecoration(
+                color: VineTheme.alphaLight25,
+                borderRadius: .circular(8),
+              ),
+            ),
             BottomSheetListTile(
               iconPath: 'assets/icon/folder_open.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
@@ -56,18 +72,14 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
             BottomSheetListTile(
               iconPath: 'assets/icon/save.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
-              title: 'Save to Drafts',
-              onTap: hasClips
-                  ? () => ref
-                        .read(clipManagerProvider.notifier)
-                        .saveToDrafts(context)
-                  : null,
+              title: 'Save selected clip',
+              onTap: _saveClipToLibrary,
             ),
             BottomSheetListTile(
               iconPath: 'assets/icon/trash.svg',
               // TODO(l10n): Replace with context.l10n when localization is added.
               title: 'Delete clips & start over',
-              onTap: hasClips ? _deleteAndStartOver : null,
+              onTap: _deleteAndStartOver,
               color: const Color(0xFFF44336),
             ),
           ],

@@ -18,14 +18,11 @@ class VideoEditorRenderService {
 
   /// Renders multiple clips into a single video file with aspect ratio cropping.
   ///
-  /// Parameters:
-  /// - [clips]: List of clips to render
-  /// - [aspectRatio]: Target aspect ratio for cropping
-  ///
   /// Returns the path to the rendered video file, or null if cancelled/failed.
   static Future<String?> renderVideo({
     required List<RecordingClip> clips,
     required model.AspectRatio aspectRatio,
+    required bool enableAudio,
   }) async {
     try {
       final tempDir = await getTemporaryDirectory();
@@ -69,6 +66,7 @@ class VideoEditorRenderService {
       final task = VideoRenderData(
         videoSegments: videoSegments,
         endTime: const Duration(milliseconds: 6_300),
+        enableAudio: enableAudio,
         transform: ExportTransform(
           x: cropParams.x,
           y: cropParams.y,

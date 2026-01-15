@@ -147,6 +147,7 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
           return Expanded(
             flex: clip.duration.inMilliseconds,
             child: Stack(
+              alignment: .centerLeft,
               children: [
                 AnimatedContainer(
                   duration: state.isReordering
@@ -176,18 +177,33 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
                 if (isCurrent && clipProgress > 0)
                   FractionallySizedBox(
                     widthFactor: clipProgress,
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: VineTheme.tabIndicatorGreen,
-                        borderRadius: .horizontal(
-                          left: isFirst ? const .circular(999) : .zero,
-                          right: clipProgress >= 0.99 && isLast
-                              ? const .circular(999)
-                              : .zero,
+                    alignment: .centerLeft,
+                    child: Stack(
+                      alignment: .centerRight,
+                      children: [
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: VineTheme.tabIndicatorGreen,
+                            borderRadius: .horizontal(
+                              left: isFirst ? const .circular(999) : .zero,
+                              right: clipProgress >= 0.99 && isLast
+                                  ? const .circular(999)
+                                  : .zero,
+                            ),
+                          ),
                         ),
-                      ),
+                        Container(
+                          width: 4,
+                          height: 32,
+                          decoration: ShapeDecoration(
+                            color: const Color(0xF1FFFFFF),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: .circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
               ],

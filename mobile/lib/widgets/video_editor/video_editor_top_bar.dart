@@ -3,11 +3,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/widgets/divine_icon_button.dart';
+import 'package:openvine/router/nav_extensions.dart';
 
 /// Top bar with close button, clip counter, and done button.
 class VideoEditorTopBar extends ConsumerWidget {
@@ -24,72 +24,187 @@ class VideoEditorTopBar extends ConsumerWidget {
     );
     final state = ref.watch(
       videoEditorProvider.select(
-        (s) => (currentClipIndex: s.currentClipIndex, isEditing: s.isEditing),
+        (s) => (
+          currentClipIndex: s.currentClipIndex,
+          isEditing: s.isEditing,
+          isReordering: s.isReordering,
+        ),
       ),
     );
-    final notifier = ref.read(videoEditorProvider.notifier);
 
-    return Container(
-      height: 80,
-      padding: const .symmetric(horizontal: 16, vertical: 16),
-      child: Row(
-        mainAxisAlignment: .spaceBetween,
-        children: [
-          // Close/Back button
-          if (state.isEditing)
-            DivineIconButton(
-              iconPath: 'assets/icon/close.svg',
-              onTap: notifier.stopClipEditing,
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              semanticLabel: 'Close video editor',
-            )
-          else
-            DivineIconButton(
-              iconPath: 'assets/icon/video_camera.svg',
-              onTap: () {
-                // If came from library, go to recorder (not in stack)
-                // Otherwise pop back to recorder
-                if (fromLibrary) {
-                  context.pushReplacement('/video-recorder');
-                } else {
-                  context.pop();
-                }
-              },
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              semanticLabel: 'Go back to camera',
+    return Padding(
+      padding: const .all(16),
+      child: SizedBox(
+        height: 48,
+        child: Row(
+          children: [
+            Expanded(
+              child: state.isReordering
+                  ? SizedBox.shrink()
+                  : state.isEditing
+                  ? Align(
+                      alignment: .centerLeft,
+                      child: _CloseButton(
+                        onTap: ref
+                            .read(videoEditorProvider.notifier)
+                            .stopClipEditing,
+                      ),
+                    )
+                  : _BackToCameraButton(
+                      onTap: () {
+                        // If came from library, go to recorder (not in stack)
+                        // Otherwise pop back to recorder
+                        if (fromLibrary) {
+                          context.pushVideoRecorder();
+                        } else {
+                          context.pop();
+                        }
+                      },
+                    ),
             ),
 
-          // Clip counter
-          Text(
-            '${state.currentClipIndex + 1}/$totalClips',
-            style: const TextStyle(
-              color: Colors.white,
+            // Clip counter
+            Text(
+              '${state.currentClipIndex + 1}/$totalClips',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                height: 1.33,
+                letterSpacing: 0.15,
+                fontWeight: .w800,
+                fontFamily: 'BricolageGrotesque',
+                fontFeatures: [.tabularFigures()],
+              ),
+            ),
+
+            Expanded(
+              child: state.isEditing || state.isReordering
+                  ? SizedBox.shrink()
+                  : Align(
+                      alignment: .centerRight,
+                      child: _NextButton(
+                        onTap: () => ref
+                            .read(videoEditorProvider.notifier)
+                            .done(context),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BackToCameraButton extends StatelessWidget {
+  const _BackToCameraButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      // TODO(l10n): Replace with context.l10n when localization is added.
+      label: 'Go back to camera',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Row(
+          spacing: 6,
+          children: [
+            SizedBox(
+              height: 32,
+              width: 32,
+              child: SvgPicture.asset(
+                'assets/icon/CaretLeft.svg',
+                colorFilter: ColorFilter.mode(Colors.white, .srcIn),
+              ),
+            ),
+            SizedBox(
+              height: 32,
+              width: 32,
+              child: SvgPicture.asset(
+                'assets/icon/video_camera.svg',
+                colorFilter: ColorFilter.mode(Colors.white, .srcIn),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CloseButton extends StatelessWidget {
+  const _CloseButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      // TODO(l10n): Replace with context.l10n when localization is added.
+      label: 'Close video editor',
+      child: GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          height: 32,
+          width: 32,
+          child: SvgPicture.asset(
+            'assets/icon/close.svg',
+            colorFilter: ColorFilter.mode(Colors.white, .srcIn),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NextButton extends StatelessWidget {
+  const _NextButton({this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      // TODO(l10n): Replace with context.l10n when localization is added.
+      label: 'Continue to metadata',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const .symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: .circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0x1A000000),
+                offset: const Offset(1, 1),
+                blurRadius: 1,
+              ),
+              BoxShadow(
+                color: const Color(0x1A000000),
+                offset: const Offset(0.4, 0.4),
+                blurRadius: 0.6,
+              ),
+            ],
+          ),
+          child: Text(
+            // TODO(l10n): Replace with context.l10n when localization is added.
+            'Next',
+            style: TextStyle(
+              fontFamily: 'BricolageGrotesque',
               fontSize: 18,
+              fontWeight: .w800,
               height: 1.33,
               letterSpacing: 0.15,
-              fontWeight: .w800,
-              fontFamily: 'Bricolage Grotesque',
-              fontFeatures: [.tabularFigures()],
+              color: const Color(0xFF00452D),
             ),
           ),
-
-          // Done button
-          if (state.isEditing)
-            DivineIconButton(
-              iconPath: 'assets/icon/more_horiz.svg',
-              onTap: () => notifier.showMoreOptions(context),
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              semanticLabel: 'More',
-            )
-          else
-            DivineIconButton(
-              iconPath: 'assets/icon/arrow_forward.svg',
-              backgroundColor: VineTheme.tabIndicatorGreen,
-              onTap: () => notifier.done(context),
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              semanticLabel: 'Done editing',
-            ),
-        ],
+        ),
       ),
     );
   }

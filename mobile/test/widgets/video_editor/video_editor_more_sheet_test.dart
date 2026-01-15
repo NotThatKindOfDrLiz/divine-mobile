@@ -45,10 +45,10 @@ void main() {
       expect(find.text('Add clip from Library'), findsOneWidget);
     });
 
-    testWidgets('displays save to drafts option', (tester) async {
+    testWidgets('displays Save selected clip option', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
-      expect(find.text('Save to Drafts'), findsOneWidget);
+      expect(find.text('Save selected clip'), findsOneWidget);
     });
 
     testWidgets('displays delete clips option', (tester) async {
@@ -62,34 +62,6 @@ void main() {
 
       final addClipButton = find.text('Add clip from Library');
       expect(addClipButton, findsOneWidget);
-    });
-
-    testWidgets('save to drafts is disabled when no clips', (tester) async {
-      await tester.pumpWidget(buildTestWidget(hasClips: false));
-
-      final saveButton = find.text('Save to Drafts');
-      expect(saveButton, findsOneWidget);
-    });
-
-    testWidgets('save to drafts is enabled when clips exist', (tester) async {
-      await tester.pumpWidget(buildTestWidget(hasClips: true));
-
-      final saveButton = find.text('Save to Drafts');
-      expect(saveButton, findsOneWidget);
-    });
-
-    testWidgets('delete button is disabled when no clips', (tester) async {
-      await tester.pumpWidget(buildTestWidget(hasClips: false));
-
-      final deleteButton = find.text('Delete clips & start over');
-      expect(deleteButton, findsOneWidget);
-    });
-
-    testWidgets('delete button is enabled when clips exist', (tester) async {
-      await tester.pumpWidget(buildTestWidget(hasClips: true));
-
-      final deleteButton = find.text('Delete clips & start over');
-      expect(deleteButton, findsOneWidget);
     });
 
     testWidgets('uses SingleChildScrollView', (tester) async {

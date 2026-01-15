@@ -20,7 +20,6 @@ import 'package:openvine/services/video_editor/video_editor_render_service.dart'
 import 'package:openvine/services/video_editor/video_editor_split_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_editor/meta/video_editor_meta_sheet.dart';
-import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -359,26 +358,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     }
   }
 
-  /// Show the more options bottom sheet.
-  ///
-  /// Displays additional editor options like save to drafts, clip library, etc.
-  Future<void> showMoreOptions(BuildContext context) async {
-    Log.debug(
-      '⚙️ Showing more options sheet',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF101111),
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: .vertical(top: .circular(32)),
-      ),
-      builder: (context) => const VideoEditorMoreSheet(),
-    );
-  }
-
   /// Complete editing and render the final video.
   ///
   /// Shows metadata sheet for user input, renders video with all clips,
@@ -491,6 +470,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       final outputPath = await VideoEditorRenderService.renderVideo(
         clips: _clips,
         aspectRatio: _clips.first.aspectRatio,
+        enableAudio: !state.isMuted,
       );
       String? proofManifestJson;
 

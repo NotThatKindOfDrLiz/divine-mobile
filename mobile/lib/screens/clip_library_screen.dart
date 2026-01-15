@@ -299,7 +299,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontFamily: 'Bricolage Grotesque',
+                    fontFamily: 'BricolageGrotesque',
                     fontWeight: FontWeight.w800,
                     height: 1.33,
                     letterSpacing: 0.15,

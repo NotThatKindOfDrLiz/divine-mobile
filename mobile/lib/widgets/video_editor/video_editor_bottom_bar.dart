@@ -3,10 +3,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/services/video_editor/video_editor_split_service.dart';
+import 'package:openvine/theme/vine_theme.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/divine_icon_button.dart';
+import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
 import 'package:openvine/widgets/video_editor/video_time_display.dart';
 
 /// Bottom bar with playback controls and time display.
@@ -63,6 +67,22 @@ class VideoEditorBottomBar extends ConsumerWidget {
     await ref.read(videoEditorProvider.notifier).splitSelectedClip();
   }
 
+  /// Show the more options bottom sheet.
+  ///
+  /// Displays additional editor options like save to drafts, clip library, etc.
+  Future<void> _showMoreOptions(BuildContext context) async {
+    Log.debug(
+      '⚙️ Showing more options sheet',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VineTheme.surfaceBackground,
+      builder: (context) => const VideoEditorMoreSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(
@@ -108,7 +128,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                           // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'Crop',
                         )
-                      else ...[
+                      else
                         DivineIconButton(
                           iconPath: state.isMuted
                               ? 'assets/icon/volume_off.svg'
@@ -117,13 +137,12 @@ class VideoEditorBottomBar extends ConsumerWidget {
                           // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'Mute or unmute audio',
                         ),
-                        DivineIconButton(
-                          iconPath: 'assets/icon/more_horiz.svg',
-                          onTap: () => notifier.showMoreOptions(context),
-                          // TODO(l10n): Replace with context.l10n when localization is added.
-                          semanticLabel: 'More options',
-                        ),
-                      ],
+                      DivineIconButton(
+                        iconPath: 'assets/icon/more_horiz.svg',
+                        onTap: () => _showMoreOptions(context),
+                        // TODO(l10n): Replace with context.l10n when localization is added.
+                        semanticLabel: 'More options',
+                      ),
                     ],
                   ),
 
@@ -189,25 +208,16 @@ class _ClipRemoveArea extends ConsumerWidget {
         key: deleteButtonKey,
         padding: const .all(8),
         decoration: ShapeDecoration(
-          color: const Color(0xFF2D0000) /* error-error-container */,
+          color: const Color(0xFFF44336),
           shape: RoundedRectangleBorder(borderRadius: .circular(20)),
-          shadows: const [
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 1,
-              offset: Offset(1, 1),
-            ),
-            BoxShadow(
-              color: Color(0x19000000),
-              blurRadius: 0.60,
-              offset: Offset(0.40, 0.40),
-            ),
-          ],
         ),
-        child: const Icon(
-          Icons.delete_outline,
-          color: Color(0xFFF44336),
-          size: 32,
+        child: SizedBox(
+          height: 32,
+          width: 32,
+          child: SvgPicture.asset(
+            'assets/icon/delete.svg',
+            colorFilter: ColorFilter.mode(Color(0xFF410001), .srcIn),
+          ),
         ),
       ),
     );

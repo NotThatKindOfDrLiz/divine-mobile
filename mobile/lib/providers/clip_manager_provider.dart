@@ -476,7 +476,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     );
   }
 
-  /// Save clip(s) to device library.
+  /// Save clip(s) to library.
   ///
   /// Iterates through all clips and saves them to the persistent clip library.
   /// Continues saving remaining clips even if individual saves fail.
@@ -488,41 +488,12 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     );
 
     try {
-      final clipService = ref.read(clipLibraryServiceProvider);
-      int savedCount = 0;
-
       for (final clip in _clips) {
-        try {
-          final savedClip = SavedClip(
-            id: clip.id,
-            aspectRatio: clip.aspectRatio.name,
-            createdAt: DateTime.now(),
-            duration: clip.duration,
-            filePath: await clip.video.safeFilePath(),
-            thumbnailPath: clip.thumbnailPath,
-          );
-          await clipService.saveClip(savedClip);
-          savedCount++;
-
-          Log.debug(
-            '✅ Saved clip ${clip.id} to library (${clip.durationInSeconds}s)',
-            name: 'ClipManagerNotifier',
-            category: .video,
-          );
-        } catch (e, stackTrace) {
-          Log.error(
-            '❌ Failed to save clip ${clip.id}: $e',
-            name: 'ClipManagerNotifier',
-            category: .video,
-            error: e,
-            stackTrace: stackTrace,
-          );
-          // Continue saving other clips even if one fails
-        }
+        await saveClipToLibrary(clip);
       }
 
       Log.info(
-        '💾 Successfully saved $savedCount/${_clips.length} clips to library',
+        '💾 Successfully saved clips to library',
         name: 'ClipManagerNotifier',
         category: .video,
       );
@@ -534,7 +505,49 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         error: e,
         stackTrace: stackTrace,
       );
-      rethrow;
+    }
+  }
+
+  /// Save specific clip to library.
+  Future<void> saveClipToLibrary(RecordingClip clip) async {
+    Log.info(
+      '💾 Starting to save ${_clips.length} clips to library',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
+
+    try {
+      final clipService = ref.read(clipLibraryServiceProvider);
+
+      final savedClip = SavedClip(
+        id: clip.id,
+        aspectRatio: clip.aspectRatio.name,
+        createdAt: DateTime.now(),
+        duration: clip.duration,
+        filePath: await clip.video.safeFilePath(),
+        thumbnailPath: clip.thumbnailPath,
+      );
+      await clipService.saveClip(savedClip);
+
+      Log.debug(
+        '✅ Saved clip ${clip.id} to library (${clip.durationInSeconds}s)',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+
+      Log.info(
+        '💾 Successfully saved clip to library',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to save clip ${clip.id}: $e',
+        name: 'ClipManagerNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 

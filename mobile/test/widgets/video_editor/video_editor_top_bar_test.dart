@@ -95,13 +95,7 @@ void main() {
     testWidgets('displays done button when not editing', (tester) async {
       await tester.pumpWidget(buildTestWidget(isEditing: false));
 
-      expect(find.bySemanticsLabel('Done editing'), findsOneWidget);
-    });
-
-    testWidgets('displays more button when editing', (tester) async {
-      await tester.pumpWidget(buildTestWidget(isEditing: true));
-
-      expect(find.bySemanticsLabel('More'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
     });
 
     testWidgets('close button is tappable when editing', (tester) async {
@@ -113,17 +107,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(closeButton, findsOneWidget);
-    });
-
-    testWidgets('more button is tappable when editing', (tester) async {
-      await tester.pumpWidget(buildTestWidget(isEditing: true));
-
-      final moreButton = find.bySemanticsLabel('More');
-
-      await tester.tap(moreButton);
-      await tester.pumpAndSettle();
-
-      expect(moreButton, findsOneWidget);
     });
 
     testWidgets('displays correct clip counter for single clip', (
@@ -147,9 +130,6 @@ class TestVideoEditorNotifier extends VideoEditorNotifier {
 
   @override
   void stopClipEditing() {}
-
-  @override
-  Future<void> showMoreOptions(BuildContext context) async {}
 
   @override
   Future<void> done(BuildContext context) async {}

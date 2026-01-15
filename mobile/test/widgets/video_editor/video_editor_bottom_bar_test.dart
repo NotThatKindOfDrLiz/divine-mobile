@@ -92,14 +92,11 @@ void main() {
       expect(find.bySemanticsLabel('Crop'), findsOneWidget);
     });
 
-    testWidgets('does not display mute/more buttons when editing', (
-      tester,
-    ) async {
+    testWidgets('does not display mute button when editing', (tester) async {
       await tester.pumpWidget(buildTestWidget(isEditing: true));
 
       // Mute and more buttons should not be visible when editing
       expect(find.bySemanticsLabel('Mute or unmute audio'), findsNothing);
-      expect(find.bySemanticsLabel('More options'), findsNothing);
     });
 
     testWidgets('displays time display', (tester) async {
@@ -157,9 +154,6 @@ class TestVideoEditorNotifier extends VideoEditorNotifier {
 
   @override
   void toggleMute() {}
-
-  @override
-  Future<void> showMoreOptions(BuildContext context) async {}
 }
 
 class TestClipManagerNotifier extends ClipManagerNotifier {

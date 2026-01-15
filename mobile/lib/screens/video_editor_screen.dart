@@ -73,9 +73,6 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
                           /// Main content area with clips
                           const Expanded(child: VideoEditorClipGallery()),
 
-                          /// Bottom bar
-                          const VideoEditorBottomBar(),
-
                           /// Progress or Split bar
                           Consumer(
                             builder: (_, ref, _) {
@@ -92,6 +89,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
                               );
                             },
                           ),
+
+                          /// Bottom bar
+                          const VideoEditorBottomBar(),
                         ],
                       ),
                     ),

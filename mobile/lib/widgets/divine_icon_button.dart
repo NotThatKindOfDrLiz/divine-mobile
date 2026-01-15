@@ -11,7 +11,7 @@ class DivineIconButton extends StatelessWidget {
     this.icon,
     this.iconPath,
     super.key,
-    this.backgroundColor = const Color(0xFF101111),
+    this.backgroundColor = const Color(0xFF000000),
     this.iconColor = Colors.white,
     this.iconSize = 32,
     this.size = 48,
