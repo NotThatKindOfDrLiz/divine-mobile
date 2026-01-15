@@ -9,17 +9,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_editor/video_editor_meta.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
+import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
-import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
 import 'package:openvine/services/video_editor/video_editor_split_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/widgets/video_editor/meta/video_editor_meta_sheet.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -275,6 +274,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     _metadata = value;
   }
 
+  void setExpiration(VideoMetadataExpiration expiration) {
+    state = state.copyWith(expiration: expiration);
+  }
+
   /// Set the draft ID for saving/loading.
   ///
   /// Associates this editing session with a persistent draft for auto-save.
@@ -358,11 +361,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     }
   }
 
-  /// Complete editing and render the final video.
-  ///
-  /// Shows metadata sheet for user input, renders video with all clips,
-  /// and navigates to publish screen on success.
-  Future<void> done(BuildContext context) async {
+  /// Render the final video.
+  Future<void> startRenderVideo() async {
     Log.info(
       '🎬 Starting final video render',
       name: 'VideoEditorNotifier',
@@ -370,20 +370,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
     state = state.copyWith(isProcessing: true);
 
-    final completer = Completer<(String? filePath, String? proofManifest)>();
-
-    unawaited(_renderVideo(completer));
-
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF101111),
-      showDragHandle: true,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => VideoEditorMetaSheet(draftId: draftId),
-    );
-
-    final (outputPath, proofManifestJson) = await completer.future;
+    final (outputPath, proofManifestJson) = await _renderVideo();
 
     final validToPublish = outputPath != null;
 
@@ -401,8 +388,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       );
       return;
     }
-
-    if (!context.mounted) return;
 
     Log.info(
       '✅ Video rendered successfully - duration: '
@@ -429,10 +414,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
-    if (!context.mounted) return;
-
     state = state.copyWith(isProcessing: false);
-    await context.pushVideoPublish();
+  }
+
+  Future<void> saveAsDraft() async {
+    // TODO(@hm21):
+  }
+  Future<void> postVideo() async {
+    // TODO(@hm21):
   }
 
   /// Create a VineDraft from the rendered clip with metadata and proofmode
@@ -457,9 +446,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Render all clips into a single video file with aspect ratio cropping.
   ///
   /// Applies center cropping based on target aspect ratio (square or vertical).
-  Future<void> _renderVideo(
-    Completer<(String? filePath, String? proof)> completer,
-  ) async {
+  Future<(String? filePath, String? proof)> _renderVideo() async {
     Log.info(
       '🎥 Rendering ${_clips.length} clip(s) into final video',
       name: 'VideoEditorNotifier',
@@ -513,7 +500,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       }
 
       state = state.copyWith(isProcessing: false);
-      completer.complete((outputPath, proofManifestJson));
+      return (outputPath, proofManifestJson);
     } catch (e, stackTrace) {
       Log.error(
         '❌ Video rendering error: $e',
@@ -523,7 +510,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         stackTrace: stackTrace,
       );
       state = state.copyWith(isProcessing: false);
-      completer.complete((null, null));
+      return (null, null);
     }
   }
 }

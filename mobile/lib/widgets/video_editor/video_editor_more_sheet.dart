@@ -77,35 +77,41 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: .fromLTRB(0, 8, 0, 24),
-              child: VineBottomSheetDragHandle(),
+      child: Column(
+        mainAxisSize: .min,
+        spacing: 24,
+        children: [
+          const Padding(
+            padding: .only(top: 8),
+            child: VineBottomSheetDragHandle(),
+          ),
+          SingleChildScrollView(
+            child: Column(
+              mainAxisSize: .min,
+              children: [
+                BottomSheetListTile(
+                  iconPath: 'assets/icon/folder_open.svg',
+                  // TODO(l10n): Replace with context.l10n when localization is added.
+                  title: 'Add clip from Library',
+                  onTap: () => _pickFromLibrary(context),
+                ),
+                BottomSheetListTile(
+                  iconPath: 'assets/icon/save.svg',
+                  // TODO(l10n): Replace with context.l10n when localization is added.
+                  title: 'Save selected clip',
+                  onTap: _saveClipToLibrary,
+                ),
+                BottomSheetListTile(
+                  iconPath: 'assets/icon/trash.svg',
+                  // TODO(l10n): Replace with context.l10n when localization is added.
+                  title: 'Delete clips & start over',
+                  onTap: _deleteAndStartOver,
+                  color: const Color(0xFFF44336),
+                ),
+              ],
             ),
-            BottomSheetListTile(
-              iconPath: 'assets/icon/folder_open.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              title: 'Add clip from Library',
-              onTap: () => _pickFromLibrary(context),
-            ),
-            BottomSheetListTile(
-              iconPath: 'assets/icon/save.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              title: 'Save selected clip',
-              onTap: _saveClipToLibrary,
-            ),
-            BottomSheetListTile(
-              iconPath: 'assets/icon/trash.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              title: 'Delete clips & start over',
-              onTap: _deleteAndStartOver,
-              color: const Color(0xFFF44336),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

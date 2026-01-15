@@ -2,6 +2,7 @@
 // ABOUTME: Tracks editing state with export stages and computed properties for UI state
 
 import 'package:flutter/widgets.dart';
+import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 
 /// Immutable state model for the video editor.
 ///
@@ -21,6 +22,10 @@ class VideoEditorProviderState {
     this.isPlaying = false,
     this.isMuted = false,
     this.isProcessing = false,
+    this.title = '',
+    this.description = '',
+    this.tags = const [],
+    this.expiration = .notExpire,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
@@ -54,32 +59,55 @@ class VideoEditorProviderState {
   /// GlobalKey for the delete button to enable hit testing.
   final GlobalKey deleteButtonKey;
 
+  /// Video post title displayed in metadata screen.
+  final String title;
+
+  /// Video post description providing additional context.
+  final String description;
+
+  /// List of hashtags/tags associated with the video for discovery.
+  final List<String> tags;
+
+  /// Expiration setting determining when the video post expires.
+  final VideoMetadataExpiration expiration;
+
+  bool get isValidToPost => true; // TODO(@hm21):
+
   /// Creates a copy of this state with updated fields.
   ///
   /// All parameters are optional. Only provided fields will be updated,
   /// others retain their current values.
   VideoEditorProviderState copyWith({
-    bool? isEditing,
-    bool? isReordering,
-    bool? isOverDeleteZone,
     int? currentClipIndex,
     Duration? currentPosition,
     Duration? splitPosition,
+    bool? isEditing,
+    bool? isReordering,
+    bool? isOverDeleteZone,
     bool? isPlaying,
     bool? isMuted,
     bool? isProcessing,
+    GlobalKey? deleteButtonKey,
+    String? title,
+    String? description,
+    List<String>? tags,
+    VideoMetadataExpiration? expiration,
   }) {
     return VideoEditorProviderState(
-      isEditing: isEditing ?? this.isEditing,
-      isReordering: isReordering ?? this.isReordering,
-      isOverDeleteZone: isOverDeleteZone ?? this.isOverDeleteZone,
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
       currentPosition: currentPosition ?? this.currentPosition,
       splitPosition: splitPosition ?? this.splitPosition,
+      isEditing: isEditing ?? this.isEditing,
+      isReordering: isReordering ?? this.isReordering,
+      isOverDeleteZone: isOverDeleteZone ?? this.isOverDeleteZone,
       isPlaying: isPlaying ?? this.isPlaying,
       isMuted: isMuted ?? this.isMuted,
       isProcessing: isProcessing ?? this.isProcessing,
-      deleteButtonKey: deleteButtonKey,
+      deleteButtonKey: deleteButtonKey ?? this.deleteButtonKey,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      tags: tags ?? this.tags,
+      expiration: expiration ?? this.expiration,
     );
   }
 }

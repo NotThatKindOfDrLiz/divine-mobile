@@ -83,9 +83,7 @@ class VideoEditorTopBar extends ConsumerWidget {
                   : Align(
                       alignment: .centerRight,
                       child: _NextButton(
-                        onTap: () => ref
-                            .read(videoEditorProvider.notifier)
-                            .done(context),
+                        onTap: () => context.pushVideoMetadata(),
                       ),
                     ),
             ),

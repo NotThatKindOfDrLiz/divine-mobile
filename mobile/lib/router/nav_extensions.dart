@@ -203,7 +203,7 @@ extension NavX on BuildContext {
         '/video-editor${draftId != null ? '/$draftId' : ''}',
         extra: fromLibrary ? {'fromLibrary': true} : null,
       );
-  Future<void> pushVideoPublish() => push('/video-publish');
+  Future<void> pushVideoMetadata() => push('/video-metadata');
   Future<void> pushSettings() => push('/settings');
   Future<void> pushComments(VideoEvent video) =>
       CommentsScreen.show(this, video);

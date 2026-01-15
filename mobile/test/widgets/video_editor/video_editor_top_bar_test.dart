@@ -131,8 +131,7 @@ class TestVideoEditorNotifier extends VideoEditorNotifier {
   @override
   void stopClipEditing() {}
 
-  @override
-  Future<void> done(BuildContext context) async {}
+  Future<void> done() async {}
 }
 
 class TestClipManagerNotifier extends ClipManagerNotifier {

@@ -119,10 +119,10 @@ void main() {
       expect(buildRoute(context), '/video-editor');
     });
 
-    test('builds video-publish route', () {
-      final context = RouteContext(type: RouteType.videoPublish);
+    test('builds video-metadata route', () {
+      final context = RouteContext(type: RouteType.videoMetadata);
 
-      expect(buildRoute(context), '/video-publish');
+      expect(buildRoute(context), '/video-metadata');
     });
 
     test('builds settings route', () {

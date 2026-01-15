@@ -44,8 +44,8 @@ import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/screens/video_detail_screen.dart';
-import 'package:openvine/screens/video_editor/video_editor_screen.dart';
-import 'package:openvine/screens/video_publish_screen.dart';
+import 'package:openvine/screens/video_metadata_screen.dart';
+import 'package:openvine/screens/video_editor_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/services/auth_service.dart';
@@ -109,6 +109,7 @@ int tabIndexFromLocation(String loc) {
     case 'welcome':
     case 'video-recorder':
     case 'video-editor':
+    case 'video-metadata':
     case 'clip-manager':
     case 'drafts':
     case 'followers':
@@ -866,9 +867,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/video-publish',
-        name: 'video-publish',
-        builder: (_, _) => const VideoPublishScreen(),
+        path: '/video-metadata',
+        name: 'video-metadata',
+        builder: (_, st) => const VideoMetadataScreen(),
       ),
       // Fullscreen video feed route (no bottom nav, used from profile/hashtag grids)
       GoRoute(

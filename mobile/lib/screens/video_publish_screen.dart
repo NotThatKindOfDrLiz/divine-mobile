@@ -9,6 +9,7 @@ import 'package:openvine/widgets/video_publish/video_publish_bottom_bar.dart';
 import 'package:openvine/widgets/video_publish/video_publish_top_bar.dart';
 import 'package:openvine/widgets/video_publish/video_publish_video_preview.dart';
 
+// TODO(@hm21): Delete screen and widgets and provider
 /// Video publish screen for previewing and publishing edited videos.
 class VideoPublishScreen extends ConsumerWidget {
   /// Creates a video publish screen.

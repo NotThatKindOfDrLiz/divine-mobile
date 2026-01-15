@@ -23,7 +23,7 @@ class ClipGalleryEdgeGradients extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const gradientColors = [Colors.black, Colors.transparent];
+    const gradientColors = [const Color(0xFF000A06), Colors.transparent];
 
     return IgnorePointer(
       child: Opacity(

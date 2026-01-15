@@ -49,10 +49,11 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     final isProcessing = ref.watch(
       videoEditorProvider.select((p) => p.isProcessing),
     );
+    final backgroundColor = const Color(0xFF000A06);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.black,
+      value: SystemUiOverlayStyle(
+        statusBarColor: backgroundColor,
         statusBarIconBrightness: .light,
         statusBarBrightness: .dark,
       ),
@@ -60,7 +61,7 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
         canPop: !isProcessing,
         child: Scaffold(
           resizeToAvoidBottomInset: false,
-          backgroundColor: Colors.black,
+          backgroundColor: backgroundColor,
           body: _isLoadingDraft
               ? const Center(child: CircularProgressIndicator.adaptive())
               : Stack(
