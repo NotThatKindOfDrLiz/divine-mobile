@@ -34,6 +34,7 @@ workspace:
   - packages/nostr_gateway
   - packages/nostr_key_manager
   - packages/permissions_service
+  - packages/videos_repository
   
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -64,6 +65,9 @@ dependencies:
   connectivity_plus: ^7.0.0
   device_info_plus: ^10.1.2
   url_launcher: ^6.3.2
+  # OAuth: Uses ASWebAuthenticationSession on iOS (Apple's recommended auth flow)
+  # https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession
+  flutter_web_auth_2: ^4.1.0
   dio: ^5.8.0
 
   permission_handler: ^12.0.1 # Handle runtime permissions
@@ -101,6 +105,7 @@ dependencies:
   google_fonts: ^6.3.2 # For using Google Fonts including Pacifico
   flutter_svg: ^2.0.10+1 # For custom SVG icons
   blurhash_dart: ^1.2.1 # Generate blurhash for progressive image loading
+  skeletonizer: ^2.1.2 # Skeleton loading animations with shimmer effect
 
   # Nostr SDK - Local package for comprehensive Nostr support
   nostr_sdk:
@@ -109,6 +114,13 @@ dependencies:
   # Nostr Key Manager - Secure key management with hardware-backed storage
   nostr_key_manager:
     path: packages/nostr_key_manager
+
+  keycast_flutter:
+    path: packages/keycast_flutter
+
+  # Videos Repository - Video feed data layer
+  videos_repository:
+    path: packages/videos_repository
 
   # Logging
   logging: ^1.2.0
@@ -140,6 +152,7 @@ dependencies:
   linked_scroll_controller: ^0.2.0
   flutter_colorpicker: ^1.1.0
   file_picker: ^10.3.7
+  sensors_plus: ^7.0.0
 
 dependency_overrides:
   device_info_plus: ^10.1.2
@@ -218,6 +231,8 @@ flutter:
     - assets/icon/CaretLeft.svg
     - assets/icon/check.svg
     - assets/icon/close.svg
+    - assets/icon/delete.svg
+    - assets/icon/house.svg
     - assets/icon/compass.svg
     - assets/icon/crop_portrait.svg
     - assets/icon/crop_square.svg
@@ -244,6 +259,7 @@ flutter:
     - assets/icon/video_camera.svg
     - assets/icon/volume_off.svg
     - assets/icon/volume_on.svg
+    - assets/icon/arrow_bend_down_right.svg
     - assets/loading-brand.gif
     - assets/seed_data/seed_events.sql
     - assets/seed_media/manifest.json

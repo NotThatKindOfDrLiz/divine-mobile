@@ -62,6 +62,8 @@ class CameraController(
     private var maxZoom: Float = 1.0f
     private var currentZoom: Float = 1.0f
     private var aspectRatio: Float = 16f / 9f
+    private var videoWidth: Int = 1920
+    private var videoHeight: Int = 1080
 
     private var hasFrontCamera: Boolean = false
     private var hasBackCamera: Boolean = false
@@ -267,17 +269,19 @@ class CameraController(
             // Setup surface provider - provide the surface when CameraX requests it
             preview?.setSurfaceProvider(ContextCompat.getMainExecutor(context)) { request ->
                 val resolution = request.resolution
+                videoWidth = resolution.width
+                videoHeight = resolution.height
                 Log.d(
                     TAG,
-                    "Surface provider called with resolution: ${resolution.width}x${resolution.height}"
+                    "Surface provider called with resolution: ${videoWidth}x${videoHeight}"
                 )
 
-                // Update aspect ratio based on actual camera resolution
-                aspectRatio = resolution.width.toFloat() / resolution.height.toFloat()
-                Log.d(TAG, "Aspect ratio set to: $aspectRatio")
+                // Update aspect ratio and video dimensions based on actual camera resolution
+                aspectRatio = videoWidth.toFloat() / videoHeight.toFloat()
+                Log.d(TAG, "Aspect ratio set to: $aspectRatio, video dimensions: ${videoWidth}x${videoHeight}")
 
                 // Set the buffer size to match camera resolution
-                flutterSurfaceTexture?.setDefaultBufferSize(resolution.width, resolution.height)
+                flutterSurfaceTexture?.setDefaultBufferSize(videoWidth, videoHeight)
 
                 // Create surface from Flutter's SurfaceTexture
                 previewSurface = Surface(flutterSurfaceTexture)
@@ -410,15 +414,17 @@ class CameraController(
             // Reuse the existing flutter texture - just update buffer size when we get new resolution
             preview?.setSurfaceProvider(ContextCompat.getMainExecutor(context)) { request ->
                 val resolution = request.resolution
+                videoWidth = resolution.width
+                videoHeight = resolution.height
                 Log.d(
                     TAG,
-                    "Switch: Surface provider called with resolution: ${resolution.width}x${resolution.height}"
+                    "Switch: Surface provider called with resolution: ${videoWidth}x${videoHeight}"
                 )
 
-                aspectRatio = resolution.width.toFloat() / resolution.height.toFloat()
+                aspectRatio = videoWidth.toFloat() / videoHeight.toFloat()
 
                 // Update buffer size for new camera resolution
-                flutterSurfaceTexture?.setDefaultBufferSize(resolution.width, resolution.height)
+                flutterSurfaceTexture?.setDefaultBufferSize(videoWidth, videoHeight)
 
                 // Provide the existing surface
                 if (previewSurface != null && previewSurface!!.isValid) {
@@ -704,8 +710,8 @@ class CameraController(
                                     val result = mapOf(
                                         "filePath" to file.absolutePath,
                                         "durationMs" to duration.toInt(),
-                                        "width" to 1920,
-                                        "height" to 1080
+                                        "width" to videoWidth,
+                                        "height" to videoHeight
                                     )
                                     Log.d(TAG, "Auto-stop recording result: $result")
                                     autoCallback(result, null)
@@ -775,8 +781,8 @@ class CameraController(
                     val result = mapOf(
                         "filePath" to file.absolutePath,
                         "durationMs" to duration.toInt(),
-                        "width" to 1280,
-                        "height" to 720
+                        "width" to videoWidth,
+                        "height" to videoHeight
                     )
                     Log.d(TAG, "Recording stopped: $result")
                     callback(result, null)
