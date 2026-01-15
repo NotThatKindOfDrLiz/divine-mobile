@@ -5,9 +5,7 @@ This folder contains end-to-end UI tests written with **Maestro**.
 The purpose of these tests is to provide **fast, high-signal regression detection** for user flows from critical to normal. They are not intended to replace unit tests or widget tests. Camera features are out of scope for this tests.
 
 These tests are:
-- **Owned by QA**
-- **Runnable by developers**
-- **Black-box by design**
+- **Black-box by design**, do not expect BE calls for validations.
 - Focused on **navigation** and **functionality**
 
 ---
@@ -36,9 +34,7 @@ Maestro is **not** used for:
 ```
 e2e/maestro
 ├── flows/
-│   ├── P0/
-│   ├── P1/
-│   └── P2/
+├── tests/
 ├── asserts/
 ├── utils/
 ├── scripts/
@@ -48,10 +44,6 @@ e2e/maestro
 ---
 
 ## Flow tiers
-
-- **P0**: Release blockers. If these fail, the build is not eligible for release.
-- **P1**: High-value scenarios, further investigation should be performed to determine if its ok to release with the issue.
-- **P2**: Best-effort / post-release coverage.
 
 The scope of the changes performed on a PR will determine which tests to run.
 
@@ -75,25 +67,13 @@ maestro --version
 
 ## Running tests
 
-### Run P0 (recommended default)
+### Full regression
 
 ```bash
-./e2e/maestro/scripts/run-p0.sh
+maestro test e2e/maestro/flows/
 ```
 
-This is the default command to run to validate critical flows before pushing or merging changes.
-
-### Run P1
-
-```bash
-maestro test e2e/maestro/flows/P1
-```
-
-### Run P2
-
-```bash
-maestro test e2e/maestro/flows/P2
-```
+This is the default command to run to validate all flows before pushing or merging changes.
 
 ---
 
@@ -156,6 +136,6 @@ Changes to any of the automated flows should be made carefully, as they act as r
 
 ## Guiding principle
 
-If a **P0** Maestro test fails, something important broke — even if the app still appears to work.
+If a Maestro test fails, something important broke — even if the app still appears to work.
 
 Keep tests **small**, **deterministic**, and **high-signal**.
