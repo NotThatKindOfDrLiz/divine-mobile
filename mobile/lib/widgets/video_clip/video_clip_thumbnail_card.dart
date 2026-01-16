@@ -52,24 +52,6 @@ class VideoClipThumbnailCard extends StatefulWidget {
 /// Manages thumbnail existence check as a cached [Future] to prevent
 /// redundant file system checks on rebuild.
 class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
-  /// Cached future that resolves to whether the thumbnail file exists.
-  /// Initialized once in [initState] to avoid repeated file system checks.
-  late Future<bool> _thumbnailExistsFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _thumbnailExistsFuture = _checkThumbnailExists();
-  }
-
-  /// Asynchronously checks if the thumbnail file exists
-  Future<bool> _checkThumbnailExists() async {
-    if (widget.clip.thumbnailPath == null) {
-      return false;
-    }
-    return File(widget.clip.thumbnailPath!).exists();
-  }
-
   @override
   Widget build(BuildContext context) {
     // Calculate aspect ratio for container
@@ -96,7 +78,7 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
           onTap: widget.disabled ? null : widget.onTap,
           onLongPress: widget.disabled ? null : widget.onLongPress,
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: .circular(4),
             child: AspectRatio(
               aspectRatio: aspectRatio,
               child: ColoredBox(
@@ -104,12 +86,13 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Thumbnail or placeholder
-                    _buildThumbnail(), // Duration badge - bottom left
-                    _DurationBadge(
-                      durationInSeconds: widget.clip.durationInSeconds,
-                    ),
-                    // Selection check circle - top right
+                    /// Thumbnail or placeholder
+                    _Thumbnail(clip: widget.clip),
+
+                    /// Duration badge - bottom left
+                    _DurationBadge(clip: widget.clip),
+
+                    /// Selection check circle - top right
                     AnimatedSwitcher(
                       duration: Duration(milliseconds: 120),
                       child: widget.isSelected
@@ -125,13 +108,43 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
       ),
     );
   }
+}
 
-  /// Builds the thumbnail image or placeholder.
-  ///
-  /// Uses [FutureBuilder] to show a loading spinner while checking if the
-  /// thumbnail exists, then displays either the thumbnail image or a
-  /// placeholder icon.
-  Widget _buildThumbnail() {
+/// Builds the thumbnail image or placeholder.
+///
+/// Uses [FutureBuilder] to show a loading spinner while checking if the
+/// thumbnail exists, then displays either the thumbnail image or a
+/// placeholder icon.
+class _Thumbnail extends StatefulWidget {
+  const _Thumbnail({required this.clip});
+
+  final SavedClip clip;
+
+  @override
+  State<_Thumbnail> createState() => _ThumbnailState();
+}
+
+class _ThumbnailState extends State<_Thumbnail> {
+  /// Cached future that resolves to whether the thumbnail file exists.
+  /// Initialized once in [initState] to avoid repeated file system checks.
+  late Future<bool> _thumbnailExistsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _thumbnailExistsFuture = _checkThumbnailExists();
+  }
+
+  /// Asynchronously checks if the thumbnail file exists
+  Future<bool> _checkThumbnailExists() async {
+    if (widget.clip.thumbnailPath == null) {
+      return false;
+    }
+    return File(widget.clip.thumbnailPath!).exists();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return FutureBuilder<bool>(
       future: _thumbnailExistsFuture,
       builder: (context, snapshot) {
@@ -162,9 +175,9 @@ class _VideoClipThumbnailCardState extends State<VideoClipThumbnailCard> {
 ///
 /// Displays the clip duration in seconds with 2 decimal places.
 class _DurationBadge extends StatelessWidget {
-  const _DurationBadge({required this.durationInSeconds});
+  const _DurationBadge({required this.clip});
 
-  final double durationInSeconds;
+  final SavedClip clip;
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +191,7 @@ class _DurationBadge extends StatelessWidget {
           borderRadius: .circular(4),
         ),
         child: Text(
-          durationInSeconds.toStringAsFixed(2),
+          clip.durationInSeconds.toStringAsFixed(2),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 14,
