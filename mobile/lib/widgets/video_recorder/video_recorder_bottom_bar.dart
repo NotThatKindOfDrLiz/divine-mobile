@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_more_sheet.dart';
@@ -39,6 +40,8 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       ),
     );
 
+    final hasClips = ref.watch(clipManagerProvider.select((p) => p.hasClips));
+
     return SafeArea(
       top: false,
       child: IgnorePointer(
@@ -72,7 +75,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
                     : 'assets/icon/crop_portrait.svg',
                 // TODO(l10n): Replace with context.l10n when localization is added.
                 tooltip: 'Toggle aspect ratio',
-                onPressed: notifier.toggleAspectRatio,
+                onPressed: !hasClips ? notifier.toggleAspectRatio : null,
               ),
 
               // Flip camera
