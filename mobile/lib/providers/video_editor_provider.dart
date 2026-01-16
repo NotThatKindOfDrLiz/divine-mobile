@@ -257,10 +257,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
   }
 
-  void addTags(Set<String> tags) {
-    state = state.copyWith(tags: {...state.tags, ...tags});
-  }
-
   void removeTag(String tag) {
     final tags = {...state.tags};
     tags.removeWhere((el) => el == tag);

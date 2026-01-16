@@ -18,6 +18,8 @@ class VideoMetadataTagsInput extends ConsumerStatefulWidget {
 
 class _VideoMetadataTagsInputState
     extends ConsumerState<VideoMetadataTagsInput> {
+  static int tagLimit = 10;
+
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
@@ -50,7 +52,10 @@ class _VideoMetadataTagsInputState
         .where((tag) => tag.isNotEmpty)
         .toSet();
 
-    ref.read(videoEditorProvider.notifier).addTags(newTags);
+    final oldTags = ref.read(videoEditorProvider).tags;
+    ref
+        .read(videoEditorProvider.notifier)
+        .updateMetadata(tags: {...oldTags, ...newTags});
     _controller.clear();
     // Keep focus to prevent keyboard from closing
     _focusNode.requestFocus();
@@ -84,7 +89,7 @@ class _VideoMetadataTagsInputState
                 children: [
                   Flexible(child: Text('Tags', style: labelStyle)),
                   Text(
-                    '${tags.length}/10',
+                    '${tags.length}/$tagLimit',
                     style: labelStyle.copyWith(color: Color(0x80FFFFFF)),
                   ),
                 ],
@@ -96,21 +101,24 @@ class _VideoMetadataTagsInputState
               tagCount: tags.length,
               children: [
                 ...tags.map((tag) => _TagChip(tag: tag)),
-                DivineTextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  label: tags.isEmpty ? 'Tags' : null,
-                  contentPadding: .zero,
-                  textCapitalization: .none,
-                  textInputAction: .done,
-                  maxLines: 1,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s]')),
-                  ],
-                  onChanged: _handleTagChanges,
-                  onSubmitted: (value) =>
-                      _handleTagChanges(value, isSubmitted: true),
-                ),
+                if (tags.length < tagLimit)
+                  DivineTextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    label: tags.isEmpty ? 'Tags' : null,
+                    contentPadding: .zero,
+                    textCapitalization: .none,
+                    textInputAction: .done,
+                    maxLines: 1,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-zA-Z0-9\s]'),
+                      ),
+                    ],
+                    onChanged: _handleTagChanges,
+                    onSubmitted: (value) =>
+                        _handleTagChanges(value, isSubmitted: true),
+                  ),
               ],
             ),
           ],
