@@ -7,9 +7,9 @@ import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/widgets/divine_text_field.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_expiration_selector.dart';
-import 'package:openvine/widgets/video_metadata/divine_text_field.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_tags_input.dart';
 import '../theme/vine_theme.dart';
 

@@ -5,7 +5,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/widgets/video_metadata/divine_text_field.dart';
+import 'package:openvine/widgets/divine_text_field.dart';
 
 class VideoMetadataTagsInput extends ConsumerStatefulWidget {
   const VideoMetadataTagsInput({super.key});
