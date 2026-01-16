@@ -119,6 +119,7 @@ class VideoEditorBottomBar extends ConsumerWidget {
                     spacing: 16,
                     children: [
                       DivineIconButton(
+                        backgroundColor: const Color(0x00000000),
                         iconPath: state.isPlaying
                             ? 'assets/icon/pause.svg'
                             : 'assets/icon/play.svg',
@@ -128,12 +129,14 @@ class VideoEditorBottomBar extends ConsumerWidget {
                       ),
                       if (state.isEditing)
                         DivineIconButton(
+                          backgroundColor: const Color(0x00000000),
                           iconPath: 'assets/icon/trim.svg',
                           onTap: () => _handleSplitClip(context, ref),
                           // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'Crop',
                         ),
                       DivineIconButton(
+                        backgroundColor: const Color(0x00000000),
                         iconPath: 'assets/icon/more_horiz.svg',
                         onTap: () => _showMoreOptions(context, ref),
                         // TODO(l10n): Replace with context.l10n when localization is added.

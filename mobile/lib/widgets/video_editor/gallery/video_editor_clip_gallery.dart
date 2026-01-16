@@ -644,11 +644,13 @@ class _SwipeView extends ConsumerWidget {
           xOffset: xOffset,
           onTap: () async {
             if (index != currentClipIndex) {
-              await pageController.animateToPage(
-                index,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.ease,
-              );
+              if (!isEditing) {
+                await pageController.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.ease,
+                );
+              }
             } else {
               ref.read(videoEditorProvider.notifier).toggleClipEditing();
             }
