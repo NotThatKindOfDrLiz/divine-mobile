@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:openvine/theme/vine_theme.dart';
 
 class DivineTextField extends StatefulWidget {
@@ -13,6 +14,7 @@ class DivineTextField extends StatefulWidget {
     this.minLines,
     this.maxLines,
     this.contentPadding = const .all(16),
+    this.inputFormatters,
     this.onSubmitted,
     this.onChanged,
   });
@@ -29,6 +31,7 @@ class DivineTextField extends StatefulWidget {
   final int? maxLines;
 
   final EdgeInsets contentPadding;
+  final List<TextInputFormatter>? inputFormatters;
 
   final ValueChanged<String>? onSubmitted;
   final ValueChanged<String>? onChanged;
@@ -82,6 +85,7 @@ class _DivineTextFieldState extends State<DivineTextField> {
         maxLines: widget.maxLines,
         onSubmitted: widget.onSubmitted,
         onChanged: widget.onChanged,
+        inputFormatters: widget.inputFormatters,
         decoration: InputDecoration(
           labelText: widget.label,
           labelStyle: VineTheme.bodyFont(

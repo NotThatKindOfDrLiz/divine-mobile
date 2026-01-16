@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -45,7 +46,7 @@ class _VideoMetadataTagsInputState
     // them separate.
     final Set<String> newTags = value
         .split(RegExp(r'\s+'))
-        .map((tag) => tag.replaceAll(RegExp(r'[#@]'), ''))
+        .map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
         .where((tag) => tag.isNotEmpty)
         .toSet();
 
@@ -98,12 +99,14 @@ class _VideoMetadataTagsInputState
                 DivineTextField(
                   controller: _controller,
                   focusNode: _focusNode,
-                  keyboardType: .twitter,
                   label: tags.isEmpty ? 'Tags' : null,
                   contentPadding: .zero,
                   textCapitalization: .none,
                   textInputAction: .done,
                   maxLines: 1,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9\s]')),
+                  ],
                   onChanged: _handleTagChanges,
                   onSubmitted: (value) =>
                       _handleTagChanges(value, isSubmitted: true),
