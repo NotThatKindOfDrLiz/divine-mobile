@@ -64,6 +64,7 @@ class VideoEditorRenderService {
       );
 
       final task = VideoRenderData(
+        id: clips.first.id,
         videoSegments: videoSegments,
         endTime: const Duration(milliseconds: 6_300),
         enableAudio: enableAudio,

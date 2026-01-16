@@ -376,6 +376,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
   /// Render the final video.
   Future<void> startRenderVideo() async {
+    if (state.isProcessing) return;
+
     Log.info(
       '🎬 Starting final video render',
       name: 'VideoEditorNotifier',
@@ -430,9 +432,36 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(isProcessing: false);
   }
 
+  Future<void> cancelRenderVideo() async {
+    try {
+      Log.info(
+        '⏹️ Cancelling video render',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+      await ProVideoEditor.instance.cancel(_clips.first.id);
+      Log.info(
+        '✅ Video render cancelled',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to cancel video render: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+
+    state = state.copyWith(isProcessing: false);
+  }
+
   Future<void> saveAsDraft() async {
     // TODO(@hm21):
   }
+
   Future<void> postVideo() async {
     // TODO(@hm21):
   }

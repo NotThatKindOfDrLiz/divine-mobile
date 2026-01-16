@@ -248,7 +248,12 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                       ),
                     ),
 
-                  AnimatedContainer(
+                  AnimatedSwitcher(
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      fit: .expand,
+                      alignment: .center,
+                      children: [...previousChildren, ?currentChild],
+                    ),
                     duration: const Duration(milliseconds: 150),
                     child:
                         (_controller != null && _controller!.value.isPlaying) ||
@@ -264,7 +269,7 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                         :
                           // Video thumbnail placeholder
                           Container(
-                            color: Colors.grey[300],
+                            color: Colors.grey.shade400,
                             child: const Icon(
                               Icons.play_circle_outline,
                               size: 64,
