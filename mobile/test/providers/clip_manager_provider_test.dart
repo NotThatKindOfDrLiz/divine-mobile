@@ -54,7 +54,7 @@ void main() {
       );
 
       final clipId = container.read(clipManagerProvider).clips[0].id;
-      notifier.deleteClip(clipId);
+      notifier.removeClipById(clipId);
 
       final state = container.read(clipManagerProvider);
       expect(state.clips.length, equals(1));

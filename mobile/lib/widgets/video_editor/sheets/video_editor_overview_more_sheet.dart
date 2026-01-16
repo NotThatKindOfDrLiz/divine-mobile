@@ -18,16 +18,17 @@ import 'package:openvine/widgets/bottom_sheets/vine_bottom_sheet_drag_handle.dar
 /// Bottom sheet for video editor more options.
 ///
 /// Allows users to add clips from library, save to drafts, or delete all clips.
-class VideoEditorMoreSheet extends ConsumerStatefulWidget {
+class VideoEditorOverviewMoreSheet extends ConsumerStatefulWidget {
   /// Creates a video editor more options sheet.
-  const VideoEditorMoreSheet({super.key});
+  const VideoEditorOverviewMoreSheet({super.key});
 
   @override
-  ConsumerState<VideoEditorMoreSheet> createState() =>
+  ConsumerState<VideoEditorOverviewMoreSheet> createState() =>
       _VideoEditorMoreSheetState();
 }
 
-class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
+class _VideoEditorMoreSheetState
+    extends ConsumerState<VideoEditorOverviewMoreSheet> {
   /// Deletes all clips and starts over.
   Future<void> _deleteAndStartOver() async {
     ref.read(videoRecorderProvider.notifier).reset();
@@ -42,10 +43,32 @@ class _VideoEditorMoreSheetState extends ConsumerState<VideoEditorMoreSheet> {
 
   Future<void> _saveClipToLibrary() async {
     final clipManager = ref.read(clipManagerProvider.notifier);
-
     final clipIndex = ref.read(videoEditorProvider).currentClipIndex;
 
-    await clipManager.saveClipToLibrary(clipManager.clips[clipIndex]);
+    final success = await clipManager.saveClipToLibrary(
+      clipManager.clips[clipIndex],
+    );
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          content: Text('Clip saved to library'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          content: Text('Failed to save clip'),
+          duration: Duration(seconds: 3),
+          backgroundColor: Color(0xFFF44336),
+        ),
+      );
+    }
   }
 
   /// Opens the clip library screen in selection mode.

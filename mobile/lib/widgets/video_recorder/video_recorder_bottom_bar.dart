@@ -47,12 +47,13 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           mainAxisAlignment: .spaceAround,
           children: [
             // Flash toggle
-            _ActionButton(
-              iconPath: state.flashMode.iconPath,
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              tooltip: 'Toggle flash',
-              onPressed: state.hasFlash ? notifier.toggleFlash : null,
-            ),
+            if (state.hasFlash)
+              _ActionButton(
+                iconPath: state.flashMode.iconPath,
+                // TODO(l10n): Replace with context.l10n when localization is added.
+                tooltip: 'Toggle flash',
+                onPressed: notifier.toggleFlash,
+              ),
 
             // Timer toggle
             _ActionButton(

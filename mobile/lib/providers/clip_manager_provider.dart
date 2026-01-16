@@ -241,7 +241,9 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   }
 
   /// Delete a clip by ID.
-  void deleteClip(String clipId) {
+  ///
+  /// Returns true if the clip was successfully deleted, false if not found.
+  bool removeClipById(String clipId) {
     final index = _clips.indexWhere((c) => c.id == clipId);
     if (index == -1) {
       Log.warning(
@@ -249,7 +251,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         name: 'ClipManagerNotifier',
         category: .video,
       );
-      return;
+      return false;
     }
 
     _clips.removeAt(index);
@@ -259,6 +261,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       category: .video,
     );
     state = state.copyWith(clips: List.unmodifiable(_clips));
+    return true;
   }
 
   /// Reorder a single clip from oldIndex to newIndex.
@@ -379,10 +382,17 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   /// Refresh an existing clip with new data.
   ///
   /// Replaces the entire clip instance at the matching ID position.
-  void refreshClip(RecordingClip clip) {
+  void refreshClip(
+    RecordingClip clip, {
+    String? newId,
+    bool createNewClipId = false,
+  }) {
     final index = _clips.indexWhere((c) => c.id == clip.id);
     if (index != -1) {
-      _clips[index] = clip;
+      final timestamp = DateTime.now().microsecondsSinceEpoch.toString();
+      final newClipId = newId ?? (createNewClipId ? timestamp : null);
+
+      _clips[index] = clip.copyWith(id: newClipId);
       state = state.copyWith(clips: List.unmodifiable(_clips));
       Log.debug(
         '⏱️  Refreshed clip: ${clip.id}',
@@ -428,7 +438,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       name: 'ClipManagerNotifier',
       category: .video,
     );
-    deleteClip(lastClip.id);
+    removeClipById(lastClip.id);
   }
 
   /// Remove all clips and reset state.
@@ -478,9 +488,11 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
   }
 
   /// Save specific clip to library.
-  Future<void> saveClipToLibrary(RecordingClip clip) async {
+  ///
+  /// Returns true if the clip was successfully saved, false otherwise.
+  Future<bool> saveClipToLibrary(RecordingClip clip) async {
     Log.info(
-      '💾 Starting to save ${_clips.length} clips to library',
+      '💾 Starting to save clip to library',
       name: 'ClipManagerNotifier',
       category: .video,
     );
@@ -509,6 +521,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         name: 'ClipManagerNotifier',
         category: .video,
       );
+      return true;
     } catch (e, stackTrace) {
       Log.error(
         '❌ Failed to save clip ${clip.id}: $e',
@@ -517,6 +530,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         error: e,
         stackTrace: stackTrace,
       );
+      return false;
     }
   }
 

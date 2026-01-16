@@ -20,7 +20,6 @@ class _VideoMetadataScreenState extends State<VideoMetadataScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _tagsController = TextEditingController();
-  String _expirationOption = 'Does not expire';
 
   @override
   void dispose() {
@@ -28,10 +27,6 @@ class _VideoMetadataScreenState extends State<VideoMetadataScreen> {
     _descriptionController.dispose();
     _tagsController.dispose();
     super.dispose();
-  }
-
-  bool _isFormValid() {
-    return _titleController.text.trim().isNotEmpty;
   }
 
   @override

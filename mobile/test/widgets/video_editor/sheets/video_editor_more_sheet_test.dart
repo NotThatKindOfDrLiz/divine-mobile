@@ -1,5 +1,5 @@
-// ABOUTME: Tests for VideoEditorMoreSheet widget
-// ABOUTME: Validates bottom sheet layout and button states
+// ABOUTME: Tests for VideoEditorOverviewMoreSheet widget
+// ABOUTME: Validates bottom sheet layout and button states for overview options
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,13 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/widgets/video_editor/video_editor_more_sheet.dart';
+import 'package:openvine/widgets/video_editor/sheets/video_editor_overview_more_sheet.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('VideoEditorMoreSheet Widget Tests', () {
+  group('VideoEditorOverviewMoreSheet Widget Tests', () {
     Widget buildTestWidget({bool hasClips = false}) {
       return ProviderScope(
         overrides: [
@@ -35,7 +35,9 @@ void main() {
             ),
           ),
         ],
-        child: const MaterialApp(home: Scaffold(body: VideoEditorMoreSheet())),
+        child: const MaterialApp(
+          home: Scaffold(body: VideoEditorOverviewMoreSheet()),
+        ),
       );
     }
 
@@ -74,7 +76,7 @@ void main() {
       await tester.pumpWidget(buildTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.byType(VideoEditorMoreSheet), findsOneWidget);
+      expect(find.byType(VideoEditorOverviewMoreSheet), findsOneWidget);
     });
   });
 }

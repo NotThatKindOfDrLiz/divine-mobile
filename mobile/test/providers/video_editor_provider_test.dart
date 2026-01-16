@@ -54,7 +54,7 @@ void main() {
               duration: const Duration(seconds: 2),
             );
 
-        container.read(videoEditorProvider.notifier).selectClip(1);
+        container.read(videoEditorProvider.notifier).selectClipByIndex(1);
         final state = container.read(videoEditorProvider);
 
         expect(state.currentClipIndex, 1);
@@ -78,7 +78,7 @@ void main() {
               duration: const Duration(seconds: 3),
             );
 
-        container.read(videoEditorProvider.notifier).selectClip(1);
+        container.read(videoEditorProvider.notifier).selectClipByIndex(1);
         final state = container.read(videoEditorProvider);
 
         // Position should be sum of previous clips (2 seconds)
@@ -86,7 +86,7 @@ void main() {
       });
 
       test('should reset splitPosition to zero', () {
-        container.read(videoEditorProvider.notifier).selectClip(0);
+        container.read(videoEditorProvider.notifier).selectClipByIndex(0);
         final state = container.read(videoEditorProvider);
 
         expect(state.splitPosition, Duration.zero);
@@ -314,7 +314,7 @@ void main() {
             );
 
         // Select second clip
-        container.read(videoEditorProvider.notifier).selectClip(1);
+        container.read(videoEditorProvider.notifier).selectClipByIndex(1);
 
         // Update position by 500ms within the clip
         container
@@ -344,7 +344,7 @@ void main() {
 
         // Select second clip and start editing
         container.read(videoEditorProvider.notifier)
-          ..selectClip(1)
+          ..selectClipByIndex(1)
           ..startClipEditing();
 
         // Update position by 500ms within the clip

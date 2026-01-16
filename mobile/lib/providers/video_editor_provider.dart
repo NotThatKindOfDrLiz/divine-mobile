@@ -101,7 +101,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Select a clip by index and update the current position.
   ///
   /// Calculates the playback offset based on previous clips' durations.
-  void selectClip(int index) {
+  void selectClipByIndex(int index) {
     // Calculate offset from all previous clips
     final offset = _clips
         .take(index)
@@ -328,7 +328,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         onClipsCreated: (startClip, endClip) {
           // Add clips to UI immediately so processing status is visible
           _clipManager
-            ..refreshClip(startClip)
+            ..refreshClip(startClip, createNewClipId: true)
             ..insertClip(state.currentClipIndex + 1, endClip);
         },
         onThumbnailExtracted: (clip, thumbnailPath) {

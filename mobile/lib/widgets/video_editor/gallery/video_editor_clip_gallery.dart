@@ -31,6 +31,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
   int _reorderTargetIndex = 0;
   double _accumulatedDragOffset = 0;
   double _dragResetStartValue = 0;
+  int _lastClipIndex = 0;
 
   @override
   void initState() {
@@ -41,6 +42,37 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
       vsync: this,
       duration: const Duration(milliseconds: 200),
     )..addListener(_onDragResetTick);
+
+    // Listen to currentClipIndex changes
+    ref.listenManual(
+      videoEditorProvider.select((state) => state.currentClipIndex),
+      (previous, next) {
+        if (previous != next && next != _lastClipIndex) {
+          _lastClipIndex = next;
+          _navigateToClip(next);
+        }
+      },
+    );
+  }
+
+  void _navigateToClip(int index) {
+    final isReordering = ref.read(videoEditorProvider).isReordering;
+
+    if (isReordering && _scrollController.hasClients) {
+      // In reorder mode, animate the scroll controller
+      _scrollController.animateTo(
+        index * MediaQuery.of(context).size.width * 0.8,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else if (!isReordering && _pageController.hasClients) {
+      // In swipe mode, animate the page controller
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _onDragResetTick() {
@@ -134,7 +166,9 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
         _accumulatedDragOffset = 0; // Reset accumulator
 
         // Update selected clip index to follow the clip
-        ref.read(videoEditorProvider.notifier).selectClip(newTargetIndex);
+        ref
+            .read(videoEditorProvider.notifier)
+            .selectClipByIndex(newTargetIndex);
 
         // Scroll the SingleChildScrollView to the new position
         if (_scrollController.hasClients) {
@@ -157,7 +191,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
       final clips = ref.read(clipManagerProvider).clips;
       if (_reorderTargetIndex >= 0 && _reorderTargetIndex < clips.length) {
         final clipToDelete = clips[_reorderTargetIndex];
-        ref.read(clipManagerProvider.notifier).deleteClip(clipToDelete.id);
+        ref.read(clipManagerProvider.notifier).removeClipById(clipToDelete.id);
 
         if (ref.read(clipManagerProvider.notifier).clips.isEmpty) {
           context.pop();
@@ -170,7 +204,7 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
             ? remainingClips.length - 1
             : _reorderTargetIndex;
         _reorderTargetIndex = newIndex;
-        ref.read(videoEditorProvider.notifier).selectClip(newIndex);
+        ref.read(videoEditorProvider.notifier).selectClipByIndex(newIndex);
       }
     }
 
@@ -541,7 +575,9 @@ class _ReorderingView extends ConsumerWidget {
                 xOffset: xOffset,
                 onTap: () {
                   if (index != currentClipIndex) {
-                    ref.read(videoEditorProvider.notifier).selectClip(index);
+                    ref
+                        .read(videoEditorProvider.notifier)
+                        .selectClipByIndex(index);
                   } else {
                     ref.read(videoEditorProvider.notifier).toggleClipEditing();
                   }
@@ -584,7 +620,7 @@ class _SwipeView extends ConsumerWidget {
     return PageView.builder(
       controller: pageController,
       onPageChanged: (page) {
-        ref.read(videoEditorProvider.notifier).selectClip(page);
+        ref.read(videoEditorProvider.notifier).selectClipByIndex(page);
       },
       itemCount: clips.length,
       itemBuilder: (context, index) {
