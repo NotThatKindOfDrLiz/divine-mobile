@@ -87,6 +87,7 @@ class _VideoEditorMoreSheetState
       backgroundColor: VineTheme.surfaceBackground,
       useSafeArea: true,
       isScrollControlled: true,
+      useRootNavigator: true,
       builder: (_) => const ClipLibraryScreen(selectionMode: true),
     );
 

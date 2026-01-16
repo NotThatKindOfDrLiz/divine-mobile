@@ -2,7 +2,6 @@
 // ABOUTME: Shows grid of clip thumbnails with preview, delete, and import options
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -153,10 +152,26 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     }
   }
 
+  Future<void> _showClipPreview(SavedClip clip) async {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        maintainState: true,
+        pageBuilder: (_, _, _) => VideoClipPreviewSheet(clip: clip),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+        reverseTransitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
     value: SystemUiOverlayStyle(
-      statusBarColor: Colors.red,
+      statusBarColor: Colors.black,
       statusBarIconBrightness: .light,
       statusBarBrightness: .dark,
     ),
@@ -222,95 +237,6 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
           : null,
     ),
   );
-
-  Future<void> _showClipPreview(SavedClip clip) async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => VideoClipPreviewSheet(
-        clip: clip,
-        onDelete: () async {
-          Navigator.of(context).pop();
-          await _confirmDeleteClip(clip);
-        },
-      ),
-    );
-  }
-
-  Future<void> _confirmDeleteClip(SavedClip clip) async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey[900],
-        title: const Text(
-          'Delete Clip?',
-          style: TextStyle(color: VineTheme.whiteText),
-        ),
-        content: Text(
-          'This will permanently delete this ${clip.durationInSeconds.toStringAsFixed(1)}s clip.',
-          style: const TextStyle(color: VineTheme.whiteText),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              unawaited(_deleteClip(clip));
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteClip(SavedClip clip) async {
-    try {
-      final clipService = ref.read(clipLibraryServiceProvider);
-      await clipService.deleteClip(clip.id);
-
-      // Delete video file
-      final videoFile = File(clip.filePath);
-      if (await videoFile.exists()) {
-        await videoFile.delete();
-      }
-
-      // Delete thumbnail if exists
-      if (clip.thumbnailPath != null) {
-        final thumbFile = File(clip.thumbnailPath!);
-        if (await thumbFile.exists()) {
-          await thumbFile.delete();
-        }
-      }
-
-      setState(() {
-        _clips.removeWhere((c) => c.id == clip.id);
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Clip deleted'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete clip: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 }
 
 class _SelectionHeader extends ConsumerWidget {
