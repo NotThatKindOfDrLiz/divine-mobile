@@ -38,7 +38,7 @@ void main() {
         clips: [clip],
         title: 'Test',
         description: 'Test description',
-        hashtags: ['Vine'],
+        hashtags: {'Vine'},
         selectedApproach: 'video',
       );
 

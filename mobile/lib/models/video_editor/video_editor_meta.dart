@@ -16,7 +16,7 @@ class VideoEditorMeta {
 
   /// Creates empty metadata for new draft.
   factory VideoEditorMeta.draft() {
-    return VideoEditorMeta(title: '', description: '', hashtags: []);
+    return VideoEditorMeta(title: '', description: '', hashtags: {});
   }
 
   /// Creates metadata from existing vine draft.
@@ -37,7 +37,7 @@ class VideoEditorMeta {
   final String description;
 
   /// List of hashtags.
-  final List<String> hashtags;
+  final Set<String> hashtags;
 
   /// Whether audio can be reused by others.
   final bool allowAudioReuse;
@@ -49,7 +49,7 @@ class VideoEditorMeta {
   VideoEditorMeta copyWith({
     String? title,
     String? description,
-    List<String>? hashtags,
+    Set<String>? hashtags,
     bool? allowAudioReuse,
     Duration? expireTime,
   }) {

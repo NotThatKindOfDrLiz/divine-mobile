@@ -121,7 +121,7 @@ class VideoPublishService {
         upload: pendingUpload,
         title: draft.title,
         description: draft.description,
-        hashtags: draft.hashtags,
+        hashtags: draft.hashtags.toList(),
         expirationTimestamp: draft.expireTime != null
             ? DateTime.now().millisecondsSinceEpoch ~/ 1000 +
                   draft.expireTime!.inSeconds

@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/recording_clip.dart';
-import 'package:openvine/models/video_editor/video_editor_meta.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/models/vine_draft.dart';
@@ -41,9 +40,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   @visibleForTesting
   String? draftId;
 
-  /// Video metadata including title, description, hashtags.
-  VideoEditorMeta _metadata = VideoEditorMeta.draft();
-
   /// Get clip manager notifier.
   ClipManagerNotifier get _clipManager =>
       ref.read(clipManagerProvider.notifier);
@@ -75,7 +71,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       final draftService = DraftStorageService(prefs);
       final draft = await draftService.getDraftById(this.draftId!);
       if (draft != null) {
-        _metadata = VideoEditorMeta.fromVineDraft(draft);
+        // TODO(@hm21): _metadata = VideoEditorMeta.fromVineDraft(draft);
         _clipManager.addMultipleClips(draft.clips);
         Log.info(
           '✅ Draft loaded with ${draft.clips.length} clip(s)',
@@ -239,7 +235,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       name: 'VideoEditorNotifier',
       category: .video,
     );
-    _metadata = VideoEditorMeta.draft();
     state = VideoEditorProviderState();
   }
 
@@ -262,16 +257,34 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
   }
 
-  /// Update video metadata (title, description, hashtags, etc.).
-  ///
-  /// Stores metadata for use when rendering and publishing the video.
-  void setMetadata(VideoEditorMeta value) {
+  void addTags(Set<String> tags) {
+    state = state.copyWith(tags: {...state.tags, ...tags});
+  }
+
+  void removeTag(String tag) {
+    final tags = {...state.tags};
+    tags.removeWhere((el) => el == tag);
+
+    state = state.copyWith(tags: tags);
+  }
+
+  void updateMetadata({String? title, String? description, Set<String>? tags}) {
     Log.debug(
       '📝 Updated video metadata',
       name: 'VideoEditorNotifier',
       category: .video,
     );
-    _metadata = value;
+
+    final cleanedTags = tags
+        ?.map((tag) => tag.replaceAll(RegExp(r'\s+'), ''))
+        .where((tag) => tag.isNotEmpty)
+        .toSet();
+
+    state = state.copyWith(
+      title: title?.trim(),
+      description: description?.trim(),
+      tags: cleanedTags?.isNotEmpty == true ? cleanedTags : null,
+    );
   }
 
   void setExpiration(VideoMetadataExpiration expiration) {
@@ -433,11 +446,11 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     return VineDraft.create(
       id: draftId,
       clips: [clip],
-      title: _metadata.title,
-      description: _metadata.description,
-      hashtags: _metadata.hashtags,
-      allowAudioReuse: _metadata.allowAudioReuse,
-      expireTime: _metadata.expireTime,
+      title: state.title,
+      description: state.description,
+      hashtags: state.tags,
+      allowAudioReuse: false, // TODO(@hm21)
+      expireTime: state.expiration.value,
       proofManifestJson: proofManifestJson,
       selectedApproach: 'video',
     );

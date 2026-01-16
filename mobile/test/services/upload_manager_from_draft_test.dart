@@ -47,7 +47,7 @@ void main() {
         ],
         title: 'Test Video',
         description: 'Test Description',
-        hashtags: ['test'],
+        hashtags: {'test'},
         selectedApproach: 'native',
         proofManifestJson: proofJson,
       );
@@ -84,7 +84,7 @@ void main() {
         ],
         title: 'Original Title',
         description: 'Original Description',
-        hashtags: ['original'],
+        hashtags: {'original'},
         selectedApproach: 'native',
         proofManifestJson: proofJson,
       );
@@ -93,7 +93,7 @@ void main() {
       final updatedDraft = originalDraft.copyWith(
         title: 'Updated Title',
         description: 'Updated Description',
-        hashtags: ['updated'],
+        hashtags: {'updated'},
       );
 
       expect(updatedDraft.title, equals('Updated Title'));
@@ -127,7 +127,7 @@ void main() {
         ],
         title: 'Test Video',
         description: 'Test Description',
-        hashtags: ['test'],
+        hashtags: {'test'},
         selectedApproach: 'native',
       );
 

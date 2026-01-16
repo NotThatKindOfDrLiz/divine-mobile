@@ -320,7 +320,7 @@ class UploadManager {
       nostrPubkey: nostrPubkey,
       title: draft.title,
       description: draft.description,
-      hashtags: draft.hashtags,
+      hashtags: draft.hashtags.toList(),
       videoDuration: videoDuration,
       proofManifestJson: draft.proofManifestJson,
     );

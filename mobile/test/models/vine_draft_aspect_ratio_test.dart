@@ -21,7 +21,7 @@ void main() {
         ],
         title: '',
         description: '',
-        hashtags: [],
+        hashtags: {},
         selectedApproach: 'test',
       );
 
@@ -42,7 +42,7 @@ void main() {
         ],
         title: '',
         description: '',
-        hashtags: [],
+        hashtags: {},
         selectedApproach: 'test',
       );
 

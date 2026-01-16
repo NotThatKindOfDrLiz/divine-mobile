@@ -45,7 +45,7 @@ void main() {
         clips: [_createTestClip()],
         title: 'Test',
         description: 'Test',
-        hashtags: [],
+        hashtags: {},
         selectedApproach: 'test',
       ),
     );
@@ -429,7 +429,7 @@ VineDraft _createTestDraft() {
     clips: [_createTestClip()],
     title: 'Test Video',
     description: 'Test description',
-    hashtags: ['test', 'video'],
+    hashtags: {'test', 'video'},
     selectedApproach: 'test',
     id: 'test_draft_id',
   );

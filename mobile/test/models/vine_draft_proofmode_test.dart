@@ -36,7 +36,7 @@ void main() {
         ],
         title: 'Test Video',
         description: 'Test with ProofMode',
-        hashtags: ['test'],
+        hashtags: {'test'},
         selectedApproach: 'native',
         proofManifestJson: proofJson,
       );
@@ -73,7 +73,7 @@ void main() {
         ],
         title: 'Test Video',
         description: 'No ProofMode',
-        hashtags: ['test'],
+        hashtags: {'test'},
         selectedApproach: 'native',
         // proofManifestJson: null (not provided)
       );
@@ -131,7 +131,7 @@ void main() {
         ],
         title: 'Original',
         description: '',
-        hashtags: [],
+        hashtags: {},
         selectedApproach: 'native',
         proofManifestJson: proofJson,
       );

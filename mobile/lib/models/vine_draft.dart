@@ -32,7 +32,7 @@ class VineDraft {
     required List<RecordingClip> clips,
     required String title,
     required String description,
-    required List<String> hashtags,
+    required Set<String> hashtags,
     required String selectedApproach,
     bool allowAudioReuse = false,
     Duration? expireTime,
@@ -90,7 +90,7 @@ class VineDraft {
       clips: clips,
       title: json['title'] as String,
       description: json['description'] as String,
-      hashtags: List<String>.from(json['hashtags'] as Iterable),
+      hashtags: Set<String>.from(json['hashtags'] as Iterable),
       selectedApproach: json['selectedApproach'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
       lastModified: DateTime.parse(json['lastModified'] as String),
@@ -111,7 +111,7 @@ class VineDraft {
   final String id;
   final String title;
   final String description;
-  final List<String> hashtags;
+  final Set<String> hashtags;
   final String selectedApproach;
   final DateTime createdAt;
   final DateTime lastModified;
@@ -150,7 +150,7 @@ class VineDraft {
     List<RecordingClip>? clips,
     String? title,
     String? description,
-    List<String>? hashtags,
+    Set<String>? hashtags,
     PublishStatus? publishStatus,
     Object? publishError = _sentinel,
     Duration? expireTime,
@@ -185,7 +185,7 @@ class VineDraft {
     'clips': clips.map((clip) => clip.toJson()).toList(),
     'title': title,
     'description': description,
-    'hashtags': hashtags,
+    'hashtags': hashtags.toList(),
     'selectedApproach': selectedApproach,
     'createdAt': createdAt.toIso8601String(),
     'lastModified': lastModified.toIso8601String(),

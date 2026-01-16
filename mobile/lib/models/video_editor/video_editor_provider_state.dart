@@ -24,7 +24,7 @@ class VideoEditorProviderState {
     this.isProcessing = false,
     this.title = '',
     this.description = '',
-    this.tags = const [],
+    this.tags = const {},
     this.expiration = .notExpire,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
@@ -66,7 +66,7 @@ class VideoEditorProviderState {
   final String description;
 
   /// List of hashtags/tags associated with the video for discovery.
-  final List<String> tags;
+  final Set<String> tags;
 
   /// Expiration setting determining when the video post expires.
   final VideoMetadataExpiration expiration;
@@ -90,7 +90,7 @@ class VideoEditorProviderState {
     GlobalKey? deleteButtonKey,
     String? title,
     String? description,
-    List<String>? tags,
+    Set<String>? tags,
     VideoMetadataExpiration? expiration,
   }) {
     return VideoEditorProviderState(

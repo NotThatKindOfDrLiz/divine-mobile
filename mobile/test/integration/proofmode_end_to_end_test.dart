@@ -49,7 +49,7 @@ void main() {
         ],
         title: 'Test Video',
         description: 'Test description',
-        hashtags: ['test'],
+        hashtags: {'test'},
         selectedApproach: 'native',
         proofManifestJson: proofJson,
       );
@@ -75,7 +75,7 @@ void main() {
         nostrPubkey: 'pubkey123',
         title: draft.title,
         description: draft.description,
-        hashtags: draft.hashtags,
+        hashtags: draft.hashtags.toList(),
         proofManifestJson: draft.proofManifestJson,
       );
 
@@ -133,7 +133,7 @@ void main() {
         ],
         title: 'Test Video',
         description: 'Test description',
-        hashtags: ['test'],
+        hashtags: {'test'},
         selectedApproach: 'native',
       );
 

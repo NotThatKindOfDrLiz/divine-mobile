@@ -50,7 +50,7 @@ void main() {
         ],
         title: 'Do it for the Vine!',
         description: '',
-        hashtags: ['openvine', 'vine'],
+        hashtags: {'openvine', 'vine'},
         selectedApproach: 'native',
       );
 
@@ -78,7 +78,7 @@ void main() {
         ],
         title: 'Do it for the Vine!',
         description: '',
-        hashtags: ['openvine', 'vine'],
+        hashtags: {'openvine', 'vine'},
         selectedApproach: 'native',
       );
 

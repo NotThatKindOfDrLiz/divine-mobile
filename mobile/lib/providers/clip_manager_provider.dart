@@ -550,7 +550,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         clips: clips,
         title: '',
         description: '',
-        hashtags: [],
+        hashtags: {},
         selectedApproach: 'video',
       );
       final prefs = await SharedPreferences.getInstance();

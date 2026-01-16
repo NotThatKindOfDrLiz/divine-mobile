@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
@@ -153,64 +154,73 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: widget.selectionMode
-        ? VineTheme.surfaceBackground
-        : const Color(0xFF101111),
-    appBar: widget.selectionMode
-        ? null
-        : AppBar(
-            backgroundColor: const Color(0xFF101111),
-            foregroundColor: VineTheme.whiteText,
-            title: Text(_buildAppBarTitle()),
-            actions: [
-              // Clear selection button when clips are selected
-              if (_selectedClipIds.isNotEmpty && !widget.selectionMode)
-                TextButton(
-                  onPressed: _clearSelection,
-                  child: const Text(
-                    'Clear',
-                    style: TextStyle(color: VineTheme.whiteText),
-                  ),
-                ),
-            ],
-          ),
-    body: Column(
-      children: [
-        if (widget.selectionMode)
-          _SelectionHeader(
-            isSelectionMode: widget.selectionMode,
-            selectedClipIds: _selectedClipIds,
-            remainingDuration: _remainingDuration,
-            onCreate: _createVideoFromSelected,
-          )
-        else
-          const SizedBox(height: 4),
-        Expanded(
-          child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: VineTheme.vineGreen),
-                )
-              : _clips.isEmpty
-              ? _EmptyClips(isSelectionMode: widget.selectionMode)
-              : _MasonryLayout(
-                  clips: _clips,
-                  selectedClipIds: _selectedClipIds,
-                  remainingDuration: _remainingDuration,
-                  onTapClip: _toggleClipSelection,
-                  onLongPressClip: _showClipPreview,
-                ),
-        ),
-      ],
+  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+    value: SystemUiOverlayStyle(
+      statusBarColor: Colors.red,
+      statusBarIconBrightness: .light,
+      statusBarBrightness: .dark,
     ),
-    floatingActionButton: !widget.selectionMode && _selectedClipIds.isNotEmpty
-        ? FloatingActionButton.extended(
-            onPressed: _createVideoFromSelected,
-            icon: const Icon(Icons.movie_creation),
-            label: const Text('Create Video'),
-            backgroundColor: VineTheme.vineGreen,
-          )
-        : null,
+    child: Scaffold(
+      backgroundColor: widget.selectionMode
+          ? VineTheme.surfaceBackground
+          : const Color(0xFF101111),
+      appBar: widget.selectionMode
+          ? null
+          : AppBar(
+              backgroundColor: const Color(0xFF101111),
+              foregroundColor: VineTheme.whiteText,
+              title: Text(_buildAppBarTitle()),
+              actions: [
+                // Clear selection button when clips are selected
+                if (_selectedClipIds.isNotEmpty && !widget.selectionMode)
+                  TextButton(
+                    onPressed: _clearSelection,
+                    child: const Text(
+                      'Clear',
+                      style: TextStyle(color: VineTheme.whiteText),
+                    ),
+                  ),
+              ],
+            ),
+      body: Column(
+        children: [
+          if (widget.selectionMode)
+            _SelectionHeader(
+              isSelectionMode: widget.selectionMode,
+              selectedClipIds: _selectedClipIds,
+              remainingDuration: _remainingDuration,
+              onCreate: _createVideoFromSelected,
+            )
+          else
+            const SizedBox(height: 4),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: VineTheme.vineGreen,
+                    ),
+                  )
+                : _clips.isEmpty
+                ? _EmptyClips(isSelectionMode: widget.selectionMode)
+                : _MasonryLayout(
+                    clips: _clips,
+                    selectedClipIds: _selectedClipIds,
+                    remainingDuration: _remainingDuration,
+                    onTapClip: _toggleClipSelection,
+                    onLongPressClip: _showClipPreview,
+                  ),
+          ),
+        ],
+      ),
+      floatingActionButton: !widget.selectionMode && _selectedClipIds.isNotEmpty
+          ? FloatingActionButton.extended(
+              onPressed: _createVideoFromSelected,
+              icon: const Icon(Icons.movie_creation),
+              label: const Text('Create Video'),
+              backgroundColor: VineTheme.vineGreen,
+            )
+          : null,
+    ),
   );
 
   Future<void> _showClipPreview(SavedClip clip) async {
