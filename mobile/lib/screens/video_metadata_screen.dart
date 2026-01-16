@@ -117,8 +117,12 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
                           ),
                           const _Divider(),
 
+                          const _Divider(),
+
                           const VideoMetadataTagsInput(),
                           const _Divider(),
+
+                          _MetadataLimitWarning(),
 
                           const VideoMetadataExpirationSelector(),
                         ],
@@ -142,5 +146,43 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Divider(thickness: 0, height: 1, color: Color(0xFF001A12));
+  }
+}
+
+class _MetadataLimitWarning extends ConsumerWidget {
+  const _MetadataLimitWarning();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final limitReached = ref.watch(
+      videoEditorProvider.select((s) => s.metadataLimitReached),
+    );
+    if (!limitReached) return const SizedBox.shrink();
+
+    return Container(
+      padding: const .all(16),
+      color: const Color(0xFF4A1C00),
+      child: Row(
+        children: [
+          Icon(
+            Icons.warning_amber_rounded,
+            color: const Color(0xFFFFB84D),
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '64KB limit reached. Remove some content to continue.',
+              style: VineTheme.bodyFont(
+                color: const Color(0xFFFFB84D),
+                fontSize: 14,
+                fontWeight: .w600,
+                height: 1.43,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

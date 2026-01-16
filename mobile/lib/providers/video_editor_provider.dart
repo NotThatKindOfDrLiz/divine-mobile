@@ -271,15 +271,41 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
-    final cleanedTags = tags
-        ?.map((tag) => tag.replaceAll(RegExp(r'\s+'), ''))
-        .where((tag) => tag.isNotEmpty)
-        .toSet();
+    final cleanedTitle = title?.trim() ?? state.title;
+    final cleanedDescription = description?.trim() ?? state.description;
+    final cleanedTags =
+        tags
+            ?.map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
+            .where((tag) => tag.isNotEmpty)
+            .toSet() ??
+        state.tags;
 
+    // Calculate total size
+    const maxBytes = 64 * 1024; // 64KB
+    final titleBytes = utf8.encode(cleanedTitle).length;
+    final descriptionBytes = utf8.encode(cleanedDescription).length;
+    final tagsBytes = cleanedTags.isEmpty
+        ? 0
+        : cleanedTags.fold<int>(0, (sum, tag) => sum + utf8.encode(tag).length);
+    final totalBytes = titleBytes + descriptionBytes + tagsBytes;
+
+    // Check if limit is exceeded
+    if (totalBytes > maxBytes) {
+      Log.warning(
+        '⚠️ Metadata exceeds 64KB limit ($totalBytes bytes) - update rejected',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+      state = state.copyWith(metadataLimitReached: true);
+      return;
+    }
+
+    // Update metadata if within limit
     state = state.copyWith(
-      title: title?.trim(),
-      description: description?.trim(),
-      tags: cleanedTags?.isNotEmpty == true ? cleanedTags : null,
+      title: cleanedTitle.isNotEmpty ? cleanedTitle : null,
+      description: cleanedDescription.isNotEmpty ? cleanedDescription : null,
+      tags: cleanedTags.isNotEmpty ? cleanedTags : null,
+      metadataLimitReached: false,
     );
   }
 

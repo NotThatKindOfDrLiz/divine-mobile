@@ -26,6 +26,7 @@ class VideoEditorProviderState {
     this.description = '',
     this.tags = const {},
     this.expiration = .notExpire,
+    this.metadataLimitReached = false,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
@@ -71,7 +72,10 @@ class VideoEditorProviderState {
   /// Expiration setting determining when the video post expires.
   final VideoMetadataExpiration expiration;
 
-  bool get isValidToPost => true; // TODO(@hm21):
+  /// Whether the 64KB metadata limit was reached during the last update.
+  final bool metadataLimitReached;
+
+  bool get isValidToPost => !metadataLimitReached; // TODO(@hm21):
 
   /// Creates a copy of this state with updated fields.
   ///
@@ -92,6 +96,7 @@ class VideoEditorProviderState {
     String? description,
     Set<String>? tags,
     VideoMetadataExpiration? expiration,
+    bool? metadataLimitReached,
   }) {
     return VideoEditorProviderState(
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
@@ -108,6 +113,7 @@ class VideoEditorProviderState {
       description: description ?? this.description,
       tags: tags ?? this.tags,
       expiration: expiration ?? this.expiration,
+      metadataLimitReached: metadataLimitReached ?? this.metadataLimitReached,
     );
   }
 }
