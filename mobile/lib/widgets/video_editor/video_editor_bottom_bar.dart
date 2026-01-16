@@ -132,15 +132,6 @@ class VideoEditorBottomBar extends ConsumerWidget {
                           onTap: () => _handleSplitClip(context, ref),
                           // TODO(l10n): Replace with context.l10n when localization is added.
                           semanticLabel: 'Crop',
-                        )
-                      else
-                        DivineIconButton(
-                          iconPath: state.isMuted
-                              ? 'assets/icon/volume_off.svg'
-                              : 'assets/icon/volume_on.svg',
-                          onTap: notifier.toggleMute,
-                          // TODO(l10n): Replace with context.l10n when localization is added.
-                          semanticLabel: 'Mute or unmute audio',
                         ),
                       DivineIconButton(
                         iconPath: 'assets/icon/more_horiz.svg',
@@ -211,17 +202,17 @@ class _ClipRemoveArea extends ConsumerWidget {
     return Align(
       child: Container(
         key: deleteButtonKey,
-        padding: const .all(8),
+        padding: const .all(10),
         decoration: ShapeDecoration(
           color: const Color(0xFFF44336),
           shape: RoundedRectangleBorder(borderRadius: .circular(20)),
         ),
         child: SizedBox(
-          height: 32,
-          width: 32,
+          height: 28,
+          width: 28,
           child: SvgPicture.asset(
             'assets/icon/delete.svg',
-            colorFilter: const ColorFilter.mode(Color(0xFF410001), .srcIn),
+            colorFilter: const .mode(Color(0xFF000000), .srcIn),
           ),
         ),
       ),

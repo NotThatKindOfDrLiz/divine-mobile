@@ -43,52 +43,55 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       top: false,
       child: IgnorePointer(
         ignoring: state.isRecording,
-        child: Row(
-          mainAxisAlignment: .spaceAround,
-          children: [
-            // Flash toggle
-            if (state.hasFlash)
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 120),
+          opacity: state.isRecording ? 0 : 1,
+          child: Row(
+            mainAxisAlignment: .spaceAround,
+            children: [
+              // Flash toggle
               _ActionButton(
                 iconPath: state.flashMode.iconPath,
                 // TODO(l10n): Replace with context.l10n when localization is added.
                 tooltip: 'Toggle flash',
-                onPressed: notifier.toggleFlash,
+                onPressed: state.hasFlash ? notifier.toggleFlash : null,
               ),
 
-            // Timer toggle
-            _ActionButton(
-              iconPath: state.timer.iconPath,
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              tooltip: 'Cycle timer',
-              onPressed: notifier.cycleTimer,
-            ),
+              // Timer toggle
+              _ActionButton(
+                iconPath: state.timer.iconPath,
+                // TODO(l10n): Replace with context.l10n when localization is added.
+                tooltip: 'Cycle timer',
+                onPressed: notifier.cycleTimer,
+              ),
 
-            // Aspect-Ratio
-            _ActionButton(
-              iconPath: state.aspectRatio == .square
-                  ? 'assets/icon/crop_square.svg'
-                  : 'assets/icon/crop_portrait.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              tooltip: 'Toggle aspect ratio',
-              onPressed: notifier.toggleAspectRatio,
-            ),
+              // Aspect-Ratio
+              _ActionButton(
+                iconPath: state.aspectRatio == .square
+                    ? 'assets/icon/crop_square.svg'
+                    : 'assets/icon/crop_portrait.svg',
+                // TODO(l10n): Replace with context.l10n when localization is added.
+                tooltip: 'Toggle aspect ratio',
+                onPressed: notifier.toggleAspectRatio,
+              ),
 
-            // Flip camera
-            _ActionButton(
-              iconPath: 'assets/icon/refresh.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              tooltip: 'Switch camera',
-              onPressed: state.canSwitchCamera ? notifier.switchCamera : null,
-            ),
+              // Flip camera
+              _ActionButton(
+                iconPath: 'assets/icon/refresh.svg',
+                // TODO(l10n): Replace with context.l10n when localization is added.
+                tooltip: 'Switch camera',
+                onPressed: state.canSwitchCamera ? notifier.switchCamera : null,
+              ),
 
-            // More options
-            _ActionButton(
-              iconPath: 'assets/icon/more_horiz.svg',
-              // TODO(l10n): Replace with context.l10n when localization is added.
-              tooltip: 'More options',
-              onPressed: () => _showMoreOptions(context),
-            ),
-          ],
+              // More options
+              _ActionButton(
+                iconPath: 'assets/icon/more_horiz.svg',
+                // TODO(l10n): Replace with context.l10n when localization is added.
+                tooltip: 'More options',
+                onPressed: () => _showMoreOptions(context),
+              ),
+            ],
+          ),
         ),
       ),
     );

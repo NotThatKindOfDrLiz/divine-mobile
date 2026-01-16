@@ -141,7 +141,10 @@ class _VideoEditorClipsState extends ConsumerState<VideoEditorClipGallery>
     _accumulatedDragOffset += event.delta.dx;
 
     // Calculate threshold: 10% of screen width per clip
-    final threshold = constraints.maxWidth * 0.10;
+    final threshold = (constraints.maxWidth * 0.8 / clips.length / 2).clamp(
+      30,
+      120,
+    );
 
     // Check if we should switch pages
     if (_accumulatedDragOffset.abs() >= threshold) {
@@ -505,18 +508,23 @@ class _ScrollStack extends ConsumerWidget {
         if (showCenterOverlay) ...[
           // Center clip overlay which rendered on top,
           // which imitate a higher z-index.
-          VideoEditorCenterClipOverlay(
-            clip: clips[centerIndex],
-            centerIndex: centerIndex,
-            currentClipIndex: currentClipIndex,
-            page: page,
-            shadowOpacity: shadowOpacity,
-            maxWidth: constraints.maxWidth,
-            isReordering: state.isReordering,
-            isOverDeleteZone: state.isOverDeleteZone,
-            dragOffsetNotifier: dragOffsetNotifier,
-            scale: _calculateScale(centerIndex),
-            xOffset: _calculateXOffset(centerIndex),
+          AnimatedScale(
+            scale: state.isReordering ? 0.9 : 1,
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeInOut,
+            child: VideoEditorCenterClipOverlay(
+              clip: clips[centerIndex],
+              centerIndex: centerIndex,
+              currentClipIndex: currentClipIndex,
+              page: page,
+              shadowOpacity: shadowOpacity,
+              maxWidth: constraints.maxWidth,
+              isReordering: state.isReordering,
+              isOverDeleteZone: state.isOverDeleteZone,
+              dragOffsetNotifier: dragOffsetNotifier,
+              scale: _calculateScale(centerIndex),
+              xOffset: _calculateXOffset(centerIndex),
+            ),
           ),
 
           // Gradient overlays on sides
@@ -622,6 +630,7 @@ class _SwipeView extends ConsumerWidget {
       onPageChanged: (page) {
         ref.read(videoEditorProvider.notifier).selectClipByIndex(page);
       },
+      physics: isEditing ? const NeverScrollableScrollPhysics() : null,
       itemCount: clips.length,
       itemBuilder: (context, index) {
         final scale = calculateScale(index);

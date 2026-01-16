@@ -20,26 +20,37 @@ class ClipGalleryInstructionText extends ConsumerWidget {
         (s) => (isEditing: s.isEditing, isReordering: s.isReordering),
       ),
     );
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 120),
-      opacity: state.isReordering || state.isEditing ? 0 : 1,
-      child: const Align(
-        child: Padding(
-          padding: .only(top: 25),
-          child: Text(
-            // TODO(l10n): Replace with context.l10n when localization is added.
-            'Tap to edit. Drag to reorder.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              height: 1.33,
-              letterSpacing: 0.4,
-              fontSize: 12,
-              color: Color(0x80FFFFFF),
-            ),
-            textAlign: .center,
-          ),
-        ),
+    return AnimatedSwitcher(
+      duration: Duration(milliseconds: 220),
+      switchInCurve: Curves.easeInOut,
+      transitionBuilder: (child, animation) => SizeTransition(
+        sizeFactor: animation,
+        axisAlignment: 1,
+        child: FadeTransition(opacity: animation, child: child),
       ),
+      child: state.isEditing
+          ? const SizedBox.shrink()
+          : AnimatedOpacity(
+              duration: const Duration(milliseconds: 120),
+              opacity: state.isReordering ? 0 : 1,
+              child: const Align(
+                child: Padding(
+                  padding: .only(top: 25),
+                  child: Text(
+                    // TODO(l10n): Replace with context.l10n when localization is added.
+                    'Tap to edit. Drag to reorder.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      height: 1.33,
+                      letterSpacing: 0.4,
+                      fontSize: 12,
+                      color: Color(0x80FFFFFF),
+                    ),
+                    textAlign: .center,
+                  ),
+                ),
+              ),
+            ),
     );
   }
 }

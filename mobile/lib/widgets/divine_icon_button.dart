@@ -57,18 +57,6 @@ class DivineIconButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: backgroundColor,
             borderRadius: .circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 1,
-                offset: const Offset(1, 1),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 0.6,
-                offset: const Offset(0.4, 0.4),
-              ),
-            ],
           ),
           child: icon != null
               ? Icon(icon, color: iconColor, size: iconSize)
@@ -78,7 +66,7 @@ class DivineIconButton extends StatelessWidget {
                     width: iconSize,
                     child: SvgPicture.asset(
                       iconPath!,
-                      colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+                      colorFilter: .mode(iconColor, .srcIn),
                     ),
                   ),
                 ),

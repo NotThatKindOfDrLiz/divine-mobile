@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
@@ -66,13 +67,12 @@ class VideoEditorTopBar extends ConsumerWidget {
             // Clip counter
             Text(
               '${state.currentClipIndex + 1}/$totalClips',
-              style: const TextStyle(
+              style: GoogleFonts.bricolageGrotesque(
                 color: Colors.white,
                 fontSize: 18,
                 height: 1.33,
                 letterSpacing: 0.15,
                 fontWeight: .w800,
-                fontFamily: 'BricolageGrotesque',
                 fontFeatures: [.tabularFigures()],
               ),
             ),
@@ -195,16 +195,15 @@ class _NextButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Text(
+          child: Text(
             // TODO(l10n): Replace with context.l10n when localization is added.
             'Next',
-            style: TextStyle(
-              fontFamily: 'BricolageGrotesque',
+            style: GoogleFonts.bricolageGrotesque(
               fontSize: 18,
               fontWeight: .w800,
               height: 1.33,
               letterSpacing: 0.15,
-              color: Color(0xFF00452D),
+              color: const Color(0xFF00452D),
             ),
           ),
         ),

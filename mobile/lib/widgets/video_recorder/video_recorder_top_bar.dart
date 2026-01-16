@@ -1,13 +1,11 @@
 // ABOUTME: Top bar widget for video recorder screen
 // ABOUTME: Contains close button, segment-bar, and forward button
 
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/widgets/divine_icon_button.dart';
 
 /// Top bar with close button, segment bar, and forward button.
 class VideoRecorderTopBar extends ConsumerWidget {
@@ -36,7 +34,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
                     mainAxisAlignment: .spaceBetween,
                     children: [
                       // Close button
-                      _CloseButton(
+                      DivineIconButton(
+                        backgroundColor: const Color(0x0F000000),
+                        // TODO(l10n): Replace with context.l10n when localization is added.
+                        semanticLabel: 'Close video recorder',
+                        iconPath: 'assets/icon/close.svg',
                         onTap: () => notifier.closeVideoRecorder(context),
                       ),
 
@@ -48,56 +50,6 @@ class VideoRecorderTopBar extends ConsumerWidget {
                     ],
                   ),
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CloseButton extends StatelessWidget {
-  const _CloseButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      // TODO(l10n): Replace with context.l10n when localization is added.
-      label: 'Close video recorder',
-      child: GestureDetector(
-        onTap: onTap,
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: Stack(
-            children: [
-              // Imitate drop-shadow effect
-              Positioned(
-                left: 1,
-                top: 1,
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                  child: SvgPicture.asset(
-                    'assets/icon/close.svg',
-                    height: 32,
-                    width: 32,
-                    colorFilter: ColorFilter.mode(
-                      Colors.black.withValues(alpha: 0.4),
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                ),
-              ),
-              // Icon
-              SvgPicture.asset(
-                'assets/icon/close.svg',
-                height: 32,
-                width: 32,
-                colorFilter: const ColorFilter.mode(Colors.white, .srcIn),
-              ),
-            ],
-          ),
         ),
       ),
     );
