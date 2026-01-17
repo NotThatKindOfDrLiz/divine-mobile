@@ -28,24 +28,6 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
     super.initState();
     _ticker = createTicker(_onTick);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) {
-        _lastKnownPosition = ref.read(
-          videoEditorProvider.select((s) => s.currentPosition),
-        );
-        _lastUpdateTime = DateTime.now();
-
-        final isPlaying = ref.read(
-          videoEditorProvider.select((s) => s.isPlaying),
-        );
-        if (isPlaying && !_ticker.isActive) {
-          await _ticker.start();
-        }
-
-        setState(() {});
-      }
-    });
-
     ref
       ..listenManual(videoEditorProvider.select((s) => s.isPlaying), (
         previous,
@@ -77,6 +59,25 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
           if (mounted) setState(() {});
         }
       });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize position on first build (called before build)
+    if (_lastUpdateTime == null) {
+      _lastKnownPosition = ref.read(
+        videoEditorProvider.select((s) => s.currentPosition),
+      );
+      _lastUpdateTime = DateTime.now();
+
+      final isPlaying = ref.read(
+        videoEditorProvider.select((s) => s.isPlaying),
+      );
+      if (isPlaying && !_ticker.isActive) {
+        _ticker.start();
+      }
+    }
   }
 
   void _onTick(Duration elapsed) {
