@@ -145,6 +145,8 @@ class _VideoPreviewContent extends ConsumerWidget {
     // Hero animation from metadata screen
     return Hero(
       tag: 'Video-metadata-clip-preview-video',
+      // Use linear flight path instead of curved arc
+      createRectTween: (begin, end) => RectTween(begin: begin, end: end),
       child: Stack(
         fit: .expand,
         children: [

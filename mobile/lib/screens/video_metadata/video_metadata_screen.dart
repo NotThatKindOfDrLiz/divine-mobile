@@ -131,7 +131,10 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
                             ],
                           ),
                           // Post button at bottom
-                          const VideoMetadataBottomBar(),
+                          const SafeArea(
+                            top: false,
+                            child: VideoMetadataBottomBar(),
+                          ),
                         ],
                       ),
                     ),
