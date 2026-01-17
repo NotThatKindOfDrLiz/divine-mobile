@@ -53,6 +53,8 @@ class VideoMetadataClipPreview extends ConsumerWidget {
           // Hero animation to preview screen
           child: Hero(
             tag: 'Video-metadata-clip-preview-video',
+            // Use linear flight path instead of curved arc
+            createRectTween: (begin, end) => RectTween(begin: begin, end: end),
             child: AspectRatio(
               aspectRatio: clip.aspectRatio.value,
               child: ClipRRect(
