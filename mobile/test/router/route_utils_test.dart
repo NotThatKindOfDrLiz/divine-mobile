@@ -8,6 +8,9 @@ import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/screens/settings_screen.dart';
+import 'package:openvine/screens/video_editor_screen.dart';
+import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 
 void main() {
   group('parseRoute', () {
@@ -125,19 +128,19 @@ void main() {
     test('builds video-recorder route', () {
       final context = RouteContext(type: RouteType.videoRecorder);
 
-      expect(buildRoute(context), '/video-recorder');
+      expect(buildRoute(context), VideoRecorderScreen.path);
     });
 
     test('builds video-editor route', () {
       final context = RouteContext(type: RouteType.videoEditor);
 
-      expect(buildRoute(context), '/video-editor');
+      expect(buildRoute(context), VideoEditorScreen.path);
     });
 
     test('builds video-metadata route', () {
       final context = RouteContext(type: RouteType.videoMetadata);
 
-      expect(buildRoute(context), '/video-metadata');
+      expect(buildRoute(context), VideoMetadataScreen.path);
     });
 
     test('builds settings route', () {
@@ -160,10 +163,10 @@ void main() {
         ExploreScreen.pathForIndex(3),
         ProfileScreenRouter.pathForIndex('npub1abc123', 2),
         HashtagScreenRouter.pathForTag('nostr', index: 1),
-        // TODO(@hm21): UniversalCameraScreenPure.path,
+        VideoRecorderScreen.path,
+        VideoEditorScreen.path,
+        VideoMetadataScreen.path,
         SettingsScreen.path,
-        // TODO(@hm21): ClipManagerScreen.path,
-        // TODO(@hm21): VideoEditorScreen.path,
       ];
 
       for (final url in urls) {

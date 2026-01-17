@@ -28,6 +28,9 @@ import 'package:openvine/screens/relay_settings_screen.dart';
 import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
+import 'package:openvine/screens/video_editor_screen.dart';
+import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 
 /// Route types supported by the app
@@ -389,13 +392,13 @@ String buildRoute(RouteContext context) {
       return '${SearchScreenPure.path}/$index';
 
     case RouteType.videoRecorder:
-      return '/video-recorder';
+      return VideoRecorderScreen.path;
 
     case RouteType.videoEditor:
-      return '/video-editor';
+      return VideoEditorScreen.path;
 
     case RouteType.videoMetadata:
-      return '/video-metadata';
+      return VideoMetadataScreen.path;
 
     case RouteType.settings:
       return SettingsScreen.path;

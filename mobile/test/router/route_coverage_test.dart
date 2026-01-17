@@ -19,6 +19,9 @@ import 'package:openvine/screens/relay_diagnostic_screen.dart';
 import 'package:openvine/screens/relay_settings_screen.dart';
 import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
+import 'package:openvine/screens/video_editor_screen.dart';
+import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 
 void main() {
@@ -330,9 +333,9 @@ void main() {
         RouteType.profile: ProfileScreenRouter.pathForNpub('npub1test'),
         RouteType.hashtag: HashtagScreenRouter.pathForTag('test'),
         RouteType.search: SearchScreenPure.path,
-        // TODO(@hm21)  RouteType.camera: UniversalCameraScreenPure.path,
-        // TODO(@hm21)  RouteType.clipManager: ClipManagerScreen.path,
-        // TODO(@hm21)  RouteType.editVideo: VideoEditorScreen.path,
+        RouteType.videoRecorder: VideoRecorderScreen.path,
+        RouteType.videoEditor: VideoEditorScreen.path,
+        RouteType.videoMetadata: VideoMetadataScreen.path,
         RouteType.importKey: KeyImportScreen.path,
         RouteType.settings: SettingsScreen.path,
         RouteType.relaySettings: RelaySettingsScreen.path,

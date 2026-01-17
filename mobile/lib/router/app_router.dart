@@ -896,15 +896,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       // Video editor route (requires video passed via extra)
       GoRoute(
-        path: '/video-recorder',
-        name: 'video-recorder',
+        path: VideoRecorderScreen.path,
+        name: VideoRecorderScreen.routeName,
         builder: (_, _) =>
             const CameraPermissionGate(child: VideoRecorderScreen()),
       ),
       // Video editor route
       GoRoute(
-        path: '/video-editor',
-        name: 'video-editor',
+        path: VideoEditorScreen.path,
+        name: VideoEditorScreen.routeName,
         builder: (_, st) {
           final extra = st.extra as Map<String, dynamic>?;
           final fromLibrary = extra?['fromLibrary'] as bool? ?? false;
@@ -912,8 +912,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/video-editor/:draftId',
-        name: 'video-editor-draft',
+        path: '${VideoEditorScreen.path}/:draftId',
+        name: '${VideoEditorScreen.routeName}-draft',
         builder: (_, st) {
           // The draft ID is optional if the user wants to continue editing
           // the draft.
@@ -925,8 +925,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/video-metadata',
-        name: 'video-metadata',
+        path: VideoMetadataScreen.path,
+        name: VideoMetadataScreen.routeName,
         builder: (_, st) => const VideoMetadataScreen(),
       ),
       // Fullscreen video feed route (no bottom nav, used from profile/hashtag grids)

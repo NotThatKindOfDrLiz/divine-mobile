@@ -11,6 +11,7 @@ import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/screens/settings_screen.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 
 void main() {
   group('Page Context Provider', () {
@@ -122,8 +123,7 @@ void main() {
       );
 
       // Navigate to video-recorder
-      // TODO(@hm21)
-      container.read(goRouterProvider).go('/video-recorder');
+      container.read(goRouterProvider).go(VideoRecorderScreen.path);
       await tester.pumpAndSettle();
 
       final contextAsync = container.read(pageContextProvider);

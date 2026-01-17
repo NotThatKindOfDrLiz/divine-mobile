@@ -12,6 +12,9 @@ import 'package:openvine/screens/discover_lists_screen.dart';
 import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
+import 'package:openvine/screens/video_editor_screen.dart';
+import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
 
 import 'app_router.dart';
@@ -203,13 +206,13 @@ extension NavX on BuildContext {
   );
 
   // Optional pushes (non-tab routes)
-  Future<void> pushVideoRecorder() => push('/video-recorder');
+  Future<void> pushVideoRecorder() => push(VideoRecorderScreen.path);
   Future<void> pushVideoEditor({String? draftId, bool fromLibrary = false}) =>
       push(
-        '/video-editor${draftId != null ? '/$draftId' : ''}',
+        '${VideoEditorScreen.path}${draftId != null ? '/$draftId' : ''}',
         extra: fromLibrary ? {'fromLibrary': true} : null,
       );
-  Future<void> pushVideoMetadata() => push('/video-metadata');
+  Future<void> pushVideoMetadata() => push(VideoMetadataScreen.path);
   Future<void> pushSettings() => push(SettingsScreen.path);
   Future<void> pushComments(VideoEvent video) =>
       CommentsScreen.show(this, video);

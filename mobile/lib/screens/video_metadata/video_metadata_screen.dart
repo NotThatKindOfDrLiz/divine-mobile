@@ -23,6 +23,12 @@ class VideoMetadataScreen extends ConsumerStatefulWidget {
   /// Creates a video metadata editing screen.
   const VideoMetadataScreen({super.key});
 
+  /// Route name for this screen.
+  static const routeName = 'video-metadata';
+
+  /// Path for this route.
+  static const path = '/video-metadata';
+
   @override
   ConsumerState<VideoMetadataScreen> createState() =>
       _VideoMetadataScreenState();

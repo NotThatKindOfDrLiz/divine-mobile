@@ -26,6 +26,12 @@ class VideoRecorderScreen extends ConsumerStatefulWidget {
   /// Creates a video recorder screen.
   const VideoRecorderScreen({super.key});
 
+  /// Route name for this screen.
+  static const routeName = 'video-recorder';
+
+  /// Path for this route.
+  static const path = '/video-recorder';
+
   @override
   ConsumerState<VideoRecorderScreen> createState() =>
       _VideoRecorderScreenState();

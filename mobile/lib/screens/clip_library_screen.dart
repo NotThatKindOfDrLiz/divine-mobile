@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/screens/clip_manager_screen.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';

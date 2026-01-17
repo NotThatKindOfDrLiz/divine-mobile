@@ -23,6 +23,12 @@ class VideoEditorScreen extends ConsumerStatefulWidget {
   /// Whether the editor was opened from the clip library.
   final bool fromLibrary;
 
+  /// Route name for this screen.
+  static const routeName = 'video-editor';
+
+  /// Path for this route.
+  static const path = '/video-editor';
+
   @override
   ConsumerState<VideoEditorScreen> createState() => _VideoEditorScreenState();
 }
