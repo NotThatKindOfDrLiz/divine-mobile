@@ -2,11 +2,15 @@
 // ABOUTME: Verifies route location is parsed into structured context
 
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/router/page_context_provider.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/router/app_router.dart';
+import 'package:openvine/router/page_context_provider.dart';
 import 'package:openvine/router/route_utils.dart';
+import 'package:openvine/screens/explore_screen.dart';
+import 'package:openvine/screens/hashtag_screen_router.dart';
+import 'package:openvine/screens/profile_screen_router.dart';
+import 'package:openvine/screens/settings_screen.dart';
 
 void main() {
   group('Page Context Provider', () {
@@ -57,7 +61,7 @@ void main() {
       expect(contextAsync.value!.videoIndex, 0);
 
       // Navigate to explore
-      container.read(goRouterProvider).go('/explore/3');
+      container.read(goRouterProvider).go(ExploreScreen.pathForIndex(3));
       await tester.pumpAndSettle();
 
       // Context should update
@@ -66,7 +70,9 @@ void main() {
       expect(contextAsync.value!.videoIndex, 3);
 
       // Navigate to profile
-      container.read(goRouterProvider).go('/profile/npub1test/7');
+      container
+          .read(goRouterProvider)
+          .go(ProfileScreenRouter.pathForIndex('npub1test', 7));
       await tester.pumpAndSettle();
 
       // Context should update again
@@ -90,7 +96,9 @@ void main() {
       );
 
       // Navigate to hashtag
-      container.read(goRouterProvider).go('/hashtag/bitcoin/2');
+      container
+          .read(goRouterProvider)
+          .go(HashtagScreenRouter.pathForTag('bitcoin', index: 2));
       await tester.pumpAndSettle();
 
       final contextAsync = container.read(pageContextProvider);
@@ -114,6 +122,7 @@ void main() {
       );
 
       // Navigate to video-recorder
+      // TODO(@hm21)
       container.read(goRouterProvider).go('/video-recorder');
       await tester.pumpAndSettle();
 
@@ -160,7 +169,7 @@ void main() {
       );
 
       // Navigate to settings
-      container.read(goRouterProvider).go('/settings');
+      container.read(goRouterProvider).go(SettingsScreen.path);
       await tester.pumpAndSettle();
 
       final contextAsync = container.read(pageContextProvider);

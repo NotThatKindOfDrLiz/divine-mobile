@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/screens/clip_manager_screen.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/theme/vine_theme.dart';
@@ -21,6 +22,18 @@ import 'package:openvine/widgets/video_clip/video_clip_thumbnail_card.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
 class ClipLibraryScreen extends ConsumerStatefulWidget {
+  /// Route name for drafts path.
+  static const draftsRouteName = 'drafts';
+
+  /// Path for drafts route.
+  static const draftsPath = '/drafts';
+
+  /// Route name for clips path.
+  static const clipsRouteName = 'clips';
+
+  /// Path for clips route.
+  static const clipsPath = '/clips';
+
   const ClipLibraryScreen({
     super.key,
     this.selectionMode = false,

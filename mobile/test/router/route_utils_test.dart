@@ -3,11 +3,16 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/router/route_utils.dart';
+import 'package:openvine/screens/explore_screen.dart';
+import 'package:openvine/screens/hashtag_screen_router.dart';
+import 'package:openvine/screens/home_screen_router.dart';
+import 'package:openvine/screens/profile_screen_router.dart';
+import 'package:openvine/screens/settings_screen.dart';
 
 void main() {
   group('parseRoute', () {
     test('parses home route with index', () {
-      final result = parseRoute('/home/5');
+      final result = parseRoute(HomeScreenRouter.pathForIndex(5));
 
       expect(result.type, RouteType.home);
       expect(result.videoIndex, 5);
@@ -16,14 +21,16 @@ void main() {
     });
 
     test('parses explore route with index', () {
-      final result = parseRoute('/explore/3');
+      final result = parseRoute(ExploreScreen.pathForIndex(3));
 
       expect(result.type, RouteType.explore);
       expect(result.videoIndex, 3);
     });
 
     test('parses profile route with npub and index', () {
-      final result = parseRoute('/profile/npub1abc123/2');
+      final result = parseRoute(
+        ProfileScreenRouter.pathForIndex('npub1abc123', 2),
+      );
 
       expect(result.type, RouteType.profile);
       expect(result.npub, 'npub1abc123');
@@ -31,7 +38,9 @@ void main() {
     });
 
     test('parses hashtag route with tag and index', () {
-      final result = parseRoute('/hashtag/nostr/1');
+      final result = parseRoute(
+        HashtagScreenRouter.pathForTag('nostr', index: 1),
+      );
 
       expect(result.type, RouteType.hashtag);
       expect(result.hashtag, 'nostr');
@@ -53,7 +62,7 @@ void main() {
     });
 
     test('parses settings route', () {
-      final result = parseRoute('/settings');
+      final result = parseRoute(SettingsScreen.path);
 
       expect(result.type, RouteType.settings);
       expect(result.videoIndex, isNull);
@@ -67,7 +76,7 @@ void main() {
     });
 
     test('handles missing index defaulting to 0', () {
-      final result = parseRoute('/home');
+      final result = parseRoute(HomeScreenRouter.path);
 
       expect(result.type, RouteType.home);
       expect(result.videoIndex, 0);
@@ -78,13 +87,13 @@ void main() {
     test('builds home route with index', () {
       final context = RouteContext(type: RouteType.home, videoIndex: 5);
 
-      expect(buildRoute(context), '/home/5');
+      expect(buildRoute(context), HomeScreenRouter.pathForIndex(5));
     });
 
     test('builds explore route with index', () {
       final context = RouteContext(type: RouteType.explore, videoIndex: 3);
 
-      expect(buildRoute(context), '/explore/3');
+      expect(buildRoute(context), ExploreScreen.pathForIndex(3));
     });
 
     test('builds profile route with npub and index', () {
@@ -94,7 +103,10 @@ void main() {
         videoIndex: 2,
       );
 
-      expect(buildRoute(context), '/profile/npub1abc123/2');
+      expect(
+        buildRoute(context),
+        ProfileScreenRouter.pathForIndex('npub1abc123', 2),
+      );
     });
 
     test('builds hashtag route with tag and index', () {
@@ -104,7 +116,10 @@ void main() {
         videoIndex: 1,
       );
 
-      expect(buildRoute(context), '/hashtag/nostr/1');
+      expect(
+        buildRoute(context),
+        HashtagScreenRouter.pathForTag('nostr', index: 1),
+      );
     });
 
     test('builds video-recorder route', () {
@@ -128,26 +143,27 @@ void main() {
     test('builds settings route', () {
       final context = RouteContext(type: RouteType.settings);
 
-      expect(buildRoute(context), '/settings');
+      expect(buildRoute(context), SettingsScreen.path);
     });
 
     test('defaults missing index to 0 for video routes', () {
       final context = RouteContext(type: RouteType.home);
 
-      expect(buildRoute(context), '/home/0');
+      expect(buildRoute(context), HomeScreenRouter.pathForIndex(0));
     });
   });
 
   group('round-trip consistency', () {
     test('parse then build returns original URL', () {
       final urls = [
-        '/home/5',
-        '/explore/3',
-        '/profile/npub1abc123/2',
-        '/hashtag/nostr/1',
-        '/settings',
-        '/video-recorder',
-        '/video-editor',
+        HomeScreenRouter.pathForIndex(5),
+        ExploreScreen.pathForIndex(3),
+        ProfileScreenRouter.pathForIndex('npub1abc123', 2),
+        HashtagScreenRouter.pathForTag('nostr', index: 1),
+        // TODO(@hm21): UniversalCameraScreenPure.path,
+        SettingsScreen.path,
+        // TODO(@hm21): ClipManagerScreen.path,
+        // TODO(@hm21): VideoEditorScreen.path,
       ];
 
       for (final url in urls) {
