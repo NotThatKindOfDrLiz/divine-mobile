@@ -3,21 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 
+/// Bottom bar with "Save draft" and "Post" buttons for video metadata.
+///
+/// Buttons are disabled with reduced opacity when metadata is invalid.
 class VideoMetadataBottomBar extends ConsumerWidget {
+  /// Creates a video metadata bottom bar.
   const VideoMetadataBottomBar({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Check if metadata is complete and valid
     final isValidToPost = ref.watch(
       videoEditorProvider.select((s) => s.isValidToPost),
     );
 
     return Padding(
-      padding: .fromLTRB(16, 16, 16, 4),
+      padding: const .fromLTRB(16, 16, 16, 4),
+      // Fade buttons when form is invalid
       child: AnimatedOpacity(
-        duration: Duration(milliseconds: 200),
+        duration: const Duration(milliseconds: 200),
         opacity: isValidToPost ? 1 : 0.32,
-        child: Row(
+        child: const Row(
           spacing: 16,
           children: [
             Expanded(child: _SaveDraftButton()),
@@ -29,8 +35,9 @@ class VideoMetadataBottomBar extends ConsumerWidget {
   }
 }
 
-// Save draft button (outlined)
+/// Outlined button to save the video as a draft.
 class _SaveDraftButton extends ConsumerWidget {
+  /// Creates a save draft button.
   const _SaveDraftButton();
 
   @override
@@ -40,6 +47,7 @@ class _SaveDraftButton extends ConsumerWidget {
     );
 
     return Semantics(
+      // TODO(l10n): Replace with context.l10n when localization is added.
       label: 'Save draft button',
       hint: isValidToPost
           ? 'Save video as draft'
@@ -58,6 +66,7 @@ class _SaveDraftButton extends ConsumerWidget {
           ),
           padding: const .symmetric(vertical: 10),
           child: Center(
+            // TODO(l10n): Replace with context.l10n when localization is added.
             child: Text(
               'Save draft',
               style: GoogleFonts.bricolageGrotesque(
@@ -75,8 +84,9 @@ class _SaveDraftButton extends ConsumerWidget {
   }
 }
 
-// Post button (filled)
+/// Filled button to publish the video to the feed.
 class _PostButton extends ConsumerWidget {
+  /// Creates a post button.
   const _PostButton();
 
   @override
@@ -86,6 +96,7 @@ class _PostButton extends ConsumerWidget {
     );
 
     return Semantics(
+      // TODO(l10n): Replace with context.l10n when localization is added.
       label: 'Post button',
       hint: isValidToPost
           ? 'Publish video to feed'
@@ -103,6 +114,7 @@ class _PostButton extends ConsumerWidget {
           ),
           padding: const .symmetric(vertical: 12),
           child: Center(
+            // TODO(l10n): Replace with context.l10n when localization is added.
             child: Text(
               'Post',
               style: GoogleFonts.bricolageGrotesque(

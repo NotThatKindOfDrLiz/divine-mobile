@@ -256,6 +256,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
   }
 
+  /// Remove a tag from the metadata tags set.
   void removeTag(String tag) {
     final tags = {...state.tags};
     tags.removeWhere((el) => el == tag);
@@ -263,6 +264,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(tags: tags);
   }
 
+  /// Update video metadata (title, description, tags).
+  ///
+  /// Validates and enforces the 64KB size limit. Rejects updates that exceed
+  /// the limit and sets metadataLimitReached flag.
   void updateMetadata({String? title, String? description, Set<String>? tags}) {
     Log.debug(
       '📝 Updated video metadata',
@@ -279,6 +284,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
             .toSet() ??
         state.tags;
 
+    // Calculate total size in bytes (UTF-8 encoded)
     // Calculate total size
     const maxBytes = 64 * 1024; // 64KB
     final titleBytes = utf8.encode(cleanedTitle).length;
@@ -308,6 +314,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
   }
 
+  /// Set video expiration time option.
   void setExpiration(VideoMetadataExpiration expiration) {
     state = state.copyWith(expiration: expiration);
   }
@@ -395,7 +402,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     }
   }
 
-  /// Render the final video.
+  /// Render all clips into final video and prepare for publishing.
+  ///
+  /// Combines all clips, applies audio settings, generates proofmode
+  /// attestation, and creates the final rendered clip for publishing.
   Future<void> startRenderVideo() async {
     if (state.isProcessing) return;
 
@@ -406,10 +416,12 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
     state = state.copyWith(isProcessing: true);
 
+    // Render video and get proofmode data
     final (outputPath, proofManifestJson) = await _renderVideo();
 
     final validToPublish = outputPath != null;
 
+    // Extract metadata from rendered video
     final metaData = validToPublish
         ? await ProVideoEditor.instance.getMetadata(
             EditorVideo.file(outputPath),
@@ -432,6 +444,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
+    // Create final clip for publishing
     final finalRenderedClip = RecordingClip(
       id: 'clip-${DateTime.now()}',
       video: EditorVideo.file(outputPath),
@@ -453,6 +466,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
   }
 
+  /// Cancel an ongoing video render operation.
   Future<void> cancelRenderVideo() async {
     try {
       Log.info(
@@ -479,10 +493,16 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(isProcessing: false);
   }
 
+  /// Save the current video project as a draft.
+  ///
+  /// TODO(@hm21): Implement draft saving functionality.
   Future<void> saveAsDraft() async {
     // TODO(@hm21):
   }
 
+  /// Publish the video to the Nostr network.
+  ///
+  /// TODO(@hm21): Implement video publishing functionality.
   Future<void> postVideo() async {
     // TODO(@hm21):
   }
@@ -517,6 +537,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
 
     try {
+      // Render clips into single video file
       final outputPath = await VideoEditorRenderService.renderVideo(
         clips: _clips,
         aspectRatio: _clips.first.aspectRatio,
@@ -524,6 +545,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       );
       String? proofManifestJson;
 
+      // Generate proofmode attestation if render successful
       if (outputPath != null) {
         Log.info(
           '✅ Video rendered to: $outputPath',

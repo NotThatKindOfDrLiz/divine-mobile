@@ -8,7 +8,12 @@ import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/divine_text_field.dart';
 
+/// Input widget for adding and managing hashtags for video metadata.
+///
+/// Supports up to 10 tags, allows adding multiple tags by pasting,
+/// and displays tags as removable chips in a custom flow layout.
 class VideoMetadataTagsInput extends ConsumerStatefulWidget {
+  /// Creates a video metadata tags input widget.
   const VideoMetadataTagsInput({super.key});
 
   @override
@@ -18,6 +23,7 @@ class VideoMetadataTagsInput extends ConsumerStatefulWidget {
 
 class _VideoMetadataTagsInputState
     extends ConsumerState<VideoMetadataTagsInput> {
+  /// Maximum number of tags allowed per video.
   static int tagLimit = 10;
 
   final _controller = TextEditingController();
@@ -27,6 +33,7 @@ class _VideoMetadataTagsInputState
   void initState() {
     super.initState();
 
+    // Rebuild when focus changes to update label color
     _focusNode.addListener(() => setState(() {}));
   }
 
@@ -37,6 +44,10 @@ class _VideoMetadataTagsInputState
     super.dispose();
   }
 
+  /// Processes input value and extracts valid tags.
+  ///
+  /// Handles multiple tags separated by whitespace (e.g., pasted text).
+  /// Filters out invalid characters and empty strings.
   void _handleTagChanges(String value, {bool isSubmitted = false}) {
     // Only process if value contains whitespace
     if ((isSubmitted && value.trim().isEmpty) ||
@@ -44,14 +55,16 @@ class _VideoMetadataTagsInputState
       return;
     }
 
+    // Extract and sanitize multiple tags (supports copy/paste)
     // For the case the user copy/paste multiple tags, we need to extract
     // them separate.
-    final Set<String> newTags = value
+    final newTags = value
         .split(RegExp(r'\s+'))
         .map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
         .where((tag) => tag.isNotEmpty)
         .toSet();
 
+    // Merge with existing tags
     final oldTags = ref.read(videoEditorProvider).tags;
     ref
         .read(videoEditorProvider.notifier)
@@ -63,8 +76,11 @@ class _VideoMetadataTagsInputState
 
   @override
   Widget build(BuildContext context) {
+    // Dynamic label color based on focus state
     final labelStyle = VineTheme.bodyFont(
-      color: _focusNode.hasFocus ? const Color(0xFF27C58B) : Color(0xB6FFFFFF),
+      color: _focusNode.hasFocus
+          ? const Color(0xFF27C58B)
+          : const Color(0xB6FFFFFF),
       fontSize: 11,
       fontWeight: .w600,
       height: 1.45,
@@ -74,7 +90,7 @@ class _VideoMetadataTagsInputState
     final tags = ref.watch(videoEditorProvider.select((s) => s.tags));
 
     return GestureDetector(
-      onTap: () => _focusNode.requestFocus(),
+      onTap: _focusNode.requestFocus,
       behavior: .opaque,
       child: Padding(
         padding: const .all(16),
@@ -82,26 +98,31 @@ class _VideoMetadataTagsInputState
           crossAxisAlignment: .start,
           spacing: 12,
           children: [
+            // Show count when tags exist
             if (tags.isNotEmpty)
               Row(
-                crossAxisAlignment: .center,
                 mainAxisAlignment: .spaceBetween,
                 children: [
+                  // TODO(l10n): Replace with context.l10n when localization is added.
                   Flexible(child: Text('Tags', style: labelStyle)),
                   Text(
                     '${tags.length}/$tagLimit',
-                    style: labelStyle.copyWith(color: Color(0x80FFFFFF)),
+                    style: labelStyle.copyWith(color: const Color(0x80FFFFFF)),
                   ),
                 ],
               ),
+            // Custom flow layout for tags and input field
             _TagInputLayout(
               spacing: 8,
               runSpacing: 8,
-              minTextFieldWidth: 100.0,
+              minTextFieldWidth: 100,
               tagCount: tags.length,
               children: [
+                // Render all existing tags as chips
                 ...tags.map((tag) => _TagChip(tag: tag)),
+                // Show input field if under limit
                 if (tags.length < tagLimit)
+                  // TODO(l10n): Replace with context.l10n when localization is added.
                   DivineTextField(
                     controller: _controller,
                     focusNode: _focusNode,
@@ -128,34 +149,36 @@ class _VideoMetadataTagsInputState
   }
 }
 
+/// Chip widget displaying a hashtag with a delete button.
 class _TagChip extends ConsumerWidget {
+  /// Creates a tag chip.
   const _TagChip({required this.tag});
 
+  /// The tag text without the '#' prefix.
   final String tag;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      padding: .symmetric(horizontal: 16, vertical: 8),
+      padding: const .symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         borderRadius: .circular(16),
-        color: Color(0xFF032017),
+        color: const Color(0xFF032017),
       ),
       child: Row(
         mainAxisSize: .min,
-        crossAxisAlignment: .center,
         children: [
+          // Hashtag symbol
           Text(
             '#',
             style: VineTheme.bodyFont(
               color: const Color(0xFF27C58B),
-              fontSize: 16,
-              fontWeight: .w400,
               height: 1.50,
               letterSpacing: 0.15,
             ),
           ),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
+          // Tag text
           Text(
             tag,
             overflow: .ellipsis,
@@ -167,9 +190,11 @@ class _TagChip extends ConsumerWidget {
               letterSpacing: 0.10,
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
+          // TODO(l10n): Replace with context.l10n when localization is added.
           Semantics(
             label: 'Delete',
+            // TODO(l10n): Replace with context.l10n when localization is added.
             hint: 'Delete Tag $tag',
             button: true,
             child: GestureDetector(
@@ -191,21 +216,33 @@ class _TagChip extends ConsumerWidget {
   }
 }
 
-/// A custom layout widget that wraps children like Wrap but gives the last child
-/// (the text field) the remaining width in the current row.
+/// A custom layout widget that wraps children like Wrap but gives the last
+/// child (the text field) the remaining width in the current row.
+///
+/// This creates a flow layout where tag chips wrap naturally, and the input
+/// field fills the remaining space or moves to a new line if space is
+/// insufficient.
 class _TagInputLayout extends MultiChildRenderObjectWidget {
-  final double spacing;
-  final double runSpacing;
-  final int tagCount;
-  final double minTextFieldWidth;
-
+  /// Creates a tag input layout.
   const _TagInputLayout({
     required this.spacing,
     required this.runSpacing,
     required this.tagCount,
     required this.minTextFieldWidth,
-    required List<Widget> children,
-  }) : super(children: children);
+    required super.children,
+  });
+
+  /// Horizontal spacing between children.
+  final double spacing;
+
+  /// Vertical spacing between rows.
+  final double runSpacing;
+
+  /// Number of tag chips (used to identify the text field).
+  final int tagCount;
+
+  /// Minimum width for the text field.
+  final double minTextFieldWidth;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -230,17 +267,17 @@ class _TagInputLayout extends MultiChildRenderObjectWidget {
   }
 }
 
+/// Parent data for children in [_TagInputLayout].
 class _TagInputLayoutParentData extends ContainerBoxParentData<RenderBox> {}
 
+/// Render object that implements the custom tag input layout algorithm.
+///
+/// Lays out tag chips in a flow layout and gives the text field
+/// the remaining width in the current row, or moves it to a new row.
 class _RenderTagInputLayout extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _TagInputLayoutParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _TagInputLayoutParentData> {
-  double _spacing;
-  double _runSpacing;
-  int _tagCount;
-  double _minTextFieldWidth;
-
   _RenderTagInputLayout({
     required double spacing,
     required double runSpacing,
@@ -250,6 +287,11 @@ class _RenderTagInputLayout extends RenderBox
        _runSpacing = runSpacing,
        _tagCount = tagCount,
        _minTextFieldWidth = minTextFieldWidth;
+
+  double _spacing;
+  double _runSpacing;
+  int _tagCount;
+  double _minTextFieldWidth;
 
   double get spacing => _spacing;
   set spacing(double value) {
@@ -297,9 +339,9 @@ class _RenderTagInputLayout extends RenderBox
     double y = 0;
     double maxHeightInRow = 0;
 
-    // Layout all tag chips first
-    RenderBox? child = firstChild;
-    int index = 0;
+    // Layout all tag chips in flow layout
+    var child = firstChild;
+    var index = 0;
     RenderBox? textFieldChild;
 
     while (child != null) {
@@ -324,7 +366,7 @@ class _RenderTagInputLayout extends RenderBox
             ? childSize.height
             : maxHeightInRow;
       } else {
-        // This is the text field - save for later
+        // Save text field for special layout handling
         textFieldChild = child;
       }
 
@@ -342,6 +384,7 @@ class _RenderTagInputLayout extends RenderBox
       double textFieldY;
       double textFieldWidth;
 
+      // Determine text field position and width
       if (availableWidth >= minTextFieldWidth && x > 0) {
         // Fits in current row
         textFieldX = x;

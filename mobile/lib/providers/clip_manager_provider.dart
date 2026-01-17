@@ -45,7 +45,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Calculates the remaining recording time available.
   ///
-  /// Returns the difference between [maxDuration] and the sum of all clip durations.
+  /// Returns the difference between [maxDuration] and the sum of all clip
+  /// durations.
   Duration get remainingDuration {
     final totalDuration = _clips.fold<Duration>(
       Duration.zero,
@@ -112,7 +113,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     _recordingDurationTimer?.cancel();
 
     Log.debug(
-      '⏸️  Recording timer stopped at ${_recordStopwatch.elapsed.inMilliseconds}ms',
+      '⏸️  Recording timer stopped at '
+      '${_recordStopwatch.elapsed.inMilliseconds}ms',
       name: 'ClipManagerNotifier',
       category: .video,
     );
@@ -232,7 +234,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     _clips.addAll(clips);
 
     Log.info(
-      '📎 Added ${clips.length} clips (${previousCount} → ${_clips.length} total)',
+      '📎 Added ${clips.length} clips '
+      '($previousCount → ${_clips.length} total)',
       name: 'ClipManagerNotifier',
       category: .video,
     );
@@ -274,7 +277,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         newIndex < 0 ||
         newIndex >= _clips.length) {
       Log.warning(
-        '⚠️ Invalid reorder indices: $oldIndex → $newIndex (length: ${_clips.length})',
+        '⚠️ Invalid reorder indices: $oldIndex → $newIndex '
+        '(length: ${_clips.length})',
         name: 'ClipManagerNotifier',
         category: .video,
       );
@@ -422,7 +426,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Remove the most recent clip (undo last recording).
   ///
-  /// Safely removes only the last clip if any exist, otherwise logs debug message.
+  /// Safely removes only the last clip if any exist, otherwise logs debug
+  /// message.
   void removeLastClip() {
     if (_clips.isEmpty) {
       Log.debug(
@@ -536,7 +541,8 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
   /// Saves all clips to drafts.
   ///
-  /// Creates a new [VineDraft] from current clips and saves it to persistent storage.
+  /// Creates a new [VineDraft] from current clips and saves it to persistent
+  /// storage.
   /// Shows a SnackBar on success or failure.
   Future<void> saveToDrafts(BuildContext context) async {
     Log.info(

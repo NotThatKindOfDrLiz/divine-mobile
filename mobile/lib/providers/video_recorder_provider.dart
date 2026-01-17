@@ -285,7 +285,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     // remaining duration is less than one frame.
     if (!_cameraService.canRecord ||
         state.isRecording ||
-        remainingDuration < Duration(milliseconds: 30)) {
+        remainingDuration < const Duration(milliseconds: 30)) {
       return;
     }
 
@@ -481,7 +481,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       // We delay camera dispose so that the screen animation can finish
       // before the editor open. Without that it will look weird to the user
       // because the initialization screen will show up quickly.
-      Future.delayed(Duration(milliseconds: 300), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         return _cameraService.dispose();
       }),
     ]);
@@ -543,7 +543,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       name: 'VideoRecorderNotifier',
       category: .video,
     );
-    state = VideoRecorderProviderState();
+    state = const VideoRecorderProviderState();
   }
 }
 

@@ -1,6 +1,8 @@
 // ABOUTME: Top bar with close, clip counter, and done buttons
 // ABOUTME: Displays current clip position and total clip count
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
@@ -73,7 +75,7 @@ class VideoEditorTopBar extends ConsumerWidget {
                 height: 1.33,
                 letterSpacing: 0.15,
                 fontWeight: .w800,
-                fontFeatures: [.tabularFigures()],
+                fontFeatures: [const .tabularFigures()],
               ),
             ),
 
@@ -84,10 +86,12 @@ class VideoEditorTopBar extends ConsumerWidget {
                       alignment: .centerRight,
                       child: _NextButton(
                         onTap: () {
-                          ref
-                              .read(videoEditorProvider.notifier)
-                              .startRenderVideo();
-                          context.pushVideoMetadata();
+                          unawaited(
+                            ref
+                                .read(videoEditorProvider.notifier)
+                                .startRenderVideo(),
+                          );
+                          unawaited(context.pushVideoMetadata());
                         },
                       ),
                     ),

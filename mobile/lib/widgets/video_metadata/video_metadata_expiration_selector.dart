@@ -8,12 +8,20 @@ import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/bottom_sheets/vine_bottom_sheet_drag_handle.dart';
 
+/// Widget for selecting video expiration time.
+///
+/// Displays the currently selected expiration option and opens
+/// a bottom sheet with all available options when tapped.
 class VideoMetadataExpirationSelector extends ConsumerWidget {
+  /// Creates a video expiration selector.
   const VideoMetadataExpirationSelector({super.key});
-  void _selectExpiration(BuildContext context) {
+
+  /// Opens the bottom sheet for selecting expiration time.
+  Future<void> _selectExpiration(BuildContext context) async {
+    // Dismiss keyboard before showing bottom sheet
     FocusManager.instance.primaryFocus?.unfocus();
 
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       backgroundColor: VineTheme.surfaceBackground,
       builder: (context) => const _ExpirationOptionsBottomSheet(),
@@ -22,12 +30,14 @@ class VideoMetadataExpirationSelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Get currently selected expiration option
     final currentOption = ref.watch(
       videoEditorProvider.select((s) => s.expiration),
     );
 
     return Semantics(
       button: true,
+      // TODO(l10n): Replace with context.l10n when localization is added.
       label: 'Select expiration time',
       child: InkWell(
         onTap: () => _selectExpiration(context),
@@ -37,6 +47,7 @@ class VideoMetadataExpirationSelector extends ConsumerWidget {
             spacing: 8,
             crossAxisAlignment: .stretch,
             children: [
+              // TODO(l10n): Replace with context.l10n when localization is added.
               Text(
                 'Expiration',
                 style: GoogleFonts.inter(
@@ -47,9 +58,9 @@ class VideoMetadataExpirationSelector extends ConsumerWidget {
                   letterSpacing: 0.50,
                 ),
               ),
+              // Current selection with chevron icon
               Row(
                 mainAxisAlignment: .spaceBetween,
-                crossAxisAlignment: .center,
                 children: [
                   Flexible(
                     child: Text(
@@ -66,7 +77,7 @@ class VideoMetadataExpirationSelector extends ConsumerWidget {
                     width: 24,
                     child: SvgPicture.asset(
                       'assets/icon/caret_right.svg',
-                      colorFilter: ColorFilter.mode(
+                      colorFilter: const ColorFilter.mode(
                         VineTheme.tabIndicatorGreen,
                         .srcIn,
                       ),
@@ -82,12 +93,14 @@ class VideoMetadataExpirationSelector extends ConsumerWidget {
   }
 }
 
-// Bottom sheet for expiration options
+/// Bottom sheet displaying all available expiration options.
 class _ExpirationOptionsBottomSheet extends ConsumerWidget {
+  /// Creates an expiration options bottom sheet.
   const _ExpirationOptionsBottomSheet();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Get currently selected expiration option for checkmark
     final currentOption = ref.watch(
       videoEditorProvider.select((s) => s.expiration),
     );
@@ -96,10 +109,12 @@ class _ExpirationOptionsBottomSheet extends ConsumerWidget {
       mainAxisSize: .min,
       spacing: 16,
       children: [
+        // Drag handle at top
         const Padding(
           padding: .only(top: 8),
           child: VineBottomSheetDragHandle(),
         ),
+        // TODO(l10n): Replace with context.l10n when localization is added.
         Text(
           'Expiration',
           style: GoogleFonts.bricolageGrotesque(
@@ -110,6 +125,7 @@ class _ExpirationOptionsBottomSheet extends ConsumerWidget {
             letterSpacing: 0.15,
           ),
         ),
+        // List of all expiration options
         SingleChildScrollView(
           child: Column(
             mainAxisSize: .min,
@@ -118,7 +134,7 @@ class _ExpirationOptionsBottomSheet extends ConsumerWidget {
 
               return ListTile(
                 selected: isSelected,
-                selectedTileColor: Color(0xFF032017),
+                selectedTileColor: const Color(0xFF032017),
                 title: Text(
                   option.description,
                   style: GoogleFonts.bricolageGrotesque(
@@ -129,6 +145,7 @@ class _ExpirationOptionsBottomSheet extends ConsumerWidget {
                     letterSpacing: 0.15,
                   ),
                 ),
+                // Show checkmark for selected option
                 trailing: isSelected
                     ? const Icon(
                         Icons.check,
@@ -137,6 +154,7 @@ class _ExpirationOptionsBottomSheet extends ConsumerWidget {
                       )
                     : null,
                 onTap: () {
+                  // Update selection and close bottom sheet
                   ref.read(videoEditorProvider.notifier).setExpiration(option);
                   context.pop();
                 },

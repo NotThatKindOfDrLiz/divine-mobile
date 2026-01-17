@@ -30,7 +30,7 @@ class _VideoRecorderCameraPreviewState
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const .only(top: 8.0),
+        padding: const .only(top: 8),
         child: LayoutBuilder(
           builder: (_, constraints) {
             final aspectRatio = ref.watch(

@@ -1,20 +1,25 @@
 // ABOUTME: Video metadata editing screen for post details, title, description, tags and expiration
 // ABOUTME: Implements Figma design 1:1 with custom widget classes
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/widgets/divine_text_field.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
+import 'package:openvine/widgets/video_metadata/video_metadata_clip_preview.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_expiration_selector.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_tags_input.dart';
-import 'package:openvine/widgets/video_metadata/video_metadata_clip_preview.dart';
-import '../../theme/vine_theme.dart';
 
+/// Screen for editing video metadata including title, description, tags, and
+/// expiration settings.
 class VideoMetadataScreen extends ConsumerStatefulWidget {
+  /// Creates a video metadata editing screen.
   const VideoMetadataScreen({super.key});
 
   @override
@@ -41,10 +46,12 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Cancel video render when user navigates back
     return PopScope(
       onPopInvokedWithResult: (didPop, result) {
-        ref.read(videoEditorProvider.notifier).cancelRenderVideo();
+        unawaited(ref.read(videoEditorProvider.notifier).cancelRenderVideo());
       },
+      // Dismiss keyboard when tapping outside input fields
       child: GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: Scaffold(
@@ -84,48 +91,58 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
                   child: Column(
                     mainAxisAlignment: .spaceBetween,
                     children: [
+                      // Metadata form section
                       Column(
                         mainAxisSize: .min,
                         crossAxisAlignment: .stretch,
                         children: [
-                          VideoMetadataClipPreview(),
+                          // Video preview at top
+                          const VideoMetadataClipPreview(),
 
+                          // Title input field
                           DivineTextField(
                             controller: _titleController,
                             label: 'Title',
                             focusNode: _titleFocusNode,
                             textInputAction: .next,
-                            onChanged: (value) => ref
-                                .read(videoEditorProvider.notifier)
-                                .updateMetadata(title: value),
+                            onChanged: (value) {
+                              ref
+                                  .read(videoEditorProvider.notifier)
+                                  .updateMetadata(title: value);
+                            },
                             onSubmitted: (_) =>
                                 _descriptionFocusNode.requestFocus(),
                           ),
                           const _Divider(),
 
+                          // Description input field
                           DivineTextField(
                             controller: _descriptionController,
                             label: 'Description',
                             focusNode: _descriptionFocusNode,
                             keyboardType: .multiline,
                             textInputAction: .newline,
-                            onChanged: (value) => ref
-                                .read(videoEditorProvider.notifier)
-                                .updateMetadata(description: value),
+                            onChanged: (value) {
+                              ref
+                                  .read(videoEditorProvider.notifier)
+                                  .updateMetadata(description: value);
+                            },
                           ),
                           const _Divider(),
 
-                          const _Divider(),
-
+                          // Hashtags input
                           const VideoMetadataTagsInput(),
                           const _Divider(),
 
-                          _MetadataLimitWarning(),
+                          // 64KB limit warning (shown only if exceeded)
+                          const _MetadataLimitWarning(),
 
+                          // Expiration time selector
                           const VideoMetadataExpirationSelector(),
                         ],
                       ),
-                      VideoMetadataBottomBar(),
+                      // Post button at bottom
+                      const VideoMetadataBottomBar(),
                     ],
                   ),
                 ),
@@ -138,16 +155,20 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
   }
 }
 
+/// A subtle divider line for separating metadata sections.
 class _Divider extends StatelessWidget {
+  /// Creates a divider widget.
   const _Divider();
 
   @override
   Widget build(BuildContext context) {
-    return Divider(thickness: 0, height: 1, color: Color(0xFF001A12));
+    return const Divider(thickness: 0, height: 1, color: Color(0xFF001A12));
   }
 }
 
+/// Warning banner displayed when metadata size exceeds the 64KB limit.
 class _MetadataLimitWarning extends ConsumerWidget {
+  /// Creates a metadata limit warning widget.
   const _MetadataLimitWarning();
 
   @override
@@ -162,9 +183,9 @@ class _MetadataLimitWarning extends ConsumerWidget {
       color: const Color(0xFF4A1C00),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.warning_amber_rounded,
-            color: const Color(0xFFFFB84D),
+            color: Color(0xFFFFB84D),
             size: 20,
           ),
           const SizedBox(width: 12),

@@ -21,7 +21,7 @@ class ClipGalleryInstructionText extends ConsumerWidget {
       ),
     );
     return AnimatedSwitcher(
-      duration: Duration(milliseconds: 220),
+      duration: const Duration(milliseconds: 220),
       switchInCurve: Curves.easeInOut,
       transitionBuilder: (child, animation) => SizeTransition(
         sizeFactor: animation,

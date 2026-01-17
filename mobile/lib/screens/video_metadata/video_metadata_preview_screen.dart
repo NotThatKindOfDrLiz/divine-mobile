@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,9 +13,15 @@ import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
 import 'package:video_player/video_player.dart';
 
+/// Full-screen preview of the recorded video with metadata overlay.
+///
+/// Displays the video in a hero animation transition and shows
+/// how the post will appear with the entered title, description, and tags.
 class VideoMetadataPreviewScreen extends ConsumerStatefulWidget {
-  const VideoMetadataPreviewScreen({super.key, required this.clip});
+  /// Creates a video preview screen for the given clip.
+  const VideoMetadataPreviewScreen({required this.clip, super.key});
 
+  /// The recording clip to preview.
   final RecordingClip clip;
 
   @override
@@ -27,17 +34,20 @@ class _VideoMetadataPreviewScreenState
   /// Video player controller for the clip, null until initialized.
   VideoPlayerController? _controller;
 
-  /// Whether the video player has completed initialization and is ready to play.
+  /// Whether the video player has completed initialization and is ready
+  /// to play.
   bool _isInitialized = false;
   final _isPreviewReady = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
-    _initializePlayer();
+    // Start video playback
+    unawaited(_initializePlayer());
 
+    // Wait for hero animation to finish before showing overlay
     // Before displaying the overlay, we wait for the hero animation to finish.
-    Future.delayed(Duration(milliseconds: 350), () {
+    Future.delayed(const Duration(milliseconds: 350), () {
       if (mounted) _isPreviewReady.value = true;
     });
   }
@@ -48,12 +58,9 @@ class _VideoMetadataPreviewScreenState
   /// initializes it, enables looping, and starts playback automatically.
   /// Updates [_isInitialized] when complete.
   Future<void> _initializePlayer() async {
-    final file = File(await widget.clip.video.safeFilePath());
-    if (!await file.exists()) {
-      return;
-    }
-
-    if (mounted) _controller = VideoPlayerController.file(file);
+    _controller = VideoPlayerController.file(
+      File(await widget.clip.video.safeFilePath()),
+    );
     if (mounted) await _controller!.initialize();
     if (mounted) await _controller!.setLooping(true);
     if (mounted) await _controller!.play();
@@ -66,7 +73,7 @@ class _VideoMetadataPreviewScreenState
 
   @override
   void dispose() {
-    _controller?.dispose();
+    unawaited(_controller?.dispose());
     _isPreviewReady.dispose();
     super.dispose();
   }
@@ -77,6 +84,7 @@ class _VideoMetadataPreviewScreenState
       backgroundColor: const Color(0xFF000A06),
       body: Column(
         children: [
+          // Video preview area with close button
           Expanded(
             child: Stack(
               fit: .expand,
@@ -87,18 +95,22 @@ class _VideoMetadataPreviewScreenState
                   isInitialized: _isInitialized,
                   isPreviewReady: _isPreviewReady,
                 ),
-                _CloseButton(),
+                const _CloseButton(),
               ],
             ),
           ),
-          SafeArea(top: false, child: VideoMetadataBottomBar()),
+          // Post button at bottom
+          const SafeArea(top: false, child: VideoMetadataBottomBar()),
         ],
       ),
     );
   }
 }
 
+/// Container widget that wraps the video player and overlay in a hero
+/// transition.
 class _VideoPreviewContent extends ConsumerWidget {
+  /// Creates the video preview content wrapper.
   const _VideoPreviewContent({
     required this.clip,
     required this.controller,
@@ -113,16 +125,19 @@ class _VideoPreviewContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Hero animation from metadata screen
     return Hero(
       tag: 'Video-metadata-clip-preview-video',
       child: Stack(
         fit: .expand,
         children: [
+          // Video playback layer
           _VideoPlayerWidget(
             clip: clip,
             controller: controller,
             isInitialized: isInitialized,
           ),
+          // Metadata overlay layer
           _PreviewOverlay(isPreviewReady: isPreviewReady),
         ],
       ),
@@ -130,7 +145,9 @@ class _VideoPreviewContent extends ConsumerWidget {
   }
 }
 
+/// Video player widget with thumbnail fallback and smooth transitions.
 class _VideoPlayerWidget extends StatelessWidget {
+  /// Creates a video player widget.
   const _VideoPlayerWidget({
     required this.clip,
     required this.controller,
@@ -151,8 +168,10 @@ class _VideoPlayerWidget extends StatelessWidget {
           child: Stack(
             fit: .expand,
             children: [
+              // Show thumbnail while video loads
               if (clip.thumbnailPath != null)
                 Image.file(File(clip.thumbnailPath!), fit: .cover),
+              // Smooth transition to video player
               AnimatedSwitcher(
                 layoutBuilder: (currentChild, previousChildren) => Stack(
                   alignment: .center,
@@ -160,7 +179,7 @@ class _VideoPlayerWidget extends StatelessWidget {
                   children: <Widget>[...previousChildren, ?currentChild],
                 ),
                 switchInCurve: Curves.easeInOut,
-                duration: Duration(milliseconds: 120),
+                duration: const Duration(milliseconds: 120),
                 child: isInitialized && controller != null
                     ? FittedBox(
                         fit: .cover,
@@ -171,7 +190,7 @@ class _VideoPlayerWidget extends StatelessWidget {
                           child: VideoPlayer(controller!),
                         ),
                       )
-                    : SizedBox.shrink(),
+                    : const SizedBox.shrink(),
               ),
             ],
           ),
@@ -181,41 +200,46 @@ class _VideoPlayerWidget extends StatelessWidget {
   }
 }
 
+/// Semi-transparent overlay showing how the video will appear with metadata.
 class _PreviewOverlay extends ConsumerWidget {
+  /// Creates a preview overlay.
   const _PreviewOverlay({required this.isPreviewReady});
 
   final ValueNotifier<bool> isPreviewReady;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Get current metadata from editor
     final metadata = ref.watch(
       videoEditorProvider.select(
         (s) => (title: s.title, description: s.description, tags: s.tags),
       ),
     );
 
+    // Get user's public key for preview
     final publicKey = ref.watch(
       nostrServiceProvider.select((s) => s.publicKey),
     );
 
+    // Non-interactive overlay with reduced opacity
     return IgnorePointer(
       child: Opacity(
         opacity: 0.5,
         child: ValueListenableBuilder(
           valueListenable: isPreviewReady,
           builder: (_, isActive, _) {
+            // Show overlay actions in preview mode
             return VideoOverlayActions(
               video: VideoEvent(
                 id: 'id',
                 pubkey: publicKey,
+                timestamp: DateTime.now(),
                 createdAt: DateTime.now().millisecondsSinceEpoch,
                 content: metadata.title,
                 hashtags: metadata.tags.toList(),
-                timestamp: DateTime.now(),
                 originalLikes: 1,
                 originalComments: 1,
                 originalReposts: 1,
-                isFlaggedContent: false,
               ),
               isVisible: true,
               isActive: isActive,
@@ -228,7 +252,9 @@ class _PreviewOverlay extends ConsumerWidget {
   }
 }
 
+/// Close button positioned at the top-left corner.
 class _CloseButton extends StatelessWidget {
+  /// Creates a close button.
   const _CloseButton();
 
   @override

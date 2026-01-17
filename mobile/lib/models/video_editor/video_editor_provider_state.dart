@@ -13,6 +13,7 @@ import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 /// - Audio settings
 /// - Processing status
 class VideoEditorProviderState {
+  /// Creates a video editor state with optional initial values.
   VideoEditorProviderState({
     this.currentClipIndex = 0,
     this.currentPosition = .zero,
@@ -56,7 +57,8 @@ class VideoEditorProviderState {
   /// Whether audio is muted during playback.
   final bool isMuted;
 
-  /// Whether a long-running operation (e.g., export, processing) is in progress.
+  /// Whether a long-running operation (e.g., export, processing) is in
+  /// progress.
   final bool isProcessing;
 
   /// GlobalKey for the delete button to enable hit testing.
@@ -77,10 +79,17 @@ class VideoEditorProviderState {
   /// Whether the 64KB metadata limit was reached during the last update.
   final bool metadataLimitReached;
 
-  /// The final rendered clip after all editing and processing operations are complete.
+  /// The final rendered clip after all editing and processing operations are
+  /// complete.
   /// This represents the video output ready for publishing.
   final RecordingClip? finalRenderedClip;
 
+  /// Whether the video is valid and ready to be posted.
+  ///
+  /// Returns true if:
+  /// - Metadata is within the 64KB limit
+  /// - Title is not empty
+  /// - Final rendered clip is available
   bool get isValidToPost =>
       !metadataLimitReached && title.isNotEmpty && finalRenderedClip != null;
 

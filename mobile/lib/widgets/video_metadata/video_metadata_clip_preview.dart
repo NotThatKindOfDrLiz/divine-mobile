@@ -8,15 +8,22 @@ import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_preview_screen.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clip_processing_overlay.dart';
 
+/// Video clip preview widget with thumbnail and play button.
+///
+/// Displays a thumbnail of the recorded video and allows opening
+/// the full-screen preview when tapped. Shows processing overlay
+/// while the video is being rendered.
 class VideoMetadataClipPreview extends ConsumerWidget {
+  /// Creates a video metadata clip preview.
   const VideoMetadataClipPreview({super.key});
 
-  void _openPreview(BuildContext context, RecordingClip clip) {
-    Navigator.push(
+  /// Opens the full-screen video preview with a fade transition.
+  Future<void> _openPreview(BuildContext context, RecordingClip clip) async {
+    await Navigator.push(
       context,
-      PageRouteBuilder(
+      PageRouteBuilder<void>(
         pageBuilder: (_, _, _) => VideoMetadataPreviewScreen(clip: clip),
-        transitionDuration: Duration(milliseconds: 300),
+        transitionDuration: const Duration(milliseconds: 300),
         transitionsBuilder: (_, animation, _, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -26,7 +33,9 @@ class VideoMetadataClipPreview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Get the first (and only) clip from manager
     final clip = ref.watch(clipManagerProvider).clips.first;
+    // Watch processing state and rendered clip
     final state = ref.watch(
       videoEditorProvider.select(
         (s) => (
@@ -37,10 +46,11 @@ class VideoMetadataClipPreview extends ConsumerWidget {
     );
 
     return Padding(
-      padding: const .symmetric(vertical: 32.0),
+      padding: const .symmetric(vertical: 32),
       child: Center(
         child: SizedBox(
           height: 200,
+          // Hero animation to preview screen
           child: Hero(
             tag: 'Video-metadata-clip-preview-video',
             child: AspectRatio(
@@ -49,6 +59,7 @@ class VideoMetadataClipPreview extends ConsumerWidget {
                 borderRadius: .circular(16),
                 child: Stack(
                   children: [
+                    // Video thumbnail or placeholder
                     AnimatedSwitcher(
                       layoutBuilder: (currentChild, previousChildren) => Stack(
                         fit: .expand,
@@ -57,12 +68,13 @@ class VideoMetadataClipPreview extends ConsumerWidget {
                       ),
                       duration: const Duration(milliseconds: 150),
                       child: clip.thumbnailPath != null
-                          ?
-                            // Show thumbnail when not playing or not initialized
-                            Image.file(File(clip.thumbnailPath!), fit: .cover)
-                          :
-                            // Video thumbnail placeholder
-                            Container(
+                          ? // Video thumbnail image
+                            Image.file(
+                              File(clip.thumbnailPath!),
+                              fit: .cover,
+                            )
+                          : // Fallback placeholder
+                            ColoredBox(
                               color: Colors.grey.shade400,
                               child: const Icon(
                                 Icons.play_circle_outline,
@@ -71,6 +83,7 @@ class VideoMetadataClipPreview extends ConsumerWidget {
                               ),
                             ),
                     ),
+                    // Processing overlay with play button
                     VideoEditorClipProcessingOverlay(
                       clip: clip,
                       isProcessing: state.isProcessing,
@@ -95,7 +108,9 @@ class VideoMetadataClipPreview extends ConsumerWidget {
   }
 }
 
+/// Play button indicator overlay for opening the preview screen.
 class _PlayIndicator extends StatelessWidget {
+  /// Creates a play indicator.
   const _PlayIndicator({required this.clip, required this.onTap});
 
   final RecordingClip clip;
@@ -106,9 +121,11 @@ class _PlayIndicator extends StatelessWidget {
     return Center(
       child: Semantics(
         button: true,
+        // TODO(l10n): Replace with context.l10n when localization is added.
         label: 'Open post preview screen',
         child: GestureDetector(
           onTap: onTap,
+          // Semi-transparent dark button with play icon
           child: Container(
             padding: const .all(12),
             decoration: ShapeDecoration(
