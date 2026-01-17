@@ -206,12 +206,10 @@ class VideoPublishService {
   /// Polls upload progress until complete or failed.
   /// Returns true if upload succeeded, false if failed.
   Future<bool> _pollUploadProgress(String uploadId) async {
-    print('DEBUG start-poll');
     while (_shouldContinue) {
       final upload = uploadManager.getUpload(uploadId);
       if (upload == null) return false;
 
-      print('DEBUG poll progress ${upload.uploadProgress}');
       onProgressChanged(upload.uploadProgress ?? 0.0);
 
       switch (upload.status) {
@@ -228,7 +226,6 @@ class VideoPublishService {
           await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     }
-    print('DEBUG done-poll');
     return true;
   }
 
