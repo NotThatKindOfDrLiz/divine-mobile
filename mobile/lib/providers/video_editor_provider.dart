@@ -518,6 +518,9 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
       await draftService.saveDraft(getActiveDraft());
 
+      // Remove the autosaved draft
+      await removeAutosavedDraft();
+
       Log.info(
         '✅ Draft saved successfully: $draftId',
         name: 'VideoEditorNotifier',
