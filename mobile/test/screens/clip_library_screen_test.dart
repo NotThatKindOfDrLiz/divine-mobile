@@ -8,7 +8,6 @@ import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/services/clip_library_service.dart';
-import 'package:openvine/widgets/video_clip/video_clip_thumbnail_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

@@ -33,8 +33,14 @@ void main() {
         ),
       );
 
-      // Should show progress indicator when processing
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      // Should show overlay when processing
+      // The overlay uses Color.fromARGB(140, 0, 0, 0)
+      final overlayFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox &&
+            widget.color == const Color.fromARGB(140, 0, 0, 0),
+      );
+      expect(overlayFinder, findsOneWidget);
     });
 
     testWidgets('should be invisible when clip is not processing', (
@@ -48,8 +54,13 @@ void main() {
         ),
       );
 
-      // Should not show progress indicator when not processing
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // Should not show overlay when not processing
+      final overlayFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox &&
+            widget.color == const Color.fromARGB(140, 0, 0, 0),
+      );
+      expect(overlayFinder, findsNothing);
     });
 
     testWidgets('should be invisible when processing is completed', (
@@ -64,8 +75,13 @@ void main() {
         ),
       );
 
-      // Should not show progress indicator when processing is complete
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      // Should not show overlay when processing is complete
+      final overlayFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox &&
+            widget.color == const Color.fromARGB(140, 0, 0, 0),
+      );
+      expect(overlayFinder, findsNothing);
     });
   });
 }

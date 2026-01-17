@@ -10,11 +10,7 @@ void main() {
     testWidgets('displays empty state initially', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
-          ),
+          child: MaterialApp(home: Scaffold(body: VideoMetadataTagsInput())),
         ),
       );
 
@@ -40,9 +36,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -66,13 +60,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -93,13 +83,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -120,13 +106,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -147,13 +129,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -167,21 +145,17 @@ void main() {
     });
 
     testWidgets('removes tag when delete button is tapped', (tester) async {
-      String? removedTag;
+      Set<String>? updatedTags;
       final mockNotifier = _MockVideoEditorNotifier(
         VideoEditorProviderState(tags: {'flutter', 'dart'}),
-        onRemoveTag: (tag) => removedTag = tag,
+        onUpdateMetadata: (tags) => updatedTags = tags,
       );
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -193,8 +167,10 @@ void main() {
       await tester.tap(deleteButton);
       await tester.pump();
 
-      // Should have removed one of the tags
-      expect(removedTag, isIn(['flutter', 'dart']));
+      // Should have removed one of the tags (updatedTags should have 1 tag)
+      expect(updatedTags, isNotNull);
+      expect(updatedTags!.length, equals(1));
+      expect(updatedTags, anyOf(equals({'flutter'}), equals({'dart'})));
     });
 
     testWidgets('hides input field when tag limit is reached', (tester) async {
@@ -212,9 +188,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -233,19 +207,13 @@ void main() {
     });
 
     testWidgets('clears input after adding tag', (tester) async {
-      final mockNotifier = _MockVideoEditorNotifier(
-        VideoEditorProviderState(),
-      );
+      final mockNotifier = _MockVideoEditorNotifier(VideoEditorProviderState());
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -261,11 +229,7 @@ void main() {
     testWidgets('focuses input when tapped outside', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
-          ),
+          child: MaterialApp(home: Scaffold(body: VideoMetadataTagsInput())),
         ),
       );
 
@@ -289,13 +253,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataTagsInput(),
-            ),
+            home: Scaffold(body: VideoMetadataTagsInput()),
           ),
         ),
       );
@@ -311,35 +271,19 @@ void main() {
 
 /// Mock notifier for testing
 class _MockVideoEditorNotifier extends VideoEditorNotifier {
-  _MockVideoEditorNotifier(
-    this._state, {
-    this.onUpdateMetadata,
-    this.onRemoveTag,
-  });
+  _MockVideoEditorNotifier(this._state, {this.onUpdateMetadata});
 
   final VideoEditorProviderState _state;
   final void Function(Set<String>? tags)? onUpdateMetadata;
-  final void Function(String tag)? onRemoveTag;
 
   @override
   VideoEditorProviderState build() => _state;
 
   @override
-  void updateMetadata({
-    String? title,
-    String? description,
-    Set<String>? tags,
-  }) {
+  void updateMetadata({String? title, String? description, Set<String>? tags}) {
     if (tags != null) {
       onUpdateMetadata?.call(tags);
       state = state.copyWith(tags: tags);
     }
-  }
-
-  @override
-  void removeTag(String tag) {
-    onRemoveTag?.call(tag);
-    final newTags = {...state.tags}..remove(tag);
-    state = state.copyWith(tags: newTags);
   }
 }

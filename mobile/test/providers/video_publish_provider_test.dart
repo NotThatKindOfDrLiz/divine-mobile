@@ -3,12 +3,8 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:models/models.dart' as model;
-import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_publish/video_publish_state.dart';
-import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
-import 'package:pro_video_editor/pro_video_editor.dart';
 
 void main() {
   group('VideoPublishNotifier', () {
@@ -22,90 +18,6 @@ void main() {
 
     tearDown(() {
       container.dispose();
-    });
-
-    test('initialize sets clip from draft', () {
-      final clip = RecordingClip(
-        id: 'test-clip',
-        video: EditorVideo.file('assets/videos/default_intro.mp4'),
-        duration: const Duration(seconds: 5),
-        recordedAt: DateTime.now(),
-        aspectRatio: model.AspectRatio.vertical,
-      );
-
-      final draft = VineDraft.create(
-        id: 'draft-1',
-        clips: [clip],
-        title: 'Test',
-        description: 'Test description',
-        hashtags: {'Vine'},
-        selectedApproach: 'video',
-      );
-
-      notifier.initialize(draft: draft);
-
-      final state = container.read(videoPublishProvider);
-      expect(state.clip, clip);
-    });
-
-    test('togglePlayPause switches between playing and paused', () {
-      final initPlayState = container.read(videoPublishProvider).isPlaying;
-
-      notifier.togglePlayPause();
-      expect(container.read(videoPublishProvider).isPlaying, !initPlayState);
-
-      notifier.togglePlayPause();
-      expect(container.read(videoPublishProvider).isPlaying, initPlayState);
-    });
-
-    test('setPlaying sets playing state to true', () {
-      notifier.setPlaying(true);
-      expect(container.read(videoPublishProvider).isPlaying, true);
-    });
-
-    test('setPlaying sets playing state to false', () {
-      notifier
-        ..setPlaying(true)
-        ..setPlaying(false);
-      expect(container.read(videoPublishProvider).isPlaying, false);
-    });
-
-    test('toggleMute switches between muted and unmuted', () {
-      final initMuteState = container.read(videoPublishProvider).isMuted;
-
-      notifier.toggleMute();
-      expect(container.read(videoPublishProvider).isMuted, !initMuteState);
-
-      notifier.toggleMute();
-      expect(container.read(videoPublishProvider).isMuted, initMuteState);
-    });
-
-    test('setMuted sets muted state to true', () {
-      notifier.setMuted(true);
-      expect(container.read(videoPublishProvider).isMuted, true);
-    });
-
-    test('setMuted sets muted state to false', () {
-      notifier
-        ..setMuted(true)
-        ..setMuted(false);
-      expect(container.read(videoPublishProvider).isMuted, false);
-    });
-
-    test('updatePosition updates current position', () {
-      const newPosition = Duration(seconds: 3);
-
-      notifier.updatePosition(newPosition);
-
-      expect(container.read(videoPublishProvider).currentPosition, newPosition);
-    });
-
-    test('setDuration sets total duration', () {
-      const duration = Duration(seconds: 30);
-
-      notifier.setDuration(duration);
-
-      expect(container.read(videoPublishProvider).totalDuration, duration);
     });
 
     test('setUploadProgress updates progress value', () {
@@ -142,42 +54,6 @@ void main() {
         container.read(videoPublishProvider).publishState,
         VideoPublishState.error,
       );
-    });
-
-    test('multiple position updates track correctly', () {
-      notifier.updatePosition(const Duration(seconds: 1));
-      expect(
-        container.read(videoPublishProvider).currentPosition,
-        const Duration(seconds: 1),
-      );
-
-      notifier.updatePosition(const Duration(seconds: 2));
-      expect(
-        container.read(videoPublishProvider).currentPosition,
-        const Duration(seconds: 2),
-      );
-
-      notifier.updatePosition(const Duration(milliseconds: 2500));
-      expect(
-        container.read(videoPublishProvider).currentPosition,
-        const Duration(milliseconds: 2500),
-      );
-    });
-
-    test('state changes are independent', () {
-      notifier
-        ..setPlaying(true)
-        ..setMuted(true);
-
-      final state = container.read(videoPublishProvider);
-      expect(state.isPlaying, true);
-      expect(state.isMuted, true);
-
-      notifier.setPlaying(false);
-
-      final newState = container.read(videoPublishProvider);
-      expect(newState.isPlaying, false);
-      expect(newState.isMuted, true); // Should remain true
     });
 
     test('upload progress tracks intermediate values', () {
@@ -218,34 +94,22 @@ void main() {
     test('reset returns state to initial values', () {
       // First modify the state
       notifier
-        ..setPlaying(false)
-        ..setMuted(true)
         ..setUploadProgress(0.5)
         ..setPublishState(VideoPublishState.uploading)
-        ..updatePosition(const Duration(seconds: 10))
         // Then reset
         ..reset();
 
       final state = container.read(videoPublishProvider);
-      // Default isPlaying is true in VideoPublishProviderState
-      expect(state.isPlaying, true);
-      expect(state.isMuted, false);
       expect(state.uploadProgress, 0.0);
       expect(state.publishState, VideoPublishState.idle);
-      expect(state.currentPosition, Duration.zero);
     });
 
     test('setError preserves other state values', () {
-      notifier
-        ..setPlaying(true)
-        ..setMuted(true)
-        ..setError('Test error');
+      notifier..setError('Test error');
 
       final state = container.read(videoPublishProvider);
       expect(state.publishState, VideoPublishState.error);
       expect(state.errorMessage, 'Test error');
-      expect(state.isPlaying, true);
-      expect(state.isMuted, true);
     });
   });
 }

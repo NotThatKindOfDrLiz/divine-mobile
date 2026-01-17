@@ -36,9 +36,16 @@ final videoEditorProvider =
 /// - Video rendering and export
 /// - Metadata management
 class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
+  static String autoSaveId = 'draft_autosave';
+
+  /// Debounce duration for metadata autosave to prevent excessive saves.
+  static const Duration _autosaveDebounce = Duration(milliseconds: 800);
+
   /// Current draft ID for save/load operations.
   @visibleForTesting
   String? draftId;
+
+  Timer? _autosaveTimer;
 
   /// Get clip manager notifier.
   ClipManagerNotifier get _clipManager =>
@@ -49,7 +56,32 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
   @override
   VideoEditorProviderState build() {
+    ref.onDispose(() {
+      _autosaveTimer?.cancel();
+      Log.debug(
+        '🧹 VideoEditorNotifier disposed',
+        name: 'VideoEditorNotifier',
+        category: LogCategory.video,
+      );
+    });
     return VideoEditorProviderState();
+  }
+
+  /// Trigger autosave with debounce to prevent excessive saves.
+  ///
+  /// Can be called from other providers (e.g., ClipManager) to trigger
+  /// autosave after changes. Uses debouncing to batch rapid changes.
+  void triggerAutosave() {
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(_autosaveDebounce, () {
+      if (!ref.mounted) return;
+      Log.debug(
+        '💾 Triggering autosave',
+        name: 'VideoEditorNotifier',
+        category: LogCategory.video,
+      );
+      autosaveChanges();
+    });
   }
 
   /// Initialize the video editor with an optional draft.
@@ -229,13 +261,34 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   }
 
   /// Reset editor state and metadata to defaults.
-  void reset() {
+  ///
+  /// Also cancels any pending autosave and deletes the autosaved draft.
+  Future<void> reset() async {
     Log.debug(
       '🔄 Resetting editor state',
       name: 'VideoEditorNotifier',
       category: .video,
     );
     state = VideoEditorProviderState();
+    _autosaveTimer?.cancel();
+
+    // Delete autosaved draft
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+      await draftService.deleteDraft(autoSaveId);
+      Log.debug(
+        '🗑️ Deleted autosaved draft',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    } catch (e) {
+      Log.warning(
+        '⚠️ Failed to delete autosaved draft: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
   }
 
   /// Update the current playback position.
@@ -255,14 +308,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         milliseconds: (offset + position).inMilliseconds.clamp(0, 6300),
       ),
     );
-  }
-
-  /// Remove a tag from the metadata tags set.
-  void removeTag(String tag) {
-    final tags = {...state.tags};
-    tags.removeWhere((el) => el == tag);
-
-    state = state.copyWith(tags: tags);
   }
 
   /// Update video metadata (title, description, tags).
@@ -313,6 +358,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       tags: cleanedTags,
       metadataLimitReached: false,
     );
+
+    triggerAutosave();
   }
 
   /// Set video expiration time option.
@@ -389,11 +436,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
           }
         },
       );
+
       Log.info(
         '✅ Successfully split clip into 2 segments',
         name: 'VideoEditorNotifier',
         category: .video,
       );
+
+      await autosaveChanges();
     } catch (e) {
       Log.error(
         '❌ Failed to split clip: $e',
@@ -494,7 +544,47 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(isProcessing: false);
   }
 
+  /// Automatically save the current video project state.
+  ///
+  /// This method is typically called periodically or on significant changes
+  /// to prevent data loss. Unlike [saveAsDraft], autosave uses a fixed
+  /// [autoSaveId] to maintain a single recovery point.
+  Future<bool> autosaveChanges() async {
+    final clipCount = _clips.length;
+    final hasTitle = state.title.isNotEmpty;
 
+    Log.info(
+      '💾 Autosaving draft (clips: $clipCount, has title: $hasTitle)',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+
+      final draft = getActiveDraft();
+      await draftService.saveDraft(draft);
+
+      Log.info(
+        '✅ Autosave completed - ${clipCount} clip(s), '
+        'title: "${state.title.isEmpty ? "(empty)" : state.title}"',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+
+      return true;
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Autosave failed: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
 
   /// Save the current video project as a draft.
   ///
@@ -573,12 +663,12 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   }
 
   /// Create a VineDraft from the rendered clip with metadata.
-  VineDraft getActiveDraft() {
+  VineDraft getActiveDraft({bool isAutosave = false}) {
     return VineDraft.create(
-      id: draftId,
-      clips: state.finalRenderedClip != null
-          ? [state.finalRenderedClip!]
-          : _clips,
+      id: isAutosave ? autoSaveId : draftId,
+      clips: state.finalRenderedClip == null || isAutosave
+          ? _clips
+          : [state.finalRenderedClip!],
       title: state.title,
       description: state.description,
       hashtags: state.tags,

@@ -157,6 +157,15 @@ class _TagChip extends ConsumerWidget {
   /// The tag text without the '#' prefix.
   final String tag;
 
+  void _removeTag(WidgetRef ref) {
+    final tags = ref.read(videoEditorProvider).tags;
+
+    final resultTags = {...tags};
+    resultTags.removeWhere((el) => el == tag);
+
+    ref.read(videoEditorProvider.notifier).updateMetadata(tags: resultTags);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
@@ -191,15 +200,13 @@ class _TagChip extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 8),
-          // TODO(l10n): Replace with context.l10n when localization is added.
           Semantics(
-            label: 'Delete',
             // TODO(l10n): Replace with context.l10n when localization is added.
+            label: 'Delete',
             hint: 'Delete Tag $tag',
             button: true,
             child: GestureDetector(
-              onTap: () =>
-                  ref.read(videoEditorProvider.notifier).removeTag(tag),
+              onTap: () => _removeTag(ref),
               child: SizedBox(
                 width: 16,
                 height: 16,

@@ -68,18 +68,6 @@ void main() {
       expect(find.bySemanticsLabel('Play or pause video'), findsOneWidget);
     });
 
-    testWidgets('displays mute button when not muted', (tester) async {
-      await tester.pumpWidget(buildTestWidget(isMuted: false));
-
-      expect(find.bySemanticsLabel('Mute or unmute audio'), findsOneWidget);
-    });
-
-    testWidgets('displays unmute button when muted', (tester) async {
-      await tester.pumpWidget(buildTestWidget(isMuted: true));
-
-      expect(find.bySemanticsLabel('Mute or unmute audio'), findsOneWidget);
-    });
-
     testWidgets('displays more options button', (tester) async {
       await tester.pumpWidget(buildTestWidget());
 
@@ -119,17 +107,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(playButton, findsOneWidget);
-    });
-
-    testWidgets('mute button is tappable', (tester) async {
-      await tester.pumpWidget(buildTestWidget());
-
-      final muteButton = find.bySemanticsLabel('Mute or unmute audio');
-
-      await tester.tap(muteButton);
-      await tester.pumpAndSettle();
-
-      expect(muteButton, findsOneWidget);
     });
 
     testWidgets('hides controls when reordering', (tester) async {

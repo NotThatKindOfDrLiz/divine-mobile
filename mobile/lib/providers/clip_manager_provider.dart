@@ -3,21 +3,16 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/saved_clip.dart';
-import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
-import 'package:openvine/theme/vine_theme.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 final clipManagerProvider =
     NotifierProvider<ClipManagerNotifier, ClipManagerState>(
@@ -68,6 +63,11 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       );
     });
     return ClipManagerState();
+  }
+
+  /// Trigger autosave via VideoEditorProvider.
+  void _triggerAutosave() {
+    ref.read(videoEditorProvider.notifier).triggerAutosave();
   }
 
   /// Manually trigger a state refresh with current clips.
@@ -194,6 +194,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       activeRecordingDuration: .zero,
     );
 
+    _triggerAutosave();
     return clip;
   }
 
@@ -213,6 +214,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
 
     state = state.copyWith(clips: List.unmodifiable(_clips));
 
+    _triggerAutosave();
     return clip;
   }
 
@@ -241,6 +243,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     );
 
     state = state.copyWith(clips: List.unmodifiable(_clips));
+    _triggerAutosave();
   }
 
   /// Delete a clip by ID.
@@ -264,6 +267,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
       category: .video,
     );
     state = state.copyWith(clips: List.unmodifiable(_clips));
+    _triggerAutosave();
     return true;
   }
 
@@ -297,6 +301,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     );
 
     state = state.copyWith(clips: List.unmodifiable(_clips));
+    _triggerAutosave();
   }
 
   /// Update thumbnail path for a clip.
@@ -317,6 +322,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         category: .video,
       );
     }
+    _triggerAutosave();
   }
 
   /// Update duration for a clip (from metadata extraction).
@@ -337,6 +343,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         category: .video,
       );
     }
+    _triggerAutosave();
   }
 
   /// Update video for a clip (e.g., after trimming or editing).
@@ -359,6 +366,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         category: .video,
       );
     }
+    _triggerAutosave();
   }
 
   /// Update thumbnail path for a clip.
@@ -381,6 +389,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         category: .video,
       );
     }
+    _triggerAutosave();
   }
 
   /// Refresh an existing clip with new data.
@@ -410,6 +419,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         category: .video,
       );
     }
+    _triggerAutosave();
   }
 
   /// Select a clip for editing.
@@ -536,64 +546,6 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
         stackTrace: stackTrace,
       );
       return false;
-    }
-  }
-
-  /// Saves all clips to drafts.
-  ///
-  /// Creates a new [VineDraft] from current clips and saves it to persistent
-  /// storage.
-  /// Shows a SnackBar on success or failure.
-  Future<void> saveToDrafts(BuildContext context) async {
-    Log.info(
-      '💾 Saving video to drafts (${_clips.length} clips)',
-      name: 'ClipManagerNotifier',
-      category: .video,
-    );
-
-    try {
-      final draft = VineDraft.create(
-        clips: clips,
-        title: '',
-        description: '',
-        hashtags: {},
-        selectedApproach: 'video',
-      );
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-      await draftService.saveDraft(draft);
-
-      ref.read(videoEditorProvider.notifier).setDraftId(draft.id);
-
-      Log.info(
-        '✅ Successfully saved draft: ${draft.id}',
-        name: 'ClipManagerNotifier',
-        category: .video,
-      );
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Saved to drafts'),
-          backgroundColor: VineTheme.vineGreen,
-        ),
-      );
-    } catch (e, stackTrace) {
-      Log.error(
-        '❌ Failed to save to drafts: $e',
-        name: 'ClipManagerNotifier',
-        category: LogCategory.video,
-        error: e,
-        stackTrace: stackTrace,
-      );
-
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to save to drafts'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 }

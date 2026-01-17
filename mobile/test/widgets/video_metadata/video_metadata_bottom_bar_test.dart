@@ -13,11 +13,7 @@ void main() {
     testWidgets('renders both Save draft and Post buttons', (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataBottomBar(),
-            ),
-          ),
+          child: MaterialApp(home: Scaffold(body: VideoMetadataBottomBar())),
         ),
       );
 
@@ -30,11 +26,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         const ProviderScope(
-          child: MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataBottomBar(),
-            ),
-          ),
+          child: MaterialApp(home: Scaffold(body: VideoMetadataBottomBar())),
         ),
       );
 
@@ -43,8 +35,12 @@ void main() {
       expect(find.text('Post'), findsOneWidget);
 
       // Post button should have reduced opacity when metadata is invalid
+      // Find the AnimatedOpacity that is an ancestor of the Post button
       final animatedOpacity = tester.widget<AnimatedOpacity>(
-        find.byType(AnimatedOpacity),
+        find.ancestor(
+          of: find.text('Post'),
+          matching: find.byType(AnimatedOpacity),
+        ),
       );
       expect(animatedOpacity.opacity, lessThan(1));
     });
@@ -70,23 +66,23 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataBottomBar(),
-            ),
+            home: Scaffold(body: VideoMetadataBottomBar()),
           ),
         ),
       );
 
       // Buttons should be fully opaque when valid
+      // Find the AnimatedOpacity that is an ancestor of the Post button
       final animatedOpacity = tester.widget<AnimatedOpacity>(
-        find.byType(AnimatedOpacity),
+        find.ancestor(
+          of: find.text('Post'),
+          matching: find.byType(AnimatedOpacity),
+        ),
       );
       expect(animatedOpacity.opacity, equals(1.0));
     });
 
-    testWidgets('tapping Save draft button calls saveAsDraft', (
-      tester,
-    ) async {
+    testWidgets('tapping Save draft button calls saveAsDraft', (tester) async {
       var saveAsDraftCalled = false;
       final mockNotifier = _MockVideoEditorNotifier(
         VideoEditorProviderState(
@@ -104,13 +100,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataBottomBar(),
-            ),
+            home: Scaffold(body: VideoMetadataBottomBar()),
           ),
         ),
       );
@@ -141,13 +133,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataBottomBar(),
-            ),
+            home: Scaffold(body: VideoMetadataBottomBar()),
           ),
         ),
       );
@@ -162,11 +150,7 @@ void main() {
 
 /// Mock notifier for testing
 class _MockVideoEditorNotifier extends VideoEditorNotifier {
-  _MockVideoEditorNotifier(
-    this._state, {
-    this.onPostVideo,
-    this.onSaveAsDraft,
-  });
+  _MockVideoEditorNotifier(this._state, {this.onPostVideo, this.onSaveAsDraft});
 
   final VideoEditorProviderState _state;
   final VoidCallback? onPostVideo;
@@ -176,12 +160,13 @@ class _MockVideoEditorNotifier extends VideoEditorNotifier {
   VideoEditorProviderState build() => _state;
 
   @override
-  Future<void> postVideo() async {
+  Future<void> postVideo(BuildContext context) async {
     onPostVideo?.call();
   }
 
   @override
-  Future<void> saveAsDraft() async {
+  Future<bool> saveAsDraft() async {
     onSaveAsDraft?.call();
+    return true;
   }
 }
