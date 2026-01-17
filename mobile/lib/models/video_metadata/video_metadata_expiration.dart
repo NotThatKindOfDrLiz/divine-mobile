@@ -22,8 +22,7 @@ enum VideoMetadataExpiration {
   oneYear,
 
   /// Video expires after 1 decade (10 years, 3650 days).
-  oneDecade
-  ;
+  oneDecade;
 
   /// Returns the duration value for this expiration option.
   ///
@@ -48,4 +47,15 @@ enum VideoMetadataExpiration {
     .oneYear => '1 year',
     .oneDecade => '1 decade',
   };
+
+  /// Returns the expiration option matching the given [duration].
+  ///
+  /// Returns [notExpire] if duration is zero or no exact match is found.
+  static VideoMetadataExpiration fromDuration(Duration? duration) {
+    if (duration == null || duration == .zero) return notExpire;
+    for (final expiration in values) {
+      if (expiration.value == duration) return expiration;
+    }
+    return notExpire;
+  }
 }

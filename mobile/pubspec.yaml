@@ -260,6 +260,7 @@ flutter:
     - assets/icon/video_camera.svg
     - assets/icon/volume_off.svg
     - assets/icon/volume_on.svg
+    - assets/icon/warning_512.png
     - assets/icon/arrow_bend_down_right.svg
     - assets/loading-brand.gif
     - assets/seed_data/seed_events.sql

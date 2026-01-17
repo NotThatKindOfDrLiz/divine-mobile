@@ -6,15 +6,20 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
+import 'package:openvine/widgets/video_editor/sheets/video_editor_restore_autosave_sheet.dart';
 import 'package:openvine/widgets/video_recorder/preview/video_recorder_camera_preview.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_record_button.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Video recorder screen with camera preview and recording controls.
 class VideoRecorderScreen extends ConsumerStatefulWidget {
@@ -34,18 +39,61 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeCamera());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _initializeCamera();
+      _checkAutosavedChanges();
+    });
     Log.info('📹 Initialized', name: 'VideoRecorderScreen', category: .video);
   }
 
   /// Initialize camera and handle permission failures
   Future<void> _initializeCamera() async {
-    if (!mounted) return;
-
     _disposeVideoControllers();
 
     _notifier = ref.read(videoRecorderProvider.notifier);
     await _notifier!.initialize(context: context);
+  }
+
+  Future<void> _checkAutosavedChanges() async {
+    final hasClips = ref.read(clipManagerProvider).hasClips;
+    if (hasClips) {
+      Log.debug(
+        '📹 Skipping autosave check - clips already loaded',
+        name: 'VideoRecorderScreen',
+        category: LogCategory.video,
+      );
+      return;
+    }
+
+    Log.debug(
+      '📹 Checking for autosaved changes',
+      name: 'VideoRecorderScreen',
+      category: .video,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    final draftService = DraftStorageService(prefs);
+    final draft = await draftService.getDraftById(
+      VideoEditorNotifier.autoSaveId,
+    );
+    if (draft != null && draft.clips.isNotEmpty) {
+      Log.info(
+        '📹 Found autosaved draft with ${draft.clips.length} clip(s)',
+        name: 'VideoRecorderScreen',
+        category: .video,
+      );
+      VideoEditorRestoreAutosaveSheet.show(
+        context,
+        lastSavedAt: draft.lastModified,
+      );
+    } else {
+      Log.debug(
+        '📹 No autosaved draft found',
+        name: 'VideoRecorderScreen',
+        category: .video,
+      );
+    }
   }
 
   /// Dispose all video controllers to free resources before recording

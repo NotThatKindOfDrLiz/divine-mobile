@@ -54,6 +54,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Get clips from clip manager.
   List<RecordingClip> get _clips => ref.read(clipManagerProvider).clips;
 
+  // === LIFECYCLE ===
+
   @override
   VideoEditorProviderState build() {
     ref.onDispose(() {
@@ -67,55 +69,25 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     return VideoEditorProviderState();
   }
 
-  /// Trigger autosave with debounce to prevent excessive saves.
-  ///
-  /// Can be called from other providers (e.g., ClipManager) to trigger
-  /// autosave after changes. Uses debouncing to batch rapid changes.
-  void triggerAutosave() {
-    _autosaveTimer?.cancel();
-    _autosaveTimer = Timer(_autosaveDebounce, () {
-      if (!ref.mounted) return;
-      Log.debug(
-        '💾 Triggering autosave',
-        name: 'VideoEditorNotifier',
-        category: LogCategory.video,
-      );
-      autosaveChanges();
-    });
-  }
-
   /// Initialize the video editor with an optional draft.
   ///
   /// Loads existing draft data if [draftId] is provided, including clips
   /// and metadata.
   Future<void> initialize({String? draftId}) async {
-    reset();
+    // Reset old editing states but keep metadata
+    state = state.copyWith(
+      currentClipIndex: 0,
+      isEditing: false,
+      isReordering: false,
+      isProcessing: false,
+      isSavingDraft: false,
+      isPlaying: false,
+      currentPosition: .zero,
+    );
 
     // If the editor screen is opened from a draft, we initialize it here.
     if (draftId != null && draftId.isNotEmpty) {
-      Log.info(
-        '🎬 Initializing video editor with draft ID: $draftId',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-      final draft = await draftService.getDraftById(this.draftId!);
-      if (draft != null) {
-        // TODO(@hm21): _metadata = VideoEditorMeta.fromVineDraft(draft);
-        _clipManager.addMultipleClips(draft.clips);
-        Log.info(
-          '✅ Draft loaded with ${draft.clips.length} clip(s)',
-          name: 'VideoEditorNotifier',
-          category: .video,
-        );
-      } else {
-        Log.warning(
-          '⚠️ Draft not found: $draftId',
-          name: 'VideoEditorNotifier',
-          category: .video,
-        );
-      }
+      await restoreDraft(draftId);
     } else {
       Log.info(
         '🎬 Initializing video editor (no draft)',
@@ -125,6 +97,23 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     }
     this.draftId = draftId ?? 'Draft_${DateTime.now().microsecondsSinceEpoch}';
   }
+
+  /// Reset editor state and metadata to defaults.
+  ///
+  /// Also cancels any pending autosave and deletes the autosaved draft.
+  Future<void> reset() async {
+    Log.debug(
+      '🔄 Resetting editor state',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = VideoEditorProviderState();
+    _autosaveTimer?.cancel();
+
+    unawaited(removeAutosavedDraft());
+  }
+
+  // === CLIP SELECTION & NAVIGATION ===
 
   /// Select a clip by index and update the current position.
   ///
@@ -149,25 +138,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
   }
 
-  /// Start clip reordering mode for drag-and-drop operations.
-  void startClipReordering() {
-    Log.debug(
-      '🔄 Started clip reordering mode',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = state.copyWith(isReordering: true);
-  }
-
-  /// Stop clip reordering mode and reset delete zone state.
-  void stopClipReordering() {
-    Log.debug(
-      '✅ Stopped clip reordering mode',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = state.copyWith(isReordering: false, isOverDeleteZone: false);
-  }
+  // === CLIP EDITING MODE ===
 
   /// Enter editing mode for the currently selected clip.
   ///
@@ -205,178 +176,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     } else {
       startClipEditing();
     }
-  }
-
-  /// Pause video playback.
-  ///
-  /// Sets isPlaying to false without affecting other state.
-  void pauseVideo() {
-    Log.debug('⏸️ Paused video', name: 'VideoEditorNotifier', category: .video);
-    state = state.copyWith(isPlaying: false);
-  }
-
-  /// Toggle between playing and paused states.
-  ///
-  /// Convenience method to start/stop playback based on current state.
-  void togglePlayPause() {
-    final newState = !state.isPlaying;
-    Log.debug(
-      newState ? '▶️ Playing video' : '⏸️ Paused video',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = state.copyWith(isPlaying: newState);
-  }
-
-  /// Update whether a clip is being dragged over the delete zone.
-  void setOverDeleteZone(bool isOver) {
-    if (state.isOverDeleteZone != isOver) {
-      Log.debug(
-        isOver ? '🗑️  Clip over delete zone' : '⬅️  Clip left delete zone',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-    }
-    state = state.copyWith(isOverDeleteZone: isOver);
-  }
-
-  /// Seek to a specific position within the trim range.
-  ///
-  /// Pauses playback and updates the split position marker.
-  void seekToTrimPosition(Duration value) {
-    state = state.copyWith(splitPosition: value, isPlaying: false);
-  }
-
-  /// Toggle audio mute state.
-  ///
-  /// Mutes or unmutes audio playback for the video editor.
-  void toggleMute() {
-    final newState = !state.isMuted;
-    Log.debug(
-      newState ? '🔇 Muted audio' : '🔊 Unmuted audio',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = state.copyWith(isMuted: newState);
-  }
-
-  /// Reset editor state and metadata to defaults.
-  ///
-  /// Also cancels any pending autosave and deletes the autosaved draft.
-  Future<void> reset() async {
-    Log.debug(
-      '🔄 Resetting editor state',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    state = VideoEditorProviderState();
-    _autosaveTimer?.cancel();
-
-    // Delete autosaved draft
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-      await draftService.deleteDraft(autoSaveId);
-      Log.debug(
-        '🗑️ Deleted autosaved draft',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-    } catch (e) {
-      Log.warning(
-        '⚠️ Failed to delete autosaved draft: $e',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-    }
-  }
-
-  /// Update the current playback position.
-  ///
-  /// In editing mode, uses absolute position within the clip.
-  /// In viewing mode, adds offset from previous clips.
-  void updatePosition(Duration position) {
-    // Calculate offset from all previous clips
-    final offset = state.isEditing
-        ? Duration.zero
-        : _clips
-              .take(state.currentClipIndex)
-              .fold(Duration.zero, (sum, clip) => sum + clip.duration);
-
-    state = state.copyWith(
-      currentPosition: Duration(
-        milliseconds: (offset + position).inMilliseconds.clamp(0, 6300),
-      ),
-    );
-  }
-
-  /// Update video metadata (title, description, tags).
-  ///
-  /// Validates and enforces the 64KB size limit. Rejects updates that exceed
-  /// the limit and sets metadataLimitReached flag.
-  void updateMetadata({String? title, String? description, Set<String>? tags}) {
-    Log.debug(
-      '📝 Updated video metadata',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-
-    final cleanedTitle = title?.trim() ?? state.title;
-    final cleanedDescription = description?.trim() ?? state.description;
-    final cleanedTags =
-        tags
-            ?.map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
-            .where((tag) => tag.isNotEmpty)
-            .toSet() ??
-        state.tags;
-
-    // Calculate total size in bytes (UTF-8 encoded)
-    // Calculate total size
-    const maxBytes = 64 * 1024; // 64KB
-    final titleBytes = utf8.encode(cleanedTitle).length;
-    final descriptionBytes = utf8.encode(cleanedDescription).length;
-    final tagsBytes = cleanedTags.isEmpty
-        ? 0
-        : cleanedTags.fold<int>(0, (sum, tag) => sum + utf8.encode(tag).length);
-    final totalBytes = titleBytes + descriptionBytes + tagsBytes;
-
-    // Check if limit is exceeded
-    if (totalBytes > maxBytes) {
-      Log.warning(
-        '⚠️ Metadata exceeds 64KB limit ($totalBytes bytes) - update rejected',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-      state = state.copyWith(metadataLimitReached: true);
-      return;
-    }
-
-    // Update metadata if within limit
-    state = state.copyWith(
-      title: cleanedTitle,
-      description: cleanedDescription,
-      tags: cleanedTags,
-      metadataLimitReached: false,
-    );
-
-    triggerAutosave();
-  }
-
-  /// Set video expiration time option.
-  void setExpiration(VideoMetadataExpiration expiration) {
-    state = state.copyWith(expiration: expiration);
-  }
-
-  /// Set the draft ID for saving/loading.
-  ///
-  /// Associates this editing session with a persistent draft for auto-save.
-  void setDraftId(String id) {
-    Log.debug(
-      '💾 Set draft ID: $id',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-    draftId = id;
   }
 
   /// Split the currently selected clip at the current split position.
@@ -452,6 +251,355 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       );
     }
   }
+
+  // === CLIP REORDERING ===
+
+  /// Start clip reordering mode for drag-and-drop operations.
+  void startClipReordering() {
+    Log.debug(
+      '🔄 Started clip reordering mode',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = state.copyWith(isReordering: true);
+  }
+
+  /// Stop clip reordering mode and reset delete zone state.
+  void stopClipReordering() {
+    Log.debug(
+      '✅ Stopped clip reordering mode',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = state.copyWith(isReordering: false, isOverDeleteZone: false);
+  }
+
+  /// Update whether a clip is being dragged over the delete zone.
+  void setOverDeleteZone(bool isOver) {
+    if (state.isOverDeleteZone != isOver) {
+      Log.debug(
+        isOver ? '🗑️  Clip over delete zone' : '⬅️  Clip left delete zone',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
+    state = state.copyWith(isOverDeleteZone: isOver);
+  }
+
+  // === PLAYBACK CONTROL ===
+
+  /// Pause video playback.
+  ///
+  /// Sets isPlaying to false without affecting other state.
+  void pauseVideo() {
+    Log.debug('⏸️ Paused video', name: 'VideoEditorNotifier', category: .video);
+    state = state.copyWith(isPlaying: false);
+  }
+
+  /// Toggle between playing and paused states.
+  ///
+  /// Convenience method to start/stop playback based on current state.
+  void togglePlayPause() {
+    final newState = !state.isPlaying;
+    Log.debug(
+      newState ? '▶️ Playing video' : '⏸️ Paused video',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = state.copyWith(isPlaying: newState);
+  }
+
+  /// Toggle audio mute state.
+  ///
+  /// Mutes or unmutes audio playback for the video editor.
+  void toggleMute() {
+    final newState = !state.isMuted;
+    Log.debug(
+      newState ? '🔇 Muted audio' : '🔊 Unmuted audio',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    state = state.copyWith(isMuted: newState);
+  }
+
+  /// Update the current playback position.
+  ///
+  /// In editing mode, uses absolute position within the clip.
+  /// In viewing mode, adds offset from previous clips.
+  void updatePosition(Duration position) {
+    // Calculate offset from all previous clips
+    final offset = state.isEditing
+        ? Duration.zero
+        : _clips
+              .take(state.currentClipIndex)
+              .fold(Duration.zero, (sum, clip) => sum + clip.duration);
+
+    state = state.copyWith(
+      currentPosition: Duration(
+        milliseconds: (offset + position).inMilliseconds.clamp(0, 6300),
+      ),
+    );
+  }
+
+  /// Seek to a specific position within the trim range.
+  ///
+  /// Pauses playback and updates the split position marker.
+  void seekToTrimPosition(Duration value) {
+    state = state.copyWith(splitPosition: value, isPlaying: false);
+  }
+
+  // === METADATA ===
+
+  /// Update video metadata (title, description, tags).
+  ///
+  /// Validates and enforces the 64KB size limit. Rejects updates that exceed
+  /// the limit and sets metadataLimitReached flag.
+  void updateMetadata({String? title, String? description, Set<String>? tags}) {
+    Log.debug(
+      '📝 Updated video metadata',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
+    final cleanedTitle = title?.trim() ?? state.title;
+    final cleanedDescription = description?.trim() ?? state.description;
+    final cleanedTags =
+        tags
+            ?.map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
+            .where((tag) => tag.isNotEmpty)
+            .toSet() ??
+        state.tags;
+
+    // Calculate total size in bytes (UTF-8 encoded)
+    // Calculate total size
+    const maxBytes = 64 * 1024; // 64KB
+    final titleBytes = utf8.encode(cleanedTitle).length;
+    final descriptionBytes = utf8.encode(cleanedDescription).length;
+    final tagsBytes = cleanedTags.isEmpty
+        ? 0
+        : cleanedTags.fold<int>(0, (sum, tag) => sum + utf8.encode(tag).length);
+    final totalBytes = titleBytes + descriptionBytes + tagsBytes;
+
+    // Check if limit is exceeded
+    if (totalBytes > maxBytes) {
+      Log.warning(
+        '⚠️ Metadata exceeds 64KB limit ($totalBytes bytes) - update rejected',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+      state = state.copyWith(metadataLimitReached: true);
+      return;
+    }
+
+    // Update metadata if within limit
+    state = state.copyWith(
+      title: cleanedTitle,
+      description: cleanedDescription,
+      tags: cleanedTags,
+      metadataLimitReached: false,
+    );
+
+    triggerAutosave();
+  }
+
+  /// Set video expiration time option.
+  void setExpiration(VideoMetadataExpiration expiration) {
+    state = state.copyWith(expiration: expiration);
+    triggerAutosave();
+  }
+
+  /// Create a VineDraft from the rendered clip with metadata.
+  VineDraft getActiveDraft({bool isAutosave = false}) {
+    return VineDraft.create(
+      id: isAutosave ? autoSaveId : draftId,
+      clips: state.finalRenderedClip == null || isAutosave
+          ? _clips
+          : [state.finalRenderedClip!],
+      title: state.title,
+      description: state.description,
+      hashtags: state.tags,
+      allowAudioReuse: state.allowAudioReuse,
+      expireTime: state.expiration.value,
+      selectedApproach: 'video',
+    );
+  }
+
+  // === DRAFT PERSISTENCE ===
+
+  /// Set the draft ID for saving/loading.
+  ///
+  /// Associates this editing session with a persistent draft for auto-save.
+  void setDraftId(String id) {
+    Log.debug(
+      '💾 Set draft ID: $id',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    draftId = id;
+  }
+
+  /// Trigger autosave with debounce to prevent excessive saves.
+  ///
+  /// Can be called from other providers (e.g., ClipManager) to trigger
+  /// autosave after changes. Uses debouncing to batch rapid changes.
+  void triggerAutosave() {
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(_autosaveDebounce, () {
+      if (!ref.mounted) return;
+      Log.debug(
+        '💾 Triggering autosave',
+        name: 'VideoEditorNotifier',
+        category: LogCategory.video,
+      );
+      autosaveChanges();
+    });
+  }
+
+  /// Automatically save the current video project state.
+  ///
+  /// This method is typically called periodically or on significant changes
+  /// to prevent data loss. Unlike [saveAsDraft], autosave uses a fixed
+  /// [autoSaveId] to maintain a single recovery point.
+  Future<bool> autosaveChanges() async {
+    final clipCount = _clips.length;
+    final hasTitle = state.title.isNotEmpty;
+
+    Log.info(
+      '💾 Autosaving draft (clips: $clipCount, has title: $hasTitle)',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+
+      final draft = getActiveDraft(isAutosave: true);
+      await draftService.saveDraft(draft);
+
+      Log.info(
+        '✅ Autosave completed - ${clipCount} clip(s), '
+        'title: "${state.title.isEmpty ? "(empty)" : state.title}"',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+
+      return true;
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Autosave failed: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  /// Save the current video project as a draft.
+  ///
+  /// Persists clips and metadata to local storage for later editing.
+  /// Returns `true` on success, `false` on failure.
+  Future<bool> saveAsDraft() async {
+    if (state.isSavingDraft) return false;
+
+    state = state.copyWith(isSavingDraft: true);
+
+    Log.info(
+      '💾 Saving draft: $draftId',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+
+      await draftService.saveDraft(getActiveDraft());
+
+      Log.info(
+        '✅ Draft saved successfully: $draftId',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+
+      state = state.copyWith(isSavingDraft: false);
+      return true;
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to save draft: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      state = state.copyWith(isSavingDraft: false);
+      return false;
+    }
+  }
+
+  /// Restore a draft from local storage.
+  ///
+  /// Loads clips and metadata from the specified draft. If [draftId] is null,
+  /// restores from [autoSaveId] to recover an autosaved session.
+  Future<void> restoreDraft([String? draftId]) async {
+    draftId ??= autoSaveId;
+    Log.info(
+      '🎬 Initializing video editor with draft ID: $draftId',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final draftService = DraftStorageService(prefs);
+    final draft = await draftService.getDraftById(draftId);
+    if (draft != null) {
+      state = state.copyWith(
+        title: draft.title,
+        description: draft.description,
+        tags: draft.hashtags,
+        allowAudioReuse: draft.allowAudioReuse,
+        expiration: VideoMetadataExpiration.fromDuration(draft.expireTime),
+      );
+      _clipManager.addMultipleClips(draft.clips);
+      Log.info(
+        '✅ Draft loaded with ${draft.clips.length} clip(s)',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ Draft not found: $draftId',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  /// Delete the autosaved draft from local storage.
+  ///
+  /// Called when the user explicitly discards the autosaved session or
+  /// after successfully publishing a video.
+  Future<void> removeAutosavedDraft() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+      await draftService.deleteDraft(autoSaveId);
+      Log.debug(
+        '🗑️ Deleted autosaved draft',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    } catch (e) {
+      Log.warning(
+        '⚠️ Failed to delete autosaved draft: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  // === RENDERING & PUBLISHING ===
 
   /// Render all clips into final video and prepare for publishing.
   ///
@@ -544,90 +692,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(isProcessing: false);
   }
 
-  /// Automatically save the current video project state.
-  ///
-  /// This method is typically called periodically or on significant changes
-  /// to prevent data loss. Unlike [saveAsDraft], autosave uses a fixed
-  /// [autoSaveId] to maintain a single recovery point.
-  Future<bool> autosaveChanges() async {
-    final clipCount = _clips.length;
-    final hasTitle = state.title.isNotEmpty;
-
-    Log.info(
-      '💾 Autosaving draft (clips: $clipCount, has title: $hasTitle)',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-
-      final draft = getActiveDraft();
-      await draftService.saveDraft(draft);
-
-      Log.info(
-        '✅ Autosave completed - ${clipCount} clip(s), '
-        'title: "${state.title.isEmpty ? "(empty)" : state.title}"',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-
-      return true;
-    } catch (e, stackTrace) {
-      Log.error(
-        '❌ Autosave failed: $e',
-        name: 'VideoEditorNotifier',
-        category: .video,
-        error: e,
-        stackTrace: stackTrace,
-      );
-      return false;
-    }
-  }
-
-  /// Save the current video project as a draft.
-  ///
-  /// Persists clips and metadata to local storage for later editing.
-  /// Returns `true` on success, `false` on failure.
-  Future<bool> saveAsDraft() async {
-    if (state.isSavingDraft) return false;
-
-    state = state.copyWith(isSavingDraft: true);
-
-    Log.info(
-      '💾 Saving draft: $draftId',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final draftService = DraftStorageService(prefs);
-
-      await draftService.saveDraft(getActiveDraft());
-
-      Log.info(
-        '✅ Draft saved successfully: $draftId',
-        name: 'VideoEditorNotifier',
-        category: .video,
-      );
-
-      state = state.copyWith(isSavingDraft: false);
-      return true;
-    } catch (e, stackTrace) {
-      Log.error(
-        '❌ Failed to save draft: $e',
-        name: 'VideoEditorNotifier',
-        category: .video,
-        error: e,
-        stackTrace: stackTrace,
-      );
-      state = state.copyWith(isSavingDraft: false);
-      return false;
-    }
-  }
-
   /// Publish the video to the Nostr network.
   ///
   /// Requires [finalRenderedClip] to be available. Throws [StateError] if
@@ -660,22 +724,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     await ref
         .read(videoPublishProvider.notifier)
         .publishVideo(context, getActiveDraft());
-  }
-
-  /// Create a VineDraft from the rendered clip with metadata.
-  VineDraft getActiveDraft({bool isAutosave = false}) {
-    return VineDraft.create(
-      id: isAutosave ? autoSaveId : draftId,
-      clips: state.finalRenderedClip == null || isAutosave
-          ? _clips
-          : [state.finalRenderedClip!],
-      title: state.title,
-      description: state.description,
-      hashtags: state.tags,
-      allowAudioReuse: state.allowAudioReuse,
-      expireTime: state.expiration.value,
-      selectedApproach: 'video',
-    );
   }
 
   /// Render all clips into a single video file with aspect ratio cropping.
