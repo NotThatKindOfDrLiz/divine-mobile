@@ -15,7 +15,7 @@ class VideoEditorGalleryItem extends StatelessWidget {
   const VideoEditorGalleryItem({
     required this.clip,
     required this.index,
-    required this.isCurrentClip,
+    this.isCurrentClip = false,
     required this.page,
     required this.scale,
     required this.xOffset,

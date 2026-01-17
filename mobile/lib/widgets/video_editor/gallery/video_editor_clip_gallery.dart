@@ -577,7 +577,6 @@ class _ReorderingView extends ConsumerWidget {
               child: VideoEditorGalleryItem(
                 clip: clips[index],
                 index: index,
-                isCurrentClip: index == currentClipIndex,
                 page: currentClipIndex.toDouble(),
                 scale: scale,
                 xOffset: xOffset,
@@ -638,7 +637,6 @@ class _SwipeView extends ConsumerWidget {
         return VideoEditorGalleryItem(
           clip: clips[index],
           index: index,
-          isCurrentClip: index == currentClipIndex,
           page: page,
           scale: scale,
           xOffset: xOffset,

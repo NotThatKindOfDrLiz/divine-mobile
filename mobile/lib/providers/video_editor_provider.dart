@@ -261,7 +261,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       name: 'VideoEditorNotifier',
       category: .video,
     );
-    state = state.copyWith(isReordering: true);
+    state = state.copyWith(isReordering: true, isPlaying: false);
   }
 
   /// Stop clip reordering mode and reset delete zone state.
