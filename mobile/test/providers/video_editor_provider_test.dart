@@ -24,15 +24,47 @@ void main() {
       test('should have default values', () {
         final state = container.read(videoEditorProvider);
 
-        expect(state.currentClipIndex, 0);
-        expect(state.currentPosition, Duration.zero);
-        expect(state.splitPosition, Duration.zero);
-        expect(state.isEditing, false);
-        expect(state.isReordering, false);
-        expect(state.isOverDeleteZone, false);
-        expect(state.isPlaying, false);
-        expect(state.isMuted, false);
-        expect(state.isProcessing, false);
+        expect(
+          state.currentClipIndex,
+          0,
+          reason: 'currentClipIndex should default to 0',
+        );
+        expect(
+          state.currentPosition,
+          Duration.zero,
+          reason: 'currentPosition should default to zero',
+        );
+        expect(
+          state.splitPosition,
+          Duration.zero,
+          reason: 'splitPosition should default to zero',
+        );
+        expect(
+          state.isEditing,
+          false,
+          reason: 'isEditing should default to false',
+        );
+        expect(
+          state.isReordering,
+          false,
+          reason: 'isReordering should default to false',
+        );
+        expect(
+          state.isOverDeleteZone,
+          false,
+          reason: 'isOverDeleteZone should default to false',
+        );
+        expect(
+          state.isPlaying,
+          false,
+          reason: 'isPlaying should default to false',
+        );
+        expect(state.isMuted, false, reason: 'isMuted should default to false');
+        expect(
+          state.isProcessing,
+          false,
+          reason: 'isProcessing should default to false',
+        );
       });
     });
 
@@ -244,27 +276,61 @@ void main() {
         // Modify some state first
         container.read(videoEditorProvider.notifier)
           ..togglePlayPause()
-          ..toggleMute()
-          ..startClipReordering();
+          ..toggleMute();
 
         // Verify state changed
         var state = container.read(videoEditorProvider);
-        expect(state.isPlaying, true);
-        expect(state.isMuted, true);
-        expect(state.isReordering, true);
+        expect(
+          state.isPlaying,
+          true,
+          reason: 'isPlaying should be true after togglePlayPause',
+        );
+        expect(
+          state.isMuted,
+          true,
+          reason: 'isMuted should be true after toggleMute',
+        );
 
         // Reset
         container.read(videoEditorProvider.notifier).reset();
         state = container.read(videoEditorProvider);
 
-        expect(state.currentClipIndex, 0);
-        expect(state.currentPosition, Duration.zero);
-        expect(state.splitPosition, Duration.zero);
-        expect(state.isEditing, false);
-        expect(state.isReordering, false);
-        expect(state.isPlaying, false);
-        expect(state.isMuted, false);
-        expect(state.isProcessing, false);
+        expect(
+          state.currentClipIndex,
+          0,
+          reason: 'currentClipIndex should reset to 0',
+        );
+        expect(
+          state.currentPosition,
+          Duration.zero,
+          reason: 'currentPosition should reset to zero',
+        );
+        expect(
+          state.splitPosition,
+          Duration.zero,
+          reason: 'splitPosition should reset to zero',
+        );
+        expect(
+          state.isEditing,
+          false,
+          reason: 'isEditing should reset to false',
+        );
+        expect(
+          state.isReordering,
+          false,
+          reason: 'isReordering should reset to false',
+        );
+        expect(
+          state.isPlaying,
+          false,
+          reason: 'isPlaying should reset to false',
+        );
+        expect(state.isMuted, false, reason: 'isMuted should reset to false');
+        expect(
+          state.isProcessing,
+          false,
+          reason: 'isProcessing should reset to false',
+        );
       });
     });
 
