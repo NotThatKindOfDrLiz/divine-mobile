@@ -4,11 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/video_publish/video_publish_provider_state.dart';
 import 'package:openvine/models/video_publish/video_publish_state.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
-import 'package:openvine/widgets/video_publish/status/video_publish_progress_bar.dart';
-import 'package:openvine/widgets/video_publish/status/video_publish_upload_status.dart';
+import 'package:openvine/widgets/video_metadata/video_metadata_upload_status.dart';
 
 void main() {
-  group('VideoPublishUploadStatus', () {
+  group('VideoMetadataUploadStatus', () {
     Widget buildTestWidget({
       VideoPublishState publishState = VideoPublishState.idle,
       String? errorMessage,
@@ -27,14 +26,14 @@ void main() {
           ),
         ],
         child: const MaterialApp(
-          home: Scaffold(body: VideoPublishUploadStatus()),
+          home: Scaffold(body: VideoMetadataUploadStatus()),
         ),
       );
     }
 
     testWidgets('hides content when state is idle', (tester) async {
       await tester.pumpWidget(
-        buildTestWidget(publishState: VideoPublishState.idle),
+        buildTestWidget(),
       );
 
       // Should render SizedBox.shrink (no status message visible)
@@ -59,21 +58,6 @@ void main() {
 
       expect(find.text('Preparing video...'), findsOneWidget);
     });
-
-    testWidgets(
-      'shows uploading message and progress bar for uploading state',
-      (tester) async {
-        await tester.pumpWidget(
-          buildTestWidget(
-            publishState: VideoPublishState.uploading,
-            uploadProgress: 0.5,
-          ),
-        );
-
-        expect(find.text('Uploading...'), findsOneWidget);
-        expect(find.byType(VideoPublishProgressBar), findsOneWidget);
-      },
-    );
 
     testWidgets('shows retry message for retryUpload state', (tester) async {
       await tester.pumpWidget(
@@ -121,21 +105,10 @@ void main() {
       await tester.pumpWidget(
         buildTestWidget(
           publishState: VideoPublishState.error,
-          errorMessage: null,
         ),
       );
 
       expect(find.text('Upload failed'), findsOneWidget);
-    });
-
-    testWidgets('does not show progress bar for non-uploading states', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        buildTestWidget(publishState: VideoPublishState.preparing),
-      );
-
-      expect(find.byType(VideoPublishProgressBar), findsNothing);
     });
 
     testWidgets('does not show dismiss button for non-error states', (

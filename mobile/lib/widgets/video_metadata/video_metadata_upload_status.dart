@@ -6,12 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/video_publish/video_publish_state.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
-import 'package:openvine/widgets/video_publish/status/video_publish_progress_bar.dart';
-import 'package:openvine/widgets/video_publish/status/video_publish_status_icon.dart';
 
 /// Displays the current upload/publish status as a full-screen overlay.
-class VideoPublishUploadStatus extends ConsumerWidget {
-  const VideoPublishUploadStatus({super.key});
+class VideoMetadataUploadStatus extends ConsumerWidget {
+  const VideoMetadataUploadStatus({super.key});
 
   String _getStatusMessage(
     VideoPublishState publishState,
@@ -78,13 +76,13 @@ class VideoPublishUploadStatus extends ConsumerWidget {
                         offset: Offset(0, 10),
                       ),
                     ],
-                    border: Border.all(color: const Color(0x1A000000)),
+                    border: .all(color: const Color(0x1A000000)),
                   ),
                   child: Column(
                     spacing: 20,
                     mainAxisSize: .min,
                     children: [
-                      VideoPublishStatusIcon(publishState: publishState),
+                      _VideoPublishStatusIcon(publishState: publishState),
                       Text(
                         _getStatusMessage(publishState, state.errorMessage),
                         style: const TextStyle(
@@ -96,7 +94,7 @@ class VideoPublishUploadStatus extends ConsumerWidget {
                         textAlign: .center,
                       ),
                       if (publishState == .uploading)
-                        const VideoPublishProgressBar()
+                        const _VideoPublishProgressBar()
                       else if (publishState == .error)
                         TextButton(
                           onPressed: () => ref
@@ -127,5 +125,87 @@ class VideoPublishUploadStatus extends ConsumerWidget {
               ),
             ),
     );
+  }
+}
+
+class _VideoPublishProgressBar extends ConsumerWidget {
+  const _VideoPublishProgressBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(
+      videoPublishProvider.select((s) => s.uploadProgress),
+    );
+    final percentage = (progress * 100).toStringAsFixed(0);
+
+    return Column(
+      spacing: 8,
+      children: [
+        ClipRRect(
+          borderRadius: .circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: const Color(0xFF424242),
+            valueColor: const AlwaysStoppedAnimation<Color>(
+              VineTheme.vineGreen,
+            ),
+            minHeight: 6,
+          ),
+        ),
+        Text(
+          '$percentage%',
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+      ],
+    );
+  }
+}
+
+/// Displays an icon representing the current video publish state.
+class _VideoPublishStatusIcon extends StatelessWidget {
+  const _VideoPublishStatusIcon({required this.publishState});
+
+  /// The current publish state to display an icon for.
+  final VideoPublishState publishState;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (publishState) {
+      case .error:
+        return const Icon(Icons.error_outline, color: Colors.red, size: 48);
+      case .completed:
+        return const Icon(
+          Icons.check_circle,
+          color: VineTheme.vineGreen,
+          size: 48,
+        );
+      case .uploading:
+      case .retryUpload:
+        return const SizedBox(
+          width: 48,
+          height: 48,
+          child: CircularProgressIndicator(
+            strokeWidth: 4,
+            valueColor: AlwaysStoppedAnimation<Color>(VineTheme.vineGreen),
+          ),
+        );
+      case .publishToNostr:
+        return const Icon(
+          Icons.cloud_upload,
+          color: VineTheme.vineGreen,
+          size: 48,
+        );
+      case .idle:
+      case .initialize:
+      case .preparing:
+        return const SizedBox(
+          width: 48,
+          height: 48,
+          child: CircularProgressIndicator(
+            strokeWidth: 4,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+        );
+    }
   }
 }

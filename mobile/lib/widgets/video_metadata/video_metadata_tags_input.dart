@@ -16,6 +16,9 @@ class VideoMetadataTagsInput extends ConsumerStatefulWidget {
   /// Creates a video metadata tags input widget.
   const VideoMetadataTagsInput({super.key});
 
+  /// Maximum number of tags allowed per video.
+  static int tagLimit = 10;
+
   @override
   ConsumerState<VideoMetadataTagsInput> createState() =>
       _VideoMetadataTagsInputState();
@@ -23,9 +26,6 @@ class VideoMetadataTagsInput extends ConsumerStatefulWidget {
 
 class _VideoMetadataTagsInputState
     extends ConsumerState<VideoMetadataTagsInput> {
-  /// Maximum number of tags allowed per video.
-  static int tagLimit = 10;
-
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
@@ -106,7 +106,7 @@ class _VideoMetadataTagsInputState
                   // TODO(l10n): Replace with context.l10n when localization is added.
                   Flexible(child: Text('Tags', style: labelStyle)),
                   Text(
-                    '${tags.length}/$tagLimit',
+                    '${tags.length}/${VideoMetadataTagsInput.tagLimit}',
                     style: labelStyle.copyWith(color: const Color(0x80FFFFFF)),
                   ),
                 ],
@@ -121,7 +121,7 @@ class _VideoMetadataTagsInputState
                 // Render all existing tags as chips
                 ...tags.map((tag) => _TagChip(tag: tag)),
                 // Show input field if under limit
-                if (tags.length < tagLimit)
+                if (tags.length < VideoMetadataTagsInput.tagLimit)
                   // TODO(l10n): Replace with context.l10n when localization is added.
                   DivineTextField(
                     controller: _controller,

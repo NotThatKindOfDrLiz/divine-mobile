@@ -23,6 +23,7 @@ class VideoMetadataExpirationSelector extends ConsumerWidget {
 
     await showModalBottomSheet<void>(
       context: context,
+      useSafeArea: true,
       backgroundColor: VineTheme.surfaceBackground,
       builder: (context) => const _ExpirationOptionsBottomSheet(),
     );
@@ -105,64 +106,71 @@ class _ExpirationOptionsBottomSheet extends ConsumerWidget {
       videoEditorProvider.select((s) => s.expiration),
     );
 
-    return Column(
-      mainAxisSize: .min,
-      spacing: 16,
-      children: [
-        // Drag handle at top
-        const Padding(
-          padding: .only(top: 8),
-          child: VineBottomSheetDragHandle(),
-        ),
-        // TODO(l10n): Replace with context.l10n when localization is added.
-        Text(
-          'Expiration',
-          style: GoogleFonts.bricolageGrotesque(
-            fontSize: 18,
-            fontWeight: .w800,
-            color: Colors.white,
-            height: 1.33,
-            letterSpacing: 0.15,
+    return SafeArea(
+      child: Column(
+        mainAxisSize: .min,
+        spacing: 16,
+        children: [
+          // Drag handle at top (fixed)
+          const Padding(
+            padding: .only(top: 8),
+            child: VineBottomSheetDragHandle(),
           ),
-        ),
-        // List of all expiration options
-        SingleChildScrollView(
-          child: Column(
-            mainAxisSize: .min,
-            children: VideoMetadataExpiration.values.map((option) {
-              final isSelected = option == currentOption;
+          // Title (fixed)
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          Text(
+            'Expiration',
+            style: GoogleFonts.bricolageGrotesque(
+              fontSize: 18,
+              fontWeight: .w800,
+              color: Colors.white,
+              height: 1.33,
+              letterSpacing: 0.15,
+            ),
+          ),
+          // Scrollable list of expiration options
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: .min,
+                children: VideoMetadataExpiration.values.map((option) {
+                  final isSelected = option == currentOption;
 
-              return ListTile(
-                selected: isSelected,
-                selectedTileColor: const Color(0xFF032017),
-                title: Text(
-                  option.description,
-                  style: GoogleFonts.bricolageGrotesque(
-                    color: VineTheme.onSurface,
-                    fontSize: 18,
-                    fontWeight: .w800,
-                    height: 1.33,
-                    letterSpacing: 0.15,
-                  ),
-                ),
-                // Show checkmark for selected option
-                trailing: isSelected
-                    ? const Icon(
-                        Icons.check,
-                        size: 24,
-                        color: Color(0xFF27C58B),
-                      )
-                    : null,
-                onTap: () {
-                  // Update selection and close bottom sheet
-                  ref.read(videoEditorProvider.notifier).setExpiration(option);
-                  context.pop();
-                },
-              );
-            }).toList(),
+                  return ListTile(
+                    selected: isSelected,
+                    selectedTileColor: const Color(0xFF032017),
+                    title: Text(
+                      option.description,
+                      style: GoogleFonts.bricolageGrotesque(
+                        color: VineTheme.onSurface,
+                        fontSize: 18,
+                        fontWeight: .w800,
+                        height: 1.33,
+                        letterSpacing: 0.15,
+                      ),
+                    ),
+                    // Show checkmark for selected option
+                    trailing: isSelected
+                        ? const Icon(
+                            Icons.check,
+                            size: 24,
+                            color: Color(0xFF27C58B),
+                          )
+                        : null,
+                    onTap: () {
+                      // Update selection and close bottom sheet
+                      ref
+                          .read(videoEditorProvider.notifier)
+                          .setExpiration(option);
+                      context.pop();
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
