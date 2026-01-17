@@ -6,6 +6,7 @@
 import 'dart:async' as _i4;
 import 'dart:io' as _i6;
 
+import 'package:flutter/services.dart';
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:models/models.dart' as _i7;
 import 'package:openvine/models/pending_upload.dart' as _i2;
@@ -144,6 +145,7 @@ class MockUploadManager extends _i1.Mock implements _i3.UploadManager {
   _i4.Future<_i2.PendingUpload> startUploadFromDraft({
     required _i5.VineDraft? draft,
     required String? nostrPubkey,
+    ValueChanged<double>? onProgress,
     Duration? videoDuration,
   }) =>
       (super.noSuchMethod(
@@ -169,6 +171,7 @@ class MockUploadManager extends _i1.Mock implements _i3.UploadManager {
   _i4.Future<_i2.PendingUpload> startUpload({
     required _i6.File? videoFile,
     required String? nostrPubkey,
+    ValueChanged<double>? onProgress,
     String? thumbnailPath,
     String? title,
     String? description,

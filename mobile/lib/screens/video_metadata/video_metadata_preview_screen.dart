@@ -7,9 +7,11 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/widgets/divine_icon_button.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
+import 'package:openvine/widgets/video_metadata/video_metadata_upload_status.dart';
 import 'package:video_player/video_player.dart';
 import 'package:models/models.dart' show VideoEvent;
 
@@ -44,6 +46,15 @@ class _VideoMetadataPreviewScreenState
     super.initState();
     // Start video playback
     unawaited(_initializePlayer());
+
+    ref.listenManual(
+      videoPublishProvider.select((state) => state.publishState),
+      (previous, next) {
+        if (previous != next && _controller?.value.isPlaying == true) {
+          _controller?.pause();
+        }
+      },
+    );
 
     // Wait for hero animation to finish before showing overlay
     // Before displaying the overlay, we wait for the hero animation to finish.
@@ -82,25 +93,31 @@ class _VideoMetadataPreviewScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF000A06),
-      body: Column(
+      body: Stack(
         children: [
-          // Video preview area with close button
-          Expanded(
-            child: Stack(
-              fit: .expand,
-              children: [
-                _VideoPreviewContent(
-                  clip: widget.clip,
-                  controller: _controller,
-                  isInitialized: _isInitialized,
-                  isPreviewReady: _isPreviewReady,
+          Column(
+            children: [
+              // Video preview area with close button
+              Expanded(
+                child: Stack(
+                  fit: .expand,
+                  children: [
+                    _VideoPreviewContent(
+                      clip: widget.clip,
+                      controller: _controller,
+                      isInitialized: _isInitialized,
+                      isPreviewReady: _isPreviewReady,
+                    ),
+                    const _CloseButton(),
+                  ],
                 ),
-                const _CloseButton(),
-              ],
-            ),
+              ),
+              // Post button at bottom
+              const SafeArea(top: false, child: VideoMetadataBottomBar()),
+            ],
           ),
-          // Post button at bottom
-          const SafeArea(top: false, child: VideoMetadataBottomBar()),
+
+          const VideoMetadataUploadStatus(),
         ],
       ),
     );

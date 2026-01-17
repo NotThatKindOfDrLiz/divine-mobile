@@ -4,7 +4,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, ValueChanged;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
@@ -270,6 +270,7 @@ class UploadManager {
     required VineDraft draft,
     required String nostrPubkey,
     Duration? videoDuration,
+    ValueChanged<double>? onProgress,
   }) async {
     Log.info(
       '🚀 === STARTING UPLOAD FROM DRAFT ===',
@@ -291,7 +292,7 @@ class UploadManager {
     }
 
     // Use single clip (already processed) directly, or merge multiple clips
-    // with 6.3s max duration
+    // with 6.3s max duration.
     String videoFilePath;
     if (draft.clips.length == 1) {
       videoFilePath = await draft.clips.first.video.safeFilePath();
@@ -323,6 +324,7 @@ class UploadManager {
       hashtags: draft.hashtags.toList(),
       videoDuration: videoDuration,
       proofManifestJson: draft.proofManifestJson,
+      onProgress: onProgress,
     );
   }
 
@@ -330,6 +332,7 @@ class UploadManager {
   Future<PendingUpload> startUpload({
     required File videoFile,
     required String nostrPubkey,
+    ValueChanged<double>? onProgress,
     String? thumbnailPath,
     String? title,
     String? description,
@@ -374,6 +377,7 @@ class UploadManager {
       videoHeight: videoHeight,
       videoDuration: videoDuration,
       proofManifestJson: proofManifestJson,
+      onProgress: onProgress,
     );
   }
 
@@ -381,6 +385,7 @@ class UploadManager {
   Future<PendingUpload> _startUploadInternal({
     required File videoFile,
     required String nostrPubkey,
+    ValueChanged<double>? onProgress,
     String? thumbnailPath,
     String? title,
     String? description,
@@ -550,7 +555,7 @@ class UploadManager {
     // CRITICAL FIX: Await upload completion before returning
     // This ensures videoId and cdnUrl are populated before publishing
     try {
-      await _performUpload(upload);
+      await _performUpload(upload, onProgress: onProgress);
 
       // Fetch the updated upload with videoId and cdnUrl populated
       final completedUpload = getUpload(upload.id);
@@ -575,7 +580,10 @@ class UploadManager {
   }
 
   /// Perform upload with circuit breaker and retry logic
-  Future<void> _performUpload(PendingUpload upload) async {
+  Future<void> _performUpload(
+    PendingUpload upload, {
+    ValueChanged<double>? onProgress,
+  }) async {
     Log.info(
       '🏃 === PERFORM UPLOAD STARTED ===',
       name: 'UploadManager',
@@ -647,7 +655,7 @@ class UploadManager {
         name: 'UploadManager',
         category: LogCategory.video,
       );
-      await _performUploadWithRetry(upload, videoFile);
+      await _performUploadWithRetry(upload, videoFile, onProgress);
     } catch (e) {
       Log.error(
         '❌ Upload failed: $e',
@@ -662,6 +670,7 @@ class UploadManager {
   Future<void> _performUploadWithRetry(
     PendingUpload upload,
     File videoFile,
+    ValueChanged<double>? onProgress,
   ) async {
     try {
       await AsyncUtils.retryWithBackoff(
@@ -693,7 +702,11 @@ class UploadManager {
           }
 
           // Execute upload with timeout
-          final result = await _executeUploadWithTimeout(upload, videoFile);
+          final result = await _executeUploadWithTimeout(
+            upload,
+            videoFile,
+            onProgress,
+          );
 
           // Success - record metrics and complete
           await _handleUploadSuccess(upload, result);
@@ -721,6 +734,7 @@ class UploadManager {
   Future<dynamic> _executeUploadWithTimeout(
     PendingUpload upload,
     File videoFile,
+    ValueChanged<double>? onProgress,
   ) async {
     Log.info(
       '📤 === EXECUTING UPLOAD ===',
@@ -789,11 +803,11 @@ class UploadManager {
             title: upload.title ?? '',
             description: upload.description,
             hashtags: upload.hashtags,
-            onProgress: (progress) {
-              _updateUploadProgress(
-                upload.id,
-                progress * 0.8,
-              ); // Reserve 20% for thumbnail
+            onProgress: (value) {
+              final progress = value * 0.8; // Reserve 20% for thumbnail
+
+              _updateUploadProgress(upload.id, progress);
+              onProgress?.call(progress);
             },
           )
           .timeout(
@@ -852,6 +866,7 @@ class UploadManager {
         }
 
         _updateUploadProgress(upload.id, 1.0);
+        onProgress?.call(1.0);
       }
 
       // Store thumbnail URL in upload for later use

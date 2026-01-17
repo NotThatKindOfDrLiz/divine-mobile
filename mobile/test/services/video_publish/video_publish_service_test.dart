@@ -150,6 +150,7 @@ void main() {
           () => mockUploadManager.startUploadFromDraft(
             draft: any(named: 'draft'),
             nostrPubkey: any(named: 'nostrPubkey'),
+            onProgress: any(named: 'onProgress'),
           ),
         ).thenAnswer(
           (_) async =>
@@ -216,6 +217,7 @@ void main() {
           () => mockUploadManager.startUploadFromDraft(
             draft: any(named: 'draft'),
             nostrPubkey: any(named: 'nostrPubkey'),
+            onProgress: any(named: 'onProgress'),
           ),
         ).thenAnswer(
           (_) async =>
@@ -257,6 +259,7 @@ void main() {
           () => mockUploadManager.startUploadFromDraft(
             draft: any(named: 'draft'),
             nostrPubkey: any(named: 'nostrPubkey'),
+            onProgress: any(named: 'onProgress'),
           ),
         ).thenAnswer(
           (_) async => _createPendingUpload(
@@ -312,6 +315,7 @@ void main() {
           () => mockUploadManager.startUploadFromDraft(
             draft: any(named: 'draft'),
             nostrPubkey: any(named: 'nostrPubkey'),
+            onProgress: any(named: 'onProgress'),
           ),
         ).thenThrow(Exception('404 not_found'));
         when(
@@ -344,6 +348,7 @@ void main() {
           () => mockUploadManager.startUploadFromDraft(
             draft: any(named: 'draft'),
             nostrPubkey: any(named: 'nostrPubkey'),
+            onProgress: any(named: 'onProgress'),
           ),
         ).thenThrow(Exception('network connection failed'));
         when(
@@ -389,6 +394,7 @@ void main() {
           () => mockUploadManager.startUploadFromDraft(
             draft: any(named: 'draft'),
             nostrPubkey: any(named: 'nostrPubkey'),
+            onProgress: any(named: 'onProgress'),
           ),
         ).thenAnswer(
           (_) async => _createPendingUpload(status: UploadStatus.uploading),
@@ -466,6 +472,7 @@ void _setupSuccessfulPublish({
     () => mockUploadManager.startUploadFromDraft(
       draft: any(named: 'draft'),
       nostrPubkey: any(named: 'nostrPubkey'),
+      onProgress: any(named: 'onProgress'),
     ),
   ).thenAnswer(
     (_) async => _createPendingUpload(status: UploadStatus.readyToPublish),

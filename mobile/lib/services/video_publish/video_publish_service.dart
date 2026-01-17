@@ -1,6 +1,8 @@
 // ABOUTME: Service for publishing videos to Nostr with upload management
 // ABOUTME: Handles video upload to Blossom servers, retry logic, and Nostr event creation
 
+import 'dart:async';
+
 import 'package:openvine/models/pending_upload.dart';
 import 'package:openvine/models/video_publish/video_publish_state.dart';
 import 'package:openvine/models/vine_draft.dart';
@@ -67,7 +69,7 @@ class VideoPublishService {
   /// Used to stop polling when the caller is disposed.
   final bool Function()? isMounted;
 
-  bool get _shouldContinue => isMounted?.call() ?? true;
+  bool get _shouldContinue => isMounted?.call() ?? false;
 
   /// Tracks the current background upload ID.
   String? _backgroundUploadId;
@@ -204,10 +206,12 @@ class VideoPublishService {
   /// Polls upload progress until complete or failed.
   /// Returns true if upload succeeded, false if failed.
   Future<bool> _pollUploadProgress(String uploadId) async {
+    print('DEBUG start-poll');
     while (_shouldContinue) {
       final upload = uploadManager.getUpload(uploadId);
       if (upload == null) return false;
 
+      print('DEBUG poll progress ${upload.uploadProgress}');
       onProgressChanged(upload.uploadProgress ?? 0.0);
 
       switch (upload.status) {
@@ -221,10 +225,11 @@ class VideoPublishService {
         case .pending:
         case .retrying:
         case .paused:
-          await Future<void>.delayed(const Duration(milliseconds: 100));
+          await Future<void>.delayed(const Duration(milliseconds: 50));
       }
     }
-    return false;
+    print('DEBUG done-poll');
+    return true;
   }
 
   /// Starts a new upload and polls for progress until completion.
@@ -245,6 +250,7 @@ class VideoPublishService {
     final pendingUpload = await uploadManager.startUploadFromDraft(
       draft: draft,
       nostrPubkey: pubkey,
+      onProgress: (value) => onProgressChanged(value),
     );
     _backgroundUploadId = pendingUpload.id;
 

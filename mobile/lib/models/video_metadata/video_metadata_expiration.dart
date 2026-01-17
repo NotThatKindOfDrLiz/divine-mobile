@@ -26,9 +26,9 @@ enum VideoMetadataExpiration {
 
   /// Returns the duration value for this expiration option.
   ///
-  /// Returns [Duration.zero] for [notExpire], indicating no expiration.
-  Duration get value => switch (this) {
-    .notExpire => Duration.zero,
+  /// Returns [null] for [notExpire], indicating no expiration.
+  Duration? get value => switch (this) {
+    .notExpire => null,
     .oneDay => const Duration(days: 1),
     .oneWeek => const Duration(days: 7),
     .oneMonth => const Duration(days: 31),
