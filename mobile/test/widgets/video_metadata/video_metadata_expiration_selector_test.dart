@@ -14,9 +14,7 @@ void main() {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataExpirationSelector(),
-            ),
+            home: Scaffold(body: VideoMetadataExpirationSelector()),
           ),
         ),
       );
@@ -32,9 +30,7 @@ void main() {
     testWidgets('displays currently selected expiration', (tester) async {
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final state = VideoEditorProviderState(
-        expiration: .oneDay,
-      );
+      final state = VideoEditorProviderState(expiration: .oneDay);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -44,9 +40,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataExpirationSelector(),
-            ),
+            home: Scaffold(body: VideoMetadataExpirationSelector()),
           ),
         ),
       );
@@ -63,9 +57,7 @@ void main() {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataExpirationSelector(),
-            ),
+            home: Scaffold(body: VideoMetadataExpirationSelector()),
           ),
         ),
       );
@@ -78,10 +70,7 @@ void main() {
 
       // Check that all expiration options are displayed
       for (final option in VideoMetadataExpiration.values) {
-        expect(
-          find.text(option.description),
-          findsAtLeastNWidgets(1),
-        );
+        expect(find.text(option.description), findsAtLeastNWidgets(1));
       }
     });
 
@@ -90,9 +79,7 @@ void main() {
     ) async {
       addTearDown(() => tester.view.resetPhysicalSize());
 
-      final state = VideoEditorProviderState(
-        expiration: .oneDay,
-      );
+      final state = VideoEditorProviderState(expiration: .oneDay);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -102,9 +89,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataExpirationSelector(),
-            ),
+            home: Scaffold(body: VideoMetadataExpirationSelector()),
           ),
         ),
       );
@@ -127,13 +112,9 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            videoEditorProvider.overrideWith(() => mockNotifier),
-          ],
+          overrides: [videoEditorProvider.overrideWith(() => mockNotifier)],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataExpirationSelector(),
-            ),
+            home: Scaffold(body: VideoMetadataExpirationSelector()),
           ),
         ),
       );

@@ -32,9 +32,7 @@ void main() {
     }
 
     testWidgets('hides content when state is idle', (tester) async {
-      await tester.pumpWidget(
-        buildTestWidget(),
-      );
+      await tester.pumpWidget(buildTestWidget());
 
       // Should render SizedBox.shrink (no status message visible)
       expect(find.text('Initializing...'), findsNothing);
@@ -103,9 +101,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        buildTestWidget(
-          publishState: VideoPublishState.error,
-        ),
+        buildTestWidget(publishState: VideoPublishState.error),
       );
 
       expect(find.text('Upload failed'), findsOneWidget);

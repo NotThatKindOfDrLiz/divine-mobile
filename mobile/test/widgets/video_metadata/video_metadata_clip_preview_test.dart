@@ -36,9 +36,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -64,9 +62,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -91,9 +87,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -118,9 +112,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -140,9 +132,7 @@ void main() {
         aspectRatio: models.AspectRatio.square,
       );
 
-      final state = VideoEditorProviderState(
-        finalRenderedClip: finalClip,
-      );
+      final state = VideoEditorProviderState(finalRenderedClip: finalClip);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -155,9 +145,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -176,9 +164,7 @@ void main() {
         aspectRatio: models.AspectRatio.square,
       );
 
-      final state = VideoEditorProviderState(
-        finalRenderedClip: finalClip,
-      );
+      final state = VideoEditorProviderState(finalRenderedClip: finalClip);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -191,9 +177,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -212,16 +196,12 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
 
-      final aspectRatio = tester.widget<AspectRatio>(
-        find.byType(AspectRatio),
-      );
+      final aspectRatio = tester.widget<AspectRatio>(find.byType(AspectRatio));
 
       expect(aspectRatio.aspectRatio, equals(testClip.aspectRatio.value));
     });
@@ -235,9 +215,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
@@ -255,18 +233,13 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );
 
       final sizedBox = tester.widget<SizedBox>(
-        find.ancestor(
-          of: find.byType(Hero),
-          matching: find.byType(SizedBox),
-        ),
+        find.ancestor(of: find.byType(Hero), matching: find.byType(SizedBox)),
       );
 
       expect(sizedBox.height, equals(200));
@@ -281,9 +254,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: VideoMetadataClipPreview(),
-            ),
+            home: Scaffold(body: VideoMetadataClipPreview()),
           ),
         ),
       );

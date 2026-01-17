@@ -69,10 +69,7 @@ class VideoMetadataClipPreview extends ConsumerWidget {
                       duration: const Duration(milliseconds: 150),
                       child: clip.thumbnailPath != null
                           ? // Video thumbnail image
-                            Image.file(
-                              File(clip.thumbnailPath!),
-                              fit: .cover,
-                            )
+                            Image.file(File(clip.thumbnailPath!), fit: .cover)
                           : // Fallback placeholder
                             ColoredBox(
                               color: Colors.grey.shade400,
