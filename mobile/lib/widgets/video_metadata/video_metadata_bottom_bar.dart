@@ -32,34 +32,67 @@ class _SaveDraftButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isSaving = ref.watch(
+      videoEditorProvider.select((s) => s.isSavingDraft),
+    );
+
     return Semantics(
       // TODO(l10n): Replace with context.l10n when localization is added.
       label: 'Save draft button',
-      hint: 'Save video as draft',
+      hint: isSaving ? 'Saving draft...' : 'Save video as draft',
       button: true,
+      enabled: !isSaving,
       child: GestureDetector(
-        onTap: () => ref.read(videoEditorProvider.notifier).saveAsDraft(),
-        child: Container(
-          decoration: BoxDecoration(
-            color: const Color(0xFF032017),
-            border: .all(color: const Color(0xFF27C58B), width: 2),
-            borderRadius: .circular(20),
-          ),
-          padding: const .symmetric(vertical: 10),
-          child: Center(
-            // TODO(l10n): Replace with context.l10n when localization is added.
-            child: Text(
-              'Save draft',
-              style: GoogleFonts.bricolageGrotesque(
-                fontSize: 18,
-                fontWeight: .w800,
-                color: const Color(0xFF27C58B),
-                height: 1.33,
-                letterSpacing: 0.15,
-              ),
+        onTap: isSaving ? null : () => _onSaveDraft(context, ref),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: isSaving ? 0.6 : 1.0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF032017),
+              border: .all(color: const Color(0xFF27C58B), width: 2),
+              borderRadius: .circular(20),
+            ),
+            padding: const .symmetric(vertical: 10),
+            child: Center(
+              child: isSaving
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Color(0xFF27C58B),
+                      ),
+                    )
+                  // TODO(l10n): Replace with context.l10n when localization is added.
+                  : Text(
+                      'Save draft',
+                      style: GoogleFonts.bricolageGrotesque(
+                        fontSize: 18,
+                        fontWeight: .w800,
+                        color: const Color(0xFF27C58B),
+                        height: 1.33,
+                        letterSpacing: 0.15,
+                      ),
+                    ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _onSaveDraft(BuildContext context, WidgetRef ref) async {
+    final success = await ref.read(videoEditorProvider.notifier).saveAsDraft();
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        // TODO(l10n): Replace with context.l10n when localization is added.
+        content: Text(success ? 'Draft saved!' : 'Failed to save draft'),
+        backgroundColor: success ? const Color(0xFF27C58B) : Colors.red,
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -90,7 +123,7 @@ class _PostButton extends ConsumerWidget {
         enabled: isValidToPost,
         child: GestureDetector(
           onTap: isValidToPost
-              ? ref.read(videoEditorProvider.notifier).postVideo
+              ? () => ref.read(videoEditorProvider.notifier).postVideo(context)
               : null,
           child: Container(
             decoration: BoxDecoration(

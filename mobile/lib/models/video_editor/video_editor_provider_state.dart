@@ -24,6 +24,8 @@ class VideoEditorProviderState {
     this.isPlaying = false,
     this.isMuted = false,
     this.isProcessing = false,
+    this.isSavingDraft = false,
+    this.allowAudioReuse = false,
     this.title = '',
     this.description = '',
     this.tags = const {},
@@ -61,6 +63,9 @@ class VideoEditorProviderState {
   /// progress.
   final bool isProcessing;
 
+  /// Whether a draft save operation is currently in progress.
+  final bool isSavingDraft;
+
   /// GlobalKey for the delete button to enable hit testing.
   final GlobalKey deleteButtonKey;
 
@@ -72,6 +77,9 @@ class VideoEditorProviderState {
 
   /// List of hashtags/tags associated with the video for discovery.
   final Set<String> tags;
+
+  /// Whether the audio from the original video can be reused in other videos.
+  final bool allowAudioReuse;
 
   /// Expiration setting determining when the video post expires.
   final VideoMetadataExpiration expiration;
@@ -107,6 +115,8 @@ class VideoEditorProviderState {
     bool? isPlaying,
     bool? isMuted,
     bool? isProcessing,
+    bool? isSavingDraft,
+    bool? allowAudioReuse,
     GlobalKey? deleteButtonKey,
     String? title,
     String? description,
@@ -125,6 +135,8 @@ class VideoEditorProviderState {
       isPlaying: isPlaying ?? this.isPlaying,
       isMuted: isMuted ?? this.isMuted,
       isProcessing: isProcessing ?? this.isProcessing,
+      isSavingDraft: isSavingDraft ?? this.isSavingDraft,
+      allowAudioReuse: allowAudioReuse ?? this.allowAudioReuse,
       deleteButtonKey: deleteButtonKey ?? this.deleteButtonKey,
       title: title ?? this.title,
       description: description ?? this.description,

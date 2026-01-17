@@ -15,6 +15,7 @@ import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_clip_preview.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_expiration_selector.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_tags_input.dart';
+import 'package:openvine/widgets/video_metadata/video_metadata_upload_status.dart';
 
 /// Screen for editing video metadata including title, description, tags, and
 /// expiration settings.
@@ -33,6 +34,17 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
 
   final FocusNode _titleFocusNode = FocusNode();
   final FocusNode _descriptionFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final editorProvider = ref.read(videoEditorProvider);
+      _titleController.text = editorProvider.title;
+      _descriptionController.text = editorProvider.description;
+    });
+  }
 
   @override
   void dispose() {
@@ -54,101 +66,75 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
       // Dismiss keyboard when tapping outside input fields
       child: GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        child: Scaffold(
-          backgroundColor: const Color(0xFF000A06),
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            surfaceTintColor: Colors.transparent,
-            leading: IconButton(
-              padding: const .all(8),
-              icon: SizedBox(
-                width: 32,
-                height: 32,
-                child: SvgPicture.asset(
-                  'assets/icon/CaretLeft.svg',
-                  colorFilter: const .mode(Colors.white, .srcIn),
+        child: Stack(
+          children: [
+            Scaffold(
+              backgroundColor: const Color(0xFF000A06),
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                leading: IconButton(
+                  padding: const .all(8),
+                  icon: SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: SvgPicture.asset(
+                      'assets/icon/CaretLeft.svg',
+                      colorFilter: const .mode(Colors.white, .srcIn),
+                    ),
+                  ),
+                  onPressed: () => context.pop(),
+                  tooltip: 'Back',
                 ),
-              ),
-              onPressed: () => context.pop(),
-              tooltip: 'Back',
-            ),
-            title: Text(
-              'Post details',
-              style: GoogleFonts.bricolageGrotesque(
-                color: VineTheme.onSurface,
-                fontSize: 18,
-                fontWeight: .w800,
-                height: 1.33,
-                letterSpacing: 0.15,
-              ),
-            ),
-          ),
-          body: LayoutBuilder(
-            builder: (_, constraints) {
-              return SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Column(
-                    mainAxisAlignment: .spaceBetween,
-                    children: [
-                      // Metadata form section
-                      Column(
-                        mainAxisSize: .min,
-                        crossAxisAlignment: .stretch,
-                        children: [
-                          // Video preview at top
-                          const VideoMetadataClipPreview(),
-
-                          // Title input field
-                          DivineTextField(
-                            controller: _titleController,
-                            label: 'Title',
-                            focusNode: _titleFocusNode,
-                            textInputAction: .next,
-                            onChanged: (value) {
-                              ref
-                                  .read(videoEditorProvider.notifier)
-                                  .updateMetadata(title: value);
-                            },
-                            onSubmitted: (_) =>
-                                _descriptionFocusNode.requestFocus(),
-                          ),
-                          const _Divider(),
-
-                          // Description input field
-                          DivineTextField(
-                            controller: _descriptionController,
-                            label: 'Description',
-                            focusNode: _descriptionFocusNode,
-                            keyboardType: .multiline,
-                            textInputAction: .newline,
-                            onChanged: (value) {
-                              ref
-                                  .read(videoEditorProvider.notifier)
-                                  .updateMetadata(description: value);
-                            },
-                          ),
-                          const _Divider(),
-
-                          // Hashtags input
-                          const VideoMetadataTagsInput(),
-                          const _Divider(),
-
-                          // 64KB limit warning (shown only if exceeded)
-                          const _MetadataLimitWarning(),
-
-                          // Expiration time selector
-                          const VideoMetadataExpirationSelector(),
-                        ],
-                      ),
-                      // Post button at bottom
-                      const VideoMetadataBottomBar(),
-                    ],
+                title: Text(
+                  'Post details',
+                  style: GoogleFonts.bricolageGrotesque(
+                    color: VineTheme.onSurface,
+                    fontSize: 18,
+                    fontWeight: .w800,
+                    height: 1.33,
+                    letterSpacing: 0.15,
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+              body: LayoutBuilder(
+                builder: (_, constraints) {
+                  return SingleChildScrollView(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: .spaceBetween,
+                        children: [
+                          // Metadata form section
+                          Column(
+                            mainAxisSize: .min,
+                            crossAxisAlignment: .stretch,
+                            children: [
+                              // Video preview at top
+                              const VideoMetadataClipPreview(),
+
+                              // Form fields
+                              _FormData(
+                                titleController: _titleController,
+                                descriptionController: _descriptionController,
+                                titleFocusNode: _titleFocusNode,
+                                descriptionFocusNode: _descriptionFocusNode,
+                              ),
+                            ],
+                          ),
+                          // Post button at bottom
+                          const VideoMetadataBottomBar(),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const VideoMetadataUploadStatus(),
+          ],
         ),
       ),
     );
@@ -163,6 +149,69 @@ class _Divider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Divider(thickness: 0, height: 1, color: Color(0xFF001A12));
+  }
+}
+
+/// Form fields for video metadata (title, description, tags, expiration).
+class _FormData extends ConsumerWidget {
+  /// Creates a form data widget.
+  const _FormData({
+    required this.titleController,
+    required this.descriptionController,
+    required this.titleFocusNode,
+    required this.descriptionFocusNode,
+  });
+
+  final TextEditingController titleController;
+  final TextEditingController descriptionController;
+  final FocusNode titleFocusNode;
+  final FocusNode descriptionFocusNode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      mainAxisSize: .min,
+      crossAxisAlignment: .stretch,
+      children: [
+        // Title input field
+        DivineTextField(
+          controller: titleController,
+          label: 'Title',
+          focusNode: titleFocusNode,
+          textInputAction: .next,
+          onChanged: (value) {
+            ref.read(videoEditorProvider.notifier).updateMetadata(title: value);
+          },
+          onSubmitted: (_) => descriptionFocusNode.requestFocus(),
+        ),
+        const _Divider(),
+
+        // Description input field
+        DivineTextField(
+          controller: descriptionController,
+          label: 'Description',
+          focusNode: descriptionFocusNode,
+          keyboardType: .multiline,
+          textInputAction: .newline,
+          onChanged: (value) {
+            ref
+                .read(videoEditorProvider.notifier)
+                .updateMetadata(description: value);
+          },
+        ),
+        const _Divider(),
+
+        // Hashtags input
+        const VideoMetadataTagsInput(),
+        const _Divider(),
+
+        // 64KB limit warning (shown only if exceeded)
+        const _MetadataLimitWarning(),
+
+        // Expiration time selector
+        const VideoMetadataExpirationSelector(),
+      ],
+    );
   }
 }
 

@@ -12,6 +12,7 @@ import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
@@ -58,7 +59,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   Future<void> initialize({String? draftId}) async {
     reset();
 
-    this.draftId = draftId;
     // If the editor screen is opened from a draft, we initialize it here.
     if (draftId != null && draftId.isNotEmpty) {
       Log.info(
@@ -91,6 +91,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         category: .video,
       );
     }
+    this.draftId = draftId ?? 'Draft_${DateTime.now().microsecondsSinceEpoch}';
   }
 
   /// Select a clip by index and update the current position.
@@ -493,35 +494,96 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(isProcessing: false);
   }
 
+
+
   /// Save the current video project as a draft.
   ///
-  /// TODO(@hm21): Implement draft saving functionality.
-  Future<void> saveAsDraft() async {
-    // TODO(@hm21):
+  /// Persists clips and metadata to local storage for later editing.
+  /// Returns `true` on success, `false` on failure.
+  Future<bool> saveAsDraft() async {
+    if (state.isSavingDraft) return false;
+
+    state = state.copyWith(isSavingDraft: true);
+
+    Log.info(
+      '💾 Saving draft: $draftId',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final draftService = DraftStorageService(prefs);
+
+      await draftService.saveDraft(getActiveDraft());
+
+      Log.info(
+        '✅ Draft saved successfully: $draftId',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+
+      state = state.copyWith(isSavingDraft: false);
+      return true;
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to save draft: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      state = state.copyWith(isSavingDraft: false);
+      return false;
+    }
   }
 
   /// Publish the video to the Nostr network.
   ///
-  /// TODO(@hm21): Implement video publishing functionality.
-  Future<void> postVideo() async {
-    // TODO(@hm21):
+  /// Requires [finalRenderedClip] to be available. Throws [StateError] if
+  /// no rendered clip exists.
+  Future<void> postVideo(BuildContext context) async {
+    if (state.finalRenderedClip == null) {
+      Log.error(
+        '❌ Cannot post video: no final rendered clip available',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+      throw StateError('Cannot post video without a rendered clip');
+    } else if (!state.isValidToPost) {
+      Log.error(
+        '❌ Cannot post video: metadata invalid '
+        '(title empty: ${state.title.isEmpty}, '
+        'limit reached: ${state.metadataLimitReached})',
+        name: 'VideoEditorNotifier',
+        category: .video,
+      );
+      throw StateError('Cannot post video with invalid metadata');
+    }
+
+    Log.info(
+      '📤 Starting video publish',
+      name: 'VideoEditorNotifier',
+      category: .video,
+    );
+
+    await ref
+        .read(videoPublishProvider.notifier)
+        .publishVideo(context, getActiveDraft());
   }
 
-  /// Create a VineDraft from the rendered clip with metadata and proofmode
-  /// data.
-  Future<VineDraft> getDraft(
-    RecordingClip clip,
-    String? proofManifestJson,
-  ) async {
+  /// Create a VineDraft from the rendered clip with metadata.
+  VineDraft getActiveDraft() {
     return VineDraft.create(
       id: draftId,
-      clips: [clip],
+      clips: state.finalRenderedClip != null
+          ? [state.finalRenderedClip!]
+          : _clips,
       title: state.title,
       description: state.description,
       hashtags: state.tags,
-      allowAudioReuse: false, // TODO(@hm21)
+      allowAudioReuse: state.allowAudioReuse,
       expireTime: state.expiration.value,
-      proofManifestJson: proofManifestJson,
       selectedApproach: 'video',
     );
   }

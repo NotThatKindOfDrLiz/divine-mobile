@@ -8,9 +8,20 @@ import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/theme/vine_theme.dart';
 
 /// Displays the current upload/publish status as a full-screen overlay.
+///
+/// Shows different states including:
+/// - Initializing/preparing indicators
+/// - Upload progress bar with percentage
+/// - Publishing to Nostr status
+/// - Success checkmark
+/// - Error state with dismiss button
 class VideoMetadataUploadStatus extends ConsumerWidget {
+  /// Creates a video metadata upload status overlay.
   const VideoMetadataUploadStatus({super.key});
 
+  /// Returns a user-friendly status message for the given [publishState].
+  ///
+  /// Uses [errorMessage] when in error state if available.
   String _getStatusMessage(
     VideoPublishState publishState,
     String? errorMessage,
@@ -49,86 +60,36 @@ class VideoMetadataUploadStatus extends ConsumerWidget {
     );
     final publishState = state.publishState;
 
-    return AnimatedOpacity(
-      opacity: publishState == .idle ? 0.0 : 1.0,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
-      child: publishState == .idle
-          ? const SizedBox.shrink()
-          : ColoredBox(
-              color: const Color.fromARGB(176, 0, 0, 0),
-              child: Center(
-                child: Container(
-                  margin: const .symmetric(horizontal: 32),
-                  padding: const .all(32),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: .topLeft,
-                      end: .bottomRight,
-                      colors: [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+    return Material(
+      type: .transparency,
+      child: AnimatedOpacity(
+        opacity: publishState == .idle ? 0.0 : 1.0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        child: publishState == .idle
+            ? const SizedBox.shrink()
+            : ColoredBox(
+                color: const Color.fromARGB(176, 0, 0, 0),
+                child: Center(
+                  child: _StatusDialog(
+                    publishState: publishState,
+                    statusMessage: _getStatusMessage(
+                      publishState,
+                      state.errorMessage,
                     ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color.fromRGBO(0, 0, 0, 0.4),
-                        blurRadius: 30,
-                        spreadRadius: 5,
-                        offset: Offset(0, 10),
-                      ),
-                    ],
-                    border: .all(color: const Color(0x1A000000)),
-                  ),
-                  child: Column(
-                    spacing: 20,
-                    mainAxisSize: .min,
-                    children: [
-                      _VideoPublishStatusIcon(publishState: publishState),
-                      Text(
-                        _getStatusMessage(publishState, state.errorMessage),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: .w600,
-                          letterSpacing: 0.3,
-                        ),
-                        textAlign: .center,
-                      ),
-                      if (publishState == .uploading)
-                        const _VideoPublishProgressBar()
-                      else if (publishState == .error)
-                        TextButton(
-                          onPressed: () => ref
-                              .read(videoPublishProvider.notifier)
-                              .clearError(),
-                          style: TextButton.styleFrom(
-                            padding: const .symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                            backgroundColor: VineTheme.vineGreen.withAlpha(38),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: .circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            // TODO(l10n): Replace with context.l10n when localization is added.
-                            'Dismiss',
-                            style: TextStyle(
-                              color: VineTheme.vineGreen,
-                              fontWeight: .w600,
-                            ),
-                          ),
-                        ),
-                    ],
                   ),
                 ),
               ),
-            ),
+      ),
     );
   }
 }
 
+/// Progress bar showing video upload progress with percentage.
+///
+/// Displays a linear progress indicator and percentage text.
 class _VideoPublishProgressBar extends ConsumerWidget {
+  /// Creates a video publish progress bar.
   const _VideoPublishProgressBar();
 
   @override
@@ -157,6 +118,92 @@ class _VideoPublishProgressBar extends ConsumerWidget {
           style: const TextStyle(color: Colors.white70, fontSize: 14),
         ),
       ],
+    );
+  }
+}
+
+/// Dialog card showing the current publish status.
+///
+/// Contains icon, message, and optional action (progress bar or dismiss button).
+class _StatusDialog extends ConsumerWidget {
+  /// Creates a status dialog.
+  const _StatusDialog({
+    required this.publishState,
+    required this.statusMessage,
+  });
+
+  /// The current publish state.
+  final VideoPublishState publishState;
+
+  /// The status message to display.
+  final String statusMessage;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      margin: const .symmetric(horizontal: 32),
+      padding: const .all(32),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: .topLeft,
+          end: .bottomRight,
+          colors: [Color(0xFF2A2A2A), Color(0xFF1A1A1A)],
+        ),
+        borderRadius: .circular(24),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.4),
+            blurRadius: 30,
+            spreadRadius: 5,
+            offset: Offset(0, 10),
+          ),
+        ],
+        border: .all(color: const Color(0x1A000000)),
+      ),
+      child: Column(
+        spacing: 20,
+        mainAxisSize: .min,
+        children: [
+          _VideoPublishStatusIcon(publishState: publishState),
+          Text(
+            statusMessage,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: .w600,
+              letterSpacing: 0.3,
+            ),
+            textAlign: .center,
+          ),
+          if (publishState == .uploading)
+            const _VideoPublishProgressBar()
+          else if (publishState == .error)
+            const _DismissButton(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Button to dismiss an error state.
+class _DismissButton extends ConsumerWidget {
+  /// Creates a dismiss button.
+  const _DismissButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return TextButton(
+      onPressed: () => ref.read(videoPublishProvider.notifier).clearError(),
+      style: TextButton.styleFrom(
+        padding: const .symmetric(horizontal: 24, vertical: 12),
+        backgroundColor: VineTheme.vineGreen.withAlpha(38),
+        shape: RoundedRectangleBorder(borderRadius: .circular(12)),
+      ),
+      // TODO(l10n): Replace with context.l10n when localization is added.
+      child: const Text(
+        'Dismiss',
+        style: TextStyle(color: VineTheme.vineGreen, fontWeight: .w600),
+      ),
     );
   }
 }
