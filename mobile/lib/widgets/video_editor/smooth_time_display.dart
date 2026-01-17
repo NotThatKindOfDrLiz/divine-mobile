@@ -49,22 +49,6 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
     super.initState();
     _ticker = createTicker(_onTick);
 
-    // Initialize with current position
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _lastKnownPosition = ref.read(widget.currentPositionSelector);
-        _lastUpdateTime = DateTime.now();
-
-        // Start ticker if already playing
-        final isPlaying = ref.read(widget.isPlayingSelector);
-        if (isPlaying && !_ticker.isActive) {
-          _ticker.start();
-        }
-
-        setState(() {});
-      }
-    });
-
     // Listen to playing state changes
     ref
       ..listenManual(widget.isPlayingSelector, (previous, next) async {
@@ -93,6 +77,22 @@ class _SmoothTimeDisplayState extends ConsumerState<SmoothTimeDisplay>
           }
         }
       });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Initialize position on first build (called before build)
+    if (_lastUpdateTime == null) {
+      _lastKnownPosition = ref.read(widget.currentPositionSelector);
+      _lastUpdateTime = DateTime.now();
+
+      // Start ticker if already playing
+      final isPlaying = ref.read(widget.isPlayingSelector);
+      if (isPlaying && !_ticker.isActive) {
+        _ticker.start();
+      }
+    }
   }
 
   void _onTick(Duration elapsed) {

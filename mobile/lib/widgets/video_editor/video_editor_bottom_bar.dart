@@ -176,7 +176,9 @@ class VideoEditorBottomBar extends ConsumerWidget {
                       }
 
                       return VideoTimeDisplay(
-                        key: ValueKey(state.isEditing),
+                        key: ValueKey(
+                          'Video-Editor-Time-Display-${state.isEditing}',
+                        ),
                         isPlayingSelector: videoEditorProvider.select(
                           (s) => s.isPlaying && !s.isEditing,
                         ),
