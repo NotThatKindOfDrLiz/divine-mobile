@@ -870,6 +870,7 @@ class VideoOverlayActions extends ConsumerWidget {
     this.isFullscreen = false,
     this.listSources,
     this.showListAttribution = false,
+    this.isPreviewMode = false,
   });
 
   final VideoEvent video;
@@ -878,6 +879,11 @@ class VideoOverlayActions extends ConsumerWidget {
   final bool hasBottomNavigation;
   final String? contextTitle;
   final bool isFullscreen;
+
+  /// Displays the overlay in preview mode during video creation.
+  /// When true, users can preview how their video will appear to other users
+  /// before publishing.
+  final bool isPreviewMode;
 
   /// Set of curated list IDs this video is from (for list attribution display).
   final Set<String>? listSources;
@@ -906,16 +912,17 @@ class VideoOverlayActions extends ConsumerWidget {
     return Stack(
       children: [
         // ProofMode and Vine badges in upper right corner (tappable)
-        Positioned(
-          top: MediaQuery.of(context).viewPadding.top + topOffset,
-          right: 16,
-          child: GestureDetector(
-            onTap: () {
-              _showBadgeExplanationModal(context, ref, video, isActive);
-            },
-            child: ProofModeBadgeRow(video: video, size: BadgeSize.small),
+        if (!isPreviewMode)
+          Positioned(
+            top: MediaQuery.viewPaddingOf(context).top + topOffset,
+            right: 16,
+            child: GestureDetector(
+              onTap: () {
+                _showBadgeExplanationModal(context, ref, video, isActive);
+              },
+              child: ProofModeBadgeRow(video: video, size: BadgeSize.small),
+            ),
           ),
-        ),
         // Bottom left column: Repost banner, author row, description
         // TODO(cleanup): Remove hasBottomNavigation and use only isFullscreen
         Positioned(
@@ -1313,7 +1320,7 @@ class VideoOverlayActions extends ConsumerWidget {
                   ),
 
                   // Edit button (only show for owned videos when feature is enabled)
-                  _VideoEditButton(video: video),
+                  if (!isPreviewMode) _VideoEditButton(video: video),
                 ],
               ),
             ),

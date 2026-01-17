@@ -12,7 +12,7 @@ import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_expiration_selector.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_tags_input.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_clip_preview.dart';
-import '../theme/vine_theme.dart';
+import '../../theme/vine_theme.dart';
 
 class VideoMetadataScreen extends ConsumerStatefulWidget {
   const VideoMetadataScreen({super.key});
@@ -59,8 +59,6 @@ class _VideoMetadataScreenState extends ConsumerState<VideoMetadataScreen> {
                 height: 32,
                 child: SvgPicture.asset(
                   'assets/icon/CaretLeft.svg',
-                  width: 32,
-                  height: 32,
                   colorFilter: const .mode(Colors.white, .srcIn),
                 ),
               ),

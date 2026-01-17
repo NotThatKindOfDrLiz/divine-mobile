@@ -2,6 +2,7 @@
 // ABOUTME: Tracks editing state with export stages and computed properties for UI state
 
 import 'package:flutter/widgets.dart';
+import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 
 /// Immutable state model for the video editor.
@@ -27,6 +28,7 @@ class VideoEditorProviderState {
     this.tags = const {},
     this.expiration = .notExpire,
     this.metadataLimitReached = false,
+    this.finalRenderedClip,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
@@ -75,7 +77,12 @@ class VideoEditorProviderState {
   /// Whether the 64KB metadata limit was reached during the last update.
   final bool metadataLimitReached;
 
-  bool get isValidToPost => !metadataLimitReached; // TODO(@hm21):
+  /// The final rendered clip after all editing and processing operations are complete.
+  /// This represents the video output ready for publishing.
+  final RecordingClip? finalRenderedClip;
+
+  bool get isValidToPost =>
+      !metadataLimitReached && title.isNotEmpty && finalRenderedClip != null;
 
   /// Creates a copy of this state with updated fields.
   ///
@@ -97,6 +104,7 @@ class VideoEditorProviderState {
     Set<String>? tags,
     VideoMetadataExpiration? expiration,
     bool? metadataLimitReached,
+    RecordingClip? finalRenderedClip,
   }) {
     return VideoEditorProviderState(
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
@@ -114,6 +122,7 @@ class VideoEditorProviderState {
       tags: tags ?? this.tags,
       expiration: expiration ?? this.expiration,
       metadataLimitReached: metadataLimitReached ?? this.metadataLimitReached,
+      finalRenderedClip: finalRenderedClip ?? this.finalRenderedClip,
     );
   }
 }

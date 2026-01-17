@@ -12,7 +12,6 @@ import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
@@ -302,9 +301,9 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
     // Update metadata if within limit
     state = state.copyWith(
-      title: cleanedTitle.isNotEmpty ? cleanedTitle : null,
-      description: cleanedDescription.isNotEmpty ? cleanedDescription : null,
-      tags: cleanedTags.isNotEmpty ? cleanedTags : null,
+      title: cleanedTitle,
+      description: cleanedDescription,
+      tags: cleanedTags,
       metadataLimitReached: false,
     );
   }
@@ -433,17 +432,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
-    final clip = RecordingClip(
+    final finalRenderedClip = RecordingClip(
       id: 'clip-${DateTime.now()}',
       video: EditorVideo.file(outputPath),
       duration: metaData.duration,
       recordedAt: .now(),
       aspectRatio: _clips.first.aspectRatio,
+      thumbnailPath: _clips.first.thumbnailPath,
     );
-
-    ref.read(videoPublishProvider.notifier)
-      ..reset()
-      ..initialize(draft: await getDraft(clip, proofManifestJson));
 
     Log.info(
       '📤 Navigating to publish screen',
@@ -451,7 +447,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
-    state = state.copyWith(isProcessing: false);
+    state = state.copyWith(
+      isProcessing: false,
+      finalRenderedClip: finalRenderedClip,
+    );
   }
 
   Future<void> cancelRenderVideo() async {
