@@ -41,6 +41,27 @@ class _VideoMetadataTagsInputState
     super.dispose();
   }
 
+  /// Handles backspace key press when text field is empty.
+  /// Removes the last tag and puts it back in the text field for editing.
+  void _handleBackspace() {
+    if (_controller.text.isNotEmpty) return;
+
+    final tags = ref.read(videoEditorProvider).tags;
+    if (tags.isEmpty) return;
+
+    // Get the last tag
+    final lastTag = tags.last;
+
+    // Remove it from tags
+    final newTags = tags.toSet()..remove(lastTag);
+    ref.read(videoEditorProvider.notifier).updateMetadata(tags: newTags);
+
+    // Put it back in the text field for editing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.text = lastTag;
+    });
+  }
+
   /// Processes input value and extracts valid tags.
   ///
   /// Handles multiple tags separated by whitespace (e.g., pasted text).
@@ -120,22 +141,31 @@ class _VideoMetadataTagsInputState
                 // Show input field if under limit
                 if (tags.length < VideoEditorNotifier.tagLimit)
                   // TODO(l10n): Replace with context.l10n when localization is added.
-                  DivineTextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    label: tags.isEmpty ? 'Tags' : null,
-                    contentPadding: .zero,
-                    textCapitalization: .none,
-                    textInputAction: .done,
-                    maxLines: 1,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'[a-zA-Z0-9\s]'),
-                      ),
-                    ],
-                    onChanged: _handleTagChanges,
-                    onSubmitted: (value) =>
-                        _handleTagChanges(value, isSubmitted: true),
+                  KeyboardListener(
+                    focusNode: FocusNode(),
+                    onKeyEvent: (event) {
+                      if (event is KeyDownEvent &&
+                          event.logicalKey == .backspace) {
+                        _handleBackspace();
+                      }
+                    },
+                    child: DivineTextField(
+                      controller: _controller,
+                      focusNode: _focusNode,
+                      label: tags.isEmpty ? 'Tags' : null,
+                      contentPadding: .zero,
+                      textCapitalization: .none,
+                      textInputAction: .done,
+                      maxLines: 1,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'[a-zA-Z0-9\s]'),
+                        ),
+                      ],
+                      onChanged: _handleTagChanges,
+                      onSubmitted: (value) =>
+                          _handleTagChanges(value, isSubmitted: true),
+                    ),
                   ),
               ],
             ),
