@@ -294,7 +294,10 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                           ),
                   ),
 
-                  VideoEditorClipProcessingOverlay(clip: widget.clip),
+                  VideoEditorClipProcessingOverlay(
+                    clip: widget.clip,
+                    isCurrentClip: widget.isCurrentClip,
+                  ),
                 ],
               ),
             ),

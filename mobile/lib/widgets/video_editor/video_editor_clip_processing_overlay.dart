@@ -13,12 +13,14 @@ class VideoEditorClipProcessingOverlay extends StatelessWidget {
     required this.clip,
     super.key,
     this.inactivePlaceholder,
+    this.isCurrentClip = false,
     this.isProcessing = false,
   });
 
   /// The clip to show processing status for.
   final RecordingClip clip;
   final bool isProcessing;
+  final bool isCurrentClip;
   final Widget? inactivePlaceholder;
 
   @override
@@ -27,6 +29,9 @@ class VideoEditorClipProcessingOverlay extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       child: isProcessing || clip.isProcessing
           ? ColoredBox(
+              key: ValueKey(
+                'Processing-Clip-Overlay-${clip.id}-$isCurrentClip',
+              ),
               color: Color.fromARGB(180, 0, 0, 0),
               child: Center(
                 // Without RepaintBoundary, the progress indicator repaints
