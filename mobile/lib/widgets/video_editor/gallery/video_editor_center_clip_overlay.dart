@@ -95,14 +95,6 @@ class VideoEditorCenterClipOverlay extends StatelessWidget {
                           alpha: 0.32 * shadowOpacity,
                         ),
                         blurRadius: 8,
-                        offset: const Offset(0, 1),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: 0.16 * shadowOpacity,
-                        ),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
                         spreadRadius: 10,
                       ),
                     ],
