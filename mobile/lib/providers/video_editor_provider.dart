@@ -38,6 +38,7 @@ final videoEditorProvider =
 /// - Metadata management
 class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   static String autoSaveId = 'draft_autosave';
+  static int tagLimit = 10;
 
   /// Debounce duration for metadata autosave to prevent excessive saves.
   static const Duration _autosaveDebounce = Duration(milliseconds: 800);
@@ -358,6 +359,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   ///
   /// Validates and enforces the 64KB size limit. Rejects updates that exceed
   /// the limit and sets metadataLimitReached flag.
+  /// Update video metadata (title, description, tags).
+  ///
+  /// Validates and enforces the 64KB size limit. Rejects updates that exceed
+  /// the limit and sets metadataLimitReached flag.
+  ///
+  /// Automatically extracts completed hashtags from title and description.
+  /// A hashtag is considered complete when followed by a space or at the end
+  /// of the string (e.g., "#hot " or "text #hot").
   void updateMetadata({String? title, String? description, Set<String>? tags}) {
     Log.debug(
       '📝 Updated video metadata',
@@ -365,23 +374,65 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
-    final cleanedTitle = title?.trim() ?? state.title;
-    final cleanedDescription = description?.trim() ?? state.description;
-    final cleanedTags =
-        tags
-            ?.map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
-            .where((tag) => tag.isNotEmpty)
-            .toSet() ??
-        state.tags;
+    // Use raw values for hashtag extraction (before trim)
+    final rawTitle = title ?? state.title;
+    final rawDescription = description ?? state.description;
+
+    // Trim for storage (but after hashtag extraction)
+    final cleanedTitle = rawTitle.trim();
+    final cleanedDescription = rawDescription.trim();
+
+    // Only extract hashtags when text changes, not when tags are manually edited
+    final Set<String> allTags;
+    if (tags != null) {
+      // User manually edited tags - use only what they provided
+      allTags = tags
+          .map((tag) => tag.replaceAll(RegExp(r'[^a-zA-Z0-9]'), ''))
+          .where((tag) => tag.isNotEmpty)
+          .take(tagLimit)
+          .toSet();
+    } else {
+      // Text changed - compare old and new hashtags to only update changed ones
+      final hashtagPattern = RegExp(r'#([a-zA-Z0-9]+)\s');
+
+      // Extract hashtags from OLD text
+      final oldText = '${state.title} ${state.description} ';
+      final oldHashtags = hashtagPattern
+          .allMatches(oldText)
+          .map((m) => m.group(1))
+          .whereType<String>()
+          .where((tag) => tag.isNotEmpty)
+          .toSet();
+
+      // Extract hashtags from NEW text
+      final newText = '$rawTitle $rawDescription ';
+      final newHashtags = hashtagPattern
+          .allMatches(newText)
+          .map((m) => m.group(1))
+          .whereType<String>()
+          .where((tag) => tag.isNotEmpty)
+          .toSet();
+
+      // Find which hashtags were removed and which were added
+      final removedHashtags = oldHashtags.difference(newHashtags);
+      final addedHashtags = newHashtags.difference(oldHashtags);
+
+      // Update tags: remove old ones, add new ones, keep manually added tags
+      allTags = state.tags
+          .difference(removedHashtags)
+          .union(addedHashtags)
+          .take(tagLimit)
+          .toSet();
+    }
 
     // Calculate total size in bytes (UTF-8 encoded)
     // Calculate total size
     const maxBytes = 64 * 1024; // 64KB
     final titleBytes = utf8.encode(cleanedTitle).length;
     final descriptionBytes = utf8.encode(cleanedDescription).length;
-    final tagsBytes = cleanedTags.isEmpty
+    final tagsBytes = allTags.isEmpty
         ? 0
-        : cleanedTags.fold<int>(0, (sum, tag) => sum + utf8.encode(tag).length);
+        : allTags.fold<int>(0, (sum, tag) => sum + utf8.encode(tag).length);
     final totalBytes = titleBytes + descriptionBytes + tagsBytes;
 
     // Check if limit is exceeded
@@ -399,7 +450,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(
       title: cleanedTitle,
       description: cleanedDescription,
-      tags: cleanedTags,
+      tags: allTags,
       metadataLimitReached: false,
     );
 

@@ -18,7 +18,7 @@ void main() {
       expect(find.text('Tags'), findsOneWidget);
       // Should not show tag count when empty
       expect(
-        find.textContaining('/${VideoMetadataTagsInput.tagLimit}'),
+        find.textContaining('/${VideoEditorNotifier.tagLimit}'),
         findsNothing,
       );
     });
@@ -48,7 +48,7 @@ void main() {
       expect(find.text('mobile'), findsOneWidget);
 
       // Should show tag count
-      expect(find.text('3/${VideoMetadataTagsInput.tagLimit}'), findsOneWidget);
+      expect(find.text('3/${VideoEditorNotifier.tagLimit}'), findsOneWidget);
     });
 
     testWidgets('adds tag when space is entered', (tester) async {
@@ -175,9 +175,7 @@ void main() {
 
     testWidgets('hides input field when tag limit is reached', (tester) async {
       final state = VideoEditorProviderState(
-        tags: {
-          for (var i = 0; i < VideoMetadataTagsInput.tagLimit; i++) 'tag$i',
-        },
+        tags: {for (var i = 0; i < VideoEditorNotifier.tagLimit; i++) 'tag$i'},
       );
 
       await tester.pumpWidget(
@@ -197,7 +195,7 @@ void main() {
       expect(find.text('#'), findsNWidgets(10));
       expect(
         find.text(
-          '${VideoMetadataTagsInput.tagLimit}/${VideoMetadataTagsInput.tagLimit}',
+          '${VideoEditorNotifier.tagLimit}/${VideoEditorNotifier.tagLimit}',
         ),
         findsOneWidget,
       );
