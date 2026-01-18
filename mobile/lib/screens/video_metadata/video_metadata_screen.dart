@@ -188,6 +188,8 @@ class _FormData extends ConsumerWidget {
           label: 'Title',
           focusNode: titleFocusNode,
           textInputAction: .next,
+          minLines: 1,
+          maxLines: 5,
           onChanged: (value) {
             ref.read(videoEditorProvider.notifier).updateMetadata(title: value);
           },
@@ -202,6 +204,8 @@ class _FormData extends ConsumerWidget {
           focusNode: descriptionFocusNode,
           keyboardType: .multiline,
           textInputAction: .newline,
+          minLines: 1,
+          maxLines: 10,
           onChanged: (value) {
             ref
                 .read(videoEditorProvider.notifier)
