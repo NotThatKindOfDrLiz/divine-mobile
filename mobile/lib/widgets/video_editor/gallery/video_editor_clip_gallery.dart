@@ -387,16 +387,21 @@ class _ScrollStack extends ConsumerWidget {
 
   final ScrollController scrollController;
   final PageController pageController;
-  final List<RecordingClip> clips;
-  final VoidCallback onStartReordering;
+
   final ValueNotifier<double> dragOffsetNotifier;
+  final VoidCallback onStartReordering;
   final BoxConstraints constraints;
-  final bool isEditing;
+
+  final List<RecordingClip> clips;
+
   final int currentClipIndex;
-  final double page;
   final int centerIndex;
-  final bool showCenterOverlay;
+
+  final double page;
   final double shadowOpacity;
+
+  final bool isEditing;
+  final bool showCenterOverlay;
 
   /// Calculates the scale factor for a clip based on its distance from center.
   ///
@@ -424,8 +429,26 @@ class _ScrollStack extends ConsumerWidget {
 
   /// Calculates the horizontal offset for a clip to create depth effect.
   double _calculateXOffset(int index) {
-    // Calculate maxOffset as percentage of screen width (10%)
-    final maxOffset = constraints.maxWidth * 0.2;
+    // Get clip aspect ratio (e.g., 9/16 = 0.5625 for vertical, 1.0 for square)
+    final clipRatio = clips.first.aspectRatio.value;
+
+    // Each clip sits in a container that is 80% of screen width
+    final clipContainerWidth = constraints.maxWidth * 0.8;
+
+    // Calculate actual clip width: height * aspectRatio, clamped to container
+    final actualClipWidth = (constraints.maxHeight * clipRatio).clamp(
+      0.0,
+      clipContainerWidth,
+    );
+
+    // Empty space per side when clip doesn't fill container width
+    final emptySpace = (clipContainerWidth - actualClipWidth);
+
+    // Ratio of how much the clip fills the container (1.0 = full, less = smaller)
+    final fillRatio = actualClipWidth / clipContainerWidth;
+
+    // Base offset + extra offset to pull clips closer over the empty space
+    final maxOffset = (constraints.maxWidth * 0.2) + emptySpace;
 
     // During reordering, use fixed currentClipIndex (clips move discretely)
     // During normal swiping, use pageController for smooth animation
@@ -438,14 +461,19 @@ class _ScrollStack extends ConsumerWidget {
 
     final difference = index - page;
     final absDifference = difference.abs();
-    // Offset is 0 for clips beyond distance 1.3
-    if (absDifference > 1.3) return 0;
+
+    // Dynamic falloff values based on fillRatio
+    final falloffRange = 0.25 * fillRatio;
+    final falloffEnd = 1.0 + falloffRange;
+
+    // Offset is 0 for clips beyond falloffEnd
+    if (absDifference > falloffEnd) return 0;
 
     const offsetStart = 0.4;
     // X-Offset only applies from [offsetStart] to 1.0 distance
     // From 0.0 to [offsetStart]: no offset (clips wait)
     // From [offsetStart] to 1.0: offset increases to max
-    // From 1.0 to 1.3: gradual falloff
+    // From 1.0 to falloffEnd: gradual falloff
     double effectStrength;
     if (absDifference < offsetStart) {
       // No offset until clip is almost at edge
@@ -455,9 +483,8 @@ class _ScrollStack extends ConsumerWidget {
       final remapped = (absDifference - offsetStart) / (1.0 - offsetStart);
       effectStrength = remapped * remapped * remapped;
     } else {
-      // Gradual falloff: 1.0→0.0 over distance 1.0→1.3
-      final falloff =
-          (1.3 - absDifference) / 0.3; // 1.0 at distance 1.0, 0.0 at 1.3
+      // Gradual falloff: 1.0→0.0 over distance 1.0→falloffEnd
+      final falloff = (falloffEnd - absDifference) / falloffRange;
       effectStrength = falloff;
     }
 
@@ -646,7 +673,7 @@ class _SwipeView extends ConsumerWidget {
                 await pageController.animateToPage(
                   index,
                   duration: const Duration(milliseconds: 300),
-                  curve: Curves.ease,
+                  curve: Curves.easeInOut,
                 );
               }
             } else {
