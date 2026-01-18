@@ -97,12 +97,17 @@ class _VideoMetadataTagsInputState
 
     // Merge with existing tags
     final oldTags = ref.read(videoEditorProvider).tags;
-    ref
-        .read(videoEditorProvider.notifier)
-        .updateMetadata(tags: {...oldTags, ...newTags});
+    final updatedTags = {...oldTags, ...newTags};
+    ref.read(videoEditorProvider.notifier).updateMetadata(tags: updatedTags);
     _controller.clear();
-    // Keep focus to prevent keyboard from closing
-    _focusNode.requestFocus();
+    // Keep focus to prevent keyboard from closing (after rebuild)
+    if (updatedTags.length < VideoEditorNotifier.tagLimit) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    } else {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
   }
 
   @override
@@ -377,6 +382,9 @@ class _RenderTagInputLayout extends RenderBox
     double y = 0;
     double maxHeightInRow = 0;
 
+    // Track children in current row for vertical centering
+    final currentRowChildren = <RenderBox>[];
+
     // Layout all tag chips in flow layout
     var child = firstChild;
     var index = 0;
@@ -393,12 +401,17 @@ class _RenderTagInputLayout extends RenderBox
 
         // Check if chip fits in current row
         if (x + childSize.width > maxWidth && x > 0) {
+          // Center all children in the completed row vertically
+          _centerChildrenVertically(currentRowChildren, y, maxHeightInRow);
+          currentRowChildren.clear();
+
           x = 0;
           y += maxHeightInRow + runSpacing;
           maxHeightInRow = 0;
         }
 
         parentData.offset = Offset(x, y);
+        currentRowChildren.add(child);
         x += childSize.width + spacing;
         maxHeightInRow = childSize.height > maxHeightInRow
             ? childSize.height
@@ -434,6 +447,10 @@ class _RenderTagInputLayout extends RenderBox
         textFieldY = y;
         textFieldWidth = maxWidth;
       } else {
+        // Center children in the completed row before moving to new row
+        _centerChildrenVertically(currentRowChildren, y, maxHeightInRow);
+        currentRowChildren.clear();
+
         // Move to new row
         y += maxHeightInRow + runSpacing;
         maxHeightInRow = 0;
@@ -448,14 +465,32 @@ class _RenderTagInputLayout extends RenderBox
       );
 
       parentData.offset = Offset(textFieldX, textFieldY);
+      currentRowChildren.add(textFieldChild);
       maxHeightInRow = textFieldChild.size.height > maxHeightInRow
           ? textFieldChild.size.height
           : maxHeightInRow;
     }
 
+    // Center children in the last row vertically
+    _centerChildrenVertically(currentRowChildren, y, maxHeightInRow);
+
     // Calculate final height
     final totalHeight = y + maxHeightInRow;
     size = constraints.constrain(Size(maxWidth, totalHeight));
+  }
+
+  /// Centers all children vertically within a row.
+  void _centerChildrenVertically(
+    List<RenderBox> children,
+    double rowY,
+    double rowHeight,
+  ) {
+    for (final child in children) {
+      final parentData = child.parentData! as _TagInputLayoutParentData;
+      final childHeight = child.size.height;
+      final verticalOffset = (rowHeight - childHeight) / 2;
+      parentData.offset = Offset(parentData.offset.dx, rowY + verticalOffset);
+    }
   }
 
   @override
