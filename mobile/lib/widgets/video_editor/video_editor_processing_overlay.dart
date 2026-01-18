@@ -2,6 +2,7 @@
 // ABOUTME: Displays during video export operations.
 
 import 'package:flutter/material.dart';
+import 'package:openvine/theme/vine_theme.dart';
 
 /// Overlay widget displayed during video processing operations.
 ///
@@ -49,13 +50,11 @@ class VideoEditorProcessingOverlay extends StatelessWidget {
               ),
 
               // Processing text
-              const Text(
+              Text(
                 // TODO(l10n): Replace with context.l10n when localization is added.
                 'Processing...',
                 textAlign: .center,
-                style: TextStyle(
-                  fontFamily: 'BricolageGrotesque',
-                  fontWeight: .w800,
+                style: VineTheme.titleFont(
                   fontSize: 14,
                   height: 1.43,
                   letterSpacing: 0.1,

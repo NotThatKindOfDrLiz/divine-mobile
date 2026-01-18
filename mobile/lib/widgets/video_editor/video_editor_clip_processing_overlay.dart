@@ -27,7 +27,7 @@ class VideoEditorClipProcessingOverlay extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       child: isProcessing || clip.isProcessing
           ? ColoredBox(
-              color: Color.fromARGB(140, 0, 0, 0),
+              color: Color.fromARGB(180, 0, 0, 0),
               child: Center(
                 // Without RepaintBoundary, the progress indicator repaints
                 // the entire screen while it's running.
@@ -47,7 +47,7 @@ class VideoEditorClipProcessingOverlay extends StatelessWidget {
   }
 }
 
-/// Custom circular progress spinner matching Figma design.
+/// Custom circular progress spinner.
 /// Animates like a clock from 0 to 360 degrees based on progress.
 /// Uses implicit animation for smooth transitions between progress values.
 class _PartialCircleSpinner extends StatefulWidget {

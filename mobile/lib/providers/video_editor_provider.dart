@@ -216,7 +216,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         onClipsCreated: (startClip, endClip) {
           // Add clips to UI immediately so processing status is visible
           _clipManager
-            ..refreshClip(startClip, createNewClipId: true)
+            ..refreshClip(
+              startClip.copyWith(id: selectedClip.id),
+              newId: startClip.id,
+            )
             ..insertClip(state.currentClipIndex + 1, endClip);
         },
         onThumbnailExtracted: (clip, thumbnailPath) {

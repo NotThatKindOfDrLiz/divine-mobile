@@ -261,10 +261,26 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
                         ? const SizedBox.shrink()
                         : widget.clip.thumbnailPath != null
                         ?
-                          // Show thumbnail when not playing or not initialized
-                          Image.file(
-                            File(widget.clip.thumbnailPath!),
-                            fit: .cover,
+                          // Show the thumbnail when the clip is not playing
+                          // or initialized.
+                          // Since the thumbnail may change when splitting a
+                          // clip, we use an AnimatedSwitcher to ensure a
+                          // smoother transition.
+                          AnimatedSwitcher(
+                            duration: Duration(milliseconds: 150),
+                            layoutBuilder: (current, preview) => Stack(
+                              alignment: .center,
+                              fit: .expand,
+                              children: <Widget>[...preview, ?current],
+                            ),
+                            child: Image.file(
+                              File(widget.clip.thumbnailPath!),
+                              key: ValueKey(
+                                '${widget.clip.id}-'
+                                '${widget.clip.thumbnailPath}',
+                              ),
+                              fit: .cover,
+                            ),
                           )
                         :
                           // Video thumbnail placeholder

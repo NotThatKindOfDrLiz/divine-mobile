@@ -78,22 +78,24 @@ class VideoEditorSplitService {
     );
 
     final timestamp = DateTime.now();
-    final clipId = timestamp.microsecondsSinceEpoch.toString();
+    final timestampMs = timestamp.microsecondsSinceEpoch;
+    final startClipId = '${timestampMs}_start';
+    final endClipId = '${timestampMs}_end';
 
     final startClip = sourceClip.copyWith(
+      id: startClipId,
       duration: splitPosition,
       processingCompleter: Completer<bool>(),
     );
     final endClip = sourceClip.copyWith(
-      id: clipId,
-      recordedAt: timestamp,
+      id: endClipId,
       duration: sourceClip.duration - splitPosition,
       processingCompleter: Completer<bool>(),
     );
 
     final cachedDirectory = await getApplicationCacheDirectory();
-    final startClipPath = '${cachedDirectory.path}/${clipId}_start.mp4';
-    final endClipPath = '${cachedDirectory.path}/${clipId}_end.mp4';
+    final startClipPath = '${cachedDirectory.path}/${startClipId}_start.mp4';
+    final endClipPath = '${cachedDirectory.path}/${endClipId}_end.mp4';
 
     Log.debug(
       '📁 Created split clips - Start: ${splitPosition.inSeconds}s, '
@@ -119,7 +121,6 @@ class VideoEditorSplitService {
       name: 'VideoEditorSplitService',
       category: .video,
     );
-
     // Render both clips in parallel
     await Future.wait([
       _renderSplitClip(
