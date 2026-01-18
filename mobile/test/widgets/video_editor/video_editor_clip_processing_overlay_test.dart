@@ -34,11 +34,10 @@ void main() {
       );
 
       // Should show overlay when processing
-      // The overlay uses Color.fromARGB(140, 0, 0, 0)
       final overlayFinder = find.byWidgetPredicate(
         (widget) =>
             widget is ColoredBox &&
-            widget.color == const Color.fromARGB(140, 0, 0, 0),
+            widget.color == const Color.fromARGB(180, 0, 0, 0),
       );
       expect(overlayFinder, findsOneWidget);
     });
