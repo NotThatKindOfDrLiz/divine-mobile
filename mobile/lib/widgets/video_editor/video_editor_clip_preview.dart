@@ -11,8 +11,6 @@ import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/video_editor_clip_processing_overlay.dart';
 import 'package:video_player/video_player.dart';
 
-// TODO(@hm21): There is an issue that sometimes play/pause not working when editing the video.
-
 /// Displays a video clip preview with thumbnail and video playback.
 ///
 /// When [isCurrentClip] is true:
@@ -210,12 +208,12 @@ class _VideoClipPreviewState extends ConsumerState<VideoClipPreview> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: widget.clip.aspectRatio.value,
+    return Center(
+      child: AspectRatio(
+        aspectRatio: widget.clip.aspectRatio.value,
+        child: GestureDetector(
+          onTap: widget.onTap,
+          onLongPress: widget.onLongPress,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             decoration: BoxDecoration(
