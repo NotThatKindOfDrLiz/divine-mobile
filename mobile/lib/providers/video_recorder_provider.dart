@@ -88,7 +88,11 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       category: .video,
     );
     await _cameraService.initialize();
-    updateState(aspectRatio: .vertical);
+
+    // If the user has recorded clips in the clip manager, we use this
+    // aspect-ratio to prevent mixing different ratios.
+    final clips = ref.read(clipManagerProvider).clips;
+    updateState(aspectRatio: clips.isNotEmpty ? clips.first.aspectRatio : null);
 
     Log.info(
       '✅ Video recorder initialized successfully',

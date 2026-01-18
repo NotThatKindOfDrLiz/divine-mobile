@@ -13,6 +13,7 @@ import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
+import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
@@ -568,6 +569,11 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         expiration: VideoMetadataExpiration.fromDuration(draft.expireTime),
       );
       _clipManager.addMultipleClips(draft.clips);
+      // We set the aspect ratio in the video recorder to match the clips,
+      // so the user can't mix them up.
+      ref
+          .read(videoRecorderProvider.notifier)
+          .setAspectRatio(draft.clips.first.aspectRatio);
       Log.info(
         '✅ Draft loaded with ${draft.clips.length} clip(s)',
         name: 'VideoEditorNotifier',
