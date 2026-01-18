@@ -13,18 +13,10 @@ class VideoRecorderCameraPlaceholder extends StatelessWidget {
     return ColoredBox(
       color: const Color(0xFF141414),
       child: Center(
-        child: Container(
-          width: 120,
-          height: 120,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0x33FFFFFF), width: 2),
-          ),
-          child: const Icon(
-            Icons.videocam_rounded,
-            size: 56,
-            color: Color(0xB3FFFFFF),
-          ),
+        child: const Icon(
+          Icons.videocam_rounded,
+          size: 56,
+          color: Color(0xB3FFFFFF),
         ),
       ),
     );
