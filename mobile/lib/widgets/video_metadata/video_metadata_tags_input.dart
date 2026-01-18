@@ -24,11 +24,24 @@ class VideoMetadataTagsInput extends ConsumerStatefulWidget {
 class _VideoMetadataTagsInputState
     extends ConsumerState<VideoMetadataTagsInput> {
   final _controller = TextEditingController();
-  final _focusNode = FocusNode();
+  late final FocusNode _focusNode;
 
   @override
   void initState() {
     super.initState();
+
+    _focusNode = FocusNode(
+      onKeyEvent: (node, event) {
+        // Handle backspace on empty text field to restore last tag
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.backspace &&
+            _controller.text.isEmpty) {
+          _handleBackspace();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+    );
 
     // Rebuild when focus changes to update label color
     _focusNode.addListener(() => setState(() {}));
@@ -140,32 +153,23 @@ class _VideoMetadataTagsInputState
                 ...tags.map((tag) => _TagChip(tag: tag)),
                 // Show input field if under limit
                 if (tags.length < VideoEditorNotifier.tagLimit)
-                  // TODO(l10n): Replace with context.l10n when localization is added.
-                  KeyboardListener(
-                    focusNode: FocusNode(),
-                    onKeyEvent: (event) {
-                      if (event is KeyDownEvent &&
-                          event.logicalKey == .backspace) {
-                        _handleBackspace();
-                      }
-                    },
-                    child: DivineTextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      label: tags.isEmpty ? 'Tags' : null,
-                      contentPadding: .zero,
-                      textCapitalization: .none,
-                      textInputAction: .done,
-                      maxLines: 1,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[a-zA-Z0-9\s]'),
-                        ),
-                      ],
-                      onChanged: _handleTagChanges,
-                      onSubmitted: (value) =>
-                          _handleTagChanges(value, isSubmitted: true),
-                    ),
+                  DivineTextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    // TODO(l10n): Replace with context.l10n when localization is added.
+                    label: tags.isEmpty ? 'Tags' : null,
+                    contentPadding: .zero,
+                    textCapitalization: .none,
+                    textInputAction: .done,
+                    maxLines: 1,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[a-zA-Z0-9\s]'),
+                      ),
+                    ],
+                    onChanged: _handleTagChanges,
+                    onSubmitted: (value) =>
+                        _handleTagChanges(value, isSubmitted: true),
                   ),
               ],
             ),
