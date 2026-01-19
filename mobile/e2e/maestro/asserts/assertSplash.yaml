@@ -2,7 +2,7 @@ appId: co.openvine.app
 ---
 - waitForAnimationToEnd # diVine logo may take some time to load
 
-# Splash is not displayed on Android. In order to contemplate this the optional flag is added:
+# Splash is not displayed on Android. In order to contemplate this the optional flag is added
 - assertVisible:
     text: diVine
     optional: true
