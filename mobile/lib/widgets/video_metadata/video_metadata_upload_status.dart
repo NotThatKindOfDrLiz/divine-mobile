@@ -226,6 +226,7 @@ class _VideoPublishStatusIcon extends StatelessWidget {
           color: VineTheme.vineGreen,
           size: 48,
         );
+      case .publishToNostr:
       case .uploading:
       case .retryUpload:
         return const SizedBox(
@@ -236,12 +237,7 @@ class _VideoPublishStatusIcon extends StatelessWidget {
             valueColor: AlwaysStoppedAnimation<Color>(VineTheme.vineGreen),
           ),
         );
-      case .publishToNostr:
-        return const Icon(
-          Icons.cloud_upload,
-          color: VineTheme.vineGreen,
-          size: 48,
-        );
+
       case .idle:
       case .initialize:
       case .preparing:
