@@ -565,6 +565,7 @@ class _ScrollStack extends ConsumerWidget {
   }
 }
 
+// TODO(@hm21): Improve reorder animation which feels wrong.
 class _ReorderingView extends ConsumerWidget {
   const _ReorderingView({
     required this.clips,
@@ -668,6 +669,7 @@ class _SwipeView extends ConsumerWidget {
           scale: scale,
           xOffset: xOffset,
           onTap: () async {
+            // TODO(@hm21): Ensure the full clip behind detect tap events.
             if (index != currentClipIndex) {
               if (!isEditing) {
                 await pageController.animateToPage(

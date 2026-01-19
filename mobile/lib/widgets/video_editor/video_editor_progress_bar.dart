@@ -117,7 +117,7 @@ class _VideoProgressBarState extends ConsumerState<VideoProgressBar>
     for (var i = 0; i < state.currentClipIndex && i < clips.length; i++) {
       clipStartOffset += clips[i].duration;
     }
-
+    // TODO(@hm21): Improve the progress animation, especially on Android, as it is not always smooth.
     return RepaintBoundary(
       child: Row(
         spacing: 3,
