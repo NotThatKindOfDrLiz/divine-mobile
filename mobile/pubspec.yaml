@@ -24,7 +24,9 @@ environment:
 
 workspace:
   - packages/comments_repository
+  - packages/divine_ui
   - packages/db_client
+  - packages/divine_camera
   - packages/keycast_flutter
   - packages/likes_repository
   - packages/models
@@ -33,6 +35,8 @@ workspace:
   - packages/nostr_gateway
   - packages/nostr_key_manager
   - packages/permissions_service
+  - packages/profile_repository
+  - packages/videos_repository
   
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -72,6 +76,8 @@ dependencies:
 
   # Camera and media
   camera: ^0.11.2
+  divine_camera:
+    path: packages/divine_camera
   camera_macos: ^0.0.9 # macOS camera support
   video_player: ^2.9.1 # Uses native AVPlayer (iOS/macOS) and ExoPlayer (Android)
   visibility_detector: ^0.4.0+2 # Detect widget visibility for proper video control
@@ -103,6 +109,7 @@ dependencies:
   google_fonts: ^6.3.2 # For using Google Fonts including Pacifico
   flutter_svg: ^2.0.10+1 # For custom SVG icons
   blurhash_dart: ^1.2.1 # Generate blurhash for progressive image loading
+  skeletonizer: ^2.1.2 # Skeleton loading animations with shimmer effect
 
   # Nostr SDK - Local package for comprehensive Nostr support
   nostr_sdk:
@@ -114,6 +121,10 @@ dependencies:
 
   keycast_flutter:
     path: packages/keycast_flutter
+
+  # Videos Repository - Video feed data layer
+  videos_repository:
+    path: packages/videos_repository
 
   # Logging
   logging: ^1.2.0
@@ -225,10 +236,12 @@ flutter:
     - assets/icon/search.svg
     - assets/icon/camera.svg
     - assets/icon/CaretLeft.svg
+    - assets/icon/delete.svg
     - assets/icon/house.svg
     - assets/icon/compass.svg
     - assets/icon/bell.svg
     - assets/icon/userCircle.svg
+    - assets/icon/arrow_bend_down_right.svg
     - assets/loading-brand.gif
     - assets/seed_data/seed_events.sql
     - assets/seed_media/manifest.json

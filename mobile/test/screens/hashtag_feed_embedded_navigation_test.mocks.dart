@@ -9,8 +9,8 @@ import 'dart:ui' as _i7;
 import 'package:likes_repository/likes_repository.dart' as _i10;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
+import 'package:models/models.dart' as _i3;
 import 'package:nostr_sdk/event.dart' as _i11;
-import 'package:openvine/models/video_event.dart' as _i3;
 import 'package:openvine/services/age_verification_service.dart' as _i9;
 import 'package:openvine/services/content_blocklist_service.dart' as _i8;
 import 'package:openvine/services/hashtag_service.dart' as _i2;
@@ -489,6 +489,29 @@ class MockVideoEventService extends _i1.Mock implements _i5.VideoEventService {
               #subscribeToHomeFeed,
               [followingPubkeys],
               {#limit: limit, #sortBy: sortBy, #force: force},
+            ),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  void seedHomeFeedFromDiscoveryCache(List<String>? followingPubkeys) =>
+      super.noSuchMethod(
+        Invocation.method(#seedHomeFeedFromDiscoveryCache, [followingPubkeys]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  _i4.Future<void> seedHomeFeedFromFollowedUsers(
+    List<String>? followingPubkeys, {
+    int? limit = 50,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #seedHomeFeedFromFollowedUsers,
+              [followingPubkeys],
+              {#limit: limit},
             ),
             returnValue: _i4.Future<void>.value(),
             returnValueForMissingStub: _i4.Future<void>.value(),

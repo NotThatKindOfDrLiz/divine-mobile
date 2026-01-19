@@ -1331,7 +1331,7 @@ final class Nip05ServiceProvider
   }
 }
 
-String _$nip05ServiceHash() => r'b7f7e1471a3783305bf1070cb64f1b95c4bdb516';
+String _$nip05ServiceHash() => r'1d27e1b137a09246fedc50586a7a28bcf37542b0';
 
 /// Username repository for availability checking and registration
 
@@ -1385,63 +1385,6 @@ final class UsernameRepositoryProvider
 
 String _$usernameRepositoryHash() =>
     r'd8dd9d65a89158d8f22672ae325b528e65164e14';
-
-/// Reserved username request repository for claiming reserved usernames
-
-@ProviderFor(reservedUsernameRequestRepository)
-const reservedUsernameRequestRepositoryProvider =
-    ReservedUsernameRequestRepositoryProvider._();
-
-/// Reserved username request repository for claiming reserved usernames
-
-final class ReservedUsernameRequestRepositoryProvider
-    extends
-        $FunctionalProvider<
-          ReservedUsernameRequestRepository,
-          ReservedUsernameRequestRepository,
-          ReservedUsernameRequestRepository
-        >
-    with $Provider<ReservedUsernameRequestRepository> {
-  /// Reserved username request repository for claiming reserved usernames
-  const ReservedUsernameRequestRepositoryProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'reservedUsernameRequestRepositoryProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() =>
-      _$reservedUsernameRequestRepositoryHash();
-
-  @$internal
-  @override
-  $ProviderElement<ReservedUsernameRequestRepository> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  ReservedUsernameRequestRepository create(Ref ref) {
-    return reservedUsernameRequestRepository(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(ReservedUsernameRequestRepository value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<ReservedUsernameRequestRepository>(
-        value,
-      ),
-    );
-  }
-}
-
-String _$reservedUsernameRequestRepositoryHash() =>
-    r'5c70d268d858f7509ce9cb6bfc297493efea65c2';
 
 /// Draft storage service for persisting vine drafts
 
@@ -2513,7 +2456,7 @@ final class CurationServiceProvider
   }
 }
 
-String _$curationServiceHash() => r'890fd0efd8c105c46fa828ae679b1c6ff58964a5';
+String _$curationServiceHash() => r'8eeffdbdad64deb0b10c3983346c3d3c83a1aa02';
 
 /// Content reporting service for NIP-56 compliance
 

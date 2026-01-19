@@ -4,7 +4,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:openvine/models/video_event.dart';
+import 'package:models/models.dart';
 import 'package:openvine/services/analytics_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,7 +23,11 @@ void main() {
         return http.Response('{"success": true}', 200);
       });
 
-      analyticsService = AnalyticsService(client: mockClient);
+      // Use backendReadyOverride: true to simulate a ready backend in tests
+      analyticsService = AnalyticsService(
+        client: mockClient,
+        backendReadyOverride: true,
+      );
       await analyticsService.initialize();
     });
 
