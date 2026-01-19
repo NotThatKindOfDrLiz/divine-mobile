@@ -35,7 +35,7 @@ class VideoRecorderTopBar extends ConsumerWidget {
                     children: [
                       // Close button
                       DivineIconButton(
-                        backgroundColor: const Color(0x0F000000),
+                        backgroundColor: Color(0x26000000),
                         // TODO(l10n): Replace with context.l10n when localization is added.
                         semanticLabel: 'Close video recorder',
                         iconPath: 'assets/icon/close.svg',
