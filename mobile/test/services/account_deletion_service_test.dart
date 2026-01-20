@@ -6,7 +6,6 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:nostr_sdk/client_utils/keys.dart';
 import 'package:nostr_sdk/event.dart';
-import 'package:nostr_sdk/filter.dart';
 import 'package:openvine/services/account_deletion_service.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:nostr_client/nostr_client.dart';

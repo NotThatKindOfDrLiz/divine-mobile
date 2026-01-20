@@ -10,24 +10,38 @@ import 'package:openvine/utils/unified_logger.dart';
 
 /// Result of account deletion operation
 class DeleteAccountResult {
-  const DeleteAccountResult({required this.success, this.error, this.deleteEventId, this.deletedEventsCount = 0});
+  const DeleteAccountResult({
+    required this.success,
+    this.error,
+    this.deleteEventId,
+    this.deletedEventsCount = 0,
+  });
 
   final bool success;
   final String? error;
   final String? deleteEventId;
   final int deletedEventsCount;
 
-  static DeleteAccountResult createSuccess(String deleteEventId, {int deletedEventsCount = 0}) =>
-      DeleteAccountResult(success: true, deleteEventId: deleteEventId, deletedEventsCount: deletedEventsCount);
+  static DeleteAccountResult createSuccess(
+    String deleteEventId, {
+    int deletedEventsCount = 0,
+  }) => DeleteAccountResult(
+    success: true,
+    deleteEventId: deleteEventId,
+    deletedEventsCount: deletedEventsCount,
+  );
 
-  static DeleteAccountResult failure(String error) => DeleteAccountResult(success: false, error: error);
+  static DeleteAccountResult failure(String error) =>
+      DeleteAccountResult(success: false, error: error);
 }
 
 /// Service for deleting user's entire Nostr account via NIP-62
 class AccountDeletionService {
-  AccountDeletionService({required NostrClient nostrService, required AuthService authService})
-    : _nostrService = nostrService,
-      _authService = authService;
+  AccountDeletionService({
+    required NostrClient nostrService,
+    required AuthService authService,
+  }) : _nostrService = nostrService,
+       _authService = authService;
 
   final NostrClient _nostrService;
   final AuthService _authService;
@@ -35,7 +49,10 @@ class AccountDeletionService {
   /// Delete user's account using NIP-62 Request to Vanish
   /// First fetches all user events and publishes kind 5 deletion requests for each
   /// Then publishes kind 62 account deletion request
-  Future<DeleteAccountResult> deleteAccount({String? customReason, void Function(int current, int total)? onProgress}) async {
+  Future<DeleteAccountResult> deleteAccount({
+    String? customReason,
+    void Function(int current, int total)? onProgress,
+  }) async {
     try {
       if (!_authService.isAuthenticated) {
         return DeleteAccountResult.failure('Not authenticated');
@@ -46,19 +63,36 @@ class AccountDeletionService {
         return DeleteAccountResult.failure('No pubkey available');
       }
 
-      final reason = customReason ?? 'User requested account deletion via diVine app';
+      final reason =
+          customReason ?? 'User requested account deletion via diVine app';
 
-      Log.info('Starting account deletion for pubkey: $pubkey', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.info(
+        'Starting account deletion for pubkey: $pubkey',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
 
       final allUserEvents = await _fetchAllUserEvents(pubkey);
 
-      Log.info('Found ${allUserEvents.length} events to delete', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.info(
+        'Found ${allUserEvents.length} events to delete',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
 
       int deletedCount = 0;
       if (allUserEvents.isNotEmpty) {
-        deletedCount = await _publishDeletionEventsForAll(allUserEvents, reason, onProgress: onProgress);
+        deletedCount = await _publishDeletionEventsForAll(
+          allUserEvents,
+          reason,
+          onProgress: onProgress,
+        );
 
-        Log.info('Published $deletedCount NIP-09 deletion requests', name: 'AccountDeletionService', category: LogCategory.system);
+        Log.info(
+          'Published $deletedCount NIP-09 deletion requests',
+          name: 'AccountDeletionService',
+          category: LogCategory.system,
+        );
       }
 
       final event = await createNip62Event(reason: reason);
@@ -70,15 +104,32 @@ class AccountDeletionService {
       final sentEvent = await _nostrService.publishEvent(event);
 
       if (sentEvent == null) {
-        Log.error('Failed to publish NIP-62 deletion request to any relay', name: 'AccountDeletionService', category: LogCategory.system);
-        return DeleteAccountResult.failure('Failed to publish deletion request to relays');
+        Log.error(
+          'Failed to publish NIP-62 deletion request to any relay',
+          name: 'AccountDeletionService',
+          category: LogCategory.system,
+        );
+        return DeleteAccountResult.failure(
+          'Failed to publish deletion request to relays',
+        );
       }
 
-      Log.info('NIP-62 deletion request published to relays', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.info(
+        'NIP-62 deletion request published to relays',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
 
-      return DeleteAccountResult.createSuccess(event.id, deletedEventsCount: deletedCount);
+      return DeleteAccountResult.createSuccess(
+        event.id,
+        deletedEventsCount: deletedCount,
+      );
     } catch (e) {
-      Log.error('Account deletion failed: $e', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.error(
+        'Account deletion failed: $e',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
       return DeleteAccountResult.failure('Account deletion failed: $e');
     }
   }
@@ -93,16 +144,28 @@ class AccountDeletionService {
 
       allEvents.addAll(events);
 
-      Log.debug('Fetched ${events.length} events for user $pubkey', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.debug(
+        'Fetched ${events.length} events for user $pubkey',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
     } catch (e) {
-      Log.error('Failed to fetch user events: $e', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.error(
+        'Failed to fetch user events: $e',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
     }
 
     return allEvents;
   }
 
   /// Publish NIP-09 kind 5 deletion events for all user events
-  Future<int> _publishDeletionEventsForAll(List<Event> events, String reason, {void Function(int current, int total)? onProgress}) async {
+  Future<int> _publishDeletionEventsForAll(
+    List<Event> events,
+    String reason, {
+    void Function(int current, int total)? onProgress,
+  }) async {
     int successCount = 0;
     final total = events.length;
 
@@ -115,7 +178,11 @@ class AccountDeletionService {
       final kind = entry.key;
       final kindEvents = entry.value;
 
-      final deleteEvent = await _createBatchDeleteEvent(events: kindEvents, kind: kind, reason: reason);
+      final deleteEvent = await _createBatchDeleteEvent(
+        events: kindEvents,
+        kind: kind,
+        reason: reason,
+      );
 
       if (deleteEvent != null) {
         final sentEvent = await _nostrService.publishEvent(deleteEvent);
@@ -136,7 +203,11 @@ class AccountDeletionService {
   }
 
   /// Create NIP-09 kind 5 deletion event for multiple events of the same kind
-  Future<Event?> _createBatchDeleteEvent({required List<Event> events, required int kind, required String reason}) async {
+  Future<Event?> _createBatchDeleteEvent({
+    required List<Event> events,
+    required int kind,
+    required String reason,
+  }) async {
     try {
       if (!_authService.isAuthenticated) {
         return null;
@@ -150,11 +221,19 @@ class AccountDeletionService {
 
       tags.add(['k', kind.toString()]);
 
-      final signedEvent = await _authService.createAndSignEvent(kind: 5, content: reason, tags: tags);
+      final signedEvent = await _authService.createAndSignEvent(
+        kind: 5,
+        content: reason,
+        tags: tags,
+      );
 
       return signedEvent;
     } catch (e) {
-      Log.error('Failed to create batch delete event: $e', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.error(
+        'Failed to create batch delete event: $e',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
       return null;
     }
   }
@@ -163,13 +242,21 @@ class AccountDeletionService {
   Future<Event?> createNip62Event({required String reason}) async {
     try {
       if (!_authService.isAuthenticated) {
-        Log.error('Cannot create NIP-62 event: not authenticated', name: 'AccountDeletionService', category: LogCategory.system);
+        Log.error(
+          'Cannot create NIP-62 event: not authenticated',
+          name: 'AccountDeletionService',
+          category: LogCategory.system,
+        );
         return null;
       }
 
       final pubkey = _authService.currentPublicKeyHex;
       if (pubkey == null || pubkey.isEmpty) {
-        Log.error('Cannot create NIP-62 event: no pubkey available', name: 'AccountDeletionService', category: LogCategory.system);
+        Log.error(
+          'Cannot create NIP-62 event: no pubkey available',
+          name: 'AccountDeletionService',
+          category: LogCategory.system,
+        );
         return null;
       }
 
@@ -192,11 +279,19 @@ class AccountDeletionService {
       );
 
       if (signedEvent == null) {
-        Log.error('Failed to create and sign NIP-62 event', name: 'AccountDeletionService', category: LogCategory.system);
+        Log.error(
+          'Failed to create and sign NIP-62 event',
+          name: 'AccountDeletionService',
+          category: LogCategory.system,
+        );
         return null;
       }
 
-      Log.info('Created NIP-62 deletion event (kind 62): ${signedEvent.id}', name: 'AccountDeletionService', category: LogCategory.system);
+      Log.info(
+        'Created NIP-62 deletion event (kind 62): ${signedEvent.id}',
+        name: 'AccountDeletionService',
+        category: LogCategory.system,
+      );
 
       return signedEvent;
     } catch (e, stackTrace) {
