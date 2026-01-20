@@ -482,9 +482,7 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     );
 
     try {
-      for (final clip in _clips) {
-        await saveClipToLibrary(clip);
-      }
+      await Future.wait(_clips.map(saveClipToLibrary));
 
       Log.info(
         '💾 Successfully saved clips to library',
