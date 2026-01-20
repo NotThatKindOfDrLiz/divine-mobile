@@ -6,7 +6,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:divine_ui/divine_ui.dart';
-import 'package:openvine/widgets/divine_text_field.dart';
 
 /// Input widget for adding and managing hashtags for video metadata.
 ///
@@ -162,7 +161,7 @@ class _VideoMetadataTagsInputState
                     controller: _controller,
                     focusNode: _focusNode,
                     // TODO(l10n): Replace with context.l10n when localization is added.
-                    label: tags.isEmpty ? 'Tags' : null,
+                    labelText: tags.isEmpty ? 'Tags' : null,
                     contentPadding: .zero,
                     textCapitalization: .none,
                     textInputAction: .done,

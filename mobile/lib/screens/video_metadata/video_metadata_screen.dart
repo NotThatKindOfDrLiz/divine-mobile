@@ -10,7 +10,6 @@ import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/widgets/divine_text_field.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_clip_preview.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_expiration_selector.dart';
@@ -185,7 +184,8 @@ class _FormData extends ConsumerWidget {
         // Title input field
         DivineTextField(
           controller: titleController,
-          label: 'Title',
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          labelText: 'Title',
           focusNode: titleFocusNode,
           textInputAction: .next,
           minLines: 1,
@@ -200,7 +200,8 @@ class _FormData extends ConsumerWidget {
         // Description input field
         DivineTextField(
           controller: descriptionController,
-          label: 'Description',
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          labelText: 'Description',
           focusNode: descriptionFocusNode,
           keyboardType: .multiline,
           textInputAction: .newline,
@@ -253,6 +254,7 @@ class _MetadataLimitWarning extends ConsumerWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
+              // TODO(l10n): Replace with context.l10n when localization is added.
               '64KB limit reached. Remove some content to continue.',
               style: VineTheme.bodyFont(
                 color: const Color(0xFFFFB84D),
