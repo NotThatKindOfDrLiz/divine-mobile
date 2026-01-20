@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
+import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
@@ -70,11 +71,6 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   Future<void> _loadClips() async {
     try {
       final clipService = ref.read(clipLibraryServiceProvider);
@@ -98,7 +94,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   Duration get _remainingDuration {
     final remainingDuration = widget.selectionMode
         ? ref.watch(clipManagerProvider.select((s) => s.remainingDuration))
-        : const Duration(milliseconds: 6300);
+        : VideoEditorConstants.maxDuration;
     return remainingDuration - _selectedDuration;
   }
 

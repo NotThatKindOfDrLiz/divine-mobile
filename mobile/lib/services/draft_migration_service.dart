@@ -1,6 +1,7 @@
 // ABOUTME: One-time migration service to convert VineDrafts to SavedClips
 // ABOUTME: Preserves video files, creates clips with migrated session IDs
 
+import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/platform_io.dart';
@@ -104,9 +105,7 @@ class DraftMigrationService {
           id: 'clip_migrated_${draft.id}',
           filePath: videoPath,
           thumbnailPath: thumbnailPath,
-          duration:
-              clipDuration ??
-              const Duration(seconds: 6), // Assume max duration for legacy
+          duration: clipDuration ?? VideoEditorConstants.maxDuration,
           createdAt: draft.createdAt,
           aspectRatio: draftClip.aspectRatio.name,
           sessionId: 'migrated_${draft.id}',
