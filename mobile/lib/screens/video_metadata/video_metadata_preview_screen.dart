@@ -77,8 +77,9 @@ class _VideoMetadataPreviewScreenState
     if (mounted) await _controller!.play();
 
     if (mounted) {
-      _isInitialized = true;
-      setState(() {});
+      setState(() {
+        _isInitialized = true;
+      });
     }
   }
 

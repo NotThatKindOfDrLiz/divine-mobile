@@ -45,8 +45,9 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
           .initialize(draftId: widget.draftId);
       if (!mounted) return;
 
-      _isLoadingDraft = false;
-      setState(() {});
+      setState(() {
+        _isLoadingDraft = false;
+      });
     });
   }
 
