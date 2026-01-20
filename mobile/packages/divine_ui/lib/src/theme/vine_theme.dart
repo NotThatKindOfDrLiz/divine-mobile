@@ -54,6 +54,9 @@ class VineTheme {
 
   // Navigation colors
 
+  /// Primary color.
+  static const Color primary = Color(0xFF27C58B);
+
   /// Navigation bar green background.
   static const Color navGreen = Color(0xFF00150D);
 
@@ -77,6 +80,9 @@ class VineTheme {
   /// Primary content color on surfaces (95% white).
   static const Color onSurface = Color(0xF2FFFFFF);
 
+  /// Variant content color on surfaces (75% white).
+  static const Color onSurfaceVariant = Color(0xBFFFFFFF);
+
   /// Muted content color on surfaces (50% white).
   static const Color onSurfaceMuted = Color(0x80FFFFFF);
 
@@ -94,6 +100,9 @@ class VineTheme {
 
   /// Low-emphasis container background.
   static const Color containerLow = Color(0xFF0E2B21);
+
+  /// Surface container background (for selected items, cards on surfaces).
+  static const Color surfaceContainer = Color(0xFF032017);
 
   /// Tab text style using Bricolage Grotesque bold.
   static TextStyle tabTextStyle({Color color = whiteText}) =>
@@ -188,6 +197,11 @@ class VineTheme {
         fontSize: 12,
         fontWeight: FontWeight.w400,
       ),
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: primary,
+      selectionColor: primary.withAlpha(80),
+      selectionHandleColor: primary,
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
