@@ -63,8 +63,9 @@ class _DivineTextFieldState extends State<DivineTextField> {
   }
 
   void _onFocusChange() {
-    _isFocused = _focusNode.hasFocus;
-    setState(() {});
+    setState(() {
+      _isFocused = _focusNode.hasFocus;
+    });
   }
 
   @override
