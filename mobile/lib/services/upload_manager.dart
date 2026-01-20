@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, ValueChanged;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
+import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/pending_upload.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/services/circuit_breaker_service.dart';
@@ -304,7 +305,7 @@ class UploadManager {
           videoSegments: draft.clips
               .map((clip) => VideoSegment(video: clip.video))
               .toList(),
-          endTime: Duration(milliseconds: 6_300),
+          endTime: VideoEditorConstants.maxDuration,
         ),
       );
     }
