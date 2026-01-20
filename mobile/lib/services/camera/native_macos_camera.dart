@@ -9,6 +9,9 @@ import 'package:openvine/utils/unified_logger.dart';
 class NativeMacOSCamera {
   static const MethodChannel _channel = MethodChannel('openvine/native_camera');
 
+  /// Error code thrown when camera permission is denied.
+  static const String permissionDeniedCode = 'PERMISSION_DENIED';
+
   /// Request permission to access camera
   ///
   /// Returns true if permission is granted, false otherwise.
@@ -29,7 +32,7 @@ class NativeMacOSCamera {
       );
       return result ?? false;
     } on PlatformException catch (e) {
-      if (e.code == 'PERMISSION_DENIED') {
+      if (e.code == permissionDeniedCode) {
         Log.warning(
           'Camera permission denied: ${e.message}',
           name: 'NativeMacosCamera',
