@@ -210,8 +210,6 @@ class NostrRemoteSigner extends NostrSigner {
     }
 
     if (sendConnectRequest) {
-      // Small delay to ensure subscription is fully established
-      await Future.delayed(const Duration(milliseconds: 200));
       log(
         '[NIP46] connect: relays status after delay: ${relays.map((r) => "${r.relayStatus.addr}=${r.relayStatus.connected}").join(", ")}',
       );
@@ -256,29 +254,6 @@ class NostrRemoteSigner extends NostrSigner {
             event.pubkey,
           );
           if (response != null) {
-            // Handle nostrconnect:// flow - bunker sends connect response
-            // In this flow, we're waiting for the bunker to initiate connection
-            if (_nostrConnectResponseCompleter != null &&
-                !_nostrConnectResponseCompleter!.isCompleted) {
-              // This is a connect response from bunker for nostrconnect flow
-              // The response.result contains the secret, event.pubkey is the
-              // remoteSignerPubkey
-              log(
-                '[NIP46] onMessage: nostrconnect response received from '
-                '${event.pubkey}, result=${response.result}',
-              );
-
-              // The bunker's connect response has result=secret (or "ack")
-              final secret = response.result;
-              _nostrConnectResponseCompleter!.complete(
-                _ConnectResponseData(
-                  remoteSignerPubkey: event.pubkey,
-                  secret: secret,
-                ),
-              );
-              return;
-            }
-
             // Check for auth_url challenge - this means user needs to approve
             if (response.result == 'auth_url' && response.error != null) {
               log(
@@ -367,9 +342,6 @@ class NostrRemoteSigner extends NostrSigner {
     }
 
     try {
-      // Small delay before reconnecting to avoid rapid reconnection loops
-      await Future.delayed(const Duration(milliseconds: 200));
-
       // Check if still disconnected (might have reconnected via another path)
       if (relay.relayStatus.connected == ClientConnected.connected) {
         log(

@@ -79,7 +79,8 @@ class NostrService extends _$NostrService {
 
     if (currentPubkey != _lastPubkey) {
       Log.info(
-        '[NostrService] Public key changed from $_lastPubkey to $currentPubkey, recreating NostrClient',
+        '[NostrService] Public key changed from $_lastPubkey to $currentPubkey, '
+        'recreating NostrClient',
         name: 'NostrService',
         category: LogCategory.system,
       );

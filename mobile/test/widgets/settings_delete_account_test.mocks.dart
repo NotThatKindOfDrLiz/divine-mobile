@@ -3,14 +3,15 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i4;
+import 'dart:async' as _i5;
 
-import 'package:keycast_flutter/keycast_flutter.dart' as _i7;
+import 'package:keycast_flutter/keycast_flutter.dart' as _i8;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:nostr_sdk/event.dart' as _i5;
+import 'package:nostr_sdk/event.dart' as _i6;
+import 'package:nostr_sdk/nostr_sdk.dart' as _i4;
 import 'package:openvine/services/account_deletion_service.dart' as _i2;
 import 'package:openvine/services/auth_service.dart' as _i3;
-import 'package:openvine/services/user_profile_service.dart' as _i6;
+import 'package:openvine/services/user_profile_service.dart' as _i7;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -38,6 +39,12 @@ class _FakeAuthResult_1 extends _i1.SmartFake implements _i3.AuthResult {
     : super(parent, parentInvocation);
 }
 
+class _FakeNostrConnectInfo_2 extends _i1.SmartFake
+    implements _i4.NostrConnectInfo {
+  _FakeNostrConnectInfo_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [AccountDeletionService].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -48,29 +55,34 @@ class MockAccountDeletionService extends _i1.Mock
   }
 
   @override
-  _i4.Future<_i2.DeleteAccountResult> deleteAccount({String? customReason}) =>
+  _i5.Future<_i2.DeleteAccountResult> deleteAccount({
+    String? customReason,
+    void Function(int, int)? onProgress,
+  }) =>
       (super.noSuchMethod(
             Invocation.method(#deleteAccount, [], {
               #customReason: customReason,
+              #onProgress: onProgress,
             }),
-            returnValue: _i4.Future<_i2.DeleteAccountResult>.value(
+            returnValue: _i5.Future<_i2.DeleteAccountResult>.value(
               _FakeDeleteAccountResult_0(
                 this,
                 Invocation.method(#deleteAccount, [], {
                   #customReason: customReason,
+                  #onProgress: onProgress,
                 }),
               ),
             ),
           )
-          as _i4.Future<_i2.DeleteAccountResult>);
+          as _i5.Future<_i2.DeleteAccountResult>);
 
   @override
-  _i4.Future<_i5.Event?> createNip62Event({required String? reason}) =>
+  _i5.Future<_i6.Event?> createNip62Event({required String? reason}) =>
       (super.noSuchMethod(
             Invocation.method(#createNip62Event, [], {#reason: reason}),
-            returnValue: _i4.Future<_i5.Event?>.value(),
+            returnValue: _i5.Future<_i6.Event?>.value(),
           )
-          as _i4.Future<_i5.Event?>);
+          as _i5.Future<_i6.Event?>);
 }
 
 /// A class which mocks [AuthService].
@@ -90,20 +102,20 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
           as _i3.AuthState);
 
   @override
-  _i4.Stream<_i3.AuthState> get authStateStream =>
+  _i5.Stream<_i3.AuthState> get authStateStream =>
       (super.noSuchMethod(
             Invocation.getter(#authStateStream),
-            returnValue: _i4.Stream<_i3.AuthState>.empty(),
+            returnValue: _i5.Stream<_i3.AuthState>.empty(),
           )
-          as _i4.Stream<_i3.AuthState>);
+          as _i5.Stream<_i3.AuthState>);
 
   @override
-  _i4.Stream<_i3.UserProfile?> get profileStream =>
+  _i5.Stream<_i3.UserProfile?> get profileStream =>
       (super.noSuchMethod(
             Invocation.getter(#profileStream),
-            returnValue: _i4.Stream<_i3.UserProfile?>.empty(),
+            returnValue: _i5.Stream<_i3.UserProfile?>.empty(),
           )
-          as _i4.Stream<_i3.UserProfile?>);
+          as _i5.Stream<_i3.UserProfile?>);
 
   @override
   bool get isAuthenticated =>
@@ -140,21 +152,21 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
           as Map<String, dynamic>);
 
   @override
-  _i4.Future<void> initialize() =>
+  _i5.Future<void> initialize() =>
       (super.noSuchMethod(
             Invocation.method(#initialize, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<_i3.AuthResult> createNewIdentity({String? biometricPrompt}) =>
+  _i5.Future<_i3.AuthResult> createNewIdentity({String? biometricPrompt}) =>
       (super.noSuchMethod(
             Invocation.method(#createNewIdentity, [], {
               #biometricPrompt: biometricPrompt,
             }),
-            returnValue: _i4.Future<_i3.AuthResult>.value(
+            returnValue: _i5.Future<_i3.AuthResult>.value(
               _FakeAuthResult_1(
                 this,
                 Invocation.method(#createNewIdentity, [], {
@@ -163,10 +175,10 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
               ),
             ),
           )
-          as _i4.Future<_i3.AuthResult>);
+          as _i5.Future<_i3.AuthResult>);
 
   @override
-  _i4.Future<_i3.AuthResult> importFromNsec(
+  _i5.Future<_i3.AuthResult> importFromNsec(
     String? nsec, {
     String? biometricPrompt,
   }) =>
@@ -176,7 +188,7 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
               [nsec],
               {#biometricPrompt: biometricPrompt},
             ),
-            returnValue: _i4.Future<_i3.AuthResult>.value(
+            returnValue: _i5.Future<_i3.AuthResult>.value(
               _FakeAuthResult_1(
                 this,
                 Invocation.method(
@@ -187,10 +199,10 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
               ),
             ),
           )
-          as _i4.Future<_i3.AuthResult>);
+          as _i5.Future<_i3.AuthResult>);
 
   @override
-  _i4.Future<_i3.AuthResult> importFromHex(
+  _i5.Future<_i3.AuthResult> importFromHex(
     String? privateKeyHex, {
     String? biometricPrompt,
   }) =>
@@ -200,7 +212,7 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
               [privateKeyHex],
               {#biometricPrompt: biometricPrompt},
             ),
-            returnValue: _i4.Future<_i3.AuthResult>.value(
+            returnValue: _i5.Future<_i3.AuthResult>.value(
               _FakeAuthResult_1(
                 this,
                 Invocation.method(
@@ -211,81 +223,131 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
               ),
             ),
           )
-          as _i4.Future<_i3.AuthResult>);
+          as _i5.Future<_i3.AuthResult>);
 
   @override
-  _i4.Future<_i3.AuthResult> connectWithBunker(String? bunkerUrl) =>
+  _i5.Future<_i3.AuthResult> connectWithBunker(String? bunkerUrl) =>
       (super.noSuchMethod(
             Invocation.method(#connectWithBunker, [bunkerUrl]),
-            returnValue: _i4.Future<_i3.AuthResult>.value(
+            returnValue: _i5.Future<_i3.AuthResult>.value(
               _FakeAuthResult_1(
                 this,
                 Invocation.method(#connectWithBunker, [bunkerUrl]),
               ),
             ),
           )
-          as _i4.Future<_i3.AuthResult>);
+          as _i5.Future<_i3.AuthResult>);
 
   @override
-  _i4.Future<void> refreshCurrentProfile(
-    _i6.UserProfileService? userProfileService,
+  _i5.Future<_i4.NostrConnectInfo> startNostrConnectSession({
+    List<String>? relays,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#startNostrConnectSession, [], {#relays: relays}),
+            returnValue: _i5.Future<_i4.NostrConnectInfo>.value(
+              _FakeNostrConnectInfo_2(
+                this,
+                Invocation.method(#startNostrConnectSession, [], {
+                  #relays: relays,
+                }),
+              ),
+            ),
+          )
+          as _i5.Future<_i4.NostrConnectInfo>);
+
+  @override
+  _i5.Future<_i3.AuthResult> waitForNostrConnectApproval({
+    Duration? timeout = const Duration(seconds: 120),
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#waitForNostrConnectApproval, [], {
+              #timeout: timeout,
+            }),
+            returnValue: _i5.Future<_i3.AuthResult>.value(
+              _FakeAuthResult_1(
+                this,
+                Invocation.method(#waitForNostrConnectApproval, [], {
+                  #timeout: timeout,
+                }),
+              ),
+            ),
+          )
+          as _i5.Future<_i3.AuthResult>);
+
+  @override
+  void cancelNostrConnectSession() => super.noSuchMethod(
+    Invocation.method(#cancelNostrConnectSession, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  _i5.Future<void> refreshCurrentProfile(
+    _i7.UserProfileService? userProfileService,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#refreshCurrentProfile, [userProfileService]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> signInAutomatically() =>
+  _i5.Future<void> signInAutomatically() =>
       (super.noSuchMethod(
             Invocation.method(#signInAutomatically, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> signInWithDivineOAuth(_i7.KeycastSession? session) =>
+  _i5.Future<void> signInWithDivineOAuth(_i8.KeycastSession? session) =>
       (super.noSuchMethod(
             Invocation.method(#signInWithDivineOAuth, [session]),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<void> signOut({bool? deleteKeys = false}) =>
+  _i5.Future<(bool, String?)> deleteKeycastAccount() =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteKeycastAccount, []),
+            returnValue: _i5.Future<(bool, String?)>.value((false, null)),
+          )
+          as _i5.Future<(bool, String?)>);
+
+  @override
+  _i5.Future<void> signOut({bool? deleteKeys = false}) =>
       (super.noSuchMethod(
             Invocation.method(#signOut, [], {#deleteKeys: deleteKeys}),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 
   @override
-  _i4.Future<String?> getPrivateKeyForSigning({String? biometricPrompt}) =>
+  _i5.Future<String?> getPrivateKeyForSigning({String? biometricPrompt}) =>
       (super.noSuchMethod(
             Invocation.method(#getPrivateKeyForSigning, [], {
               #biometricPrompt: biometricPrompt,
             }),
-            returnValue: _i4.Future<String?>.value(),
+            returnValue: _i5.Future<String?>.value(),
           )
-          as _i4.Future<String?>);
+          as _i5.Future<String?>);
 
   @override
-  _i4.Future<String?> exportNsec({String? biometricPrompt}) =>
+  _i5.Future<String?> exportNsec({String? biometricPrompt}) =>
       (super.noSuchMethod(
             Invocation.method(#exportNsec, [], {
               #biometricPrompt: biometricPrompt,
             }),
-            returnValue: _i4.Future<String?>.value(),
+            returnValue: _i5.Future<String?>.value(),
           )
-          as _i4.Future<String?>);
+          as _i5.Future<String?>);
 
   @override
-  _i4.Future<_i5.Event?> createAndSignEvent({
+  _i5.Future<_i6.Event?> createAndSignEvent({
     required int? kind,
     required String? content,
     List<List<String>>? tags,
@@ -298,16 +360,16 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
               #tags: tags,
               #biometricPrompt: biometricPrompt,
             }),
-            returnValue: _i4.Future<_i5.Event?>.value(),
+            returnValue: _i5.Future<_i6.Event?>.value(),
           )
-          as _i4.Future<_i5.Event?>);
+          as _i5.Future<_i6.Event?>);
 
   @override
-  _i4.Future<void> dispose() =>
+  _i5.Future<void> dispose() =>
       (super.noSuchMethod(
             Invocation.method(#dispose, []),
-            returnValue: _i4.Future<void>.value(),
-            returnValueForMissingStub: _i4.Future<void>.value(),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
           )
-          as _i4.Future<void>);
+          as _i5.Future<void>);
 }

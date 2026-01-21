@@ -9,11 +9,11 @@ import 'dart:ui' as _i6;
 import 'package:likes_repository/likes_repository.dart' as _i9;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i5;
+import 'package:models/models.dart' as _i4;
 import 'package:nostr_client/nostr_client.dart' as _i2;
 import 'package:nostr_sdk/event.dart' as _i10;
 import 'package:nostr_sdk/filter.dart' as _i13;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i14;
-import 'package:openvine/models/video_event.dart' as _i4;
 import 'package:openvine/repositories/follow_repository.dart' as _i15;
 import 'package:openvine/services/age_verification_service.dart' as _i8;
 import 'package:openvine/services/content_blocklist_service.dart' as _i7;
@@ -406,6 +406,29 @@ class MockVideoEventService extends _i1.Mock implements _i3.VideoEventService {
               #subscribeToHomeFeed,
               [followingPubkeys],
               {#limit: limit, #sortBy: sortBy, #force: force},
+            ),
+            returnValue: _i11.Future<void>.value(),
+            returnValueForMissingStub: _i11.Future<void>.value(),
+          )
+          as _i11.Future<void>);
+
+  @override
+  void seedHomeFeedFromDiscoveryCache(List<String>? followingPubkeys) =>
+      super.noSuchMethod(
+        Invocation.method(#seedHomeFeedFromDiscoveryCache, [followingPubkeys]),
+        returnValueForMissingStub: null,
+      );
+
+  @override
+  _i11.Future<void> seedHomeFeedFromFollowedUsers(
+    List<String>? followingPubkeys, {
+    int? limit = 50,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #seedHomeFeedFromFollowedUsers,
+              [followingPubkeys],
+              {#limit: limit},
             ),
             returnValue: _i11.Future<void>.value(),
             returnValueForMissingStub: _i11.Future<void>.value(),
@@ -1135,6 +1158,18 @@ class MockNostrClient extends _i1.Mock implements _i2.NostrClient {
                 #targetRelays: targetRelays,
               },
             ),
+            returnValue: _i11.Future<_i10.Event?>.value(),
+          )
+          as _i11.Future<_i10.Event?>);
+
+  @override
+  _i11.Future<_i10.Event?> sendProfile({
+    required Map<String, dynamic>? profileContent,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sendProfile, [], {
+              #profileContent: profileContent,
+            }),
             returnValue: _i11.Future<_i10.Event?>.value(),
           )
           as _i11.Future<_i10.Event?>);

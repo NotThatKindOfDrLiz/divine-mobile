@@ -1,5 +1,8 @@
 // ABOUTME: Unified settings hub providing access to all app configuration
-// ABOUTME: Central entry point for profile, relay, media server, and notification settings
+// ABOUTME: Central entry point for profile, relay, media server, and
+// notification settings
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,10 +12,19 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/developer_mode_tap_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
+import 'package:openvine/screens/auth/secure_account_screen.dart';
+import 'package:openvine/screens/blossom_settings_screen.dart';
+import 'package:openvine/screens/developer_options_screen.dart';
+import 'package:openvine/screens/key_management_screen.dart';
+import 'package:openvine/screens/notification_settings_screen.dart';
+import 'package:openvine/screens/profile_setup_screen.dart';
+import 'package:openvine/screens/relay_diagnostic_screen.dart';
+import 'package:openvine/screens/relay_settings_screen.dart';
+import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/zendesk_support_service.dart';
-import 'package:openvine/theme/vine_theme.dart';
+import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/bug_report_dialog.dart';
@@ -22,6 +34,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
+  /// Route name for this screen.
+  static const routeName = 'settings';
+
+  /// Path for this route.
+  static const path = '/settings';
+
   const SettingsScreen({super.key});
 
   @override
@@ -36,7 +54,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAppVersion();
+    unawaited(_loadAppVersion());
     // Mark settings as open to pause video playback
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _overlayNotifier = ref.read(overlayVisibilityProvider.notifier);
@@ -99,7 +117,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          onPressed: () => context.pop(),
+          onPressed: context.pop,
           tooltip: 'Back',
         ),
         title: Text('Settings', style: VineTheme.titleFont()),
@@ -119,7 +137,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: Icons.person,
                   title: 'Edit Profile',
                   subtitle: 'Update your display name, bio, and avatar',
-                  onTap: () => context.push('/edit-profile'),
+                  onTap: () => context.push(ProfileSetupScreen.editPath),
                 ),
               ],
 
@@ -130,14 +148,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.notifications,
                 title: 'Notifications',
                 subtitle: 'Manage notification preferences',
-                onTap: () => context.push('/notification-settings'),
+                onTap: () => context.push(NotificationSettingsScreen.path),
               ),
               _buildSettingsTile(
                 context,
                 icon: Icons.shield,
                 title: 'Safety & Privacy',
                 subtitle: 'Blocked users, muted content, and report history',
-                onTap: () => context.push('/safety-settings'),
+                onTap: () => context.push(SafetySettingsScreen.path),
               ),
               _buildAudioSharingToggle(),
 
@@ -148,28 +166,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.hub,
                 title: 'Relays',
                 subtitle: 'Manage Nostr relay connections',
-                onTap: () => context.push('/relay-settings'),
+                onTap: () => context.push(RelaySettingsScreen.path),
               ),
               _buildSettingsTile(
                 context,
                 icon: Icons.troubleshoot,
                 title: 'Relay Diagnostics',
                 subtitle: 'Debug relay connectivity and network issues',
-                onTap: () => context.push('/relay-diagnostic'),
+                onTap: () => context.push(RelayDiagnosticScreen.path),
               ),
               _buildSettingsTile(
                 context,
                 icon: Icons.cloud_upload,
                 title: 'Media Servers',
                 subtitle: 'Configure Blossom upload servers',
-                onTap: () => context.push('/blossom-settings'),
+                onTap: () => context.push(BlossomSettingsScreen.path),
               ),
               _buildSettingsTile(
                 context,
                 icon: Icons.developer_mode,
                 title: 'Developer Options',
                 subtitle: 'Environment switcher and debug settings',
-                onTap: () => context.push('/developer-options'),
+                onTap: () => context.push(DeveloperOptionsScreen.path),
                 iconColor: Colors.orange,
               ),
 
@@ -202,12 +220,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
                     if (!success && context.mounted) {
                       // Zendesk failed, show fallback options
-                      _showSupportFallback(context, ref, authService);
+                      await _showSupportFallback(context, ref, authService);
                     }
                   } else {
                     // Zendesk not available, show fallback options
                     if (context.mounted) {
-                      _showSupportFallback(context, ref, authService);
+                      await _showSupportFallback(context, ref, authService);
                     }
                   }
                 },
@@ -257,7 +275,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     title: 'Secure Your Account',
                     subtitle:
                         'Add email & password to recover your account on any device',
-                    onTap: () => context.push('/secure-account'),
+                    onTap: () => context.push(SecureAccountScreen.path),
                     iconColor: VineTheme.vineGreen,
                   ),
                 _buildSettingsTile(
@@ -273,14 +291,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   icon: Icons.key,
                   title: 'Key Management',
                   subtitle: 'Export, backup, and restore your Nostr keys',
-                  onTap: () => context.push('/key-management'),
+                  onTap: () => context.push(KeyManagementScreen.path),
                 ),
                 _buildSettingsTile(
                   context,
                   icon: Icons.key_off,
                   title: 'Remove Keys from Device',
                   subtitle:
-                      'Delete your private key from this device only. Your content stays on relays, but you\'ll need your nsec backup to access your account again.',
+                      'Delete your private key from this device only. '
+                      'Your content stays on relays, but you\'ll need your '
+                      'nsec backup to access your account again.',
                   onTap: () => _handleRemoveKeys(context, ref),
                   iconColor: Colors.orange,
                   titleColor: Colors.orange,
@@ -411,7 +431,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ref.read(developerModeTapCounterProvider.notifier).tap();
 
         Log.debug(
-          '👨‍💻 Dev mode count: ${newCount}',
+          '👨‍💻 Dev mode count: $newCount',
           name: 'SettingsScreen',
           category: LogCategory.ui,
         );
@@ -476,11 +496,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+              onPressed: () => context.pop(false),
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
+              onPressed: () => context.pop(true),
               child: const Text(
                 'Log Out Anyway',
                 style: TextStyle(color: Colors.red),
@@ -510,14 +530,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => context.pop(false),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () {
               final authService = ref.read(authServiceProvider);
               authService.signOut();
-              Navigator.of(context).pop(true);
+              context.pop(true);
             },
             child: const Text(
               'Log Out',
@@ -545,11 +565,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       onConfirm: () async {
         // Show loading indicator
         if (!context.mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(color: VineTheme.vineGreen),
+        unawaited(
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Center(
+              child: CircularProgressIndicator(color: VineTheme.vineGreen),
+            ),
           ),
         );
 
@@ -557,16 +579,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           // Sign out and delete keys (no relay broadcast)
           await authService.signOut(deleteKeys: true);
 
-          // Close loading indicator
-          if (!context.mounted) return;
-          Navigator.of(context).pop();
-
           // Router will automatically redirect to /welcome when auth state becomes unauthenticated
           // User can import their keys from the welcome screen
         } catch (e) {
           // Close loading indicator
           if (!context.mounted) return;
-          Navigator.of(context).pop();
+          context.pop();
 
           // Show error
           if (!context.mounted) return;
@@ -592,67 +610,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final deletionService = ref.read(accountDeletionServiceProvider);
     final authService = ref.read(authServiceProvider);
 
-    // Get current user's public key for nsec verification
-    final currentPublicKeyHex = authService.currentPublicKeyHex;
-    if (currentPublicKeyHex == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to verify identity. Please log in again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Show nsec verification dialog first, then standard delete dialog
+    // Show confirmation dialog, then execute deletion
     await showDeleteAllContentWarningDialog(
       context: context,
-      currentPublicKeyHex: currentPublicKeyHex,
-      onConfirm: () async {
-        // Show loading indicator
-        if (!context.mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(color: VineTheme.vineGreen),
-          ),
-        );
-
-        // Execute NIP-62 deletion request
-        final result = await deletionService.deleteAccount();
-
-        // Close loading indicator
-        if (!context.mounted) return;
-        Navigator.of(context).pop();
-
-        if (result.success) {
-          // Sign out and delete keys
-          // Router will automatically redirect to /welcome when auth state becomes unauthenticated
-          await authService.signOut(deleteKeys: true);
-
-          // Show completion dialog
-          if (!context.mounted) return;
-          await showDeleteAccountCompletionDialog(
-            context: context,
-            onCreateNewAccount: () => Navigator.of(context).pop(),
-          );
-        } else {
-          // Show error
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result.error ?? 'Failed to delete content from relays',
-                style: const TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      },
+      onConfirm: () => executeAccountDeletion(
+        context: context,
+        deletionService: deletionService,
+        authService: authService,
+        screenName: 'SettingsScreen',
+      ),
     );
   }
 
@@ -689,7 +655,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<void> _showSupportFallback(
     BuildContext context,
     WidgetRef ref,
-    dynamic authService, // Type inferred from authServiceProvider
+    AuthService authService,
   ) async {
     final bugReportService = ref.read(bugReportServiceProvider);
     final userPubkey = authService.currentPublicKeyHex;
@@ -719,12 +685,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
     if (!context.mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (context) => BugReportDialog(
-        bugReportService: bugReportService,
-        currentScreen: 'SettingsScreen',
-        userPubkey: userPubkey,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => BugReportDialog(
+          bugReportService: bugReportService,
+          currentScreen: 'SettingsScreen',
+          userPubkey: userPubkey,
+        ),
       ),
     );
   }

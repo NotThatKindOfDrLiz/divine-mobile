@@ -15,6 +15,12 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class KeyImportScreen extends ConsumerStatefulWidget {
+  /// Route name for this screen.
+  static const routeName = 'import-key';
+
+  /// Path for this route.
+  static const path = '/import-key';
+
   const KeyImportScreen({super.key});
 
   @override
@@ -368,11 +374,7 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
     ),
     child: Column(
       children: [
-        const Icon(
-          Icons.qr_code_2,
-          color: Colors.purple,
-          size: 32,
-        ),
+        const Icon(Icons.qr_code_2, color: Colors.purple, size: 32),
         const SizedBox(height: 12),
         const Text(
           'Connect with Signer App',

@@ -1331,7 +1331,7 @@ final class Nip05ServiceProvider
   }
 }
 
-String _$nip05ServiceHash() => r'b7f7e1471a3783305bf1070cb64f1b95c4bdb516';
+String _$nip05ServiceHash() => r'1d27e1b137a09246fedc50586a7a28bcf37542b0';
 
 /// Username repository for availability checking and registration
 
@@ -2002,6 +2002,76 @@ final class FollowRepositoryProvider
 
 String _$followRepositoryHash() => r'ed2a3c727eb23941dbddd5c5e9689b01a37a1ae6';
 
+/// Provider for ProfileRepository instance
+///
+/// Creates a ProfileRepository for managing user profiles (Kind 0 metadata).
+/// Requires authentication.
+///
+/// Uses:
+/// - NostrClient from nostrServiceProvider (for relay communication)
+
+@ProviderFor(profileRepository)
+const profileRepositoryProvider = ProfileRepositoryProvider._();
+
+/// Provider for ProfileRepository instance
+///
+/// Creates a ProfileRepository for managing user profiles (Kind 0 metadata).
+/// Requires authentication.
+///
+/// Uses:
+/// - NostrClient from nostrServiceProvider (for relay communication)
+
+final class ProfileRepositoryProvider
+    extends
+        $FunctionalProvider<
+          ProfileRepository,
+          ProfileRepository,
+          ProfileRepository
+        >
+    with $Provider<ProfileRepository> {
+  /// Provider for ProfileRepository instance
+  ///
+  /// Creates a ProfileRepository for managing user profiles (Kind 0 metadata).
+  /// Requires authentication.
+  ///
+  /// Uses:
+  /// - NostrClient from nostrServiceProvider (for relay communication)
+  const ProfileRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'profileRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$profileRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<ProfileRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  ProfileRepository create(Ref ref) {
+    return profileRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ProfileRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ProfileRepository>(value),
+    );
+  }
+}
+
+String _$profileRepositoryHash() => r'3f492aba74b38fc183ffc4efeb35d2185b5996dd';
+
 /// Enhanced notification service with Nostr integration (lazy loaded)
 
 @ProviderFor(notificationServiceEnhanced)
@@ -2456,7 +2526,7 @@ final class CurationServiceProvider
   }
 }
 
-String _$curationServiceHash() => r'890fd0efd8c105c46fa828ae679b1c6ff58964a5';
+String _$curationServiceHash() => r'8eeffdbdad64deb0b10c3983346c3d3c83a1aa02';
 
 /// Content reporting service for NIP-56 compliance
 
@@ -3134,6 +3204,81 @@ final class CommentsRepositoryProvider
 
 String _$commentsRepositoryHash() =>
     r'0f9ae0f15ebfc8ccb85e8ae3e2e251527271f334';
+
+/// Provider for VideosRepository instance
+///
+/// Creates a VideosRepository for loading video feeds with pagination.
+/// Works without authentication for public feeds.
+///
+/// Uses:
+/// - NostrClient from nostrServiceProvider (for relay communication)
+/// - ContentBlocklistService for filtering blocked/muted users
+/// - AgeVerificationService for filtering NSFW content based on user preference
+
+@ProviderFor(videosRepository)
+const videosRepositoryProvider = VideosRepositoryProvider._();
+
+/// Provider for VideosRepository instance
+///
+/// Creates a VideosRepository for loading video feeds with pagination.
+/// Works without authentication for public feeds.
+///
+/// Uses:
+/// - NostrClient from nostrServiceProvider (for relay communication)
+/// - ContentBlocklistService for filtering blocked/muted users
+/// - AgeVerificationService for filtering NSFW content based on user preference
+
+final class VideosRepositoryProvider
+    extends
+        $FunctionalProvider<
+          VideosRepository,
+          VideosRepository,
+          VideosRepository
+        >
+    with $Provider<VideosRepository> {
+  /// Provider for VideosRepository instance
+  ///
+  /// Creates a VideosRepository for loading video feeds with pagination.
+  /// Works without authentication for public feeds.
+  ///
+  /// Uses:
+  /// - NostrClient from nostrServiceProvider (for relay communication)
+  /// - ContentBlocklistService for filtering blocked/muted users
+  /// - AgeVerificationService for filtering NSFW content based on user preference
+  const VideosRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'videosRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$videosRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<VideosRepository> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  VideosRepository create(Ref ref) {
+    return videosRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(VideosRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<VideosRepository>(value),
+    );
+  }
+}
+
+String _$videosRepositoryHash() => r'3e9ad46c21e9eee2a019898e4048a86871afab53';
 
 /// Provider for LikesRepository instance
 ///

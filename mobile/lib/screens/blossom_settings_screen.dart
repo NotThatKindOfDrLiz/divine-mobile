@@ -4,11 +4,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/theme/vine_theme.dart';
+import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 class BlossomSettingsScreen extends ConsumerStatefulWidget {
+  /// Route name for this screen.
+  static const routeName = 'blossom-settings';
+
+  /// Path for this route.
+  static const path = '/blossom-settings';
+
   const BlossomSettingsScreen({super.key});
 
   @override
@@ -105,7 +112,7 @@ class _BlossomSettingsScreenState extends ConsumerState<BlossomSettingsScreen> {
             backgroundColor: VineTheme.vineGreen,
           ),
         );
-        Navigator.pop(context);
+        context.pop();
       }
     } catch (e) {
       Log.error(
@@ -164,7 +171,7 @@ class _BlossomSettingsScreenState extends ConsumerState<BlossomSettingsScreen> {
                 ),
               ),
             ),
-            onPressed: () => Navigator.pop(context),
+            onPressed: context.pop,
             tooltip: 'Back',
           ),
           title: Text('Media Servers', style: VineTheme.titleFont()),
@@ -206,29 +213,43 @@ class _BlossomSettingsScreenState extends ConsumerState<BlossomSettingsScreen> {
               ),
             ),
           ),
-          onPressed: () => Navigator.pop(context),
+          onPressed: context.pop,
           tooltip: 'Back',
         ),
         title: Text('Media Servers', style: VineTheme.titleFont()),
         actions: [
-          TextButton(
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
             onPressed: _isSaving ? null : _saveSettings,
-            child: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+            tooltip: 'Save',
+            icon: Container(
+              width: 48,
+              height: 48,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: VineTheme.iconButtonBackground,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : SvgPicture.asset(
+                      'assets/icon/Check.svg',
+                      width: 32,
+                      height: 32,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  )
-                : const Text(
-                    'Save',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+            ),
           ),
           const SizedBox(width: 16),
         ],

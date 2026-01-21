@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/models/video_event.dart';
+import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_stats_provider.dart';
@@ -12,8 +12,9 @@ import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/router/page_context_provider.dart';
 import 'package:openvine/router/route_utils.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
+import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/profile_setup_screen.dart';
-import 'package:openvine/theme/vine_theme.dart';
+import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/npub_hex.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -27,6 +28,24 @@ import 'package:share_plus/share_plus.dart';
 
 /// Router-driven ProfileScreen - Instagram-style scrollable profile
 class ProfileScreenRouter extends ConsumerStatefulWidget {
+  /// Route name for this screen.
+  static const routeName = 'profile';
+
+  /// Base path for profile routes.
+  static const path = '/profile';
+
+  /// Path for this route (grid mode).
+  static const pathWithNpub = '/profile/:npub';
+
+  /// Path for this route (feed mode).
+  static const pathWithIndex = '/profile/:npub/:index';
+
+  /// Build path for grid mode or specific npub.
+  static String pathForNpub(String npub) => '$path/$npub';
+
+  /// Build path for feed mode with specific npub and index.
+  static String pathForIndex(String npub, int index) => '$path/$npub/$index';
+
   const ProfileScreenRouter({super.key});
 
   @override
@@ -94,21 +113,18 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
   // Action methods
 
   Future<void> _setupProfile() async {
-    // Navigate using root navigator to escape shell route
-    // This prevents redirect issues when navigating from inside shell
-    await Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        builder: (context) => const ProfileSetupScreen(isNewUser: true),
-      ),
-    );
+    // Navigate to setup-profile route (defined outside ShellRoute)
+    await context.push('/setup-profile');
   }
 
   Future<void> _editProfile() async {
     // Show menu with Edit Profile and Delete Account options
+    // Note: Using showModalBottomSheet with Navigator.pop because GoRouter
+    // has known issues with ModalBottomSheetRoute (see flutter/flutter#100933)
     final result = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: VineTheme.cardBackground,
-      builder: (context) => SafeArea(
+      builder: (modalContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -122,7 +138,7 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
                 'Update your display name, bio, and avatar',
                 style: TextStyle(color: VineTheme.secondaryText, fontSize: 12),
               ),
-              onTap: () => Navigator.pop(context, 'edit'),
+              onTap: () => Navigator.of(modalContext).pop('edit'),
             ),
             const Divider(color: VineTheme.secondaryText, height: 1),
             ListTile(
@@ -135,21 +151,18 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
                 'PERMANENTLY delete your account and all content',
                 style: TextStyle(color: VineTheme.secondaryText, fontSize: 12),
               ),
-              onTap: () => Navigator.pop(context, 'delete'),
+              onTap: () => Navigator.of(modalContext).pop('delete'),
             ),
           ],
         ),
       ),
     );
 
+    if (!mounted) return;
+
     if (result == 'edit') {
-      // Navigate using root navigator to escape shell route
-      // This prevents redirect issues when navigating from inside shell
-      await Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(
-          builder: (context) => const ProfileSetupScreen(isNewUser: false),
-        ),
-      );
+      // Navigate to edit-profile route (defined outside ShellRoute)
+      await context.push(ProfileSetupScreen.editPath);
     } else if (result == 'delete') {
       _handleDeleteAccount();
     }
@@ -159,68 +172,16 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
     final deletionService = ref.read(accountDeletionServiceProvider);
     final authService = ref.read(authServiceProvider);
 
-    // Get current user's public key for nsec verification
-    final currentPublicKeyHex = authService.currentPublicKeyHex;
-    if (currentPublicKeyHex == null) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to verify identity. Please log in again.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
-
-    // Show nsec verification dialog first, then standard delete dialog
+    // Show confirmation dialog, then execute deletion
+    // Identity is proven by having an active session
     await showDeleteAllContentWarningDialog(
       context: context,
-      currentPublicKeyHex: currentPublicKeyHex,
-      onConfirm: () async {
-        // Show loading indicator
-        if (!context.mounted) return;
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => const Center(
-            child: CircularProgressIndicator(color: VineTheme.vineGreen),
-          ),
-        );
-
-        // Execute NIP-62 deletion request
-        final result = await deletionService.deleteAccount();
-
-        // Close loading indicator
-        if (!context.mounted) return;
-        Navigator.of(context).pop();
-
-        if (result.success) {
-          // Sign out and delete keys
-          await authService.signOut(deleteKeys: true);
-
-          // Show completion dialog
-          if (!context.mounted) return;
-          await showDeleteAccountCompletionDialog(
-            context: context,
-            onCreateNewAccount: () {
-              context.go('/setup-profile');
-            },
-          );
-        } else {
-          // Show error
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result.error ?? 'Failed to delete content from relays',
-                style: const TextStyle(color: Colors.white),
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      },
+      onConfirm: () => executeAccountDeletion(
+        context: context,
+        deletionService: deletionService,
+        authService: authService,
+        screenName: 'ProfileScreenRouter',
+      ),
     );
   }
 
@@ -268,12 +229,8 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
   }
 
   void _openClips() {
-    // Navigate using root navigator to escape shell route
-    // This prevents redirect issues when navigating from inside shell
-    Navigator.of(
-      context,
-      rootNavigator: true,
-    ).push(MaterialPageRoute(builder: (context) => const ClipLibraryScreen()));
+    // Navigate to clips route (defined outside ShellRoute)
+    context.push(ClipLibraryScreen.clipsPath);
   }
 
   Future<void> _blockUser(String pubkey, bool currentlyBlocked) async {
@@ -301,11 +258,11 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => context.pop(false),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => context.pop(true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Block'),
           ),
@@ -381,7 +338,7 @@ class _ProfileContentView extends ConsumerWidget {
     // Check if this user has muted us (mutual mute blocking)
     final blocklistService = ref.watch(contentBlocklistServiceProvider);
     if (blocklistService.shouldFilterFromFeeds(userIdHex)) {
-      return BlockedUserScreen(onBack: () => Navigator.of(context).pop());
+      return BlockedUserScreen(onBack: context.pop);
     }
 
     // Fetch profile data if needed (post-frame to avoid build mutations)
@@ -418,7 +375,7 @@ class _MeProfileRedirect extends ConsumerWidget {
         authService.currentPublicKeyHex == null) {
       // Not authenticated - redirect to home
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        GoRouter.of(context).go('/home/0');
+        GoRouter.of(context).go(HomeScreenRouter.pathForIndex(0));
       });
       return const Center(child: CircularProgressIndicator());
     }

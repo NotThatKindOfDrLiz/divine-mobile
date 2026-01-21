@@ -2,7 +2,8 @@
 // ABOUTME: Displays block success message with link to safety information
 
 import 'package:flutter/material.dart';
-import 'package:openvine/theme/vine_theme.dart';
+import 'package:go_router/go_router.dart';
+import 'package:divine_ui/divine_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Confirmation dialog shown after successfully blocking a user
@@ -85,7 +86,7 @@ class ProfileBlockConfirmationDialog extends StatelessWidget {
     ),
     actions: [
       TextButton(
-        onPressed: () => Navigator.of(context).pop(),
+        onPressed: context.pop,
         child: Text('Close', style: TextStyle(color: VineTheme.vineGreen)),
       ),
     ],

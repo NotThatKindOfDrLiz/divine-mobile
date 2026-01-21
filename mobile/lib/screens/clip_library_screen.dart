@@ -6,15 +6,29 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/models/saved_clip.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/screens/clip_manager_screen.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/router/nav_extensions.dart';
-import 'package:openvine/theme/vine_theme.dart';
+import 'package:divine_ui/divine_ui.dart';
 import 'package:video_player/video_player.dart';
 
 class ClipLibraryScreen extends ConsumerStatefulWidget {
+  /// Route name for drafts path.
+  static const draftsRouteName = 'drafts';
+
+  /// Path for drafts route.
+  static const draftsPath = '/drafts';
+
+  /// Route name for clips path.
+  static const clipsRouteName = 'clips';
+
+  /// Path for clips route.
+  static const clipsPath = '/clips';
+
   const ClipLibraryScreen({
     super.key,
     this.selectionMode = false,
@@ -116,7 +130,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     }
 
     // Navigate to ClipManager screen (push to preserve back navigation)
-    context.push('/clip-manager');
+    context.push(ClipManagerScreen.path);
 
     // Clear selection
     _clearSelection();
@@ -126,9 +140,35 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
     appBar: AppBar(
-      backgroundColor: VineTheme.vineGreen,
-      foregroundColor: VineTheme.whiteText,
-      title: Text(_buildAppBarTitle()),
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      toolbarHeight: 72,
+      leadingWidth: 80,
+      centerTitle: false,
+      titleSpacing: 0,
+      backgroundColor: VineTheme.navGreen,
+      leading: IconButton(
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        icon: Container(
+          width: 48,
+          height: 48,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: VineTheme.iconButtonBackground,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: SvgPicture.asset(
+            'assets/icon/CaretLeft.svg',
+            width: 32,
+            height: 32,
+            colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          ),
+        ),
+        onPressed: () => Navigator.of(context).pop(),
+        tooltip: 'Back',
+      ),
+      title: Text(_buildAppBarTitle(), style: VineTheme.titleFont()),
       actions: [
         // Clear selection button when clips are selected
         if (_selectedClipIds.isNotEmpty && !widget.selectionMode)
@@ -259,7 +299,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
     if (widget.selectionMode) {
       // Single selection mode from ClipManager - select and close
       widget.onClipSelected?.call(clip);
-      Navigator.of(context).pop();
+      context.pop();
     } else {
       // Default behavior: toggle selection for multi-select
       _toggleClipSelection(clip.id);
@@ -271,10 +311,10 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ClipPreviewSheet(
+      builder: (sheetContext) => ClipPreviewSheet(
         clip: clip,
         onDelete: () {
-          Navigator.of(context).pop();
+          sheetContext.pop();
           _confirmDeleteClip(clip);
         },
       ),
@@ -284,7 +324,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   void _confirmDeleteClip(SavedClip clip) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.grey[900],
         title: const Text(
           'Delete Clip?',
@@ -295,13 +335,10 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
           style: const TextStyle(color: VineTheme.whiteText),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: dialogContext.pop, child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              dialogContext.pop();
               _deleteClip(clip);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -358,7 +395,7 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
   void _showClearAllConfirmation() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: Colors.grey[900],
         title: const Text(
           'Clear All Clips?',
@@ -369,13 +406,10 @@ class _ClipLibraryScreenState extends ConsumerState<ClipLibraryScreen> {
           style: const TextStyle(color: VineTheme.whiteText),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: dialogContext.pop, child: const Text('Cancel')),
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
+              dialogContext.pop();
               _clearAllClips();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
