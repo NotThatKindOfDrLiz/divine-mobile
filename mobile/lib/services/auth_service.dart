@@ -10,7 +10,6 @@ import 'package:keycast_flutter/keycast_flutter.dart';
 import 'package:nostr_key_manager/nostr_key_manager.dart'
     show SecureKeyContainer, SecureKeyStorage;
 import 'package:nostr_sdk/nostr_sdk.dart';
-import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
 import 'package:openvine/services/user_profile_service.dart' as ups;
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -1061,7 +1060,7 @@ class AuthService {
       );
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(StorageKeys.currentUserPubkeyHex, publicKeyHex);
+      await prefs.setString('current_user_pubkey_hex', publicKeyHex);
 
       Log.info(
         '✅ Divine oauth listener setting auth state to authenticated.',
@@ -1182,8 +1181,8 @@ class AuthService {
       // back in
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_kAuthSourceKey);
-      await prefs.remove(StorageKeys.ageVerified16Plus);
-      await prefs.remove(StorageKeys.termsAcceptedAt);
+      await prefs.remove('age_verified_16_plus');
+      await prefs.remove('terms_accepted_at');
 
       // Clear user-specific cached data on explicit logout
       await _userDataCleanupService.clearUserSpecificData(
@@ -1191,7 +1190,7 @@ class AuthService {
       );
 
       // Clear the stored pubkey tracking so next login is treated as new
-      await prefs.remove(StorageKeys.currentUserPubkeyHex);
+      await prefs.remove('current_user_pubkey_hex');
 
       if (deleteKeys) {
         Log.debug(
@@ -1518,7 +1517,7 @@ class AuthService {
         await _onTermsAccepted();
       }
       await prefs.setString(
-        StorageKeys.currentUserPubkeyHex,
+        'current_user_pubkey_hex',
         keyContainer.publicKeyHex,
       );
 

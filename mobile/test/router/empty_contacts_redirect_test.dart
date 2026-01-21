@@ -3,7 +3,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:openvine/constants/storage_keys.dart';
 import 'package:openvine/router/app_router.dart';
 
 void main() {
@@ -20,7 +19,7 @@ void main() {
     group('hasAnyFollowingInCache', () {
       test('returns false when no current_user_pubkey_hex stored', () async {
         SharedPreferences.setMockInitialValues({
-          StorageKeys.ageVerified16Plus: true,
+          'age_verified_16_plus': true,
           'some_other_key': 'value',
           // No current_user_pubkey_hex
         });
@@ -35,8 +34,8 @@ void main() {
         'returns false when current user has no following_list cache',
         () async {
           SharedPreferences.setMockInitialValues({
-            StorageKeys.ageVerified16Plus: true,
-            StorageKeys.currentUserPubkeyHex: testUserPubkey,
+            'age_verified_16_plus': true,
+            'current_user_pubkey_hex': testUserPubkey,
             // No following_list for this user
           });
 
@@ -51,9 +50,9 @@ void main() {
         'returns false when current user following_list is empty array',
         () async {
           SharedPreferences.setMockInitialValues({
-            StorageKeys.ageVerified16Plus: true,
-            StorageKeys.currentUserPubkeyHex: testUserPubkey,
-            StorageKeys.followingListKey(testUserPubkey): '[]',
+            'age_verified_16_plus': true,
+            'current_user_pubkey_hex': testUserPubkey,
+            'following_list_$testUserPubkey': '[]',
           });
 
           final prefs = await SharedPreferences.getInstance();
@@ -67,10 +66,9 @@ void main() {
         'returns true when current user following_list has contacts',
         () async {
           SharedPreferences.setMockInitialValues({
-            StorageKeys.ageVerified16Plus: true,
-            StorageKeys.currentUserPubkeyHex: testUserPubkey,
-            StorageKeys.followingListKey(testUserPubkey):
-                '["pubkey1","pubkey2","pubkey3"]',
+            'age_verified_16_plus': true,
+            'current_user_pubkey_hex': testUserPubkey,
+            'following_list_$testUserPubkey': '["pubkey1","pubkey2","pubkey3"]',
           });
 
           final prefs = await SharedPreferences.getInstance();
@@ -85,12 +83,10 @@ void main() {
         () async {
           const otherUser = 'other_user_pubkey';
           SharedPreferences.setMockInitialValues({
-            StorageKeys.ageVerified16Plus: true,
-            StorageKeys.currentUserPubkeyHex: testUserPubkey,
-            StorageKeys.followingListKey(testUserPubkey):
-                '[]', // Current user empty
-            StorageKeys.followingListKey(otherUser):
-                '["pubkey1"]', // Other user has contacts
+            'age_verified_16_plus': true,
+            'current_user_pubkey_hex': testUserPubkey,
+            'following_list_$testUserPubkey': '[]', // Current user empty
+            'following_list_$otherUser': '["pubkey1"]', // Other user has contacts
           });
 
           final prefs = await SharedPreferences.getInstance();
@@ -103,9 +99,9 @@ void main() {
 
       test('handles invalid JSON gracefully', () async {
         SharedPreferences.setMockInitialValues({
-          StorageKeys.ageVerified16Plus: true,
-          StorageKeys.currentUserPubkeyHex: testUserPubkey,
-          StorageKeys.followingListKey(testUserPubkey): 'not valid json',
+          'age_verified_16_plus': true,
+          'current_user_pubkey_hex': testUserPubkey,
+          'following_list_$testUserPubkey': 'not valid json',
         });
 
         final prefs = await SharedPreferences.getInstance();
