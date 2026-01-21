@@ -30,7 +30,8 @@ class PublishError extends PublishResult {
 /// Callbacks for VideoPublishService to communicate state changes.
 /// This abstraction makes the service testable without Riverpod dependencies.
 typedef OnStateChanged = void Function(VideoPublishState state);
-typedef OnProgressChanged = void Function(double progress);
+typedef OnProgressChanged =
+    void Function({required String draftId, required double progress});
 
 class VideoPublishService {
   VideoPublishService({
@@ -79,7 +80,7 @@ class VideoPublishService {
   Future<PublishResult> publishVideo({required VineDraft draft}) async {
     // Check if we have a background upload ID and its status
     if (_backgroundUploadId != null) {
-      final error = await _handleActiveUpload();
+      final error = await _handleActiveUpload(draft.id);
       if (error != null) return error;
     }
 
@@ -172,7 +173,7 @@ class VideoPublishService {
 
   /// Handles an active background upload.
   /// Returns [PublishError] if there was an error, null to continue.
-  Future<PublishError?> _handleActiveUpload() async {
+  Future<PublishError?> _handleActiveUpload(String draftId) async {
     final upload = uploadManager.getUpload(_backgroundUploadId!);
     if (upload == null) return null;
 
@@ -189,7 +190,7 @@ class VideoPublishService {
 
     // Wait for upload to complete
     if (upload.status == .uploading || upload.status == .processing) {
-      final result = await _pollUploadProgress(_backgroundUploadId!);
+      final result = await _pollUploadProgress(draftId, _backgroundUploadId!);
       if (!result) {
         final failedUpload = uploadManager.getUpload(_backgroundUploadId!);
 
@@ -205,12 +206,15 @@ class VideoPublishService {
 
   /// Polls upload progress until complete or failed.
   /// Returns true if upload succeeded, false if failed.
-  Future<bool> _pollUploadProgress(String uploadId) async {
+  Future<bool> _pollUploadProgress(String draftId, String uploadId) async {
     while (_shouldContinue) {
       final upload = uploadManager.getUpload(uploadId);
       if (upload == null) return false;
 
-      onProgressChanged(upload.uploadProgress ?? 0.0);
+      onProgressChanged(
+        draftId: draftId,
+        progress: upload.uploadProgress ?? 0.0,
+      );
 
       switch (upload.status) {
         case .readyToPublish:
@@ -247,12 +251,13 @@ class VideoPublishService {
     final pendingUpload = await uploadManager.startUploadFromDraft(
       draft: draft,
       nostrPubkey: pubkey,
-      onProgress: (value) => onProgressChanged(value),
+      onProgress: (value) =>
+          onProgressChanged(draftId: draft.id, progress: value),
     );
     _backgroundUploadId = pendingUpload.id;
 
     // Poll for progress
-    final success = await _pollUploadProgress(pendingUpload.id);
+    final success = await _pollUploadProgress(draft.id, pendingUpload.id);
     if (!success) return null;
 
     return uploadManager.getUpload(pendingUpload.id);
@@ -285,7 +290,7 @@ class VideoPublishService {
 
     try {
       await uploadManager.retryUpload(_backgroundUploadId!);
-      final success = await _pollUploadProgress(_backgroundUploadId!);
+      final success = await _pollUploadProgress(draft.id, _backgroundUploadId!);
 
       if (!success) {
         final upload = uploadManager.getUpload(_backgroundUploadId!);

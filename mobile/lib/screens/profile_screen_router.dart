@@ -2,9 +2,11 @@
 // ABOUTME: Uses CustomScrollView with slivers for smooth scrolling, URL is source of truth
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_stats_provider.dart';
@@ -487,32 +489,82 @@ class _ProfileViewSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final backgroundPublishBloc = context.watch<BackgroundPublishBloc>();
+
+    final hasPendingUploads = backgroundPublishBloc.state.uploads.any(
+      (upload) => upload.result == null,
+    );
+
     // If videoIndex is set, show fullscreen video mode
     // Note: videoIndex maps directly to list index (0 = first video, 1 = second video, etc.)
     // When videoIndex is null, show grid mode
-    if (videoIndex != null && videos.isNotEmpty) {
-      return ProfileVideoFeedView(
-        npub: npub,
-        userIdHex: userIdHex,
-        isOwnProfile: isOwnProfile,
-        videos: videos,
-        videoIndex: videoIndex!,
-        onPageChanged: (newIndex) => context.goProfile(npub, newIndex),
-      );
-    }
+    final child = (videoIndex != null && videos.isNotEmpty)
+        ? ProfileVideoFeedView(
+            npub: npub,
+            userIdHex: userIdHex,
+            isOwnProfile: isOwnProfile,
+            videos: videos,
+            videoIndex: videoIndex!,
+            onPageChanged: (newIndex) => context.goProfile(npub, newIndex),
+          )
+        :
+          // Otherwise show Instagram-style grid view
+          ProfileGridView(
+            userIdHex: userIdHex,
+            isOwnProfile: isOwnProfile,
+            videos: videos,
+            profileStatsAsync: profileStatsAsync,
+            scrollController: scrollController,
+            onSetupProfile: onSetupProfile,
+            onEditProfile: onEditProfile,
+            onOpenClips: onOpenClips,
+            onShareProfile: onShareProfile,
+            onBlockUser: onBlockUser,
+          );
 
-    // Otherwise show Instagram-style grid view
-    return ProfileGridView(
-      userIdHex: userIdHex,
-      isOwnProfile: isOwnProfile,
-      videos: videos,
-      profileStatsAsync: profileStatsAsync,
-      scrollController: scrollController,
-      onSetupProfile: onSetupProfile,
-      onEditProfile: onEditProfile,
-      onOpenClips: onOpenClips,
-      onShareProfile: onShareProfile,
-      onBlockUser: onBlockUser,
-    );
+    if (hasPendingUploads) {
+      return Stack(
+        children: [
+          Positioned.fill(child: child),
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 16,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: VineTheme.cardBackground,
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: BlocBuilder<BackgroundPublishBloc, BackgroundPublishState>(
+                  builder: (context, state) {
+                    final textStyle = VineTheme.bodyFont(
+                      fontWeight: FontWeight.w600,
+                    );
+
+                    final pendingUploads = state.uploads
+                        .where((upload) => upload.result == null)
+                        .toList();
+                
+                    if (pendingUploads.isEmpty) {
+                      return Text('Video uploaded successfuly!', style: textStyle);
+                    }
+                
+                    final pendingUpload = pendingUploads.first;
+                    return Text(
+                      'Video uploading... ${(pendingUpload.progress * 100).toStringAsFixed(0)}%',
+                      style: textStyle,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      return child;
+    }
   }
 }
