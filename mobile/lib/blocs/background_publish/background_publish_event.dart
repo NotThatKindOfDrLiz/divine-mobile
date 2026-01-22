@@ -30,3 +30,12 @@ class BackgroundPublishProgressChanged extends BackgroundPublishEvent {
   @override
   List<Object?> get props => [draftId, progress];
 }
+
+class BackgroundPublishVanished extends BackgroundPublishEvent {
+  BackgroundPublishVanished({required this.draftId});
+
+  final String draftId;
+
+  @override
+  List<Object?> get props => [draftId];
+}

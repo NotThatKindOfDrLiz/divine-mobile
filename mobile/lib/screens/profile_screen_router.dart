@@ -17,6 +17,7 @@ import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/profile_setup_screen.dart';
 import 'package:divine_ui/divine_ui.dart';
+import 'package:openvine/services/video_publish/video_publish_service.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/npub_hex.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -491,9 +492,7 @@ class _ProfileViewSwitcher extends StatelessWidget {
   Widget build(BuildContext context) {
     final backgroundPublishBloc = context.watch<BackgroundPublishBloc>();
 
-    final hasPendingUploads = backgroundPublishBloc.state.uploads.any(
-      (upload) => upload.result == null,
-    );
+    final pendingUploads = backgroundPublishBloc.state.uploads;
 
     // If videoIndex is set, show fullscreen video mode
     // Note: videoIndex maps directly to list index (0 = first video, 1 = second video, etc.)
@@ -522,7 +521,26 @@ class _ProfileViewSwitcher extends StatelessWidget {
             onBlockUser: onBlockUser,
           );
 
+    final hasPendingUploads = pendingUploads.isNotEmpty;
     if (hasPendingUploads) {
+      final textStyle = VineTheme.bodyFont(fontWeight: FontWeight.w600);
+      final pendingUpload = pendingUploads.first;
+
+      late final Widget bannerText;
+      if (pendingUpload.result is PublishSuccess) {
+        bannerText = Text('Video uploaded successfuly!', style: textStyle);
+      } else if (pendingUpload.result is PublishError) {
+        bannerText = Text(
+          'Video upload failed.',
+          style: textStyle.copyWith(color: VineTheme.likeRed),
+        );
+      } else {
+        bannerText = Text(
+          'Video uploading... ${(pendingUpload.progress * 100).toStringAsFixed(0)}%',
+          style: textStyle,
+        );
+      }
+
       return Stack(
         children: [
           Positioned.fill(child: child),
@@ -532,32 +550,17 @@ class _ProfileViewSwitcher extends StatelessWidget {
             right: 16,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: VineTheme.cardBackground,
+                color: pendingUpload.result == PublishStatus.failed
+                    ? VineTheme.errorContainer
+                    : VineTheme.cardBackground,
                 borderRadius: BorderRadius.all(Radius.circular(16)),
               ),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: BlocBuilder<BackgroundPublishBloc, BackgroundPublishState>(
-                  builder: (context, state) {
-                    final textStyle = VineTheme.bodyFont(
-                      fontWeight: FontWeight.w600,
-                    );
-
-                    final pendingUploads = state.uploads
-                        .where((upload) => upload.result == null)
-                        .toList();
-                
-                    if (pendingUploads.isEmpty) {
-                      return Text('Video uploaded successfuly!', style: textStyle);
-                    }
-                
-                    final pendingUpload = pendingUploads.first;
-                    return Text(
-                      'Video uploading... ${(pendingUpload.progress * 100).toStringAsFixed(0)}%',
-                      style: textStyle,
-                    );
-                  },
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
+                child: bannerText,
               ),
             ),
           ),

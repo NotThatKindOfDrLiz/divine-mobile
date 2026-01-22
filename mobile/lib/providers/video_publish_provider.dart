@@ -51,10 +51,7 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
       onStateChanged: setPublishState,
       onProgressChanged: ({required String draftId, required double progress}) {
         setUploadProgress(draftId: draftId, progress: progress);
-        onProgressChanged(
-          draftId: draftId,
-          progress: progress,
-        );
+        onProgressChanged(draftId: draftId, progress: progress);
       },
       isMounted: () => ref.mounted,
     );
