@@ -128,8 +128,10 @@ void main() {
 
       test('returns null for non-nostrconnect URL', () {
         expect(NostrConnectInfo.parseNostrConnectUrl('bunker://...'), isNull);
-        expect(NostrConnectInfo.parseNostrConnectUrl('https://example.com'),
-            isNull);
+        expect(
+          NostrConnectInfo.parseNostrConnectUrl('https://example.com'),
+          isNull,
+        );
         expect(NostrConnectInfo.parseNostrConnectUrl('invalid'), isNull);
       });
 
@@ -174,19 +176,27 @@ void main() {
 
     group('URL detection', () {
       test('isNostrConnectUrl returns true for valid URL', () {
-        expect(NostrConnectInfo.isNostrConnectUrl('nostrconnect://$testPubkey'),
-            isTrue);
         expect(
-            NostrConnectInfo.isNostrConnectUrl(
-                'nostrconnect://$testPubkey?relay=wss://relay.example.com'),
-            isTrue);
+          NostrConnectInfo.isNostrConnectUrl('nostrconnect://$testPubkey'),
+          isTrue,
+        );
+        expect(
+          NostrConnectInfo.isNostrConnectUrl(
+            'nostrconnect://$testPubkey?relay=wss://relay.example.com',
+          ),
+          isTrue,
+        );
       });
 
       test('isNostrConnectUrl returns false for other URLs', () {
-        expect(NostrConnectInfo.isNostrConnectUrl('bunker://$testPubkey'),
-            isFalse);
         expect(
-            NostrConnectInfo.isNostrConnectUrl('https://example.com'), isFalse);
+          NostrConnectInfo.isNostrConnectUrl('bunker://$testPubkey'),
+          isFalse,
+        );
+        expect(
+          NostrConnectInfo.isNostrConnectUrl('https://example.com'),
+          isFalse,
+        );
         expect(NostrConnectInfo.isNostrConnectUrl('invalid'), isFalse);
         expect(NostrConnectInfo.isNostrConnectUrl(null), isFalse);
         expect(NostrConnectInfo.isNostrConnectUrl(''), isFalse);
