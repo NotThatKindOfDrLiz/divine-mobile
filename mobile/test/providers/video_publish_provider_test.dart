@@ -21,18 +21,18 @@ void main() {
     });
 
     test('setUploadProgress updates progress value', () {
-      notifier.setUploadProgress(0.5);
+      notifier.setUploadProgress(draftId: '1', progress: 0.5);
       expect(container.read(videoPublishProvider).uploadProgress, 0.5);
 
-      notifier.setUploadProgress(1);
+      notifier.setUploadProgress(draftId: '1', progress: 1);
       expect(container.read(videoPublishProvider).uploadProgress, 1.0);
     });
 
     test('setUploadProgress clamps value between 0.0 and 1.0', () {
-      notifier.setUploadProgress(0);
+      notifier.setUploadProgress(draftId: '1', progress: 0);
       expect(container.read(videoPublishProvider).uploadProgress, 0.0);
 
-      notifier.setUploadProgress(1);
+      notifier.setUploadProgress(draftId: '1', progress: 1);
       expect(container.read(videoPublishProvider).uploadProgress, 1.0);
     });
 
@@ -57,19 +57,19 @@ void main() {
     });
 
     test('upload progress tracks intermediate values', () {
-      notifier.setUploadProgress(0);
+      notifier.setUploadProgress(draftId: '1', progress: 0);
       expect(container.read(videoPublishProvider).uploadProgress, 0.0);
 
-      notifier.setUploadProgress(0.25);
+      notifier.setUploadProgress(draftId: '1', progress: 0.25);
       expect(container.read(videoPublishProvider).uploadProgress, 0.25);
 
-      notifier.setUploadProgress(0.5);
+      notifier.setUploadProgress(draftId: '1', progress: 0.5);
       expect(container.read(videoPublishProvider).uploadProgress, 0.5);
 
-      notifier.setUploadProgress(0.75);
+      notifier.setUploadProgress(draftId: '1', progress: 0.75);
       expect(container.read(videoPublishProvider).uploadProgress, 0.75);
 
-      notifier.setUploadProgress(1);
+      notifier.setUploadProgress(draftId: '1', progress: 1);
       expect(container.read(videoPublishProvider).uploadProgress, 1.0);
     });
 
@@ -94,7 +94,7 @@ void main() {
     test('reset returns state to initial values', () {
       // First modify the state
       notifier
-        ..setUploadProgress(0.5)
+        ..setUploadProgress(draftId: '1', progress: 0.5)
         ..setPublishState(VideoPublishState.uploading)
         // Then reset
         ..reset();

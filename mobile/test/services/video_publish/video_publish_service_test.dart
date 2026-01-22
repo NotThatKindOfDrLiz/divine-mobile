@@ -69,7 +69,9 @@ void main() {
       blossomService: mockBlossomService,
       draftService: mockDraftService,
       onStateChanged: stateChanges.add,
-      onProgressChanged: progressChanges.add,
+      onProgressChanged:
+          ({required double progress, required String draftId}) =>
+              progressChanges.add(progress),
       isMounted: () => true,
     );
   });
@@ -377,7 +379,9 @@ void main() {
           blossomService: mockBlossomService,
           draftService: mockDraftService,
           onStateChanged: stateChanges.add,
-          onProgressChanged: progressChanges.add,
+          onProgressChanged:
+              ({required double progress, required String draftId}) =>
+                  progressChanges.add(progress),
           isMounted: () {
             mountedCallCount++;
             return mountedCallCount < 3; // Unmount after 2 checks
