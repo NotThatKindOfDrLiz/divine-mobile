@@ -8,15 +8,28 @@ import 'package:openvine/services/video_publish/video_publish_service.dart';
 part 'background_publish_event.dart';
 part 'background_publish_state.dart';
 
+typedef TimerFactory =
+    Timer Function(Duration duration, void Function() callback);
+
 class BackgroundPublishBloc
     extends Bloc<BackgroundPublishEvent, BackgroundPublishState> {
-  BackgroundPublishBloc() : super(BackgroundPublishState()) {
+  BackgroundPublishBloc({
+    required Future<VideoPublishService> Function({
+      required OnProgressChanged onProgress,
+    })
+    videoPublishServiceFactory,
+  }) : _videoPublishServiceFactory = videoPublishServiceFactory,
+       super(BackgroundPublishState()) {
     on<BackgroundPublishRequested>(_onBackgroundPublishRequested);
     on<BackgroundPublishProgressChanged>(_onBackgroundPublishProgressChanged);
     on<BackgroundPublishVanished>(_onBackgroundPublishVanished);
+    on<BackgroundPublishRetryRequested>(_onBackgroundPublishRetryRequested);
   }
 
-  final List<Timer> _vanishTimers = [];
+  final Future<VideoPublishService> Function({
+    required OnProgressChanged onProgress,
+  })
+  _videoPublishServiceFactory;
 
   Future<void> _onBackgroundPublishRequested(
     BackgroundPublishRequested event,
@@ -31,22 +44,24 @@ class BackgroundPublishBloc
 
     final result = await event.publishmentProcess;
 
-    final updatedUploads = state.uploads.map((upload) {
-      if (upload.draft.id == event.draft.id) {
-        return upload.copyWith(result: result, progress: 1.0);
-      }
-      return upload;
-    }).toList();
+    // Remove the upload if it was successful
+    if (result is PublishSuccess) {
+      final updatedUploads = state.uploads
+          .where((upload) => upload.draft.id != event.draft.id)
+          .toList();
 
-    emit(state.copyWith(uploads: updatedUploads));
+      emit(state.copyWith(uploads: updatedUploads));
+    } else {
+      // Update the upload with the result
+      final updatedUploads = state.uploads.map((upload) {
+        if (upload.draft.id == event.draft.id) {
+          return upload.copyWith(result: result, progress: 1.0);
+        }
+        return upload;
+      }).toList();
 
-    late final Timer timer;
-
-    timer = Timer(const Duration(seconds: 5), () {
-      add(BackgroundPublishVanished(draftId: event.draft.id));
-      _vanishTimers.remove(timer);
-    });
-    _vanishTimers.add(timer);
+      emit(state.copyWith(uploads: updatedUploads));
+    }
   }
 
   void _onBackgroundPublishProgressChanged(
@@ -73,11 +88,34 @@ class BackgroundPublishBloc
     emit(state.copyWith(uploads: remainingUploads));
   }
 
-  @override
-  Future<void> close() {
-    for (final timer in _vanishTimers) {
-      timer.cancel();
-    }
-    return super.close();
+  Future<void> _onBackgroundPublishRetryRequested(
+    BackgroundPublishRetryRequested event,
+    Emitter<BackgroundPublishState> emit,
+  ) async {
+    final uploadToRetry = state.uploads.firstWhere(
+      (upload) => upload.draft.id == event.draftId,
+    );
+
+    final videoPublishService = await _videoPublishServiceFactory(
+      onProgress: ({required String draftId, required double progress}) {
+        add(
+          BackgroundPublishProgressChanged(
+            draftId: draftId,
+            progress: progress,
+          ),
+        );
+      },
+    );
+
+    final newPublishProcess = videoPublishService.publishVideo(
+      draft: uploadToRetry.draft,
+    );
+
+    add(
+      BackgroundPublishRequested(
+        draft: uploadToRetry.draft,
+        publishmentProcess: newPublishProcess,
+      ),
+    );
   }
 }

@@ -57,6 +57,9 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/app_lifecycle_handler.dart';
 import 'package:openvine/widgets/geo_blocking_gate.dart';
 
+import 'services/draft_storage_service.dart';
+import 'services/video_publish/video_publish_service.dart';
+
 Future<void> _startOpenVineApp() async {
   // Add timing logs for startup diagnostics
   final startTime = DateTime.now();
@@ -1060,10 +1063,33 @@ class _DivineAppState extends ConsumerState<DivineApp> {
             ),
           );
 
+    /// Creates the publish service with callbacks wired to this notifier.
+    Future<VideoPublishService> createPublishService({
+      required OnProgressChanged onProgress,
+    }) async {
+      final prefs = await SharedPreferences.getInstance();
+
+      return VideoPublishService(
+        uploadManager: ref.read(uploadManagerProvider),
+        authService: ref.read(authServiceProvider),
+        videoEventPublisher: ref.read(videoEventPublisherProvider),
+        blossomService: ref.read(blossomUploadServiceProvider),
+        draftService: DraftStorageService(prefs),
+        onProgressChanged:
+            ({required String draftId, required double progress}) {
+              onProgress(draftId: draftId, progress: progress);
+            },
+      );
+    }
+
     // Wrap with geo-blocking check first, then lifecycle handler
     Widget wrapped = MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => BackgroundPublishBloc()),
+        BlocProvider(
+          create: (_) => BackgroundPublishBloc(
+            videoPublishServiceFactory: createPublishService,
+          ),
+        ),
         BlocProvider(
           create: (_) => CameraPermissionBloc(
             permissionsService: const PermissionHandlerPermissionsService(),

@@ -8,7 +8,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/models/video_publish/video_publish_provider_state.dart';
-import 'package:openvine/models/video_publish/video_publish_state.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -48,12 +47,10 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
       videoEventPublisher: ref.read(videoEventPublisherProvider),
       blossomService: ref.read(blossomUploadServiceProvider),
       draftService: DraftStorageService(prefs),
-      onStateChanged: setPublishState,
       onProgressChanged: ({required String draftId, required double progress}) {
         setUploadProgress(draftId: draftId, progress: progress);
         onProgressChanged(draftId: draftId, progress: progress);
       },
-      isMounted: () => ref.mounted,
     );
   }
 
@@ -76,17 +73,6 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
         category: .video,
       );
     }
-  }
-
-  /// Updates the publish state.
-  void setPublishState(VideoPublishState value) {
-    state = state.copyWith(publishState: value);
-
-    Log.info(
-      'Publish state changed to: ${value.name}',
-      name: 'VideoPublishNotifier',
-      category: .video,
-    );
   }
 
   /// Sets error state with user message.
@@ -120,7 +106,6 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
     VineDraft publishDraft = draft.copyWith();
 
     try {
-      setPublishState(.preparing);
       Log.info(
         '📝 Starting video publish process',
         name: 'VideoPublishNotifier',
@@ -188,7 +173,7 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
         ),
       );
 
-      context.goMyProfile();
+      context.goMyProfileGrid();
 
       // Wait the publishment process to complete
       // so the data can be properly cleaned up.
@@ -220,8 +205,6 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
         error: error,
         stackTrace: stackTrace,
       );
-
-      setPublishState(.error);
     } finally {
       Log.info(
         '🏁 Publish process completed',

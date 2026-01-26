@@ -24,7 +24,7 @@ class BackgroundUpload extends Equatable {
   }
 
   @override
-  List<Object?> get props => [draft, progress, result];
+  List<Object?> get props => [draft.id, progress, result];
 }
 
 class BackgroundPublishState extends Equatable {

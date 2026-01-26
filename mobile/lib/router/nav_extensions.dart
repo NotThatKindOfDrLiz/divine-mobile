@@ -73,6 +73,9 @@ extension NavX on BuildContext {
     go(route);
   }
 
+  /// Navigate to my profile in grid mode (no video playing)
+  void goMyProfileGrid() => goProfileGrid('me');
+
   /// Navigate to profile in grid mode (no video playing)
   void goProfileGrid(String identifier) {
     // Handle 'me' special case - need to get current user's hex

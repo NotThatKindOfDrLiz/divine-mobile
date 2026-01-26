@@ -36,26 +36,6 @@ void main() {
       expect(container.read(videoPublishProvider).uploadProgress, 1.0);
     });
 
-    test('setPublishState updates publish state', () {
-      notifier.setPublishState(VideoPublishState.uploading);
-      expect(
-        container.read(videoPublishProvider).publishState,
-        VideoPublishState.uploading,
-      );
-
-      notifier.setPublishState(VideoPublishState.publishToNostr);
-      expect(
-        container.read(videoPublishProvider).publishState,
-        VideoPublishState.publishToNostr,
-      );
-
-      notifier.setPublishState(VideoPublishState.error);
-      expect(
-        container.read(videoPublishProvider).publishState,
-        VideoPublishState.error,
-      );
-    });
-
     test('upload progress tracks intermediate values', () {
       notifier.setUploadProgress(draftId: '1', progress: 0);
       expect(container.read(videoPublishProvider).uploadProgress, 0.0);
@@ -95,7 +75,6 @@ void main() {
       // First modify the state
       notifier
         ..setUploadProgress(draftId: '1', progress: 0.5)
-        ..setPublishState(VideoPublishState.uploading)
         // Then reset
         ..reset();
 
