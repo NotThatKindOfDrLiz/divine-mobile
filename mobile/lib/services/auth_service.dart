@@ -304,6 +304,15 @@ class AuthService {
         biometricPrompt: biometricPrompt,
       );
 
+      // Mark as new registration so router directs to Explore instead of Home
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_new_registration', true);
+      Log.info(
+        'Set is_new_registration=true for new identity',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+
       // Set up user session
       await _setupUserSession(keyContainer, AuthenticationSource.automatic);
 

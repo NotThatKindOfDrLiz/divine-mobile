@@ -281,12 +281,33 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final authState = ref.read(authServiceProvider).authState;
-      if (authState == AuthState.authenticated &&
-          (location == WelcomeScreen.path ||
-              location == KeyImportScreen.path ||
-              location == WelcomeScreen.loginOptionsPath ||
-              location == WelcomeScreen.resetPasswordPath)) {
-        debugPrint('[Router] Authenticated. moving to /home/0');
+      // Check if user is authenticated and on an auth route (welcome flow or key import)
+      final isOnAuthRoute =
+          location.startsWith(WelcomeScreen.path) ||
+          location.startsWith(KeyImportScreen.path);
+      if (authState == AuthState.authenticated && isOnAuthRoute) {
+        // Check if this is a new registration - should go to explore
+        final isNewRegistration = prefs.getBool('is_new_registration') ?? false;
+        Log.debug(
+          'Auth redirect: location=$location, isNewRegistration=$isNewRegistration',
+          name: 'AppRouter',
+          category: LogCategory.ui,
+        );
+        if (isNewRegistration) {
+          // Clear the flag so subsequent app launches go to home
+          await prefs.remove('is_new_registration');
+          Log.info(
+            'New registration detected, redirecting to /explore',
+            name: 'AppRouter',
+            category: LogCategory.ui,
+          );
+          return ExploreScreen.path;
+        }
+        Log.info(
+          'Login detected, redirecting to /home/0',
+          name: 'AppRouter',
+          category: LogCategory.ui,
+        );
         return HomeScreenRouter.pathForIndex(0);
       }
 
@@ -333,16 +354,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         }
       }
 
-      // Redirect FROM /welcome TO /explore when TOS is accepted AND user is authenticated
       if (location.startsWith(WelcomeScreen.path)) {
         final hasAcceptedTerms = prefs.getBool('age_verified_16_plus') ?? false;
         if (hasAcceptedTerms && authState == AuthState.authenticated) {
-          Log.debug(
-            'TOS accepted and authenticated, redirecting from /welcome to /explore',
-            name: 'AppRouter',
-            category: LogCategory.ui,
-          );
-          return ExploreScreen.path;
+          // This shouldn't normally be reached since the block above handles it
+          // But if it is, check registration flag to determine destination
+          final isNewRegistration =
+              prefs.getBool('is_new_registration') ?? false;
+          if (isNewRegistration) {
+            await prefs.remove('is_new_registration');
+            return ExploreScreen.path;
+          }
+          return HomeScreenRouter.pathForIndex(0);
         }
       }
 

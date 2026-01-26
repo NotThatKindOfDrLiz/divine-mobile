@@ -13,6 +13,7 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/validators.dart';
 import 'package:openvine/widgets/error_message.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Mode for the auth screen
 enum AuthMode { login, register }
@@ -51,6 +52,7 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
   String? _pendingVerifier;
   String? _pendingEmail;
   Timer? _pollTimer;
+  bool _isRegistrationFlow = false;
 
   @override
   void initState() {
@@ -114,6 +116,8 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
     String email,
     String password,
   ) async {
+    _isRegistrationFlow = false;
+
     final (result, verifier) = await oauth.headlessLogin(
       email: email,
       password: password,
@@ -137,6 +141,8 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
     String email,
     String password,
   ) async {
+    _isRegistrationFlow = true;
+
     final (result, verifier) = await oauth.headlessRegister(
       email: email,
       password: password,
@@ -278,12 +284,18 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
     );
   }
 
-  void _continueToApp() {
+  void _continueToApp() async {
     // User can use the app while waiting for verification
     // The polling continues in the background
-    // Navigate to home
+    // For new registrations, navigate to explore instead of home
     if (mounted) {
-      context.go(HomeScreenRouter.pathForIndex(0));
+      if (_isRegistrationFlow) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_new_registration', true);
+        context.go('/explore');
+      } else {
+        context.go(HomeScreenRouter.pathForIndex(0));
+      }
     }
   }
 
@@ -301,6 +313,25 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
       // Get the session and sign in
       final session = KeycastSession.fromTokenResponse(tokenResponse);
       final authService = ref.read(authServiceProvider);
+
+      // Set registration flag BEFORE signing in so router can check it
+      Log.info(
+        '_isRegistrationFlow=$_isRegistrationFlow before auth',
+        name: 'DivineAuthScreen',
+        category: LogCategory.auth,
+      );
+      if (_isRegistrationFlow) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_new_registration', true);
+        // Verify the flag was set correctly
+        final verifyFlag = prefs.getBool('is_new_registration');
+        Log.info(
+          'Set is_new_registration=true, verified=$verifyFlag',
+          name: 'DivineAuthScreen',
+          category: LogCategory.auth,
+        );
+      }
+
       await authService.signInWithDivineOAuth(session);
 
       // Clear pending state
@@ -308,6 +339,7 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
         _pendingDeviceCode = null;
         _pendingVerifier = null;
         _pendingEmail = null;
+        _isRegistrationFlow = false;
       });
 
       // Navigation will be handled by auth state listener
