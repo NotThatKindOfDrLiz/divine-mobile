@@ -15,14 +15,17 @@ import 'package:openvine/services/auth_service.dart';
 /// This helps us understand what SHOULD happen without Firebase dependencies
 ///
 /// The actual redirect logic is:
-/// 1. If authenticated AND on auth route -> redirect to /home/0
+/// 1. If authenticated AND on auth route:
+///    - If isNewRegistration -> redirect to /explore
+///    - Otherwise -> redirect to /home/0
 /// 2. If NOT on auth route AND (TOS not accepted OR unauthenticated) -> redirect to /welcome
-/// 3. If on /welcome AND TOS accepted AND authenticated -> redirect to /explore
+/// 3. If on /welcome AND TOS accepted AND authenticated -> check isNewRegistration
 /// 4. Otherwise -> null (no redirect)
 String? testRedirectLogic({
   required String location,
   required AuthState authState,
   required bool tosAccepted,
+  bool isNewRegistration = false,
 }) {
   // Auth routes that should be accessible without authentication
   final isAuthRoute =
@@ -31,8 +34,11 @@ String? testRedirectLogic({
       location.startsWith(WelcomeScreen.loginOptionsPath) ||
       location.startsWith(WelcomeScreen.authNativePath);
 
-  // Rule 1: Authenticated users on auth routes go to home
+  // Rule 1: Authenticated users on auth routes go to explore (new) or home (existing)
   if (authState == AuthState.authenticated && isAuthRoute) {
+    if (isNewRegistration) {
+      return ExploreScreen.path;
+    }
     return HomeScreenRouter.pathForIndex(0);
   }
 
@@ -46,10 +52,13 @@ String? testRedirectLogic({
     }
   }
 
-  // Rule 3: Welcome with TOS+auth -> explore
+  // Rule 3: Welcome with TOS+auth -> check registration status
   if (location.startsWith(WelcomeScreen.path)) {
     if (tosAccepted && authState == AuthState.authenticated) {
-      return ExploreScreen.path;
+      if (isNewRegistration) {
+        return ExploreScreen.path;
+      }
+      return HomeScreenRouter.pathForIndex(0);
     }
   }
 
@@ -173,38 +182,37 @@ void main() {
       );
     });
 
-    group('Authenticated user scenarios', () {
+    group('Authenticated user scenarios (existing user login)', () {
       test(
-        'authenticated user on ${WelcomeScreen.path} redirects to ${HomeScreenRouter.pathForIndex(0)}',
+        'existing user login on ${WelcomeScreen.path} redirects to ${HomeScreenRouter.pathForIndex(0)}',
         () {
-          // Note: The actual router redirects to /home/0 first (Rule 1),
-          // not /explore. This is because /welcome is treated as an auth route.
           final redirect = testRedirectLogic(
             location: WelcomeScreen.path,
             authState: AuthState.authenticated,
             tosAccepted: true,
+            isNewRegistration: false,
           );
           expect(
             redirect,
             equals(HomeScreenRouter.pathForIndex(0)),
-            reason:
-                'Authenticated user on auth route goes to ${HomeScreenRouter.pathForIndex(0)}',
+            reason: 'Existing user login should go to home',
           );
         },
       );
 
       test(
-        'authenticated user on ${WelcomeScreen.loginOptionsPath} redirects to ${HomeScreenRouter.pathForIndex(0)}',
+        'existing user login on ${WelcomeScreen.loginOptionsPath} redirects to ${HomeScreenRouter.pathForIndex(0)}',
         () {
           final redirect = testRedirectLogic(
             location: WelcomeScreen.loginOptionsPath,
             authState: AuthState.authenticated,
             tosAccepted: true,
+            isNewRegistration: false,
           );
           expect(
             redirect,
             equals(HomeScreenRouter.pathForIndex(0)),
-            reason: 'Authenticated user on auth route should go to home',
+            reason: 'Existing user login should go to home',
           );
         },
       );
@@ -237,6 +245,59 @@ void main() {
           reason: '${ExploreScreen.path} should not redirect',
         );
       });
+    });
+
+    group('Authenticated user scenarios (new registration)', () {
+      test(
+        'new registration on ${WelcomeScreen.path} redirects to ${ExploreScreen.path}',
+        () {
+          final redirect = testRedirectLogic(
+            location: WelcomeScreen.path,
+            authState: AuthState.authenticated,
+            tosAccepted: true,
+            isNewRegistration: true,
+          );
+          expect(
+            redirect,
+            equals(ExploreScreen.path),
+            reason: 'New registration should go to explore to discover content',
+          );
+        },
+      );
+
+      test(
+        'new registration on ${WelcomeScreen.loginOptionsPath} redirects to ${ExploreScreen.path}',
+        () {
+          final redirect = testRedirectLogic(
+            location: WelcomeScreen.loginOptionsPath,
+            authState: AuthState.authenticated,
+            tosAccepted: true,
+            isNewRegistration: true,
+          );
+          expect(
+            redirect,
+            equals(ExploreScreen.path),
+            reason: 'New registration should go to explore',
+          );
+        },
+      );
+
+      test(
+        'new registration on ${WelcomeScreen.authNativePath} redirects to ${ExploreScreen.path}',
+        () {
+          final redirect = testRedirectLogic(
+            location: WelcomeScreen.authNativePath,
+            authState: AuthState.authenticated,
+            tosAccepted: true,
+            isNewRegistration: true,
+          );
+          expect(
+            redirect,
+            equals(ExploreScreen.path),
+            reason: 'New registration from email/password should go to explore',
+          );
+        },
+      );
     });
 
     group('TOS not accepted scenarios', () {
