@@ -34,6 +34,7 @@ import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/screens/key_management_screen.dart';
+import 'package:openvine/screens/legal_screen.dart';
 import 'package:openvine/screens/liked_videos_screen_router.dart';
 import 'package:openvine/screens/notification_settings_screen.dart';
 import 'package:openvine/screens/notifications_screen.dart';
@@ -689,6 +690,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: LegalScreen.path,
+        name: LegalScreen.routeName,
+        builder: (_, __) => const LegalScreen(),
       ),
       GoRoute(
         path: KeyImportScreen.path,

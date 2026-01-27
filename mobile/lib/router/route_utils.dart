@@ -69,6 +69,7 @@ enum RouteType {
   sound, // Sound detail screen for audio reuse
   secureAccount,
   newVideoFeed,
+  legal, // Legal acceptance screen (age verification + terms)
 }
 
 /// Structured representation of a route
@@ -321,6 +322,9 @@ RouteContext parseRoute(String path) {
     case 'new-video-feed':
       return const RouteContext(type: RouteType.newVideoFeed);
 
+    case 'legal':
+      return const RouteContext(type: RouteType.legal);
+
     default:
       return const RouteContext(type: RouteType.home, videoIndex: 0);
   }
@@ -470,5 +474,8 @@ String buildRoute(RouteContext context) {
       return SecureAccountScreen.path;
     case RouteType.newVideoFeed:
       return VideoFeedPage.path;
+
+    case RouteType.legal:
+      return '/legal';
   }
 }
