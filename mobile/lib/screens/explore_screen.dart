@@ -348,8 +348,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
               }
             },
             tabs: [
-              const Tab(text: 'New Videos'),
-              const Tab(text: 'Popular Videos'),
+              const Tab(text: 'New'),
+              const Tab(text: 'Popular'),
               if (_classicsAvailable) const Tab(text: 'Classics'),
               const Tab(text: 'Lists'),
             ],

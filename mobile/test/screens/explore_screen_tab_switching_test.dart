@@ -45,10 +45,10 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Verify initial state (default is Popular Videos = index 1)
+      // Verify initial state (default is Popular = index 1)
       expect(container.read(exploreTabIndexProvider), 1);
 
-      // Simulate user switching to "New Videos" tab (index 0)
+      // Simulate user switching to "New" tab (index 0)
       container.read(exploreTabIndexProvider.notifier).state = 0;
 
       // Verify provider was updated
@@ -72,7 +72,7 @@ void main() {
       expect(container.read(exploreTabIndexProvider), 2);
 
       container.read(exploreTabIndexProvider.notifier).state =
-          1; // Popular Videos
+          1; // Popular
       expect(container.read(exploreTabIndexProvider), 1);
     });
   });
