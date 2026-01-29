@@ -48,7 +48,7 @@ class MinimalMockNostrService implements NostrClient {
   void notifyListeners() {}
 
   // Implement required methods as no-ops for testing
-  Future<void> initialize({List<String>? customRelays}) async {}
+  Future<void> initialize({List<String>? initialRelays}) async {}
 
   Stream<Event> subscribeToEvents({
     required List<Filter> filters,

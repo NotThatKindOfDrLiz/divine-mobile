@@ -183,10 +183,13 @@ class NostrClient {
   /// This must be called before using the client to ensure relay connections
   /// are established. Also refreshes the public key from the signer to ensure
   /// the client has the correct key. Can be called multiple times safely.
-  Future<void> initialize() async {
+  ///
+  /// Optional [initialRelays] can be provided to bootstrap the relay list when
+  /// storage is empty (e.g., from NIP-65 import during first authentication).
+  Future<void> initialize({List<String>? initialRelays}) async {
     // Refresh public key from signer - signer is the single source of truth
     await _nostr.refreshPublicKey();
-    await _relayManager.initialize();
+    await _relayManager.initialize(initialRelays: initialRelays);
   }
 
   /// Map of subscription IDs to their filter hashes (for deduplication)

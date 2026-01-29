@@ -230,6 +230,231 @@ void main() {
 
         expect(statusUpdates, isNotEmpty);
       });
+
+      group('with initialRelays parameter', () {
+        test('uses initialRelays when storage is empty', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [testCustomRelayUrl, testCustomRelayUrl2],
+          );
+
+          expect(
+            managerWithStorage.configuredRelays,
+            contains(testCustomRelayUrl),
+          );
+          expect(
+            managerWithStorage.configuredRelays,
+            contains(testCustomRelayUrl2),
+          );
+        });
+
+        test('always includes default relay with initialRelays', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [testCustomRelayUrl],
+          );
+
+          expect(
+            managerWithStorage.configuredRelays,
+            contains(testDefaultRelayUrl),
+          );
+          expect(
+            managerWithStorage.configuredRelays,
+            contains(testCustomRelayUrl),
+          );
+        });
+
+        test('persists initialRelays to storage', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [testCustomRelayUrl],
+          );
+
+          verify(() => mockStorage.saveRelays(any())).called(1);
+        });
+
+        test('ignores initialRelays when storage has relays', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer(
+            (_) async => ['wss://stored.relay.com'],
+          );
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [testCustomRelayUrl],
+          );
+
+          // Should use stored relay, not initialRelays
+          expect(
+            managerWithStorage.configuredRelays,
+            contains('wss://stored.relay.com'),
+          );
+          // initialRelays should be ignored
+          expect(
+            managerWithStorage.configuredRelays,
+            isNot(contains(testCustomRelayUrl)),
+          );
+        });
+
+        test('handles null initialRelays gracefully', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize();
+
+          // Should just have default relay
+          expect(managerWithStorage.configuredRelays.length, 1);
+          expect(
+            managerWithStorage.configuredRelays,
+            contains(testDefaultRelayUrl),
+          );
+        });
+
+        test('handles empty initialRelays list gracefully', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(initialRelays: []);
+
+          // Should just have default relay
+          expect(managerWithStorage.configuredRelays.length, 1);
+          expect(
+            managerWithStorage.configuredRelays,
+            contains(testDefaultRelayUrl),
+          );
+        });
+
+        test('normalizes initialRelays URLs', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [
+              'relay.custom.com', // Missing wss://
+              'wss://relay.custom2.com/', // Trailing slash
+            ],
+          );
+
+          expect(
+            managerWithStorage.configuredRelays,
+            contains('wss://relay.custom.com'),
+          );
+          expect(
+            managerWithStorage.configuredRelays,
+            contains('wss://relay.custom2.com'),
+          );
+        });
+
+        test('deduplicates initialRelays', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [
+              testCustomRelayUrl,
+              testCustomRelayUrl, // Duplicate
+            ],
+          );
+
+          // Count occurrences of testCustomRelayUrl
+          final count = managerWithStorage.configuredRelays
+              .where((r) => r == testCustomRelayUrl)
+              .length;
+          expect(count, 1);
+        });
+
+        test('does not duplicate default relay if in initialRelays', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [testDefaultRelayUrl, testCustomRelayUrl],
+          );
+
+          // Count occurrences of default relay
+          final count = managerWithStorage.configuredRelays
+              .where((r) => r == testDefaultRelayUrl)
+              .length;
+          expect(count, 1);
+        });
+
+        test('connects to all initialRelays', () async {
+          when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
+          when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
+
+          final configWithStorage = _createTestConfig(storage: mockStorage);
+          final managerWithStorage = RelayManager(
+            config: configWithStorage,
+            relayPool: mockRelayPool,
+          );
+
+          await managerWithStorage.initialize(
+            initialRelays: [testCustomRelayUrl, testCustomRelayUrl2],
+          );
+
+          // Should connect to default + 2 initialRelays = 3 relays
+          verify(() => mockRelayPool.add(any())).called(3);
+        });
+      });
     });
 
     group('addRelay', () {

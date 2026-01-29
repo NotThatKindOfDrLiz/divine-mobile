@@ -105,6 +105,16 @@ class AppConstants {
   /// Default Nostr relay URL
   static const String defaultRelayUrl = 'wss://relay.divine.video';
 
+  /// Indexer relay URLs for discovering user metadata (NIP-65 relay lists, etc.)
+  /// These relays aggregate and index user metadata from across the Nostr network.
+  /// We also include popular relays where users commonly publish kind 10002 events.
+  static const List<String> indexerRelayUrls = [
+    'wss://purplepag.es', // Purple Pages - primary metadata indexer
+    'wss://relay.nostr.band', // Nostr.band indexer
+    'wss://relay.damus.io', // Popular relay - many users publish here
+    'wss://nos.lol', // Popular relay - many users publish here
+  ];
+
   /// Connection timeout for relay connections
   static const Duration relayConnectionTimeout = Duration(seconds: 30);
 

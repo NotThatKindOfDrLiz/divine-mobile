@@ -19,7 +19,7 @@ class TestNostrService implements NostrClient {
   String? _currentUserPubkey;
 
   @override
-  Future<void> initialize({List<String>? customRelays}) async {
+  Future<void> initialize({List<String>? initialRelays}) async {
     // No-op for tests
   }
 

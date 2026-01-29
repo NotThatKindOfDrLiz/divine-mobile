@@ -11,7 +11,7 @@ class MockNostrService implements NostrClient {
   bool get isInitialized => _isInitialized;
 
   @override
-  Future<void> initialize({List<String>? customRelays}) async {
+  Future<void> initialize({List<String>? initialRelays}) async {
     // Simulate initialization delay
     await Future.delayed(const Duration(milliseconds: 100));
     _isInitialized = true;

@@ -101,7 +101,11 @@ class RelayManager {
   ///
   /// Loads persisted relay configuration and connects to all configured relays.
   /// If no relays are persisted, uses the default relay.
-  Future<void> initialize() async {
+  ///
+  /// Optional [initialRelays] can be provided to bootstrap the relay list when
+  /// storage is empty (e.g., from NIP-65 import during first authentication).
+  /// These relays are only used if no relays are already stored.
+  Future<void> initialize({List<String>? initialRelays}) async {
     if (_initialized) {
       _log('Already initialized');
       return;
@@ -122,6 +126,21 @@ class RelayManager {
         }
       }
       _log('Loaded ${_configuredRelays.length} relays from storage');
+    }
+
+    // If storage was empty and initialRelays provided, use them
+    if (_configuredRelays.isEmpty &&
+        initialRelays != null &&
+        initialRelays.isNotEmpty) {
+      _log('Using ${initialRelays.length} initial relays from NIP-65 import');
+      for (final url in initialRelays) {
+        final normalized = _normalizeUrl(url);
+        if (normalized != null && !_configuredRelays.contains(normalized)) {
+          _configuredRelays.add(normalized);
+        }
+      }
+      // Persist for future sessions
+      await _saveConfiguration();
     }
 
     // Ensure default relay is always included

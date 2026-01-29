@@ -1,13 +1,14 @@
 import 'dart:async';
 
+import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/services/auth_service.dart';
+import 'package:openvine/services/nip65_relay_import_service.dart';
 import 'package:openvine/services/nostr_service_factory.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:nostr_client/nostr_client.dart';
 
 part 'nostr_client_provider.g.dart';
 
@@ -44,7 +45,13 @@ class NostrService extends _$NostrService {
     // This ensures relays are connected when the client is first used
     Future.microtask(() async {
       try {
-        await client.initialize();
+        // Check if we need to import relays from NIP-65
+        final initialRelays = await _fetchNip65RelaysIfNeeded(
+          authService.currentPublicKeyHex,
+          environmentConfig.relayUrl,
+        );
+
+        await client.initialize(initialRelays: initialRelays);
         Log.info(
           '[NostrService] Client initialized via build()',
           name: 'NostrService',
@@ -97,9 +104,64 @@ class NostrService extends _$NostrService {
 
       _lastPubkey = currentPubkey;
 
+      // Check if we need to import relays from NIP-65 for the new user
+      final initialRelays = await _fetchNip65RelaysIfNeeded(
+        currentPubkey,
+        environmentConfig.relayUrl,
+      );
+
       // Initialize the new client
-      await newClient.initialize();
+      await newClient.initialize(initialRelays: initialRelays);
       state = newClient;
     }
+  }
+
+  /// Fetches NIP-65 relay list if storage is empty and user is authenticated.
+  ///
+  /// Returns the list of relays to use as initial configuration, or null
+  /// if relays are already stored locally.
+  Future<List<String>?> _fetchNip65RelaysIfNeeded(
+    String? pubkey,
+    String defaultRelayUrl,
+  ) async {
+    // No user authenticated, skip NIP-65 import
+    if (pubkey == null || pubkey.isEmpty) {
+      return null;
+    }
+
+    // Check if relays are already stored locally
+    final storage = SharedPreferencesRelayStorage();
+    final savedRelays = await storage.loadRelays();
+
+    if (savedRelays.isNotEmpty) {
+      Log.info(
+        '[NostrService] Found ${savedRelays.length} stored relays, '
+        'skipping NIP-65 import',
+        name: 'NostrService',
+        category: LogCategory.system,
+      );
+      return null;
+    }
+
+    // No stored relays, attempt NIP-65 import
+    Log.info(
+      '[NostrService] No stored relays, attempting NIP-65 import for $pubkey',
+      name: 'NostrService',
+      category: LogCategory.system,
+    );
+
+    final importService = Nip65RelayImportService(
+      defaultRelayUrl: defaultRelayUrl,
+    );
+    final result = await importService.fetchRelayList(pubkey);
+
+    Log.info(
+      '[NostrService] NIP-65 import result: ${result.source.name}, '
+      '${result.relays.length} relays',
+      name: 'NostrService',
+      category: LogCategory.system,
+    );
+
+    return result.relays;
   }
 }

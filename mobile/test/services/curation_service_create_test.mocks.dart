@@ -153,9 +153,9 @@ class MockNostrClient extends _i1.Mock implements _i6.NostrClient {
           as String);
 
   @override
-  _i8.Future<void> initialize() =>
+  _i8.Future<void> initialize({List<String>? initialRelays}) =>
       (super.noSuchMethod(
-            Invocation.method(#initialize, []),
+            Invocation.method(#initialize, [], {#initialRelays: initialRelays}),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )

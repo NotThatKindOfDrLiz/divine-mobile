@@ -50,7 +50,7 @@ class FakeNostrService implements NostrClient {
   bool get isDisposed => false;
 
   @override
-  Future<void> initialize({List<String>? customRelays}) async {}
+  Future<void> initialize({List<String>? initialRelays}) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
