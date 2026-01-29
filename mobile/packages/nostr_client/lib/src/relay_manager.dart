@@ -143,13 +143,12 @@ class RelayManager {
       await _saveConfiguration();
     }
 
-    // Ensure default relay is always included
-    // (uses normalized URL for comparison)
     final normalizedDefault = _normalizeUrl(_config.defaultRelayUrl);
-    if (normalizedDefault != null &&
-        !_configuredRelays.contains(normalizedDefault)) {
-      _configuredRelays.insert(0, normalizedDefault);
-      _log('Added default relay: $normalizedDefault');
+
+    // If we still have no relays, use the default as last resort
+    if (_configuredRelays.isEmpty && normalizedDefault != null) {
+      _configuredRelays.add(normalizedDefault);
+      _log('No relays configured, using default: $normalizedDefault');
     }
 
     // Initialize status for all configured relays

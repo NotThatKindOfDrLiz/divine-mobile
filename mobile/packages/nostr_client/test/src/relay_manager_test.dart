@@ -159,17 +159,17 @@ void main() {
           managerWithStorage.configuredRelays,
           contains(testCustomRelayUrl),
         );
+        // Default relay is NOT force-added when storage has relays
         expect(
           managerWithStorage.configuredRelays,
-          contains(testDefaultRelayUrl),
+          isNot(contains(testDefaultRelayUrl)),
         );
         verify(() => mockStorage.loadRelays()).called(1);
       });
 
-      test('ensures default relay is always included', () async {
-        when(() => mockStorage.loadRelays()).thenAnswer(
-          (_) async => [testCustomRelayUrl],
-        );
+      test('uses default relay only when no relays exist', () async {
+        // Empty storage, no initialRelays - should use default as fallback
+        when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
         when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
 
         final configWithStorage = _createTestConfig(storage: mockStorage);
@@ -181,9 +181,10 @@ void main() {
         await managerWithStorage.initialize();
 
         expect(
-          managerWithStorage.configuredRelays.first,
-          equals(testDefaultRelayUrl),
+          managerWithStorage.configuredRelays,
+          contains(testDefaultRelayUrl),
         );
+        expect(managerWithStorage.configuredRelays.length, equals(1));
       });
 
       test('does not reinitialize if already initialized', () async {
@@ -208,8 +209,8 @@ void main() {
 
         await managerWithStorage.initialize();
 
-        // Should connect to default + 2 custom relays
-        verify(() => mockRelayPool.add(any())).called(3);
+        // Should connect to 2 custom relays (default is not force-added)
+        verify(() => mockRelayPool.add(any())).called(2);
       });
 
       test('initializes status for all configured relays', () async {
@@ -256,7 +257,7 @@ void main() {
           );
         });
 
-        test('always includes default relay with initialRelays', () async {
+        test('does not force-add default relay with initialRelays', () async {
           when(() => mockStorage.loadRelays()).thenAnswer((_) async => []);
           when(() => mockStorage.saveRelays(any())).thenAnswer((_) async {});
 
@@ -270,9 +271,10 @@ void main() {
             initialRelays: [testCustomRelayUrl],
           );
 
+          // Default relay is NOT force-added when initialRelays provided
           expect(
             managerWithStorage.configuredRelays,
-            contains(testDefaultRelayUrl),
+            isNot(contains(testDefaultRelayUrl)),
           );
           expect(
             managerWithStorage.configuredRelays,
@@ -451,8 +453,8 @@ void main() {
             initialRelays: [testCustomRelayUrl, testCustomRelayUrl2],
           );
 
-          // Should connect to default + 2 initialRelays = 3 relays
-          verify(() => mockRelayPool.add(any())).called(3);
+          // Should connect to 2 initialRelays (default is not force-added)
+          verify(() => mockRelayPool.add(any())).called(2);
         });
       });
     });
