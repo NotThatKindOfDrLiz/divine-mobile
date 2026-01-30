@@ -406,34 +406,41 @@ class _PeopleCarousel extends ConsumerWidget {
               builder: (context, snapshot) {
                 final profile = userProfileService.getCachedProfile(pubkey);
 
-                return GestureDetector(
-                  onTap: () {
-                    final npub = normalizeToNpub(pubkey);
-                    if (npub != null) {
-                      context.push(ProfileScreenRouter.pathForIndex(npub, 0));
-                    }
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        UserAvatar(imageUrl: profile?.picture, size: 56),
-                        const SizedBox(height: 4),
-                        SizedBox(
-                          width: 70,
-                          child: Text(
-                            profile?.bestDisplayName ??
-                                NostrKeyUtils.truncateNpub(pubkey),
-                            style: VineTheme.titleTinyFont(
-                              color: VineTheme.primaryText,
+                final displayName =
+                    profile?.bestDisplayName ??
+                    NostrKeyUtils.truncateNpub(pubkey);
+
+                return Semantics(
+                  label: 'View profile for $displayName',
+                  button: true,
+                  child: GestureDetector(
+                    onTap: () {
+                      final npub = normalizeToNpub(pubkey);
+                      if (npub != null) {
+                        context.push(ProfileScreenRouter.pathForIndex(npub, 0));
+                      }
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          UserAvatar(imageUrl: profile?.picture, size: 56),
+                          const SizedBox(height: 4),
+                          SizedBox(
+                            width: 70,
+                            child: Text(
+                              displayName,
+                              style: VineTheme.titleTinyFont(
+                                color: VineTheme.primaryText,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );

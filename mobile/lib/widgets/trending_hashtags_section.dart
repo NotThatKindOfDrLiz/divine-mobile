@@ -129,19 +129,23 @@ class _HashtagChip extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12.8),
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Center(
-            child: Text(
-              '#$hashtag',
-              style: VineTheme.titleSmallFont(
-                color: VineTheme.primaryDarkGreen,
+      child: Semantics(
+        label: 'View videos tagged $hashtag',
+        button: true,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12.8),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Center(
+              child: Text(
+                '#$hashtag',
+                style: VineTheme.titleSmallFont(
+                  color: VineTheme.primaryDarkGreen,
+                ),
               ),
             ),
           ),
