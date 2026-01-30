@@ -168,50 +168,135 @@ class _PopularVideosTabState extends ConsumerState<PopularVideosTab> {
   }
 }
 
-/// Content widget displaying trending hashtags and video grid
-class _PopularVideosTrendingContent extends ConsumerWidget {
+/// Content widget displaying trending hashtags and video grid.
+///
+/// Hashtags push up as user scrolls down (1:1 with scroll distance).
+/// When scrolling up, hashtags slide back in as an overlay with animation.
+class _PopularVideosTrendingContent extends ConsumerStatefulWidget {
   const _PopularVideosTrendingContent({required this.videos});
 
   final List<VideoEvent> videos;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PopularVideosTrendingContent> createState() =>
+      _PopularVideosTrendingContentState();
+}
+
+class _PopularVideosTrendingContentState
+    extends ConsumerState<_PopularVideosTrendingContent> {
+  final _hashtagKey = GlobalKey();
+  double _hashtagHeight = 0;
+  double _hashtagOffset = 0;
+  bool _isScrollingDown = true;
+  bool _hashtagFullyHidden = false;
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      final pixels = notification.metrics.pixels;
+
+      // Ignore overscroll (pull-to-refresh rubber band)
+      if (pixels <= 0) return false;
+
+      if (delta > 0) {
+        // Scrolling down: push hashtags up 1:1
+        _isScrollingDown = true;
+        _hashtagFullyHidden = false;
+        setState(() {
+          _hashtagOffset = (_hashtagOffset - delta).clamp(-_hashtagHeight, 0);
+        });
+      } else if (delta < 0) {
+        // Scrolling up: if hashtags are hidden, animate them in as overlay
+        if (_isScrollingDown && _hashtagOffset <= -_hashtagHeight) {
+          _isScrollingDown = false;
+          _hashtagFullyHidden = true;
+          // Trigger animated slide-in
+          setState(() {
+            _hashtagOffset = 0;
+          });
+        } else if (!_hashtagFullyHidden) {
+          // Still partially visible during scroll down, push back 1:1
+          setState(() {
+            _hashtagOffset = (_hashtagOffset - delta).clamp(-_hashtagHeight, 0);
+          });
+        }
+      }
+    }
+    return false;
+  }
+
+  void _measureHashtagHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final box =
+          _hashtagKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && _hashtagHeight == 0) {
+        setState(() {
+          _hashtagHeight = box.size.height;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final hashtags = TopHashtagsService.instance.getTopHashtags(limit: 20);
 
-    return Column(
+    _measureHashtagHeight();
+
+    return Stack(
       children: [
-        TrendingHashtagsSection(
-          hashtags: hashtags,
-          isLoading: !TopHashtagsService.instance.isLoaded,
+        // Grid takes full space
+        Positioned.fill(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _handleScrollNotification,
+            child: ComposableVideoGrid(
+              videos: widget.videos,
+              useMasonryLayout: true,
+              padding: EdgeInsets.only(
+                left: 4,
+                right: 4,
+                bottom: 4,
+                top: _hashtagHeight > 0 ? _hashtagHeight + 4 : 4,
+              ),
+              onVideoTap: (videoList, index) {
+                Log.info(
+                  '🎯 PopularVideosTab TAP: gridIndex=$index, '
+                  'videoId=${videoList[index].id}',
+                  category: LogCategory.video,
+                );
+                context.push(
+                  FullscreenVideoFeedScreen.path,
+                  extra: FullscreenVideoFeedArgs(
+                    source: StaticFeedSource(videoList),
+                    initialIndex: index,
+                    contextTitle: 'Popular Videos',
+                  ),
+                );
+              },
+              onRefresh: () async {
+                Log.info(
+                  '🔄 PopularVideosTab: Refreshing',
+                  category: LogCategory.video,
+                );
+                await ref.read(popularVideosFeedProvider.notifier).refresh();
+              },
+              emptyBuilder: () => const _PopularVideosEmptyState(),
+            ),
+          ),
         ),
-        Expanded(
-          child: ComposableVideoGrid(
-            videos: videos,
-            useMasonryLayout: true,
-            onVideoTap: (videoList, index) {
-              Log.info(
-                '🎯 PopularVideosTab TAP: gridIndex=$index, '
-                'videoId=${videoList[index].id}',
-                category: LogCategory.video,
-              );
-              // Navigate to fullscreen video feed
-              context.push(
-                FullscreenVideoFeedScreen.path,
-                extra: FullscreenVideoFeedArgs(
-                  source: StaticFeedSource(videoList),
-                  initialIndex: index,
-                  contextTitle: 'Popular Videos',
-                ),
-              );
-            },
-            onRefresh: () async {
-              Log.info(
-                '🔄 PopularVideosTab: Refreshing',
-                category: LogCategory.video,
-              );
-              await ref.read(popularVideosFeedProvider.notifier).refresh();
-            },
-            emptyBuilder: () => const _PopularVideosEmptyState(),
+        // Hashtags overlay on top, animated when returning
+        AnimatedPositioned(
+          duration: _hashtagFullyHidden
+              ? const Duration(milliseconds: 250)
+              : Duration.zero,
+          curve: Curves.easeOut,
+          top: _hashtagOffset,
+          left: 0,
+          right: 0,
+          child: TrendingHashtagsSection(
+            key: _hashtagKey,
+            hashtags: hashtags,
+            isLoading: !TopHashtagsService.instance.isLoaded,
           ),
         ),
       ],
