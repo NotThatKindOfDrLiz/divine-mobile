@@ -207,7 +207,10 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen>
               top: headerOffset,
               left: 0,
               right: 0,
-              child: _buildPeopleCarousel(),
+              child: _PeopleCarousel(
+                key: headerKey,
+                pubkeys: widget.userList.pubkeys,
+              ),
             ),
           ],
         );
@@ -236,76 +239,6 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPeopleCarousel() {
-    final userProfileService = ref.watch(userProfileServiceProvider);
-
-    return Container(
-      key: headerKey,
-      color: VineTheme.backgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 100,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(left: 16, right: 16, top: 12),
-              itemCount: widget.userList.pubkeys.length,
-              itemBuilder: (context, index) {
-                final pubkey = widget.userList.pubkeys[index];
-
-                return FutureBuilder(
-                  future: userProfileService.fetchProfile(pubkey),
-                  builder: (context, snapshot) {
-                    final profile =
-                        userProfileService.getCachedProfile(pubkey);
-
-                    return GestureDetector(
-                      onTap: () {
-                        final npub = normalizeToNpub(pubkey);
-                        if (npub != null) {
-                          context.push(
-                            ProfileScreenRouter.pathForIndex(npub, 0),
-                          );
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            UserAvatar(
-                              imageUrl: profile?.picture,
-                              size: 56,
-                            ),
-                            const SizedBox(height: 4),
-                            SizedBox(
-                              width: 70,
-                              child: Text(
-                                profile?.bestDisplayName ??
-                                    NostrKeyUtils.truncateNpub(pubkey),
-                                style: VineTheme.titleTinyFont(
-                                  color: VineTheme.primaryText,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -445,6 +378,78 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen>
         child: Text(
           'Error loading videos',
           style: TextStyle(color: VineTheme.likeRed),
+        ),
+      ),
+    );
+  }
+}
+
+/// Horizontal carousel of people avatars for a user list.
+class _PeopleCarousel extends ConsumerWidget {
+  const _PeopleCarousel({super.key, required this.pubkeys});
+
+  final List<String> pubkeys;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfileService = ref.watch(userProfileServiceProvider);
+
+    return Container(
+      color: VineTheme.backgroundColor,
+      child: SizedBox(
+        height: 100,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 12),
+          itemCount: pubkeys.length,
+          itemBuilder: (context, index) {
+            final pubkey = pubkeys[index];
+
+            return FutureBuilder(
+              future: userProfileService.fetchProfile(pubkey),
+              builder: (context, snapshot) {
+                final profile =
+                    userProfileService.getCachedProfile(pubkey);
+
+                return GestureDetector(
+                  onTap: () {
+                    final npub = normalizeToNpub(pubkey);
+                    if (npub != null) {
+                      context.push(
+                        ProfileScreenRouter.pathForIndex(npub, 0),
+                      );
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        UserAvatar(
+                          imageUrl: profile?.picture,
+                          size: 56,
+                        ),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: 70,
+                          child: Text(
+                            profile?.bestDisplayName ??
+                                NostrKeyUtils.truncateNpub(pubkey),
+                            style: VineTheme.titleTinyFont(
+                              color: VineTheme.primaryText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         ),
       ),
     );

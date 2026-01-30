@@ -152,7 +152,11 @@ class _VinerAvatar extends ConsumerWidget {
             SizedBox(
               width: 56,
               height: 56,
-              child: _buildAvatar(avatarUrl, displayName),
+              child: UserAvatar(
+                imageUrl: avatarUrl,
+                name: displayName,
+                size: 56,
+              ),
             ),
             const SizedBox(height: 4),
             // Display name from classic Vine data
@@ -169,14 +173,6 @@ class _VinerAvatar extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildAvatar(String? avatarUrl, String displayName) {
-    return UserAvatar(
-      imageUrl: avatarUrl,
-      name: displayName,
-      size: 56,
     );
   }
 
