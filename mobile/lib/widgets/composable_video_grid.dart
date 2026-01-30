@@ -447,7 +447,6 @@ class _VideoInfoSection extends ConsumerWidget {
         profile != null &&
         ((profile.displayName?.isNotEmpty ?? false) ||
             (profile.name?.isNotEmpty ?? false));
-    final hasNip05 = profile?.hasNip05 ?? false;
 
     // Don't render info section if neither username nor description exist
     if (!hasUsername && !hasDescription) {
@@ -469,47 +468,18 @@ class _VideoInfoSection extends ConsumerWidget {
         spacing: 0,
         children: [
           if (hasUsername)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 4,
-              children: [
-                Flexible(
-                  child: UserName.fromPubKey(
-                    video.pubkey,
-                    maxLines: 1,
-                    style: VineTheme.titleTinyFont(color: Colors.white)
-                        .copyWith(
-                          shadows: const [
-                            Shadow(
-                              offset: Offset(0, 1),
-                              blurRadius: 2,
-                              color: Color(0x26000000),
-                            ),
-                          ],
-                        ),
+            UserName.fromPubKey(
+              video.pubkey,
+              maxLines: 1,
+              style: VineTheme.titleTinyFont(color: Colors.white).copyWith(
+                shadows: const [
+                  Shadow(
+                    offset: Offset(0, 1),
+                    blurRadius: 2,
+                    color: Color(0x26000000),
                   ),
-                ),
-                if (hasNip05)
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                      boxShadow: const [
-                        BoxShadow(
-                          offset: Offset(0, 1),
-                          blurRadius: 2,
-                          color: Color(0x26000000),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.check,
-                      color: Colors.white,
-                      size: 8,
-                    ),
-                  ),
-              ],
+                ],
+              ),
             ),
           if (hasDescription)
             Text(
