@@ -33,31 +33,14 @@ class TrendingHashtagsSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       color: VineTheme.backgroundColor,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Trending Hashtags',
-              style: TextStyle(
-                color: VineTheme.primaryText,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+      child: SizedBox(
+        height: 28,
+        child: hashtags.isEmpty
+            ? const _HashtagLoadingPlaceholder()
+            : _HashtagChipList(
+                hashtags: hashtags,
+                onHashtagTap: onHashtagTap,
               ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 28,
-            child: hashtags.isEmpty
-                ? const _HashtagLoadingPlaceholder()
-                : _HashtagChipList(
-                    hashtags: hashtags,
-                    onHashtagTap: onHashtagTap,
-                  ),
-          ),
-        ],
       ),
     );
   }
@@ -91,11 +74,23 @@ class _HashtagChipList extends StatelessWidget {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: hashtags.length,
+      itemCount: hashtags.length + 1,
       itemBuilder: (context, index) {
-        final hashtag = hashtags[index];
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Center(
+              child: Text(
+                'Trending',
+                style: VineTheme.titleSmallFont(color: VineTheme.primaryText),
+              ),
+            ),
+          );
+        }
+        final hashtag = hashtags[index - 1];
         return _HashtagChip(
           hashtag: hashtag,
+          colorIndex: index - 1,
           onTap: () {
             if (onHashtagTap != null) {
               onHashtagTap!(hashtag);
@@ -109,15 +104,33 @@ class _HashtagChipList extends StatelessWidget {
   }
 }
 
+/// Accent colors used for hashtag chip backgrounds.
+const _accentColors = [
+  VineTheme.accentYellow,
+  VineTheme.accentLime,
+  VineTheme.accentPink,
+  VineTheme.accentOrange,
+  VineTheme.accentViolet,
+  VineTheme.accentPurple,
+  VineTheme.accentBlue,
+];
+
 /// Individual hashtag chip with tap behavior.
 class _HashtagChip extends StatelessWidget {
-  const _HashtagChip({required this.hashtag, required this.onTap});
+  const _HashtagChip({
+    required this.hashtag,
+    required this.onTap,
+    required this.colorIndex,
+  });
 
   final String hashtag;
   final VoidCallback onTap;
+  final int colorIndex;
 
   @override
   Widget build(BuildContext context) {
+    final color = _accentColors[colorIndex % _accentColors.length];
+
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -125,18 +138,13 @@ class _HashtagChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12.8),
           decoration: BoxDecoration(
-            color: VineTheme.cardBackground,
+            color: color,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
             child: Text(
               '#$hashtag',
-              style: const TextStyle(
-                color: VineTheme.vineGreen,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                height: 1.0,
-              ),
+              style: VineTheme.titleSmallFont(color: VineTheme.primaryDarkGreen),
             ),
           ),
         ),

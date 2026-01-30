@@ -233,6 +233,9 @@ class VineTheme {
   /// Darker variant of the brand green.
   static const Color vineGreenDark = Color(0xFF009A72);
 
+  /// Dark green for primary accents on dark backgrounds.
+  static const Color primaryDarkGreen = Color(0xFF06281D);
+
   /// Lighter variant of the brand green.
   static const Color vineGreenLight = Color(0xFF33C49F);
 
@@ -365,6 +368,18 @@ class VineTheme {
 
   /// Accent blue color.
   static const Color accentBlue = Color(0xFF34BBF1);
+
+  /// Accent lime color.
+  static const Color accentLime = Color(0xFFD2FF40);
+
+  /// Accent pink color.
+  static const Color accentPink = Color(0xFFFF7FAF);
+
+  /// Accent violet color.
+  static const Color accentViolet = Color(0xFFA3A9FF);
+
+  /// Accent purple color.
+  static const Color accentPurple = Color(0xFF8568FF);
 
   /// The complete theme data for the app.
   static ThemeData get theme => ThemeData(
