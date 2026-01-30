@@ -130,6 +130,13 @@ void main() {
         expect(style.fontSize, 14);
         expect(style.fontWeight, FontWeight.w800);
       });
+
+      testWidgets('titleTinyFont returns correct style', (tester) async {
+        final style = VineTheme.titleTinyFont();
+        expect(style.fontSize, 12);
+        expect(style.fontWeight, FontWeight.w800);
+        expect(style.letterSpacing, 0.1);
+      });
     });
 
     group('typography - body fonts', () {
