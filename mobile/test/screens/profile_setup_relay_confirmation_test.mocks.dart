@@ -405,6 +405,7 @@ class MockNostrClient extends _i1.Mock implements _i4.NostrClient {
     required String? addressableId,
     required int? targetKind,
     required String? authorPubkey,
+    String? eventId,
     String? content = '',
     List<String>? tempRelays,
     List<String>? targetRelays,
@@ -414,6 +415,7 @@ class MockNostrClient extends _i1.Mock implements _i4.NostrClient {
               #addressableId: addressableId,
               #targetKind: targetKind,
               #authorPubkey: authorPubkey,
+              #eventId: eventId,
               #content: content,
               #tempRelays: tempRelays,
               #targetRelays: targetRelays,
@@ -841,6 +843,12 @@ class MockUserProfileService extends _i1.Mock
   bool get hasListeners =>
       (super.noSuchMethod(Invocation.getter(#hasListeners), returnValue: false)
           as bool);
+
+  @override
+  void setFunnelcakeAvailable(bool? available) => super.noSuchMethod(
+    Invocation.method(#setFunnelcakeAvailable, [available]),
+    returnValueForMissingStub: null,
+  );
 
   @override
   void setPersistentCache(_i11.ProfileCacheService? cacheService) =>
