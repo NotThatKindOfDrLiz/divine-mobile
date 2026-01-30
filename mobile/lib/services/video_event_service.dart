@@ -2315,9 +2315,19 @@ class VideoEventService extends ChangeNotifier {
         final isRepostByAuthor =
             video.isRepost && video.reposterPubkey == pubkey;
 
-        if ((isOriginalByAuthor || isRepostByAuthor) &&
-            !bucket.any((e) => e.id == video.id)) {
-          bucket.add(video);
+        if (isOriginalByAuthor || isRepostByAuthor) {
+          // For addressable events, deduplicate by (pubkey, vineId) not event ID
+          final existingIndex = bucket.indexWhere(
+            (e) => e.vineId == video.vineId && e.pubkey == video.pubkey,
+          );
+          if (existingIndex != -1) {
+            // Found existing - keep the newer version
+            if (video.createdAt > bucket[existingIndex].createdAt) {
+              bucket[existingIndex] = video;
+            }
+          } else {
+            bucket.add(video);
+          }
         }
       }
     }
@@ -3791,13 +3801,25 @@ class VideoEventService extends ChangeNotifier {
     }
 
     // Check for duplicates within this subscription type
+    // For addressable events (NIP-71 kind 34236), deduplicate by (pubkey, vineId)
+    // since each edit creates a new event ID but same vineId (d-tag)
     final existingIndex = eventList.indexWhere(
-      (existing) => existing.id == videoEvent.id,
+      (existing) =>
+          existing.vineId == videoEvent.vineId &&
+          existing.pubkey == videoEvent.pubkey,
     );
     if (existingIndex != -1) {
+      // Found existing video with same stable identifier
+      final existingVideo = eventList[existingIndex];
+      if (videoEvent.createdAt > existingVideo.createdAt) {
+        // Incoming event is newer - replace the old one
+        eventList[existingIndex] = videoEvent;
+        notifyListeners();
+      }
+      // Either way, don't add as a new video
       _duplicateVideoEventCount++;
       _logDuplicateVideoEventsAggregated();
-      return; // Don't add duplicate events
+      return;
     }
 
     // Fetch profile for video author if not already cached

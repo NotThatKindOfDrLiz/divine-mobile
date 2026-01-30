@@ -355,12 +355,32 @@ class ProfileFeed extends _$ProfileFeed {
         if (!ref.mounted) return;
 
         if (apiVideos.isNotEmpty) {
-          // Deduplicate and merge
-          final existingIds = currentState.videos.map((v) => v.id).toSet();
-          final newVideos = apiVideos
-              .where((v) => !existingIds.contains(v.id))
-              .where((v) => !v.isRepost)
-              .toList();
+          // Deduplicate by vineId + pubkey (stable identifier for addressable events)
+          // not event ID, since edits create new IDs but same vineId
+          final existingByStableId = <String, VideoEvent>{};
+          for (final v in currentState.videos) {
+            existingByStableId['${v.pubkey}:${v.vineId}'] = v;
+          }
+
+          final newVideos = <VideoEvent>[];
+          for (final v in apiVideos) {
+            if (v.isRepost) continue;
+            final stableId = '${v.pubkey}:${v.vineId}';
+            final existing = existingByStableId[stableId];
+            if (existing == null) {
+              // Truly new video
+              newVideos.add(v);
+            } else if (v.createdAt > existing.createdAt) {
+              // Newer version of existing video - will be handled by merge below
+              existingByStableId[stableId] = v;
+            }
+          }
+
+          // Rebuild current videos with any updated versions
+          final updatedCurrentVideos = currentState.videos.map((v) {
+            final stableId = '${v.pubkey}:${v.vineId}';
+            return existingByStableId[stableId] ?? v;
+          }).toList();
 
           // Update cursor for next pagination
           _nextCursor = _getOldestTimestamp(apiVideos);
@@ -369,7 +389,7 @@ class ProfileFeed extends _$ProfileFeed {
           _cacheVideoMetadata(newVideos);
 
           if (newVideos.isNotEmpty) {
-            final allVideos = [...currentState.videos, ...newVideos];
+            final allVideos = [...updatedCurrentVideos, ...newVideos];
             Log.info(
               'ProfileFeed: Loaded ${newVideos.length} new videos from REST API for user=$userId (total: ${allVideos.length})',
               name: 'ProfileFeedProvider',
@@ -391,11 +411,14 @@ class ProfileFeed extends _$ProfileFeed {
               name: 'ProfileFeedProvider',
               category: LogCategory.video,
             );
+            // Still use updatedCurrentVideos in case existing videos were refreshed
             state = AsyncData(
-              currentState.copyWith(
+              VideoFeedState(
+                videos: updatedCurrentVideos,
                 hasMoreContent:
                     apiVideos.length >= AppConstants.paginationBatchSize,
                 isLoadingMore: false,
+                lastUpdated: DateTime.now(),
               ),
             );
           }
