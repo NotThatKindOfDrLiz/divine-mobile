@@ -1,7 +1,6 @@
 // ABOUTME: Horizontal slider showing top classic Viners (most loops)
 // ABOUTME: Displays circular avatars with names, tappable to view profile
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +9,6 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/classic_vines_provider.dart';
 import 'package:openvine/router/page_context_provider.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
-import 'package:openvine/services/image_cache_manager.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:openvine/widgets/user_avatar.dart';
@@ -146,13 +144,10 @@ class _VinerAvatar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Avatar with rounded square
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: _buildAvatar(displayName),
-              ),
+            SizedBox(
+              width: 56,
+              height: 56,
+              child: _buildAvatar(displayName),
             ),
             const SizedBox(height: 4),
             // Display name from classic Vine data
@@ -173,21 +168,11 @@ class _VinerAvatar extends StatelessWidget {
   }
 
   Widget _buildAvatar(String displayName) {
-    // Use network image if authorAvatar is available
-    if (viner.authorAvatar != null && viner.authorAvatar!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: viner.authorAvatar!,
-        width: 56,
-        height: 56,
-        fit: BoxFit.cover,
-        cacheManager: openVineImageCache,
-        placeholder: (context, url) => UserAvatar(name: displayName, size: 56),
-        errorWidget: (context, url, error) =>
-            UserAvatar(name: displayName, size: 56),
-      );
-    }
-    // Fallback to initials avatar
-    return UserAvatar(name: displayName, size: 56);
+    return UserAvatar(
+      imageUrl: viner.authorAvatar,
+      name: displayName,
+      size: 56,
+    );
   }
 
   /// Clean up social media prefixes from display names.

@@ -24,7 +24,7 @@ class UserAvatar extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(25),
+        borderRadius: BorderRadius.circular(size * 0.286),
         child: SizedBox(
           width: size,
           height: size,

@@ -327,16 +327,9 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: SizedBox(
-                                width: 56,
-                                height: 56,
-                                child: UserAvatar(
-                                  imageUrl: profile?.picture,
-                                  size: 56,
-                                ),
-                              ),
+                            UserAvatar(
+                              imageUrl: profile?.picture,
+                              size: 56,
                             ),
                             const SizedBox(height: 4),
                             SizedBox(
