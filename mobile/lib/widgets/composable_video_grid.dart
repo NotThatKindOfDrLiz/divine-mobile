@@ -395,45 +395,34 @@ class _VideoItem extends StatelessWidget {
     return GestureDetector(
       onTap: () => onVideoTap(displayedVideos, index),
       onLongPress: onLongPress,
-      child: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _VideoInfoSection(video: video),
-            Stack(
-              children: [
-                _VideoThumbnail(video: video),
-                if (isInSubscribedList)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: VineTheme.vineGreen.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Icon(
-                        Icons.collections,
-                        size: 14,
-                        color: Colors.white,
-                      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _VideoInfoSection(video: video),
+          Stack(
+            children: [
+              _VideoThumbnail(video: video),
+              if (isInSubscribedList)
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: VineTheme.vineGreen.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Icon(
+                      Icons.collections,
+                      size: 14,
+                      color: Colors.white,
                     ),
                   ),
-              ],
-            ),
-          ],
-        ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
