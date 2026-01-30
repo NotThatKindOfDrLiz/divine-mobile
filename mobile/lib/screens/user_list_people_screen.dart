@@ -17,6 +17,7 @@ import 'package:openvine/widgets/user_avatar.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
+import 'package:openvine/widgets/scroll_to_hide_mixin.dart';
 
 class UserListPeopleScreen extends ConsumerStatefulWidget {
   const UserListPeopleScreen({required this.userList, super.key});
@@ -28,7 +29,8 @@ class UserListPeopleScreen extends ConsumerStatefulWidget {
       _UserListPeopleScreenState();
 }
 
-class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
+class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen>
+    with ScrollToHideMixin {
   int? _activeVideoIndex;
 
   @override
@@ -119,63 +121,12 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
     );
   }
 
-  final _carouselKey = GlobalKey();
-  double _carouselHeight = 0;
-  double _carouselOffset = 0;
-  bool _isScrollingDown = true;
-  bool _carouselFullyHidden = false;
-
-  bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification) {
-      final delta = notification.scrollDelta ?? 0;
-      final pixels = notification.metrics.pixels;
-
-      // Ignore overscroll (pull-to-refresh rubber band)
-      if (pixels <= 0) return false;
-
-      if (delta > 0) {
-        _isScrollingDown = true;
-        _carouselFullyHidden = false;
-        setState(() {
-          _carouselOffset =
-              (_carouselOffset - delta).clamp(-_carouselHeight, 0);
-        });
-      } else if (delta < 0) {
-        if (_isScrollingDown && _carouselOffset <= -_carouselHeight) {
-          _isScrollingDown = false;
-          _carouselFullyHidden = true;
-          setState(() {
-            _carouselOffset = 0;
-          });
-        } else if (!_carouselFullyHidden) {
-          setState(() {
-            _carouselOffset =
-                (_carouselOffset - delta).clamp(-_carouselHeight, 0);
-          });
-        }
-      }
-    }
-    return false;
-  }
-
-  void _measureCarouselHeight() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final box =
-          _carouselKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && _carouselHeight == 0) {
-        setState(() {
-          _carouselHeight = box.size.height;
-        });
-      }
-    });
-  }
-
   Widget _buildListContent() {
     final videosAsync = ref.watch(
       userListMemberVideosProvider(widget.userList.pubkeys),
     );
 
-    _measureCarouselHeight();
+    measureHeaderHeight();
 
     return videosAsync.when(
       data: (videos) {
@@ -215,7 +166,7 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
           children: [
             Positioned.fill(
               child: NotificationListener<ScrollNotification>(
-                onNotification: _handleScrollNotification,
+                onNotification: handleScrollNotification,
                 child: ComposableVideoGrid(
                   videos: videos,
                   useMasonryLayout: true,
@@ -223,7 +174,7 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
                     left: 4,
                     right: 4,
                     bottom: 4,
-                    top: _carouselHeight > 0 ? _carouselHeight + 4 : 4,
+                    top: headerHeight > 0 ? headerHeight + 4 : 4,
                   ),
                   onVideoTap: (videos, index) {
                     Log.info(
@@ -249,11 +200,11 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
               ),
             ),
             AnimatedPositioned(
-              duration: _carouselFullyHidden
+              duration: headerFullyHidden
                   ? const Duration(milliseconds: 250)
                   : Duration.zero,
               curve: Curves.easeOut,
-              top: _carouselOffset,
+              top: headerOffset,
               left: 0,
               right: 0,
               child: _buildPeopleCarousel(),
@@ -293,7 +244,7 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
     final userProfileService = ref.watch(userProfileServiceProvider);
 
     return Container(
-      key: _carouselKey,
+      key: headerKey,
       color: VineTheme.backgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

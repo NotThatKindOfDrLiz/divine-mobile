@@ -13,6 +13,7 @@ import 'package:openvine/services/feed_performance_tracker.dart';
 import 'package:openvine/services/error_analytics_tracker.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/scroll_to_hide_mixin.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
 import 'package:openvine/widgets/trending_hashtags_section.dart';
@@ -183,72 +184,21 @@ class _PopularVideosTrendingContent extends ConsumerStatefulWidget {
 }
 
 class _PopularVideosTrendingContentState
-    extends ConsumerState<_PopularVideosTrendingContent> {
-  final _hashtagKey = GlobalKey();
-  double _hashtagHeight = 0;
-  double _hashtagOffset = 0;
-  bool _isScrollingDown = true;
-  bool _hashtagFullyHidden = false;
-
-  bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification) {
-      final delta = notification.scrollDelta ?? 0;
-      final pixels = notification.metrics.pixels;
-
-      // Ignore overscroll (pull-to-refresh rubber band)
-      if (pixels <= 0) return false;
-
-      if (delta > 0) {
-        // Scrolling down: push hashtags up 1:1
-        _isScrollingDown = true;
-        _hashtagFullyHidden = false;
-        setState(() {
-          _hashtagOffset = (_hashtagOffset - delta).clamp(-_hashtagHeight, 0);
-        });
-      } else if (delta < 0) {
-        // Scrolling up: if hashtags are hidden, animate them in as overlay
-        if (_isScrollingDown && _hashtagOffset <= -_hashtagHeight) {
-          _isScrollingDown = false;
-          _hashtagFullyHidden = true;
-          // Trigger animated slide-in
-          setState(() {
-            _hashtagOffset = 0;
-          });
-        } else if (!_hashtagFullyHidden) {
-          // Still partially visible during scroll down, push back 1:1
-          setState(() {
-            _hashtagOffset = (_hashtagOffset - delta).clamp(-_hashtagHeight, 0);
-          });
-        }
-      }
-    }
-    return false;
-  }
-
-  void _measureHashtagHeight() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final box =
-          _hashtagKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && _hashtagHeight == 0) {
-        setState(() {
-          _hashtagHeight = box.size.height;
-        });
-      }
-    });
-  }
+    extends ConsumerState<_PopularVideosTrendingContent>
+    with ScrollToHideMixin {
 
   @override
   Widget build(BuildContext context) {
     final hashtags = TopHashtagsService.instance.getTopHashtags(limit: 20);
 
-    _measureHashtagHeight();
+    measureHeaderHeight();
 
     return Stack(
       children: [
         // Grid takes full space
         Positioned.fill(
           child: NotificationListener<ScrollNotification>(
-            onNotification: _handleScrollNotification,
+            onNotification: handleScrollNotification,
             child: ComposableVideoGrid(
               videos: widget.videos,
               useMasonryLayout: true,
@@ -256,7 +206,7 @@ class _PopularVideosTrendingContentState
                 left: 4,
                 right: 4,
                 bottom: 4,
-                top: _hashtagHeight > 0 ? _hashtagHeight + 4 : 4,
+                top: headerHeight > 0 ? headerHeight + 4 : 4,
               ),
               onVideoTap: (videoList, index) {
                 Log.info(
@@ -286,15 +236,15 @@ class _PopularVideosTrendingContentState
         ),
         // Hashtags overlay on top, animated when returning
         AnimatedPositioned(
-          duration: _hashtagFullyHidden
+          duration: headerFullyHidden
               ? const Duration(milliseconds: 250)
               : Duration.zero,
           curve: Curves.easeOut,
-          top: _hashtagOffset,
+          top: headerOffset,
           left: 0,
           right: 0,
           child: TrendingHashtagsSection(
-            key: _hashtagKey,
+            key: headerKey,
             hashtags: hashtags,
             isLoading: !TopHashtagsService.instance.isLoaded,
           ),

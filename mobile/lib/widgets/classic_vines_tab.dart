@@ -12,6 +12,7 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/classic_viners_slider.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
+import 'package:openvine/widgets/scroll_to_hide_mixin.dart';
 
 /// Tab widget displaying Classics archive videos (pre-2017).
 ///
@@ -93,69 +94,19 @@ class _ClassicVinesContent extends ConsumerStatefulWidget {
       _ClassicVinesContentState();
 }
 
-class _ClassicVinesContentState extends ConsumerState<_ClassicVinesContent> {
-  final _sliderKey = GlobalKey();
-  double _sliderHeight = 0;
-  double _sliderOffset = 0;
-  bool _isScrollingDown = true;
-  bool _sliderFullyHidden = false;
-
-  bool _handleScrollNotification(ScrollNotification notification) {
-    if (notification is ScrollUpdateNotification) {
-      final delta = notification.scrollDelta ?? 0;
-      final pixels = notification.metrics.pixels;
-
-      // Ignore overscroll (pull-to-refresh rubber band)
-      if (pixels <= 0) return false;
-
-      if (delta > 0) {
-        // Scrolling down: push slider up 1:1
-        _isScrollingDown = true;
-        _sliderFullyHidden = false;
-        setState(() {
-          _sliderOffset = (_sliderOffset - delta).clamp(-_sliderHeight, 0);
-        });
-      } else if (delta < 0) {
-        // Scrolling up: if slider is hidden, animate it in as overlay
-        if (_isScrollingDown && _sliderOffset <= -_sliderHeight) {
-          _isScrollingDown = false;
-          _sliderFullyHidden = true;
-          setState(() {
-            _sliderOffset = 0;
-          });
-        } else if (!_sliderFullyHidden) {
-          // Still partially visible during scroll down, push back 1:1
-          setState(() {
-            _sliderOffset = (_sliderOffset - delta).clamp(-_sliderHeight, 0);
-          });
-        }
-      }
-    }
-    return false;
-  }
-
-  void _measureSliderHeight() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final box =
-          _sliderKey.currentContext?.findRenderObject() as RenderBox?;
-      if (box != null && _sliderHeight == 0) {
-        setState(() {
-          _sliderHeight = box.size.height;
-        });
-      }
-    });
-  }
+class _ClassicVinesContentState extends ConsumerState<_ClassicVinesContent>
+    with ScrollToHideMixin {
 
   @override
   Widget build(BuildContext context) {
-    _measureSliderHeight();
+    measureHeaderHeight();
 
     return Stack(
       children: [
         // Grid takes full space
         Positioned.fill(
           child: NotificationListener<ScrollNotification>(
-            onNotification: _handleScrollNotification,
+            onNotification: handleScrollNotification,
             child: ComposableVideoGrid(
               videos: widget.videos,
               useMasonryLayout: true,
@@ -163,7 +114,7 @@ class _ClassicVinesContentState extends ConsumerState<_ClassicVinesContent> {
                 left: 4,
                 right: 4,
                 bottom: 4,
-                top: _sliderHeight > 0 ? _sliderHeight + 4 : 4,
+                top: headerHeight > 0 ? headerHeight + 4 : 4,
               ),
               onVideoTap: widget.onVideoTap,
               onRefresh: () async {
@@ -183,14 +134,14 @@ class _ClassicVinesContentState extends ConsumerState<_ClassicVinesContent> {
         ),
         // Viners slider overlay on top, animated when returning
         AnimatedPositioned(
-          duration: _sliderFullyHidden
+          duration: headerFullyHidden
               ? const Duration(milliseconds: 250)
               : Duration.zero,
           curve: Curves.easeOut,
-          top: _sliderOffset,
+          top: headerOffset,
           left: 0,
           right: 0,
-          child: ClassicVinersSlider(key: _sliderKey),
+          child: ClassicVinersSlider(key: headerKey),
         ),
       ],
     );
