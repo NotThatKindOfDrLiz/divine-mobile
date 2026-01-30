@@ -5,17 +5,13 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' hide LogCategory;
-import 'package:openvine/features/feature_flags/models/feature_flag.dart';
-import 'package:openvine/features/feature_flags/widgets/feature_flag_widget.dart';
 import 'package:openvine/providers/classic_vines_provider.dart';
 import 'package:openvine/providers/curation_providers.dart';
-import 'package:openvine/services/top_hashtags_service.dart';
 import 'package:openvine/state/video_feed_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/classic_viners_slider.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
-import 'package:openvine/widgets/trending_hashtags_section.dart';
 
 /// Tab widget displaying Classics archive videos (pre-2017).
 ///
@@ -82,51 +78,119 @@ class _ClassicVinesTabState extends ConsumerState<ClassicVinesTab> {
   }
 }
 
-/// Content widget displaying classic Viners slider, hashtags, and video grid
-class _ClassicVinesContent extends ConsumerWidget {
+/// Content widget displaying classic Viners slider and video grid.
+///
+/// Viners slider pushes up as user scrolls down (1:1 with scroll distance).
+/// When scrolling up, slider slides back in as an overlay with animation.
+class _ClassicVinesContent extends ConsumerStatefulWidget {
   const _ClassicVinesContent({required this.videos, required this.onVideoTap});
 
   final List<VideoEvent> videos;
   final void Function(List<VideoEvent> videos, int index) onVideoTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch trending hashtags (synchronous, returns List<TrendingHashtag>)
-    final trendingHashtags = ref.watch(trendingHashtagsProvider);
+  ConsumerState<_ClassicVinesContent> createState() =>
+      _ClassicVinesContentState();
+}
 
-    return Column(
+class _ClassicVinesContentState extends ConsumerState<_ClassicVinesContent> {
+  final _sliderKey = GlobalKey();
+  double _sliderHeight = 0;
+  double _sliderOffset = 0;
+  bool _isScrollingDown = true;
+  bool _sliderFullyHidden = false;
+
+  bool _handleScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      final delta = notification.scrollDelta ?? 0;
+      final pixels = notification.metrics.pixels;
+
+      // Ignore overscroll (pull-to-refresh rubber band)
+      if (pixels <= 0) return false;
+
+      if (delta > 0) {
+        // Scrolling down: push slider up 1:1
+        _isScrollingDown = true;
+        _sliderFullyHidden = false;
+        setState(() {
+          _sliderOffset = (_sliderOffset - delta).clamp(-_sliderHeight, 0);
+        });
+      } else if (delta < 0) {
+        // Scrolling up: if slider is hidden, animate it in as overlay
+        if (_isScrollingDown && _sliderOffset <= -_sliderHeight) {
+          _isScrollingDown = false;
+          _sliderFullyHidden = true;
+          setState(() {
+            _sliderOffset = 0;
+          });
+        } else if (!_sliderFullyHidden) {
+          // Still partially visible during scroll down, push back 1:1
+          setState(() {
+            _sliderOffset = (_sliderOffset - delta).clamp(-_sliderHeight, 0);
+          });
+        }
+      }
+    }
+    return false;
+  }
+
+  void _measureSliderHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final box =
+          _sliderKey.currentContext?.findRenderObject() as RenderBox?;
+      if (box != null && _sliderHeight == 0) {
+        setState(() {
+          _sliderHeight = box.size.height;
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _measureSliderHeight();
+
+    return Stack(
       children: [
-        // Top Classic Viners horizontal slider
-        const ClassicVinersSlider(),
-        // Trending Hashtags section (hidden by default, enable via feature flag)
-        FeatureFlagWidget(
-          flag: FeatureFlag.classicsHashtags,
-          child: TrendingHashtagsSection(
-            hashtags: trendingHashtags.isNotEmpty
-                ? trendingHashtags.map((h) => h.tag).toList()
-                : TopHashtagsService.instance.getTopHashtags(limit: 20),
+        // Grid takes full space
+        Positioned.fill(
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _handleScrollNotification,
+            child: ComposableVideoGrid(
+              videos: widget.videos,
+              useMasonryLayout: true,
+              padding: EdgeInsets.only(
+                left: 4,
+                right: 4,
+                bottom: 4,
+                top: _sliderHeight > 0 ? _sliderHeight + 4 : 4,
+              ),
+              onVideoTap: widget.onVideoTap,
+              onRefresh: () async {
+                Log.info(
+                  '🔄 ClassicVinesTab: Refreshing from REST API',
+                  name: 'ClassicVinesTab',
+                  category: LogCategory.video,
+                );
+                await Future.wait([
+                  ref.read(classicVinesFeedProvider.notifier).refresh(),
+                  ref.read(trendingHashtagsProvider.notifier).refresh(),
+                ]);
+              },
+              emptyBuilder: () => const _ClassicVinesEmptyState(),
+            ),
           ),
         ),
-        // Video grid
-        Expanded(
-          child: ComposableVideoGrid(
-            videos: videos,
-            useMasonryLayout: true,
-            onVideoTap: onVideoTap,
-            onRefresh: () async {
-              Log.info(
-                '🔄 ClassicVinesTab: Refreshing from REST API',
-                name: 'ClassicVinesTab',
-                category: LogCategory.video,
-              );
-              // Fetch fresh data from both providers concurrently
-              await Future.wait([
-                ref.read(classicVinesFeedProvider.notifier).refresh(),
-                ref.read(trendingHashtagsProvider.notifier).refresh(),
-              ]);
-            },
-            emptyBuilder: () => const _ClassicVinesEmptyState(),
-          ),
+        // Viners slider overlay on top, animated when returning
+        AnimatedPositioned(
+          duration: _sliderFullyHidden
+              ? const Duration(milliseconds: 250)
+              : Duration.zero,
+          curve: Curves.easeOut,
+          top: _sliderOffset,
+          left: 0,
+          right: 0,
+          child: ClassicVinersSlider(key: _sliderKey),
         ),
       ],
     );

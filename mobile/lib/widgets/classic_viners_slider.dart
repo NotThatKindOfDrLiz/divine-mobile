@@ -26,7 +26,8 @@ class ClassicVinersSlider extends ConsumerWidget {
     final vinersAsync = ref.watch(topClassicVinersProvider);
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.only(top: 16),
+      color: VineTheme.backgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -37,12 +38,8 @@ class ClassicVinersSlider extends ConsumerWidget {
                 Icon(Icons.star, color: VineTheme.vineGreen, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  'Classic Viners',
-                  style: TextStyle(
-                    color: VineTheme.primaryText,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  'OG Viners',
+                  style: VineTheme.titleSmallFont(color: VineTheme.primaryText),
                 ),
               ],
             ),
@@ -79,16 +76,16 @@ class _VinersLoadingPlaceholder extends StatelessWidget {
       itemCount: 5,
       itemBuilder: (context, index) {
         return Padding(
-          padding: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.only(right: 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: VineTheme.cardBackground,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               const SizedBox(height: 8),
@@ -117,13 +114,13 @@ class _VinerAvatarList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: viners.length,
-      itemBuilder: (context, index) {
-        final viner = viners[index];
-        return _VinerAvatar(viner: viner);
-      },
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: viners.length,
+        itemBuilder: (context, index) {
+          final viner = viners[index];
+          return _VinerAvatar(viner: viner);
+        },
     );
   }
 }
@@ -144,24 +141,17 @@ class _VinerAvatar extends StatelessWidget {
     return GestureDetector(
       onTap: () => onTap(context),
       child: Padding(
-        padding: const EdgeInsets.only(right: 16),
+        padding: const EdgeInsets.only(right: 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Avatar with green border
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: VineTheme.vineGreen.withValues(alpha: 0.6),
-                  width: 2,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: ClipOval(child: _buildAvatar(displayName)),
+            // Avatar with rounded square
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: _buildAvatar(displayName),
               ),
             ),
             const SizedBox(height: 4),
@@ -170,11 +160,7 @@ class _VinerAvatar extends StatelessWidget {
               width: 70,
               child: Text(
                 displayName,
-                style: TextStyle(
-                  color: VineTheme.primaryText,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: VineTheme.titleTinyFont(color: VineTheme.primaryText),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
