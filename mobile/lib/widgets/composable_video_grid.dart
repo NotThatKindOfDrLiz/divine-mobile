@@ -128,6 +128,7 @@ class ComposableVideoGrid extends ConsumerWidget {
       return RefreshIndicator(
         semanticsLabel: 'searching for more videos',
         onRefresh: onRefresh!,
+        displacement: 70,
         child: gridView,
         color: VineTheme.onPrimary,
         backgroundColor: VineTheme.vineGreen,
