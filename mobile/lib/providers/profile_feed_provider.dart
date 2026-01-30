@@ -72,15 +72,28 @@ class ProfileFeed extends _$ProfileFeed {
 
         if (apiVideos.isNotEmpty) {
           _usingRestApi = true;
-          // Filter out reposts and store cursor
-          authorVideos = apiVideos.where((v) => !v.isRepost).toList();
+          // Filter out reposts
+          final nonReposts = apiVideos.where((v) => !v.isRepost).toList();
+
+          // Deduplicate by vineId + pubkey, keeping newest version of each video
+          // REST API may return multiple events for the same addressable video
+          // (previous edit versions), so we must keep only the newest
+          final videosByStableId = <String, VideoEvent>{};
+          for (final v in nonReposts) {
+            final stableId = '${v.pubkey}:${v.vineId}';
+            final existing = videosByStableId[stableId];
+            if (existing == null || v.createdAt > existing.createdAt) {
+              videosByStableId[stableId] = v;
+            }
+          }
+          authorVideos = videosByStableId.values.toList();
           _nextCursor = _getOldestTimestamp(apiVideos);
 
           // Cache metadata for later merging with Nostr data
           _cacheVideoMetadata(authorVideos);
 
           Log.info(
-            '✅ ProfileFeed: Got ${authorVideos.length} videos from REST API for user=$userId, cursor: $_nextCursor',
+            '✅ ProfileFeed: Got ${authorVideos.length} videos from REST API for user=$userId (deduped from ${nonReposts.length}), cursor: $_nextCursor',
             name: 'ProfileFeedProvider',
             category: LogCategory.video,
           );
@@ -175,7 +188,7 @@ class ProfileFeed extends _$ProfileFeed {
       updated,
     ) {
       if (updated.pubkey == userId && ref.mounted) {
-        refreshFromService();
+        refreshFromService(updated);
       }
     });
 
@@ -218,8 +231,48 @@ class ProfileFeed extends _$ProfileFeed {
 
   /// Refresh state - uses REST API when available, otherwise Nostr with metadata preservation
   /// Call this after a video is updated to sync the provider's state
-  void refreshFromService() {
-    // Fix #1: If using REST API, refresh from REST API instead of Nostr
+  void refreshFromService([VideoEvent? updatedVideo]) {
+    Log.info(
+      '📝 ProfileFeed.refreshFromService called: updatedVideo=${updatedVideo != null}, _usingRestApi=$_usingRestApi',
+      name: 'ProfileFeedProvider',
+      category: LogCategory.video,
+    );
+
+    // If using REST API and we have a specific video update, apply it directly
+    // Don't fetch from REST API since it may not have the update yet
+    if (_usingRestApi && updatedVideo != null) {
+      final currentState = state.hasValue ? state.value : null;
+      if (currentState == null) return;
+
+      // Update the specific video in our cached list by stable identifier
+      int updatedCount = 0;
+      final updatedVideos = currentState.videos.map((v) {
+        if (v.vineId == updatedVideo.vineId &&
+            v.pubkey == updatedVideo.pubkey) {
+          updatedCount++;
+          return updatedVideo;
+        }
+        return v;
+      }).toList();
+
+      Log.info(
+        '📝 ProfileFeed.refreshFromService: REST API mode - updated $updatedCount video(s) with title="${updatedVideo.title}"',
+        name: 'ProfileFeedProvider',
+        category: LogCategory.video,
+      );
+
+      state = AsyncData(
+        VideoFeedState(
+          videos: updatedVideos,
+          hasMoreContent: currentState.hasMoreContent,
+          isLoadingMore: false,
+          lastUpdated: DateTime.now(),
+        ),
+      );
+      return;
+    }
+
+    // If using REST API without specific video, refresh from REST API
     if (_usingRestApi) {
       _refreshFromRestApi();
       return;
