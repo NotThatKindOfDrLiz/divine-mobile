@@ -400,32 +400,32 @@ class _VideoItem extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: Stack(
-        children: [
-          _VideoThumbnail(video: video),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _VideoInfoSection(video: video),
-          ),
-          if (isInSubscribedList)
+          children: [
+            _VideoThumbnail(video: video),
             Positioned(
-              top: 6,
-              left: 6,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: VineTheme.vineGreen.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Icon(
-                  Icons.collections,
-                  size: 14,
-                  color: Colors.white,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _VideoInfoSection(video: video),
+            ),
+            if (isInSubscribedList)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: VineTheme.vineGreen.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Icon(
+                    Icons.collections,
+                    size: 14,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
         ),
       ),
     );
@@ -444,7 +444,8 @@ class _VideoInfoSection extends ConsumerWidget {
     // Check if user has a real display name (not just truncated npub)
     final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
     final profile = profileAsync.value;
-    final hasUsername = profile != null &&
+    final hasUsername =
+        profile != null &&
         ((profile.displayName?.isNotEmpty ?? false) ||
             (profile.name?.isNotEmpty ?? false));
     final hasNip05 = profile?.hasNip05 ?? false;
@@ -460,10 +461,7 @@ class _VideoInfoSection extends ConsumerWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Color(0x80000000),
-          ],
+          colors: [Colors.transparent, Color(0x80000000)],
         ),
       ),
       child: Column(
@@ -477,9 +475,20 @@ class _VideoInfoSection extends ConsumerWidget {
               spacing: 4,
               children: [
                 Flexible(
-                  child: UserName.fromPubKey(video.pubkey, maxLines: 1, style: VineTheme.titleTinyFont(color: Colors.white).copyWith(
-                    shadows: const [Shadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000))],
-                  )),
+                  child: UserName.fromPubKey(
+                    video.pubkey,
+                    maxLines: 1,
+                    style: VineTheme.titleTinyFont(color: Colors.white)
+                        .copyWith(
+                          shadows: const [
+                            Shadow(
+                              offset: Offset(0, 1),
+                              blurRadius: 2,
+                              color: Color(0x26000000),
+                            ),
+                          ],
+                        ),
+                  ),
                 ),
                 if (hasNip05)
                   Container(
@@ -488,10 +497,18 @@ class _VideoInfoSection extends ConsumerWidget {
                       color: Colors.blue,
                       shape: BoxShape.circle,
                       boxShadow: const [
-                        BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000)),
+                        BoxShadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 2,
+                          color: Color(0x26000000),
+                        ),
                       ],
                     ),
-                    child: const Icon(Icons.check, color: Colors.white, size: 8),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 8,
+                    ),
                   ),
               ],
             ),
@@ -504,7 +521,13 @@ class _VideoInfoSection extends ConsumerWidget {
                 fontSize: 14,
                 height: 20 / 14,
                 letterSpacing: 0.25,
-                shadows: [Shadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000))],
+                shadows: [
+                  Shadow(
+                    offset: Offset(0, 1),
+                    blurRadius: 2,
+                    color: Color(0x26000000),
+                  ),
+                ],
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

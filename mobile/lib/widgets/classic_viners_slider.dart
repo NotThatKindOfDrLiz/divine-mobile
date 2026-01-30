@@ -112,13 +112,13 @@ class _VinerAvatarList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: viners.length,
-        itemBuilder: (context, index) {
-          final viner = viners[index];
-          return _VinerAvatar(viner: viner);
-        },
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: viners.length,
+      itemBuilder: (context, index) {
+        final viner = viners[index];
+        return _VinerAvatar(viner: viner);
+      },
     );
   }
 }

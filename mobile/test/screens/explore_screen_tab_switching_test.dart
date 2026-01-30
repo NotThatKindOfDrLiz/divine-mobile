@@ -71,8 +71,7 @@ void main() {
           2; // Editor's Pick
       expect(container.read(exploreTabIndexProvider), 2);
 
-      container.read(exploreTabIndexProvider.notifier).state =
-          1; // Popular
+      container.read(exploreTabIndexProvider.notifier).state = 1; // Popular
       expect(container.read(exploreTabIndexProvider), 1);
     });
   });

@@ -186,7 +186,6 @@ class _PopularVideosTrendingContent extends ConsumerStatefulWidget {
 class _PopularVideosTrendingContentState
     extends ConsumerState<_PopularVideosTrendingContent>
     with ScrollToHideMixin {
-
   @override
   Widget build(BuildContext context) {
     final hashtags = TopHashtagsService.instance.getTopHashtags(limit: 20);

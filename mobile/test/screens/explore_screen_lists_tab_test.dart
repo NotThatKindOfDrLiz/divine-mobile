@@ -34,11 +34,7 @@ void main() {
         3,
         reason: 'Should have exactly 3 tab labels',
       );
-      expect(
-        expectedTabs[0],
-        'New',
-        reason: 'First tab should be New',
-      );
+      expect(expectedTabs[0], 'New', reason: 'First tab should be New');
       expect(
         expectedTabs[1],
         'Popular',

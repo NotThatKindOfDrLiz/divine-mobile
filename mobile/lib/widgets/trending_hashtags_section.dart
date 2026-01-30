@@ -36,10 +36,7 @@ class TrendingHashtagsSection extends StatelessWidget {
         height: 52,
         child: hashtags.isEmpty
             ? const _HashtagLoadingPlaceholder()
-            : _HashtagChipList(
-                hashtags: hashtags,
-                onHashtagTap: onHashtagTap,
-              ),
+            : _HashtagChipList(hashtags: hashtags, onHashtagTap: onHashtagTap),
       ),
     );
   }
@@ -143,7 +140,9 @@ class _HashtagChip extends StatelessWidget {
           child: Center(
             child: Text(
               '#$hashtag',
-              style: VineTheme.titleSmallFont(color: VineTheme.primaryDarkGreen),
+              style: VineTheme.titleSmallFont(
+                color: VineTheme.primaryDarkGreen,
+              ),
             ),
           ),
         ),

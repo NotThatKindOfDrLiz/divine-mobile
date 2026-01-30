@@ -96,7 +96,6 @@ class _ClassicVinesContent extends ConsumerStatefulWidget {
 
 class _ClassicVinesContentState extends ConsumerState<_ClassicVinesContent>
     with ScrollToHideMixin {
-
   @override
   Widget build(BuildContext context) {
     measureHeaderHeight();

@@ -37,8 +37,7 @@ mixin ScrollToHideMixin<T extends StatefulWidget> on State<T> {
   /// Call this in `build()` to measure the header after layout.
   void measureHeaderHeight() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final box =
-          headerKey.currentContext?.findRenderObject() as RenderBox?;
+      final box = headerKey.currentContext?.findRenderObject() as RenderBox?;
       if (box != null && _headerHeight == 0) {
         setState(() {
           _headerHeight = box.size.height;
@@ -62,8 +61,7 @@ mixin ScrollToHideMixin<T extends StatefulWidget> on State<T> {
         _isScrollingDown = true;
         _headerFullyHidden = false;
         setState(() {
-          _headerOffset =
-              (_headerOffset - delta).clamp(-_headerHeight, 0);
+          _headerOffset = (_headerOffset - delta).clamp(-_headerHeight, 0);
         });
       } else if (delta < 0) {
         // Scrolling up: if header is hidden, animate it in as overlay
@@ -76,8 +74,7 @@ mixin ScrollToHideMixin<T extends StatefulWidget> on State<T> {
         } else if (!_headerFullyHidden) {
           // Still partially visible during scroll down, push back 1:1
           setState(() {
-            _headerOffset =
-                (_headerOffset - delta).clamp(-_headerHeight, 0);
+            _headerOffset = (_headerOffset - delta).clamp(-_headerHeight, 0);
           });
         }
       }
