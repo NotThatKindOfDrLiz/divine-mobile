@@ -100,9 +100,7 @@ class Nip65RelayImportService {
           // Limit to max relays from NIP-65, then always include default relay
           final limitedRelays = relays.take(_maxNip65Relays).toList();
           if (relays.length > _maxNip65Relays) {
-            _log(
-              'Limiting from ${relays.length} to $_maxNip65Relays relays',
-            );
+            _log('Limiting from ${relays.length} to $_maxNip65Relays relays');
           }
           final relaySet = <String>{...limitedRelays, defaultRelayUrl};
 
@@ -202,9 +200,6 @@ class Nip65RelayImportService {
       }
 
       _log('Connected to indexer: $relayUrl');
-
-      // Brief delay to ensure WebSocket is fully ready
-      await Future<void>.delayed(const Duration(milliseconds: 100));
 
       // Send subscription request
       final filterJson = filter.toJson();
