@@ -7,6 +7,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/content_deletion_service.dart';
 import 'package:divine_ui/divine_ui.dart';
@@ -395,66 +396,116 @@ class _VideoItem extends StatelessWidget {
     return GestureDetector(
       onTap: () => onVideoTap(displayedVideos, index),
       onLongPress: onLongPress,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(
         children: [
-          _VideoInfoSection(video: video),
-          Stack(
-            children: [
-              _VideoThumbnail(video: video),
-              if (isInSubscribedList)
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: VineTheme.vineGreen.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Icon(
-                      Icons.collections,
-                      size: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-            ],
+          _VideoThumbnail(video: video),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _VideoInfoSection(video: video),
           ),
+          if (isInSubscribedList)
+            Positioned(
+              top: 6,
+              left: 6,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: VineTheme.vineGreen.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(
+                  Icons.collections,
+                  size: 14,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
+        ),
       ),
     );
   }
 }
 
-class _VideoInfoSection extends StatelessWidget {
+class _VideoInfoSection extends ConsumerWidget {
   const _VideoInfoSection({required this.video});
 
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hasDescription = (video.title ?? video.content).isNotEmpty;
+
+    // Check if user has a real display name (not just truncated npub)
+    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+    final profile = profileAsync.value;
+    final hasUsername = profile != null &&
+        ((profile.displayName?.isNotEmpty ?? false) ||
+            (profile.name?.isNotEmpty ?? false));
+    final hasNip05 = profile?.hasNip05 ?? false;
+
+    // Don't render info section if neither username nor description exist
+    if (!hasUsername && !hasDescription) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      color: VineTheme.cardBackground,
+      padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8, top: 50),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.transparent,
+            Color(0x80000000),
+          ],
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         spacing: 1,
         children: [
-          UserName.fromPubKey(video.pubkey, maxLines: 1),
-          Text(
-            video.title ?? video.content,
-            style: TextStyle(
-              color: VineTheme.primaryText,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+          if (hasUsername)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 4,
+              children: [
+                UserName.fromPubKey(video.pubkey, maxLines: 1, style: VineTheme.titleSmallFont(color: Colors.white).copyWith(
+                  shadows: const [Shadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000))],
+                )),
+                if (hasNip05)
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000)),
+                      ],
+                    ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 10),
+                  ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          _VideoStats(video: video),
+          if (hasDescription)
+            Text(
+              video.title ?? video.content,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                color: Colors.white,
+                fontSize: 14,
+                height: 20 / 14,
+                letterSpacing: 0.25,
+                shadows: [Shadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000))],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
         ],
       ),
     );

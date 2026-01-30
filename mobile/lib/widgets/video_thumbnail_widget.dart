@@ -266,10 +266,13 @@ class _VideoThumbnailWidgetState extends State<VideoThumbnailWidget> {
       aspectRatio = 2 / 3;
     }
 
+    // Clamp portrait videos to 2:3 minimum for grid thumbnails
+    final double clampedAspectRatio = aspectRatio < 2 / 3 ? 2 / 3 : aspectRatio;
+
     // Match video player's BoxFit strategy to prevent visual jump:
     // - Portrait videos (aspectRatio < 0.9): Use BoxFit.cover to fill screen
     // - Square/Landscape videos (aspectRatio >= 0.9): Use BoxFit.contain to show full video
-    final bool isPortrait = aspectRatio < 0.9;
+    final bool isPortrait = clampedAspectRatio < 0.9;
     final BoxFit effectiveFit = isPortrait ? BoxFit.cover : BoxFit.contain;
 
     // Build content with the calculated fit
@@ -279,7 +282,7 @@ class _VideoThumbnailWidgetState extends State<VideoThumbnailWidget> {
       content = ClipRRect(borderRadius: widget.borderRadius!, child: content);
     }
 
-    return AspectRatio(aspectRatio: aspectRatio, child: content);
+    return AspectRatio(aspectRatio: clampedAspectRatio, child: content);
   }
 }
 
