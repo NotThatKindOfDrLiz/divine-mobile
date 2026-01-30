@@ -31,10 +31,9 @@ class TrendingHashtagsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
       color: VineTheme.backgroundColor,
       child: SizedBox(
-        height: 28,
+        height: 52,
         child: hashtags.isEmpty
             ? const _HashtagLoadingPlaceholder()
             : _HashtagChipList(
@@ -73,7 +72,7 @@ class _HashtagChipList extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 12),
       itemCount: hashtags.length + 1,
       itemBuilder: (context, index) {
         if (index == 0) {
