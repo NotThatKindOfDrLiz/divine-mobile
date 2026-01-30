@@ -33,11 +33,13 @@ class NostrService extends _$NostrService {
     _authSubscription = authService.authStateStream.listen(_onAuthStateChanged);
 
     // Create initial NostrClient (prefer RPC signer when available)
+    // Pass pubkey for per-user relay storage
     final client = NostrServiceFactory.create(
       keyContainer: authService.currentKeyContainer,
       statisticsService: statisticsService,
       environmentConfig: environmentConfig,
       dbClient: dbClient,
+      pubkey: authService.currentPublicKeyHex,
       rpcSigner: authService.rpcSigner,
     );
 
@@ -99,6 +101,7 @@ class NostrService extends _$NostrService {
         statisticsService: statisticsService,
         environmentConfig: environmentConfig,
         dbClient: dbClient,
+        pubkey: currentPubkey,
         rpcSigner: authService.rpcSigner,
       );
 
@@ -129,8 +132,8 @@ class NostrService extends _$NostrService {
       return null;
     }
 
-    // Check if relays are already stored locally
-    final storage = SharedPreferencesRelayStorage();
+    // Check if relays are already stored locally for this user
+    final storage = SharedPreferencesRelayStorage.forUser(pubkey: pubkey);
     final savedRelays = await storage.loadRelays();
 
     if (savedRelays.isNotEmpty) {

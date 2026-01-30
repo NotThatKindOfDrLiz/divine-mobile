@@ -136,5 +136,51 @@ void main() {
         expect(relays, equals(['wss://relay.example.com']));
       });
     });
+
+    group('forUser factory', () {
+      test('creates storage with user-specific key', () async {
+        const pubkey = 'abc123def456';
+        final storage = SharedPreferencesRelayStorage.forUser(pubkey: pubkey);
+
+        await storage.saveRelays(['wss://relay.example.com']);
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getStringList('configured_relays_$pubkey'),
+          equals(['wss://relay.example.com']),
+        );
+        // Default key should be empty
+        expect(prefs.getStringList('configured_relays'), isNull);
+      });
+
+      test('different users have isolated storage', () async {
+        const pubkey1 = 'user1pubkey';
+        const pubkey2 = 'user2pubkey';
+        final storage1 = SharedPreferencesRelayStorage.forUser(pubkey: pubkey1);
+        final storage2 = SharedPreferencesRelayStorage.forUser(pubkey: pubkey2);
+
+        await storage1.saveRelays(['wss://relay1.example.com']);
+        await storage2.saveRelays(['wss://relay2.example.com']);
+
+        final relays1 = await storage1.loadRelays();
+        final relays2 = await storage2.loadRelays();
+
+        expect(relays1, equals(['wss://relay1.example.com']));
+        expect(relays2, equals(['wss://relay2.example.com']));
+      });
+
+      test('loads relays for specific user', () async {
+        const pubkey = 'testpubkey';
+        SharedPreferences.setMockInitialValues({
+          'configured_relays_$pubkey': ['wss://user-relay.example.com'],
+          'configured_relays': ['wss://default-relay.example.com'],
+        });
+        final storage = SharedPreferencesRelayStorage.forUser(pubkey: pubkey);
+
+        final relays = await storage.loadRelays();
+
+        expect(relays, equals(['wss://user-relay.example.com']));
+      });
+    });
   });
 }

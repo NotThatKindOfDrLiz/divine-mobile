@@ -22,11 +22,15 @@ class NostrServiceFactory {
   /// If not provided, falls back to [AppConstants.defaultRelayUrl].
   ///
   /// Takes [dbClient] for local event caching with optimistic updates.
+  ///
+  /// Takes [pubkey] to store relay configuration per-user. If not provided,
+  /// a shared storage key is used (not recommended for multi-user apps).
   static NostrClient create({
     SecureKeyContainer? keyContainer,
     RelayStatisticsService? statisticsService,
     EnvironmentConfig? environmentConfig,
     AppDbClient? dbClient,
+    String? pubkey,
 
     /// Optional remote RPC signer (e.g. `KeycastRpc`). If provided, this
     /// signer will be used instead of the local `AuthServiceSigner`.
@@ -47,11 +51,15 @@ class NostrServiceFactory {
 
     // Create relay manager config with persistent storage
     // Use relay URL from environment config if provided, otherwise fall back to default
+    // Use per-user storage when pubkey is provided to isolate relay configs
     final relayUrl =
         environmentConfig?.relayUrl ?? AppConstants.defaultRelayUrl;
+    final storage = pubkey != null
+        ? SharedPreferencesRelayStorage.forUser(pubkey: pubkey)
+        : SharedPreferencesRelayStorage();
     final relayManagerConfig = RelayManagerConfig(
       defaultRelayUrl: relayUrl,
-      storage: SharedPreferencesRelayStorage(),
+      storage: storage,
     );
 
     // Create the NostrClient

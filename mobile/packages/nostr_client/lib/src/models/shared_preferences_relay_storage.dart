@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// Example:
 /// ```dart
-/// final storage = SharedPreferencesRelayStorage();
+/// final storage = SharedPreferencesRelayStorage.forUser(pubkey: userPubkey);
 /// final relayManager = RelayManager(
 ///   config: RelayManagerConfig(
 ///     defaultRelayUrl: 'wss://relay.example.com',
@@ -27,6 +27,16 @@ class SharedPreferencesRelayStorage implements RelayStorage {
   /// [key] is the SharedPreferences key to use for storage.
   /// Defaults to 'configured_relays'.
   SharedPreferencesRelayStorage({String? key}) : _key = key ?? _defaultKey;
+
+  /// Creates a storage instance for a specific user.
+  ///
+  /// The storage key will be prefixed with the user's pubkey to ensure
+  /// each user's relay configuration is stored separately.
+  ///
+  /// [pubkey] should be the user's hex public key.
+  factory SharedPreferencesRelayStorage.forUser({required String pubkey}) {
+    return SharedPreferencesRelayStorage(key: '${_defaultKey}_$pubkey');
+  }
 
   static const String _defaultKey = 'configured_relays';
   final String _key;

@@ -65,6 +65,10 @@ class Nip65RelayImportService {
   /// Timeout for fetching the relay list from each indexer
   static const Duration _fetchTimeout = Duration(seconds: 10);
 
+  /// Maximum number of relays to import from NIP-65 event
+  /// (default relay is always added separately)
+  static const int _maxNip65Relays = 5;
+
   /// Fetches the relay list for a user from their NIP-65 event.
   ///
   /// Queries indexer relays for the user's kind 10002 event and
@@ -93,8 +97,14 @@ class Nip65RelayImportService {
             'on $indexerUrl',
           );
 
-          // Always include default relay
-          final relaySet = <String>{...relays, defaultRelayUrl};
+          // Limit to max relays from NIP-65, then always include default relay
+          final limitedRelays = relays.take(_maxNip65Relays).toList();
+          if (relays.length > _maxNip65Relays) {
+            _log(
+              'Limiting from ${relays.length} to $_maxNip65Relays relays',
+            );
+          }
+          final relaySet = <String>{...limitedRelays, defaultRelayUrl};
 
           return Nip65ImportResult(
             relays: relaySet.toList(),

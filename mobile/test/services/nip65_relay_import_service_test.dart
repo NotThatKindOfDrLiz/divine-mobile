@@ -202,5 +202,22 @@ void main() {
       expect(result.length, 2);
       expect(result.where((r) => r == defaultUrl).length, 1);
     });
+
+    test('NIP-65 import limits to 5 relays plus default', () {
+      // Service limits NIP-65 relays to 5, then adds default
+      // This simulates the behavior in Nip65RelayImportService
+      const maxNip65Relays = 5;
+      final manyRelays = List.generate(10, (i) => 'wss://relay$i.com');
+      const defaultUrl = 'wss://relay.default.com';
+
+      // Take only first 5 relays from NIP-65
+      final limitedRelays = manyRelays.take(maxNip65Relays).toList();
+      final result = <String>{...limitedRelays, defaultUrl};
+
+      // Should have 5 NIP-65 relays + 1 default = 6 total
+      expect(limitedRelays.length, 5);
+      expect(result.length, 6);
+      expect(result, contains(defaultUrl));
+    });
   });
 }
