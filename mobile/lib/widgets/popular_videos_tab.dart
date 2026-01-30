@@ -187,7 +187,7 @@ class _PopularVideosTrendingContent extends ConsumerWidget {
         Expanded(
           child: ComposableVideoGrid(
             videos: videos,
-            thumbnailAspectRatio: 0.8,
+            useMasonryLayout: true,
             onVideoTap: (videoList, index) {
               Log.info(
                 '🎯 PopularVideosTab TAP: gridIndex=$index, '

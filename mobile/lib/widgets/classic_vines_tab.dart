@@ -111,7 +111,7 @@ class _ClassicVinesContent extends ConsumerWidget {
         Expanded(
           child: ComposableVideoGrid(
             videos: videos,
-            thumbnailAspectRatio: 1.0, // Square thumbnails for classic vines
+            useMasonryLayout: true,
             onVideoTap: onVideoTap,
             onRefresh: () async {
               Log.info(
