@@ -115,6 +115,16 @@ class VineTheme {
         color: color,
       );
 
+  /// Title tiny: Bricolage Grotesque 800 12/20/0.1
+  static TextStyle titleTinyFont({Color color = whiteText}) =>
+      GoogleFonts.bricolageGrotesque(
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+        height: 20 / 12,
+        letterSpacing: 0.1,
+        color: color,
+      );
+
   /// @Deprecated Use [titleLargeFont] instead.
   static TextStyle titleFont({
     double fontSize = 22,

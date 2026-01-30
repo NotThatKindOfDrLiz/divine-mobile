@@ -168,6 +168,7 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
         if (widget.embedded) {
           return ComposableVideoGrid(
             videos: videos,
+            useMasonryLayout: true,
             onVideoTap:
                 widget.onVideoTap ??
                 (videos, index) {

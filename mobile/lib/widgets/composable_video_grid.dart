@@ -468,16 +468,18 @@ class _VideoInfoSection extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
-        spacing: 1,
+        spacing: 0,
         children: [
           if (hasUsername)
             Row(
               mainAxisSize: MainAxisSize.min,
               spacing: 4,
               children: [
-                UserName.fromPubKey(video.pubkey, maxLines: 1, style: VineTheme.titleSmallFont(color: Colors.white).copyWith(
-                  shadows: const [Shadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000))],
-                )),
+                Flexible(
+                  child: UserName.fromPubKey(video.pubkey, maxLines: 1, style: VineTheme.titleTinyFont(color: Colors.white).copyWith(
+                    shadows: const [Shadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000))],
+                  )),
+                ),
                 if (hasNip05)
                   Container(
                     padding: const EdgeInsets.all(2),
@@ -488,7 +490,7 @@ class _VideoInfoSection extends ConsumerWidget {
                         BoxShadow(offset: Offset(0, 1), blurRadius: 2, color: Color(0x26000000)),
                       ],
                     ),
-                    child: const Icon(Icons.check, color: Colors.white, size: 10),
+                    child: const Icon(Icons.check, color: Colors.white, size: 8),
                   ),
               ],
             ),
