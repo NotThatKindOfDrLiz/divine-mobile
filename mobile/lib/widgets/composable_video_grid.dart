@@ -564,36 +564,3 @@ class _VideoThumbnail extends StatelessWidget {
   }
 }
 
-class _VideoStats extends StatelessWidget {
-  const _VideoStats({required this.video});
-
-  final VideoEvent video;
-
-  @override
-  Widget build(BuildContext context) {
-    // Show combined likes (original Vine likes + Nostr reactions)
-    // nostrLikeCount is populated by VideoEventService when videos are loaded
-    final totalLikes = video.totalLikes;
-    final originalLoops = video.originalLoops;
-
-    return Row(
-      children: [
-        Icon(Icons.favorite, size: 10, color: VineTheme.likeRed),
-        const SizedBox(width: 6),
-        Text(
-          StringUtils.formatCompactNumber(totalLikes),
-          style: TextStyle(color: VineTheme.secondaryText, fontSize: 9),
-        ),
-        if (originalLoops != null && originalLoops > 0) ...[
-          const SizedBox(width: 6),
-          Icon(Icons.repeat, size: 10, color: VineTheme.secondaryText),
-          const SizedBox(width: 2),
-          Text(
-            StringUtils.formatCompactNumber(originalLoops),
-            style: TextStyle(color: VineTheme.secondaryText, fontSize: 9),
-          ),
-        ],
-      ],
-    );
-  }
-}
