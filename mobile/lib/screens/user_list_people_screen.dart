@@ -215,9 +215,8 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen>
           ],
         );
       },
-      loading: () => Center(
-        child: CircularProgressIndicator(color: VineTheme.vineGreen),
-      ),
+      loading: () =>
+          Center(child: CircularProgressIndicator(color: VineTheme.vineGreen)),
       error: (error, stack) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -231,10 +230,7 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen>
             const SizedBox(height: 8),
             Text(
               error.toString(),
-              style: TextStyle(
-                color: VineTheme.secondaryText,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: VineTheme.secondaryText, fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ],
@@ -408,16 +404,13 @@ class _PeopleCarousel extends ConsumerWidget {
             return FutureBuilder(
               future: userProfileService.fetchProfile(pubkey),
               builder: (context, snapshot) {
-                final profile =
-                    userProfileService.getCachedProfile(pubkey);
+                final profile = userProfileService.getCachedProfile(pubkey);
 
                 return GestureDetector(
                   onTap: () {
                     final npub = normalizeToNpub(pubkey);
                     if (npub != null) {
-                      context.push(
-                        ProfileScreenRouter.pathForIndex(npub, 0),
-                      );
+                      context.push(ProfileScreenRouter.pathForIndex(npub, 0));
                     }
                   },
                   child: Padding(
@@ -425,10 +418,7 @@ class _PeopleCarousel extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        UserAvatar(
-                          imageUrl: profile?.picture,
-                          size: 56,
-                        ),
+                        UserAvatar(imageUrl: profile?.picture, size: 56),
                         const SizedBox(height: 4),
                         SizedBox(
                           width: 70,
