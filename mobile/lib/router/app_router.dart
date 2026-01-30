@@ -308,8 +308,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final prefs = ref.read(sharedPreferencesProvider);
   return GoRouter(
     navigatorKey: _rootKey,
-    // Start at /welcome - redirect logic will navigate to appropriate route
-    initialLocation: WelcomeScreen.path,
+    // Start at /legal - redirect logic will navigate to appropriate route
+    initialLocation: LegalScreen.path,
     observers: [
       VideoStopNavigatorObserver(),
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
@@ -367,22 +367,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         // Auth state check is separate - users may be unauthenticated during login flow
         if (!hasAcceptedTerms) {
           Log.debug(
-            'TOS not accepted, redirecting to ${WelcomeScreen.path}',
+            'TOS not accepted, redirecting to ${LegalScreen.path}',
             name: 'AppRouter',
             category: LogCategory.ui,
           );
-          return WelcomeScreen.path;
+          return LegalScreen.path;
         }
 
         // If TOS is accepted but user is not authenticated, redirect to welcome
         // This handles cases like expired sessions
         if (authState == AuthState.unauthenticated) {
           Log.debug(
-            'Not authenticated, redirecting to ${WelcomeScreen.path}',
+            'Not authenticated, redirecting to ${LegalScreen.path}',
             name: 'AppRouter',
             category: LogCategory.ui,
           );
-          return WelcomeScreen.path;
+          return LegalScreen.path;
         }
       }
 
