@@ -103,10 +103,10 @@ class ComposableVideoGrid extends ConsumerWidget {
 
     final gridView = useMasonryLayout
         ? MasonryGridView.count(
-            padding: padding ?? const EdgeInsets.all(12),
+            padding: padding ?? const EdgeInsets.all(4),
             crossAxisCount: responsiveCrossAxisCount,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
             itemCount: videosToShow.length,
             itemBuilder: buildItem,
           )
@@ -479,46 +479,21 @@ class _VideoThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Container(
-          color: VineTheme.cardBackground,
-          child: video.thumbnailUrl != null
-              ? VideoThumbnailWidget(video: video)
-              : AspectRatio(
-                  aspectRatio: 2 / 3,
-                  child: Container(
-                    color: VineTheme.cardBackground,
-                    child: Icon(
-                      Icons.videocam,
-                      size: 40,
-                      color: VineTheme.secondaryText,
-                    ),
-                  ),
-                ),
-        ),
-        Positioned.fill(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: VineTheme.darkOverlay,
-                shape: BoxShape.circle,
-              ),
-              child: Semantics(
-                identifier: 'play_button',
+    return Container(
+      color: VineTheme.cardBackground,
+      child: video.thumbnailUrl != null
+          ? VideoThumbnailWidget(video: video)
+          : AspectRatio(
+              aspectRatio: 2 / 3,
+              child: Container(
+                color: VineTheme.cardBackground,
                 child: Icon(
-                  Icons.play_arrow,
-                  size: 24,
-                  color: VineTheme.whiteText,
-                  semanticLabel: 'Play video',
+                  Icons.videocam,
+                  size: 40,
+                  color: VineTheme.secondaryText,
                 ),
               ),
             ),
-          ),
-        ),
-      ],
     );
   }
 }
