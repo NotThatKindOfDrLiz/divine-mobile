@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
 import 'package:openvine/providers/app_providers.dart';
@@ -23,6 +24,7 @@ class ComposableVideoGrid extends ConsumerWidget {
     required this.onVideoTap,
     this.crossAxisCount = 2,
     this.thumbnailAspectRatio = 1,
+    this.useMasonryLayout = false,
     this.padding,
     this.emptyBuilder,
     this.onRefresh,
@@ -32,6 +34,10 @@ class ComposableVideoGrid extends ConsumerWidget {
   final Function(List<VideoEvent> videos, int index) onVideoTap;
   final int crossAxisCount;
   final double thumbnailAspectRatio;
+
+  /// When true, each item determines its own aspect ratio from video dimensions.
+  /// Square videos use 1:1, vertical videos use 2:3.
+  final bool useMasonryLayout;
   final EdgeInsets? padding;
   final Widget Function()? emptyBuilder;
   final Future<void> Function()? onRefresh;
@@ -79,32 +85,42 @@ class ComposableVideoGrid extends ConsumerWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final responsiveCrossAxisCount = screenWidth >= 600 ? 3 : crossAxisCount;
 
-    final gridView = GridView.builder(
-      padding: padding ?? const EdgeInsets.all(12),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: responsiveCrossAxisCount,
-        childAspectRatio: thumbnailAspectRatio,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: videosToShow.length,
-      itemBuilder: (context, index) {
-        final video = videosToShow[index];
-        // Check if video is in any subscribed lists
-        final listIds = subscribedListCache?.getListsForVideo(video.id);
-        final isInSubscribedList = listIds != null && listIds.isNotEmpty;
+    Widget buildItem(BuildContext context, int index) {
+      final video = videosToShow[index];
+      final listIds = subscribedListCache?.getListsForVideo(video.id);
+      final isInSubscribedList = listIds != null && listIds.isNotEmpty;
 
-        return _VideoItem(
-          video: video,
-          aspectRatio: thumbnailAspectRatio,
-          onVideoTap: onVideoTap,
-          index: index,
-          displayedVideos: videosToShow,
-          onLongPress: () => _showVideoContextMenu(context, ref, video),
-          isInSubscribedList: isInSubscribedList,
-        );
-      },
-    );
+      return _VideoItem(
+        video: video,
+        aspectRatio: thumbnailAspectRatio,
+        onVideoTap: onVideoTap,
+        index: index,
+        displayedVideos: videosToShow,
+        onLongPress: () => _showVideoContextMenu(context, ref, video),
+        isInSubscribedList: isInSubscribedList,
+      );
+    }
+
+    final gridView = useMasonryLayout
+        ? MasonryGridView.count(
+            padding: padding ?? const EdgeInsets.all(12),
+            crossAxisCount: responsiveCrossAxisCount,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            itemCount: videosToShow.length,
+            itemBuilder: buildItem,
+          )
+        : GridView.builder(
+            padding: padding ?? const EdgeInsets.all(12),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: responsiveCrossAxisCount,
+              childAspectRatio: thumbnailAspectRatio,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: videosToShow.length,
+            itemBuilder: buildItem,
+          );
 
     // Wrap with RefreshIndicator if onRefresh is provided
     if (onRefresh != null) {
@@ -389,34 +405,33 @@ class _VideoItem extends StatelessWidget {
             ),
           ],
         ),
-        child: Stack(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AspectRatio(
-              aspectRatio: aspectRatio,
-              child: _VideoThumbnail(video: video),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: _VideoInfoSection(video: video),
-            ),
-            // Show list indicator badge if video is in subscribed lists
-            if (isInSubscribedList)
-              Positioned(
-                top: 6,
-                left: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: VineTheme.vineGreen.withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(4),
+            _VideoInfoSection(video: video),
+            Stack(
+              children: [
+                _VideoThumbnail(video: video),
+                if (isInSubscribedList)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: VineTheme.vineGreen.withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(
+                        Icons.collections,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.collections,
-                    size: 14,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+              ],
+            ),
           ],
         ),
       ),
@@ -431,41 +446,28 @@ class _VideoInfoSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          color: VineTheme.cardBackground,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 1,
-            children: [
-              // Creator name
-              UserName.fromPubKey(video.pubkey, maxLines: 1),
-              // Title or content
-              Flexible(
-                child: Text(
-                  video.title ?? video.content,
-                  style: TextStyle(
-                    color: VineTheme.primaryText,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              // Stats row - watch social provider for current metrics
-              _VideoStats(video: video),
-            ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      color: VineTheme.cardBackground,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        spacing: 1,
+        children: [
+          UserName.fromPubKey(video.pubkey, maxLines: 1),
+          Text(
+            video.title ?? video.content,
+            style: TextStyle(
+              color: VineTheme.primaryText,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ),
-      ],
+          _VideoStats(video: video),
+        ],
+      ),
     );
   }
 }
@@ -476,44 +478,49 @@ class _VideoThumbnail extends StatelessWidget {
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    alignment: Alignment.center,
-    children: [
-      Container(
-        color: VineTheme.cardBackground,
-        child: video.thumbnailUrl != null
-            ? VideoThumbnailWidget(video: video)
-            : Container(
-                color: VineTheme.cardBackground,
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          color: VineTheme.cardBackground,
+          child: video.thumbnailUrl != null
+              ? VideoThumbnailWidget(video: video)
+              : AspectRatio(
+                  aspectRatio: 2 / 3,
+                  child: Container(
+                    color: VineTheme.cardBackground,
+                    child: Icon(
+                      Icons.videocam,
+                      size: 40,
+                      color: VineTheme.secondaryText,
+                    ),
+                  ),
+                ),
+        ),
+        Positioned.fill(
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: VineTheme.darkOverlay,
+                shape: BoxShape.circle,
+              ),
+              child: Semantics(
+                identifier: 'play_button',
                 child: Icon(
-                  Icons.videocam,
-                  size: 40,
-                  color: VineTheme.secondaryText,
+                  Icons.play_arrow,
+                  size: 24,
+                  color: VineTheme.whiteText,
+                  semanticLabel: 'Play video',
                 ),
               ),
-      ),
-      // Play button overlay
-      Center(
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: VineTheme.darkOverlay,
-            shape: BoxShape.circle,
-          ),
-          child: Semantics(
-            identifier: 'play_button',
-            child: Icon(
-              Icons.play_arrow,
-              size: 24,
-              color: VineTheme.whiteText,
-              semanticLabel: 'Play video',
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _VideoStats extends StatelessWidget {

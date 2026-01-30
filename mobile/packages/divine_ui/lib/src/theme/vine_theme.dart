@@ -347,6 +347,15 @@ class VineTheme {
   /// Comment blue color.
   static const Color commentBlue = Color(0xFF3182CE);
 
+  /// Accent orange/amber color.
+  static const Color accentOrange = Color(0xFFFF7640);
+
+  /// Accent yellow color.
+  static const Color accentYellow = Color(0xFFFFF140);
+
+  /// Accent blue color.
+  static const Color accentBlue = Color(0xFF34BBF1);
+
   /// The complete theme data for the app.
   static ThemeData get theme => ThemeData(
     brightness: Brightness.dark,
