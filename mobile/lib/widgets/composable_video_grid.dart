@@ -563,4 +563,3 @@ class _VideoThumbnail extends StatelessWidget {
     );
   }
 }
-
