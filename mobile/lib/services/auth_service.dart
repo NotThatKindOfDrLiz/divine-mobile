@@ -830,7 +830,7 @@ class AuthService implements BackgroundAwareService {
     }
   }
 
-  /// transitions to authenticated state w/o first creating or importing keys
+  /// transitions to authenticated state creating keys if needed
   Future<void> signInAutomatically() async {
     try {
       // If not authenticated (e.g., after logout), re-initialize to load

@@ -29,7 +29,7 @@ void main() {
           verificationRequired: true,
           deviceCode: 'device_123',
           email: 'test@example.com',
-          error: null,
+          errorCode: null,
         );
 
         expect(result.deviceCode, 'device_123');
@@ -82,7 +82,7 @@ void main() {
         final result = HeadlessRegisterResult.fromJson(json);
 
         expect(result.success, isFalse);
-        expect(result.error, 'email_taken');
+        expect(result.errorCode, 'email_taken');
       });
     });
 

@@ -4,11 +4,15 @@
 
 import 'dart:async';
 
+import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nostr_sdk/nostr_sdk.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/screens/auth/divine_auth_screen.dart';
+import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -31,13 +35,23 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
   bool _isImporting = false;
   bool _obscureKey = true;
 
+  // Save reference to authService for safe disposal
+  late final AuthService _authService;
+
+  @override
+  void initState() {
+    super.initState();
+    // Save ref early so we can use it safely in dispose
+    _authService = ref.read(authServiceProvider);
+  }
+
   @override
   void dispose() {
     _keyController.dispose();
 
     // Clear any authentication errors when leaving this screen
     // This prevents stale errors from being displayed on the welcome screen
-    ref.read(authServiceProvider).clearError();
+    _authService.clearError();
 
     super.dispose();
   }
@@ -45,206 +59,287 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: Colors.black,
-    appBar: AppBar(
-      title: const Text('Import Identity'),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-    ),
     body: SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter your private key or bunker URL',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Import your existing Nostr identity using your private key '
-                '(nsec or hex format) or a NIP-46 bunker URL',
-                style: TextStyle(fontSize: 16, color: Colors.grey[300]),
-              ),
-              const SizedBox(height: 32),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
 
-              // Private key input
-              TextFormField(
-                controller: _keyController,
-                obscureText: _obscureKey,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Private Key or Bunker URL',
-                  labelStyle: const TextStyle(color: Colors.grey),
-                  hintText: 'nsec..., hex, or bunker://...',
-                  hintStyle: TextStyle(color: Colors.grey[600]),
-                  filled: true,
-                  fillColor: Colors.grey[900],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                // Back button
+                IconButton(
+                  icon: const Icon(Icons.chevron_left, color: Colors.white, size: 32),
+                  onPressed: () => context.pop(),
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.centerLeft,
+                ),
+
+                const SizedBox(height: 24),
+
+                // Title
+                const Text(
+                  'Import your Nostr ID',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(
-                          _obscureKey ? Icons.visibility : Icons.visibility_off,
-                          color: Colors.grey,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureKey = !_obscureKey;
-                          });
-                        },
+                ),
+                const SizedBox(height: 12),
+
+                // Subtitle
+                Text(
+                  'Import your existing Nostr identity using your '
+                  'private key or a bunker URL.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey[300]),
+                ),
+                const SizedBox(height: 40),
+
+                // Private key input
+                TextFormField(
+                  controller: _keyController,
+                  obscureText: _obscureKey,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Private key or bunker URL',
+                    labelStyle: const TextStyle(color: Colors.grey),
+                    hintText: 'nsec, hex format or bunker URL',
+                    hintStyle: TextStyle(color: Colors.grey[600]),
+                    filled: true,
+                    fillColor: VineTheme.cardBackground,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: VineTheme.vineGreen,
+                        width: 2,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.paste, color: Colors.grey),
-                        onPressed: _pasteFromClipboard,
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(color: VineTheme.error),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: const BorderSide(
+                        color: VineTheme.error,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(20),
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _obscureKey ? Icons.visibility : Icons.visibility_off,
+                            color: Colors.grey,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureKey = !_obscureKey;
+                            });
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.paste, color: Colors.grey),
+                          onPressed: _pasteFromClipboard,
+                        ),
+                      ],
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter your private key or bunker URL';
+                    }
+
+                    final trimmed = value.trim();
+
+                    // Check if it's a bunker URL
+                    if (NostrRemoteSignerInfo.isBunkerUrl(trimmed)) {
+                      try {
+                        NostrRemoteSignerInfo.parseBunkerUrl(trimmed);
+                      } catch (e) {
+                        return 'Invalid bunker URL';
+                      }
+                      return null;
+                    }
+
+                    // Check if it looks like a valid key format
+                    if (!trimmed.startsWith('nsec') && trimmed.length != 64) {
+                      return 'Invalid format. Use nsec..., hex, or bunker://...';
+                    }
+
+                    if (trimmed.startsWith('nsec') && trimmed.length != 63) {
+                      return 'Invalid nsec format. Should be 63 characters';
+                    }
+
+                    return null;
+                  },
+                  minLines: 1,
+                ),
+                const SizedBox(height: 24),
+
+                // Import button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isImporting ? null : _importKey,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: VineTheme.vineGreen,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          VineTheme.vineGreen.withValues(alpha: 0.7),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                    ),
+                    child: _isImporting
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Importing...',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            'Import Nostr ID',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Security warning
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade900.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.orange.shade800.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange.shade400,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Keep your private key secure!',
+                            style: TextStyle(
+                              color: Colors.orange.shade400,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Never share your private key with anyone. This key '
+                        'gives full access to your Nostr identity.',
+                        style: TextStyle(
+                          color: Colors.orange.shade300,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your private key or bunker URL';
-                  }
 
-                  final trimmed = value.trim();
+                const SizedBox(height: 80),
 
-                  // Check if it's a bunker URL
-                  if (NostrRemoteSignerInfo.isBunkerUrl(trimmed)) {
-                    try {
-                      NostrRemoteSignerInfo.parseBunkerUrl(trimmed);
-                    } catch (e) {
-                      return 'Invalid bunker URL';
-                    }
-                    return null;
-                  }
-
-                  // Check if it looks like a valid key format
-                  if (!trimmed.startsWith('nsec') && trimmed.length != 64) {
-                    return 'Invalid format. Use nsec..., hex, or bunker://...';
-                  }
-
-                  if (trimmed.startsWith('nsec') && trimmed.length != 63) {
-                    return 'Invalid nsec format. Should be 63 characters';
-                  }
-
-                  return null;
-                },
-                minLines: 1,
-              ),
-              const SizedBox(height: 24),
-
-              // Security warning
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade900.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade700),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning, color: Colors.orange.shade400),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Keep your private key secure! '
-                        'Never share it with anyone. This key gives full '
-                        'access to your Nostr identity.',
-                        style: TextStyle(
-                          color: Colors.orange.shade200,
-                          fontSize: 14,
+                // Bottom section - Don't have a Nostr identity?
+                Center(
+                  child: Column(
+                    children: [
+                      RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                          children: const [
+                            TextSpan(
+                              text: "Don't have a Nostr identity? ",
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            TextSpan(
+                              text: "We'll automatically create one for you when you sign up for diVine.",
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
+                      const SizedBox(height: 24),
 
-              // Import button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isImporting ? null : _importKey,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isImporting
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                      // Sign up button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            // Navigate to sign up screen (signIn=false for sign-up mode)
+                            context.go(
+                              '${WelcomeScreen.path}${DivineAuthScreen.path}?signIn=false',
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: VineTheme.vineGreen,
+                            side: const BorderSide(color: Colors.grey),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(28),
                             ),
-                            SizedBox(width: 12),
-                            Text('Connecting...'),
-                          ],
-                        )
-                      : const Text(
-                          'Connect Identity',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                          ),
+                          child: const Text(
+                            'Sign up',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // Additional info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    const Icon(
-                      Icons.help_outline,
-                      color: Colors.purple,
-                      size: 24,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Don't have a Nostr identity yet?",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Go back and create a new identity. We'll generate a "
-                      "secure key pair for you.",
-                      style: TextStyle(color: Colors.grey[300], fontSize: 14),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
         ),
       ),
@@ -300,7 +395,7 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
           final userProfileService = ref.read(userProfileServiceProvider);
           unawaited(userProfileService.fetchProfile(pubkeyHex));
           Log.info(
-            '📥 Started background fetch for imported user profile',
+            'Started background fetch for imported user profile',
             name: 'KeyImportScreen',
             category: LogCategory.auth,
           );
@@ -311,14 +406,14 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
             content: Text(
               result.errorMessage ?? 'Failed to import key or connect bunker',
             ),
-            backgroundColor: Colors.red,
+            backgroundColor: VineTheme.error,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: VineTheme.error),
         );
       }
     } finally {

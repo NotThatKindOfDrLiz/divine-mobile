@@ -1,8 +1,9 @@
 // ABOUTME: Cubit for managing legal acceptance state
-// ABOUTME: Handles age verification and terms acceptance with SharedPreferences persistence
+// ABOUTME: Handles age verification and terms acceptance, delegates persistence to AuthService
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,14 +14,17 @@ part 'legal_state.dart';
 /// Handles:
 /// - Loading saved acceptance state from SharedPreferences
 /// - Toggling age verification and terms acceptance
-/// - Validating and persisting acceptance on submit
+/// - Validating and delegating persistence to AuthService
 class LegalCubit extends Cubit<LegalState> {
   LegalCubit({
     required SharedPreferences sharedPreferences,
+    required AuthService authService,
   }) : _prefs = sharedPreferences,
+       _authService = authService,
        super(const LegalInitial());
 
   final SharedPreferences _prefs;
+  final AuthService _authService;
 
   // SharedPreferences keys (matching existing auth_service.dart keys)
   static const _kAgeVerifiedKey = 'age_verified_16_plus';
@@ -90,15 +94,11 @@ class LegalCubit extends Cubit<LegalState> {
     emit(const LegalSubmitting());
 
     try {
-      // Persist to SharedPreferences
-      await _prefs.setBool(_kAgeVerifiedKey, true);
-      await _prefs.setString(
-        _kTermsAcceptedKey,
-        DateTime.now().toIso8601String(),
-      );
+      // Delegate persistence to AuthService (single source of truth)
+      await _authService.acceptTerms();
 
       Log.info(
-        'Legal acceptance saved successfully',
+        'Legal acceptance saved successfully via AuthService',
         name: 'LegalCubit',
         category: LogCategory.auth,
       );

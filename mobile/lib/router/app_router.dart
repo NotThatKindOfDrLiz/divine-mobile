@@ -14,7 +14,6 @@ import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/router/app_shell.dart';
 import 'package:openvine/screens/auth/divine_auth_screen.dart';
-import 'package:openvine/screens/auth/login_options_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/reset_password.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
@@ -34,7 +33,6 @@ import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/screens/key_management_screen.dart';
-import 'package:openvine/screens/legal_screen.dart';
 import 'package:openvine/screens/liked_videos_screen_router.dart';
 import 'package:openvine/screens/notification_settings_screen.dart';
 import 'package:openvine/screens/notifications_screen.dart';
@@ -308,8 +306,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final prefs = ref.read(sharedPreferencesProvider);
   return GoRouter(
     navigatorKey: _rootKey,
-    // Start at /legal - redirect logic will navigate to appropriate route
-    initialLocation: LegalScreen.path,
+    // Start at /welcome - redirect logic will navigate to appropriate route
+    initialLocation: WelcomeScreen.path,
     observers: [
       VideoStopNavigatorObserver(),
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
@@ -325,12 +323,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       );
 
       final authState = ref.read(authServiceProvider).authState;
+      // Full path for auth-native nested under welcome
+      final authNativePath = '${WelcomeScreen.path}${DivineAuthScreen.path}';
       if (authState == AuthState.authenticated &&
           (location == WelcomeScreen.path ||
               location == KeyImportScreen.path ||
               location == WelcomeScreen.loginOptionsPath ||
               location == WelcomeScreen.resetPasswordPath ||
-              location == EmailVerificationScreen.path)) {
+              location == EmailVerificationScreen.path ||
+              location == authNativePath)) {
         debugPrint('[Router] Authenticated. moving to /home/0');
         final emptyFollowingRedirect = await _checkEmptyFollowingRedirect(
           location: location,
@@ -367,22 +368,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         // Auth state check is separate - users may be unauthenticated during login flow
         if (!hasAcceptedTerms) {
           Log.debug(
-            'TOS not accepted, redirecting to ${LegalScreen.path}',
+            'TOS not accepted, redirecting to ${WelcomeScreen.path}',
             name: 'AppRouter',
             category: LogCategory.ui,
           );
-          return LegalScreen.path;
+          return WelcomeScreen.path;
         }
 
         // If TOS is accepted but user is not authenticated, redirect to welcome
         // This handles cases like expired sessions
         if (authState == AuthState.unauthenticated) {
           Log.debug(
-            'Not authenticated, redirecting to ${LegalScreen.path}',
+            'Not authenticated, redirecting to ${WelcomeScreen.path}',
             name: 'AppRouter',
             category: LogCategory.ui,
           );
-          return LegalScreen.path;
+          return WelcomeScreen.path;
         }
       }
 
@@ -662,44 +663,42 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const WelcomeScreen(),
         routes: [
           GoRoute(
-            path: LoginOptionsScreen.path,
-            name: LoginOptionsScreen.routeName,
-            builder: (_, __) => const LoginOptionsScreen(),
+            path: DivineAuthScreen.path,
+            name: DivineAuthScreen.routeName,
+            pageBuilder: (ctx, st) {
+              // Read query parameters
+              final signInParam = st.uri.queryParameters['signIn'];
+              final signIn = signInParam == 'true';
+              final email = st.uri.queryParameters['email'];
+              Log.info(
+                'DivineAuthScreen route: uri=${st.uri}, '
+                'signInParam=$signInParam, signIn=$signIn',
+                name: 'AppRouter',
+                category: LogCategory.auth,
+              );
+              // Use signIn value in key so toggling mode creates a new page
+              // with fresh state, but returning to same mode reuses page
+              return MaterialPage(
+                key: ValueKey('auth-native-signIn=$signIn'),
+                child: DivineAuthScreen(
+                  initialSignIn: signIn,
+                  initialEmail: email,
+                ),
+              );
+            },
             routes: [
+              // route for deep link when resetting password from emailed link
               GoRoute(
-                path: DivineAuthScreen.path,
-                name: DivineAuthScreen.routeName,
+                path: ResetPasswordScreen.path,
+                name: ResetPasswordScreen.routeName,
                 builder: (ctx, st) {
-                  // Check for initialMode passed via extra or query param
-                  AuthMode? mode = st.extra as AuthMode?;
-                  if (mode == null) {
-                    final modeParam = st.uri.queryParameters['mode'];
-                    if (modeParam == 'register') {
-                      mode = AuthMode.register;
-                    }
-                  }
-                  return DivineAuthScreen(initialMode: mode ?? AuthMode.login);
+                  final token = st.uri.queryParameters['token'];
+                  return ResetPasswordScreen(token: token ?? '');
                 },
-                routes: [
-                  // route for deep link when resetting password from emailed link
-                  GoRoute(
-                    path: ResetPasswordScreen.path,
-                    name: ResetPasswordScreen.routeName,
-                    builder: (ctx, st) {
-                      final token = st.uri.queryParameters['token'];
-                      return ResetPasswordScreen(token: token ?? '');
-                    },
-                  ),
-                ],
               ),
             ],
           ),
         ],
-      ),
-      GoRoute(
-        path: LegalScreen.path,
-        name: LegalScreen.routeName,
-        builder: (_, __) => const LegalScreen(),
       ),
       GoRoute(
         path: KeyImportScreen.path,

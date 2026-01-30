@@ -5,30 +5,40 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/screens/legal_screen.dart';
+import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/widgets/legal_checkbox.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class MockAuthService extends Mock implements AuthService {}
+
 void main() {
   late SharedPreferences prefs;
+  late MockAuthService mockAuthService;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
+    mockAuthService = MockAuthService();
+
+    // Default stub for acceptTerms
+    when(() => mockAuthService.acceptTerms()).thenAnswer((_) async {});
   });
 
   Widget createTestWidget() {
     return ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
-      child: MaterialApp(
-        theme: VineTheme.theme,
-        home: const LegalScreen(),
-      ),
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        authServiceProvider.overrideWithValue(mockAuthService),
+      ],
+      child: MaterialApp(theme: VineTheme.theme, home: const WelcomeScreen()),
     );
   }
 
-  group('LegalScreen', () {
+  group('WelcomeScreen', () {
     testWidgets('displays age verification checkbox', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
@@ -43,17 +53,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // RichText renders as a single widget, so we find it by checking its content
-      final richTextFinder = find.byWidgetPredicate(
-        (widget) {
-          if (widget is RichText) {
-            final text = widget.text.toPlainText();
-            return text.contains('Terms of Service') &&
-                text.contains('Privacy Policy') &&
-                text.contains('Safety Standards');
-          }
-          return false;
-        },
-      );
+      final richTextFinder = find.byWidgetPredicate((widget) {
+        if (widget is RichText) {
+          final text = widget.text.toPlainText();
+          return text.contains('Terms of Service') &&
+              text.contains('Privacy Policy') &&
+              text.contains('Safety Standards');
+        }
+        return false;
+      });
       expect(richTextFinder, findsOneWidget);
     });
 
@@ -89,10 +97,7 @@ void main() {
 
       // Find the checkbox within the age LegalCheckbox
       final checkbox = tester.widget<Checkbox>(
-        find.descendant(
-          of: ageCheckboxFinder,
-          matching: find.byType(Checkbox),
-        ),
+        find.descendant(of: ageCheckboxFinder, matching: find.byType(Checkbox)),
       );
       expect(checkbox.value, true);
     });
@@ -146,44 +151,52 @@ void main() {
       },
     );
 
-    testWidgets('checking one box and submitting shows error only on unchecked',
-        (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'checking one box and submitting shows error only on unchecked',
+      (tester) async {
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
 
-      // Check age only
-      final ageCheckboxFinder = find.ancestor(
-        of: find.text('I am 16 years or older'),
-        matching: find.byType(LegalCheckbox),
-      );
-      await tester.tap(ageCheckboxFinder);
-      await tester.pumpAndSettle();
+        // Check age only
+        final ageCheckboxFinder = find.ancestor(
+          of: find.text('I am 16 years or older'),
+          matching: find.byType(LegalCheckbox),
+        );
+        await tester.tap(ageCheckboxFinder);
+        await tester.pumpAndSettle();
 
-      // Submit
-      await tester.tap(find.text('Accept & continue'));
-      await tester.pumpAndSettle();
+        // Submit
+        await tester.tap(find.text('Accept & continue'));
+        await tester.pumpAndSettle();
 
-      // Age checkbox should have green border (checked, no error)
-      final ageContainer = tester.widget<Container>(
-        find.descendant(of: ageCheckboxFinder, matching: find.byType(Container))
-            .first,
-      );
-      final ageDecoration = ageContainer.decoration as BoxDecoration?;
-      final ageBorder = ageDecoration?.border as Border?;
-      expect(ageBorder?.top.color, VineTheme.vineGreen);
+        // Age checkbox should have green border (checked, no error)
+        final ageContainer = tester.widget<Container>(
+          find
+              .descendant(
+                of: ageCheckboxFinder,
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        final ageDecoration = ageContainer.decoration as BoxDecoration?;
+        final ageBorder = ageDecoration?.border as Border?;
+        expect(ageBorder?.top.color, VineTheme.vineGreen);
 
-      // Terms checkbox should have red border (unchecked, error)
-      final termsCheckboxFinder = find.byType(LegalCheckbox).last;
-      final termsContainer = tester.widget<Container>(
-        find.descendant(
-          of: termsCheckboxFinder,
-          matching: find.byType(Container),
-        ).first,
-      );
-      final termsDecoration = termsContainer.decoration as BoxDecoration?;
-      final termsBorder = termsDecoration?.border as Border?;
-      expect(termsBorder?.top.color, VineTheme.error);
-    });
+        // Terms checkbox should have red border (unchecked, error)
+        final termsCheckboxFinder = find.byType(LegalCheckbox).last;
+        final termsContainer = tester.widget<Container>(
+          find
+              .descendant(
+                of: termsCheckboxFinder,
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        final termsDecoration = termsContainer.decoration as BoxDecoration?;
+        final termsBorder = termsDecoration?.border as Border?;
+        expect(termsBorder?.top.color, VineTheme.error);
+      },
+    );
 
     testWidgets('pre-populates checkboxes from SharedPreferences', (
       tester,

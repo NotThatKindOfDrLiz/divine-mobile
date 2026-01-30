@@ -1,29 +1,38 @@
 // ABOUTME: Tests for LegalCubit
-// ABOUTME: Verifies state transitions, checkbox toggling, and SharedPreferences persistence
+// ABOUTME: Verifies state transitions, checkbox toggling, and AuthService delegation
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:openvine/blocs/legal/legal_cubit.dart';
+import 'package:openvine/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class MockAuthService extends Mock implements AuthService {}
 
 void main() {
   late SharedPreferences prefs;
+  late MockAuthService mockAuthService;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
+    mockAuthService = MockAuthService();
+
+    // Default stub for acceptTerms
+    when(() => mockAuthService.acceptTerms()).thenAnswer((_) async {});
   });
 
   group('LegalCubit', () {
     test('initial state is LegalInitial', () {
-      final cubit = LegalCubit(sharedPreferences: prefs);
+      final cubit = LegalCubit(sharedPreferences: prefs, authService: mockAuthService);
       expect(cubit.state, const LegalInitial());
       cubit.close();
     });
 
     blocTest<LegalCubit, LegalState>(
       'loadSavedState emits LegalLoaded with false values when prefs are empty',
-      build: () => LegalCubit(sharedPreferences: prefs),
+      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       act: (cubit) => cubit.loadSavedState(),
       expect: () => [
         const LegalLoaded(
@@ -39,7 +48,7 @@ void main() {
         await prefs.setBool('age_verified_16_plus', true);
         await prefs.setString('terms_accepted_at', '2024-01-01T00:00:00.000Z');
       },
-      build: () => LegalCubit(sharedPreferences: prefs),
+      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       act: (cubit) => cubit.loadSavedState(),
       expect: () => [
         const LegalLoaded(
@@ -51,7 +60,7 @@ void main() {
 
     blocTest<LegalCubit, LegalState>(
       'toggleAgeVerified toggles age verification',
-      build: () => LegalCubit(sharedPreferences: prefs),
+      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       seed: () => const LegalLoaded(
         isAgeVerified: false,
         isTermsAccepted: false,
@@ -67,7 +76,7 @@ void main() {
 
     blocTest<LegalCubit, LegalState>(
       'toggleAgeVerified clears ageShowError when toggling',
-      build: () => LegalCubit(sharedPreferences: prefs),
+      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       seed: () => const LegalLoaded(
         isAgeVerified: false,
         isTermsAccepted: false,
@@ -85,7 +94,7 @@ void main() {
 
     blocTest<LegalCubit, LegalState>(
       'toggleTermsAccepted toggles terms acceptance',
-      build: () => LegalCubit(sharedPreferences: prefs),
+      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       seed: () => const LegalLoaded(
         isAgeVerified: false,
         isTermsAccepted: false,
@@ -101,7 +110,7 @@ void main() {
 
     blocTest<LegalCubit, LegalState>(
       'toggleTermsAccepted clears termsShowError when toggling',
-      build: () => LegalCubit(sharedPreferences: prefs),
+      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       seed: () => const LegalLoaded(
         isAgeVerified: false,
         isTermsAccepted: false,
@@ -120,7 +129,7 @@ void main() {
     group('submit', () {
       blocTest<LegalCubit, LegalState>(
         'shows error on unchecked age when submitting',
-        build: () => LegalCubit(sharedPreferences: prefs),
+        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
         seed: () => const LegalLoaded(
           isAgeVerified: false,
           isTermsAccepted: true,
@@ -138,7 +147,7 @@ void main() {
 
       blocTest<LegalCubit, LegalState>(
         'shows error on unchecked terms when submitting',
-        build: () => LegalCubit(sharedPreferences: prefs),
+        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
         seed: () => const LegalLoaded(
           isAgeVerified: true,
           isTermsAccepted: false,
@@ -156,7 +165,7 @@ void main() {
 
       blocTest<LegalCubit, LegalState>(
         'shows errors on both unchecked when submitting',
-        build: () => LegalCubit(sharedPreferences: prefs),
+        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
         seed: () => const LegalLoaded(
           isAgeVerified: false,
           isTermsAccepted: false,
@@ -174,7 +183,7 @@ void main() {
 
       blocTest<LegalCubit, LegalState>(
         'emits LegalSubmitting then LegalSuccess when both checked',
-        build: () => LegalCubit(sharedPreferences: prefs),
+        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
         seed: () => const LegalLoaded(
           isAgeVerified: true,
           isTermsAccepted: true,
@@ -185,9 +194,8 @@ void main() {
           const LegalSuccess(),
         ],
         verify: (_) {
-          // Verify SharedPreferences were updated
-          expect(prefs.getBool('age_verified_16_plus'), true);
-          expect(prefs.getString('terms_accepted_at'), isNotNull);
+          // Verify AuthService.acceptTerms() was called
+          verify(() => mockAuthService.acceptTerms()).called(1);
         },
       );
     });
