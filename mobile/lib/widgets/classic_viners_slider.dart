@@ -124,20 +124,25 @@ class _VinerAvatarList extends StatelessWidget {
 }
 
 /// Individual Viner avatar with name and loop count.
-class _VinerAvatar extends StatelessWidget {
+class _VinerAvatar extends ConsumerWidget {
   const _VinerAvatar({required this.viner});
 
   final ClassicViner viner;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Use authorName from classic Vine data, clean up social media prefixes
     final rawName =
         viner.authorName ?? NostrKeyUtils.truncateNpub(viner.pubkey);
     final displayName = _cleanDisplayName(rawName);
 
+    // Get avatar URL: try REST API first, then fallback to Nostr profile
+    final userProfileService = ref.watch(userProfileServiceProvider);
+    final profile = userProfileService.getCachedProfile(viner.pubkey);
+    final avatarUrl = viner.authorAvatar ?? profile?.picture;
+
     return GestureDetector(
-      onTap: () => onTap(context),
+      onTap: () => _onTap(context, avatarUrl),
       child: Padding(
         padding: const EdgeInsets.only(right: 12),
         child: Column(
@@ -147,7 +152,7 @@ class _VinerAvatar extends StatelessWidget {
             SizedBox(
               width: 56,
               height: 56,
-              child: _buildAvatar(displayName),
+              child: _buildAvatar(avatarUrl, displayName),
             ),
             const SizedBox(height: 4),
             // Display name from classic Vine data
@@ -167,9 +172,9 @@ class _VinerAvatar extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatar(String displayName) {
+  Widget _buildAvatar(String? avatarUrl, String displayName) {
     return UserAvatar(
-      imageUrl: viner.authorAvatar,
+      imageUrl: avatarUrl,
       name: displayName,
       size: 56,
     );
@@ -212,7 +217,7 @@ class _VinerAvatar extends StatelessWidget {
     return cleaned.trim();
   }
 
-  void onTap(BuildContext context) async {
+  void _onTap(BuildContext context, String? avatarUrl) async {
     // Get current user's hex for normalization if needed
     final identifier = viner.pubkey;
     final container = ProviderScope.containerOf(context, listen: false);
@@ -241,12 +246,12 @@ class _VinerAvatar extends StatelessWidget {
     }
 
     // Pass profile hints via extra for users without Kind 0 profiles
+    // Use avatarUrl which includes Nostr profile fallback
     final extra = <String, String?>{};
     final authorName = viner.authorName;
-    final authorAvatar = viner.authorAvatar;
 
     if (authorName != null) extra['displayName'] = authorName;
-    if (authorAvatar != null) extra['avatarUrl'] = authorAvatar;
+    if (avatarUrl != null) extra['avatarUrl'] = avatarUrl;
 
     await context.push(
       OtherProfileScreen.pathForNpub(npub),
