@@ -174,6 +174,7 @@ class _UserListPeopleScreenState extends ConsumerState<UserListPeopleScreen> {
 
               return ComposableVideoGrid(
                 videos: videos,
+                useMasonryLayout: true,
                 onVideoTap: (videos, index) {
                   Log.info(
                     'Tapped video in user list: ${videos[index].id}',
