@@ -16,6 +16,7 @@ import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/screens/pure/explore_video_screen_pure.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:divine_ui/divine_ui.dart';
+import 'package:openvine/utils/search_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
 import 'package:openvine/widgets/user_profile_tile.dart';
@@ -69,6 +70,7 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
   bool _isSearching = false;
   bool _isSearchingExternal = false;
+  int _localResultCount = 0; // Track local results before external search
   String _currentQuery = '';
   Timer? _debounceTimer;
 
@@ -153,10 +155,8 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
     );
 
     try {
-      // Search local cache ONLY
       final videoEventService = ref.read(videoEventServiceProvider);
       final videos = videoEventService.discoveryVideos;
-
       final profileService = ref.read(userProfileServiceProvider);
 
       Log.debug(
@@ -166,36 +166,27 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
       final users = <String>{};
 
-      // Find user profiles for matching the query
-      final matchingProfilesKeys = profileService.allProfiles.values
-          .where((profile) {
-            final displayNameMatch = profile.bestDisplayName
-                .toLowerCase()
-                .contains(query.toLowerCase());
-            return displayNameMatch;
-          })
-          .map((profile) => profile.pubkey)
-          .toList();
+      final matchingProfiles = SearchUtils.searchProfiles(
+        query,
+        profileService.allProfiles.values,
+        minScore: 0.3,
+        limit: 50,
+      );
 
-      _userResults.addAll(matchingProfilesKeys.toList());
+      _userResults.addAll(matchingProfiles.map((p) => p.pubkey));
 
-      // Filter local videos based on search query
       final filteredVideos = videos.where((video) {
-        final titleMatch =
-            video.title?.toLowerCase().contains(query.toLowerCase()) ?? false;
-        final contentMatch = video.content.toLowerCase().contains(
-          query.toLowerCase(),
+        final creatorName = profileService.getDisplayName(video.pubkey);
+        final score = SearchUtils.matchVideo(
+          query: query,
+          title: video.title,
+          content: video.content,
+          hashtags: video.hashtags,
+          creatorName: creatorName,
         );
-        final hashtagMatch = video.hashtags.any(
-          (tag) => tag.toLowerCase().contains(query.toLowerCase()),
-        );
-
-        final profile = profileService.getDisplayName(video.pubkey);
-        final userMatch = profile.toLowerCase().contains(query.toLowerCase());
-        return titleMatch || contentMatch || hashtagMatch || userMatch;
+        return score >= 0.3;
       }).toList();
 
-      // Extract unique hashtags and users from local results
       final hashtags = <String>{};
 
       for (final video in filteredVideos) {
@@ -207,18 +198,16 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
         users.add(video.pubkey);
       }
 
-      // Sort local results before showing
       filteredVideos.sort(VideoEvent.compareByLoopsThenTime);
 
-      // Show local results
       if (mounted) {
         setState(() {
           _videoResults = filteredVideos;
           _hashtagResults = hashtags.take(20).toList();
           _userResults = users.take(20).toList();
+          _localResultCount = filteredVideos.length;
           _isSearching = false;
         });
-        // Update provider so active video system can access search results
         ref.read(searchScreenVideosProvider.notifier).state = filteredVideos;
       }
 
@@ -227,8 +216,7 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
         category: LogCategory.video,
       );
 
-      // Automatically search external relays (no button needed)
-      _searchExternalRelays();
+      unawaited(_searchExternalRelays());
     } catch (e) {
       Log.error(
         '🔍 SearchScreenPure: Local search failed: $e',
@@ -258,31 +246,21 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
     try {
       final videoEventService = ref.read(videoEventServiceProvider);
-
-      // Search external relays via NIP-50
       await videoEventService.searchVideos(_currentQuery, limit: 100);
-
-      // Get remote results
       final remoteResults = videoEventService.searchResults;
 
       final profileService = ref.read(userProfileServiceProvider);
       await profileService.searchUsers(_currentQuery, limit: 100);
 
-      // Find user profiles for matching the query
-      final matchingRemoteUsers = profileService.allProfiles.values
-          .where((profile) {
-            final displayNameMatch = profile.bestDisplayName
-                .toLowerCase()
-                .contains(_currentQuery.toLowerCase());
-            return displayNameMatch;
-          })
-          .map((profile) => profile.pubkey)
-          .toList();
+      final matchingRemoteUsers = SearchUtils.searchProfiles(
+        _currentQuery,
+        profileService.allProfiles.values,
+        minScore: 0.3,
+        limit: 50,
+      ).map((p) => p.pubkey).toList();
 
-      // Combine local + remote results
       final allVideos = [..._videoResults, ...remoteResults];
 
-      // Deduplicate by video ID
       final seenIds = <String>{};
       final uniqueVideos = allVideos.where((video) {
         if (seenIds.contains(video.id)) return false;
@@ -290,10 +268,8 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
         return true;
       }).toList();
 
-      // Sort: new vines (no loops) chronologically, then original vines by loop count
       uniqueVideos.sort(VideoEvent.compareByLoopsThenTime);
 
-      // Extract all unique hashtags and users from combined results
       final allHashtags = <String>{};
       final allUsers = <String>{..._userResults, ...matchingRemoteUsers};
 
@@ -313,7 +289,6 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
           _userResults = allUsers.take(20).toList();
           _isSearchingExternal = false;
         });
-        // Update provider so active video system can access merged search results
         ref.read(searchScreenVideosProvider.notifier).state = uniqueVideos;
       }
 
@@ -337,14 +312,12 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
   @override
   Widget build(BuildContext context) {
-    // Check if we're in feed mode (videoIndex set in URL)
     final pageContext = ref.watch(pageContextProvider);
     final isInFeedMode = pageContext.maybeWhen(
       data: (ctx) => ctx.type == RouteType.search && ctx.videoIndex != null,
       orElse: () => false,
     );
 
-    // If in feed mode, show video player instead of search UI
     if (isInFeedMode && _videoResults.isNotEmpty) {
       final videoIndex = pageContext.asData?.value.videoIndex ?? 0;
       final safeIndex = videoIndex.clamp(0, _videoResults.length - 1);
@@ -516,30 +489,52 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
     return Column(
       children: [
-        // Show loading indicator when searching external relays
+        // Show search status indicator
         if (_isSearchingExternal)
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: VineTheme.cardBackground,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: VineTheme.vineGreen.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 20,
-                  height: 20,
+                  width: 16,
+                  height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: VineTheme.vineGreen,
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  'Searching servers...',
-                  style: TextStyle(color: VineTheme.whiteText),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Searching Nostr relays...',
+                        style: TextStyle(
+                          color: VineTheme.whiteText,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (_videoResults.isNotEmpty)
+                        Text(
+                          '${_videoResults.length} local results found',
+                          style: TextStyle(
+                            color: VineTheme.secondaryText,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -618,7 +613,7 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
       );
     }
 
-    if (_userResults.isEmpty) {
+    if (_userResults.isEmpty && !_isSearchingExternal) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -628,6 +623,11 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
             Text(
               'No users found for "$_currentQuery"',
               style: TextStyle(color: VineTheme.primaryText, fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try different keywords or check spelling',
+              style: TextStyle(color: VineTheme.secondaryText, fontSize: 14),
             ),
           ],
         ),
@@ -657,27 +657,90 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
       return 0;
     });
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: sortedUsers.length,
-      itemBuilder: (context, index) {
-        final userPubkey = sortedUsers[index];
+    return Column(
+      children: [
+        // Show search status indicator for users
+        if (_isSearchingExternal)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: VineTheme.cardBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: VineTheme.vineGreen.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: VineTheme.vineGreen,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Searching for more users...',
+                    style: TextStyle(color: VineTheme.whiteText, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // User list
+        Expanded(
+          child: sortedUsers.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 32,
+                        height: 32,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 3,
+                          color: VineTheme.vineGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Searching for "$_currentQuery"...',
+                        style: TextStyle(
+                          color: VineTheme.primaryText,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: sortedUsers.length,
+                  itemBuilder: (context, index) {
+                    final userPubkey = sortedUsers[index];
 
-        return UserProfileTile(
-          pubkey: userPubkey,
-          showFollowButton: false, // Hide follow button in search results
-          onTap: () {
-            Log.info(
-              '🔍 SearchScreenPure: Tapped user: $userPubkey',
-              category: LogCategory.video,
-            );
-            final npub = normalizeToNpub(userPubkey);
-            if (npub != null) {
-              context.push(ProfileScreenRouter.pathForNpub(npub));
-            }
-          },
-        );
-      },
+                    return UserProfileTile(
+                      pubkey: userPubkey,
+                      showFollowButton: false,
+                      onTap: () {
+                        Log.info(
+                          '🔍 SearchScreenPure: Tapped user: $userPubkey',
+                          category: LogCategory.video,
+                        );
+                        final npub = normalizeToNpub(userPubkey);
+                        if (npub != null) {
+                          context.push(ProfileScreenRouter.pathForNpub(npub));
+                        }
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 
