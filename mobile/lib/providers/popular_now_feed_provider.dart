@@ -3,6 +3,7 @@
 
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/helpers/video_feed_builder.dart';
+import 'package:openvine/utils/video_deduplication.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -94,37 +95,11 @@ class PopularNowFeed extends _$PopularNowFeed {
           );
 
           // Deduplicate by vineId + pubkey, keeping newest version of each video
-          // REST API may return multiple events for the same addressable video
-          // (previous edit versions), so we must keep only the newest
-          // Note: if vineId is null (shouldn't happen for NIP-71), fall back to event id
-          final videosByStableId = <String, VideoEvent>{};
-          var duplicatesFound = 0;
-          for (final v in platformFiltered) {
-            // Use vineId for addressable events, fall back to event id if null
-            final stableId = '${v.pubkey}:${v.vineId ?? v.id}';
-            final existing = videosByStableId[stableId];
-            if (existing == null) {
-              videosByStableId[stableId] = v;
-            } else if (v.createdAt > existing.createdAt) {
-              // Found a newer version of the same video
-              duplicatesFound++;
-              Log.debug(
-                '📝 PopularNowFeed dedup: Replacing "${existing.title}" (ts=${existing.createdAt}) with "${v.title}" (ts=${v.createdAt}) for vineId=${v.vineId}',
-                name: 'PopularNowFeedProvider',
-                category: LogCategory.video,
-              );
-              videosByStableId[stableId] = v;
-            } else {
-              // Found an older version, skip it
-              duplicatesFound++;
-              Log.debug(
-                '📝 PopularNowFeed dedup: Skipping older "${v.title}" (ts=${v.createdAt}) keeping "${existing.title}" (ts=${existing.createdAt}) for vineId=${v.vineId}',
-                name: 'PopularNowFeedProvider',
-                category: LogCategory.video,
-              );
-            }
-          }
-          final filteredVideos = videosByStableId.values.toList();
+          final beforeCount = platformFiltered.length;
+          final filteredVideos = VideoDeduplication.deduplicate(
+            platformFiltered,
+          );
+          final duplicatesFound = beforeCount - filteredVideos.length;
 
           Log.info(
             '✅ PopularNowFeed: Got ${filteredVideos.length} videos from REST API (deduped $duplicatesFound from ${platformFiltered.length}), cursor: $_nextCursor',
@@ -268,71 +243,37 @@ class PopularNowFeed extends _$PopularNowFeed {
         if (!ref.mounted) return;
 
         if (apiVideos.isNotEmpty) {
-          // Deduplicate by vineId + pubkey (stable identifier for addressable events)
-          // not event ID, since edits create new IDs but same vineId
-          // Note: if vineId is null (shouldn't happen for NIP-71), fall back to event id
-          final existingByStableId = <String, VideoEvent>{};
-          for (final v in currentState.videos) {
-            existingByStableId['${v.pubkey}:${v.vineId ?? v.id}'] = v;
-          }
+          // Filter for platform compatibility first
+          final platformFiltered = apiVideos
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
 
-          final newVideos = <VideoEvent>[];
-          for (final v in apiVideos) {
-            if (!v.isSupportedOnCurrentPlatform) continue;
-            final stableId = '${v.pubkey}:${v.vineId ?? v.id}';
-            final existing = existingByStableId[stableId];
-            if (existing == null) {
-              // Truly new video
-              newVideos.add(v);
-            } else if (v.createdAt > existing.createdAt) {
-              // Newer version of existing video
-              existingByStableId[stableId] = v;
-            }
-          }
-
-          // Rebuild current videos with any updated versions
-          final updatedCurrentVideos = currentState.videos.map((v) {
-            final stableId = '${v.pubkey}:${v.vineId ?? v.id}';
-            return existingByStableId[stableId] ?? v;
-          }).toList();
+          // Merge with deduplication (keeps newest version of each video)
+          final beforeCount = currentState.videos.length;
+          final allVideos = VideoDeduplication.merge(
+            currentState.videos,
+            platformFiltered,
+          );
+          final newCount = allVideos.length - beforeCount;
 
           // Update cursor for next pagination
           _nextCursor = _getOldestTimestamp(apiVideos);
 
-          if (newVideos.isNotEmpty) {
-            final allVideos = [...updatedCurrentVideos, ...newVideos];
-            Log.info(
-              '🆕 PopularNowFeed: Loaded ${newVideos.length} new videos from REST API (total: ${allVideos.length})',
-              name: 'PopularNowFeedProvider',
-              category: LogCategory.video,
-            );
+          Log.info(
+            '🆕 PopularNowFeed: Loaded $newCount new videos from REST API (total: ${allVideos.length})',
+            name: 'PopularNowFeedProvider',
+            category: LogCategory.video,
+          );
 
-            state = AsyncData(
-              VideoFeedState(
-                videos: allVideos,
-                hasMoreContent:
-                    apiVideos.length >= AppConstants.paginationBatchSize,
-                isLoadingMore: false,
-                lastUpdated: DateTime.now(),
-              ),
-            );
-          } else {
-            Log.info(
-              '🆕 PopularNowFeed: All returned videos already in state',
-              name: 'PopularNowFeedProvider',
-              category: LogCategory.video,
-            );
-            // Still use updatedCurrentVideos in case existing videos were refreshed
-            state = AsyncData(
-              VideoFeedState(
-                videos: updatedCurrentVideos,
-                hasMoreContent:
-                    apiVideos.length >= AppConstants.paginationBatchSize,
-                isLoadingMore: false,
-                lastUpdated: DateTime.now(),
-              ),
-            );
-          }
+          state = AsyncData(
+            VideoFeedState(
+              videos: allVideos,
+              hasMoreContent:
+                  apiVideos.length >= AppConstants.paginationBatchSize,
+              isLoadingMore: false,
+              lastUpdated: DateTime.now(),
+            ),
+          );
         } else {
           Log.info(
             '🆕 PopularNowFeed: No more videos available from REST API',
@@ -491,24 +432,11 @@ class PopularNowFeed extends _$PopularNowFeed {
               .toList();
 
           // Deduplicate by vineId + pubkey, keeping newest version of each video
-          // REST API may return multiple events for the same addressable video
-          // (previous edit versions), so we must keep only the newest
-          // Note: if vineId is null (shouldn't happen for NIP-71), fall back to event id
-          final videosByStableId = <String, VideoEvent>{};
-          var duplicatesFound = 0;
-          for (final v in platformFiltered) {
-            final stableId = '${v.pubkey}:${v.vineId ?? v.id}';
-            final existing = videosByStableId[stableId];
-            if (existing == null) {
-              videosByStableId[stableId] = v;
-            } else if (v.createdAt > existing.createdAt) {
-              duplicatesFound++;
-              videosByStableId[stableId] = v;
-            } else {
-              duplicatesFound++;
-            }
-          }
-          final filteredVideos = videosByStableId.values.toList();
+          final beforeCount = platformFiltered.length;
+          final filteredVideos = VideoDeduplication.deduplicate(
+            platformFiltered,
+          );
+          final duplicatesFound = beforeCount - filteredVideos.length;
 
           state = AsyncData(
             VideoFeedState(
@@ -521,7 +449,7 @@ class PopularNowFeed extends _$PopularNowFeed {
           );
 
           Log.info(
-            '✅ PopularNowFeed: Refreshed ${filteredVideos.length} videos from REST API (deduped $duplicatesFound from ${platformFiltered.length}), cursor: $_nextCursor',
+            '✅ PopularNowFeed: Refreshed ${filteredVideos.length} videos from REST API (deduped $duplicatesFound from $beforeCount), cursor: $_nextCursor',
             name: 'PopularNowFeedProvider',
             category: LogCategory.video,
           );
