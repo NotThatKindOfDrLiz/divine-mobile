@@ -475,7 +475,9 @@ class _DivineAuthFormState extends State<_AuthForm> {
               if (formKey.currentState!.validate()) {
                 final email = resetEmailController.text.trim();
                 dialogContext.pop();
-                await context.read<DivineAuthCubit>().sendPasswordResetEmail(email);
+                await context.read<DivineAuthCubit>().sendPasswordResetEmail(
+                  email,
+                );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
