@@ -15,9 +15,6 @@ class HeadlessRegisterResult {
   /// Human-readable error description from server
   final String? errorDescription;
 
-  /// Convenience getter for backwards compatibility
-  String? get error => errorDescription;
-
   HeadlessRegisterResult({
     required this.success,
     required this.pubkey,

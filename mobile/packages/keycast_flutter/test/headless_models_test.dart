@@ -19,7 +19,7 @@ void main() {
         expect(result.verificationRequired, isTrue);
         expect(result.deviceCode, isNull);
         expect(result.email, isNull);
-        expect(result.error, isNull);
+        expect(result.errorCode, isNull);
       });
 
       test('creates instance with all optional fields', () {
@@ -55,7 +55,7 @@ void main() {
         expect(result.verificationRequired, isTrue);
         expect(result.deviceCode, 'dev_code');
         expect(result.email, 'user@test.com');
-        expect(result.error, isNull);
+        expect(result.errorCode, isNull);
       });
 
       test('uses defaults for missing fields', () {
@@ -68,7 +68,7 @@ void main() {
         expect(result.verificationRequired, isTrue);
         expect(result.deviceCode, isNull);
         expect(result.email, isNull);
-        expect(result.error, isNull);
+        expect(result.errorCode, isNull);
       });
 
       test('parses error field', () {
@@ -93,7 +93,7 @@ void main() {
         expect(result.success, isFalse);
         expect(result.pubkey, '');
         expect(result.verificationRequired, isFalse);
-        expect(result.error, 'Registration failed');
+        expect(result.errorDescription, 'Registration failed');
       });
     });
   });
