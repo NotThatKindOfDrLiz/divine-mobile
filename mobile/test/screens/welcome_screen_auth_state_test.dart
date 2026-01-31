@@ -1,16 +1,15 @@
-// ABOUTME: Widget test for welcome screen authentication state handling
-// ABOUTME: Verifies that welcome screen shows correct UI based on AuthState (checking, authenticating, authenticated, unauthenticated)
-
-import 'dart:async';
+// ABOUTME: Widget test for welcome screen legal acceptance functionality
+// ABOUTME: Verifies checkboxes, validation errors, and submit behavior
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart';
-import 'package:openvine/widgets/branded_loading_indicator.dart';
+import 'package:openvine/widgets/legal_checkbox.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,7 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome_screen_auth_state_test.mocks.dart';
 
 void main() {
-  group('WelcomeScreen Auth State Tests', () {
+  group('WelcomeScreen Legal Acceptance Tests', () {
     late MockAuthService mockAuthService;
     late SharedPreferences sharedPreferences;
 
@@ -27,251 +26,216 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       sharedPreferences = await SharedPreferences.getInstance();
       mockAuthService = MockAuthService();
+
+      // Default mock setup
+      when(mockAuthService.acceptTerms()).thenAnswer((_) async {});
     });
 
-    testWidgets('shows loading indicator when auth state is checking', (
-      tester,
-    ) async {
-      // Setup: Auth state is CHECKING
-      when(mockAuthService.authState).thenReturn(AuthState.checking);
-      when(mockAuthService.isAuthenticated).thenReturn(false);
-      when(mockAuthService.lastError).thenReturn(null);
-
-      await tester.binding.setSurfaceSize(const Size(800, 1200));
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-            authServiceProvider.overrideWithValue(mockAuthService),
-            currentAuthStateProvider.overrideWith((ref) => AuthState.checking),
-          ],
-          child: const MaterialApp(home: WelcomeScreen()),
-        ),
-      );
-
-      // Use pump() instead of pumpAndSettle() because loading indicator animates continuously
-      await tester.pump();
-
-      // Expect: Loading indicator shown (BrandedLoadingIndicator with GIF)
-      expect(find.byType(BrandedLoadingIndicator), findsOneWidget);
-
-      // Expect: Create/Import buttons NOT shown
-      expect(find.text('Create New Identity'), findsNothing);
-      expect(find.text('Import Existing Identity'), findsNothing);
-    });
-
-    testWidgets('shows loading indicator when auth state is authenticating', (
-      tester,
-    ) async {
-      // Setup: Auth state is AUTHENTICATING
-      when(mockAuthService.authState).thenReturn(AuthState.authenticating);
-      when(mockAuthService.isAuthenticated).thenReturn(false);
-      when(mockAuthService.lastError).thenReturn(null);
-
-      await tester.binding.setSurfaceSize(const Size(800, 1200));
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-            authServiceProvider.overrideWithValue(mockAuthService),
-            currentAuthStateProvider.overrideWith(
-              (ref) => AuthState.authenticating,
-            ),
-          ],
-          child: const MaterialApp(home: WelcomeScreen()),
-        ),
-      );
-
-      // Use pump() instead of pumpAndSettle() because loading indicator animates continuously
-      await tester.pump();
-
-      // Expect: Loading indicator shown (BrandedLoadingIndicator with GIF)
-      expect(find.byType(BrandedLoadingIndicator), findsOneWidget);
-
-      // Expect: Create/Import buttons NOT shown
-      expect(find.text('Create New Identity'), findsNothing);
-      expect(find.text('Import Existing Identity'), findsNothing);
-    });
-
-    testWidgets('shows Continue button when authenticated', (tester) async {
-      // Setup: Auth state is AUTHENTICATED
-      when(mockAuthService.authState).thenReturn(AuthState.authenticated);
-      when(mockAuthService.isAuthenticated).thenReturn(true);
-      when(mockAuthService.lastError).thenReturn(null);
-
-      await tester.binding.setSurfaceSize(const Size(800, 1200));
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-            authServiceProvider.overrideWithValue(mockAuthService),
-            currentAuthStateProvider.overrideWith(
-              (ref) => AuthState.authenticated,
-            ),
-          ],
-          child: const MaterialApp(home: WelcomeScreen()),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      // Expect: Continue button shown (but disabled because TOS not accepted)
-      expect(find.byType(ElevatedButton), findsOneWidget);
-
-      // Expect: Create/Import buttons NOT shown
-      expect(find.text('Create New Identity'), findsNothing);
-      expect(find.text('Import Existing Identity'), findsNothing);
-    });
-
-    testWidgets(
-      'shows error message when unauthenticated (auto-creation failed)',
-      (tester) async {
-        // Setup: Auth state is UNAUTHENTICATED (auto-creation failed)
-        when(mockAuthService.authState).thenReturn(AuthState.unauthenticated);
-        when(mockAuthService.isAuthenticated).thenReturn(false);
-        when(
-          mockAuthService.authStateStream,
-        ).thenAnswer((_) => Stream.value(AuthState.unauthenticated));
-        when(mockAuthService.lastError).thenReturn('Failed to create identity');
-
-        await tester.binding.setSurfaceSize(const Size(800, 1200));
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-              authServiceProvider.overrideWithValue(mockAuthService),
-              currentAuthStateProvider.overrideWithValue(
-                AuthState.unauthenticated,
+    Widget buildTestWidget({bool useGoRouter = false}) {
+      final widget = useGoRouter
+          ? MaterialApp.router(
+              routerConfig: GoRouter(
+                initialLocation: WelcomeScreen.path,
+                routes: [
+                  GoRoute(
+                    path: WelcomeScreen.path,
+                    builder: (context, state) => const WelcomeScreen(),
+                  ),
+                  // Dummy route for navigation target
+                  GoRoute(
+                    path: '/welcome/auth-native',
+                    builder: (context, state) =>
+                        const Scaffold(body: Text('Auth Screen')),
+                  ),
+                ],
               ),
-            ],
-            child: const MaterialApp(home: WelcomeScreen()),
-          ),
-        );
-        await tester.pumpAndSettle();
-        // Expect: Error message shown
-        expect(
-          find.textContaining('Failed to create identity'),
-          findsOneWidget,
-        );
+            )
+          : const MaterialApp(home: WelcomeScreen());
 
-        // Expect: Create/Import buttons NEVER shown
-        expect(find.text('Create New Identity'), findsNothing);
-        expect(find.text('Import Existing Identity'), findsNothing);
+      return ProviderScope(
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+          authServiceProvider.overrideWithValue(mockAuthService),
+        ],
+        child: widget,
+      );
+    }
 
-        // Expect: Continue button NOT shown
-        expect(find.text('Continue'), findsNothing);
-      },
-    );
+    // Helper to get age checkbox (index 0)
+    Finder findAgeCheckbox() => find.byType(LegalCheckbox).at(0);
 
-    testWidgets('Continue button disabled when TOS not accepted', (
+    // Helper to get terms checkbox (index 1)
+    Finder findTermsCheckbox() => find.byType(LegalCheckbox).at(1);
+
+    testWidgets('shows age and terms checkboxes initially unchecked', (
       tester,
     ) async {
-      // Setup: Auth state is AUTHENTICATED
-      when(mockAuthService.authState).thenReturn(AuthState.authenticated);
-      when(mockAuthService.isAuthenticated).thenReturn(true);
-      when(mockAuthService.lastError).thenReturn(null);
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Verify both checkboxes are present
+      expect(find.text('I am 16 years or older'), findsOneWidget);
+      expect(find.byType(LegalCheckbox), findsNWidgets(2));
+
+      // Verify checkboxes are unchecked
+      final checkboxes = tester.widgetList<LegalCheckbox>(
+        find.byType(LegalCheckbox),
+      );
+      expect(checkboxes.length, equals(2));
+
+      for (final checkbox in checkboxes) {
+        expect(checkbox.checked, isFalse);
+      }
+
+      // Verify Accept button is present
+      expect(find.text('Accept & continue'), findsOneWidget);
+    });
+
+    testWidgets('toggles age verification checkbox when tapped', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Tap the age checkbox (first one)
+      await tester.tap(findAgeCheckbox());
+      await tester.pumpAndSettle();
+
+      // Verify checkbox is now checked
+      final checkbox = tester.widget<LegalCheckbox>(findAgeCheckbox());
+      expect(checkbox.checked, isTrue);
+    });
+
+    testWidgets('toggles terms acceptance checkbox when tapped', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Tap the terms checkbox (second one)
+      await tester.tap(findTermsCheckbox());
+      await tester.pumpAndSettle();
+
+      // Verify checkbox is now checked
+      final checkbox = tester.widget<LegalCheckbox>(findTermsCheckbox());
+      expect(checkbox.checked, isTrue);
+    });
+
+    testWidgets('shows error state when submitting without checking age', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Check only terms (not age)
+      await tester.tap(findTermsCheckbox());
+      await tester.pumpAndSettle();
+
+      // Tap Accept button
+      await tester.tap(find.text('Accept & continue'));
+      await tester.pumpAndSettle();
+
+      // Verify age checkbox shows error (showError = true)
+      final ageCheckbox = tester.widget<LegalCheckbox>(findAgeCheckbox());
+      expect(ageCheckbox.showError, isTrue);
+
+      // AuthService.acceptTerms should NOT be called
+      verifyNever(mockAuthService.acceptTerms());
+    });
+
+    testWidgets('shows error state when submitting without checking terms', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
+
+      // Check only age (not terms)
+      await tester.tap(findAgeCheckbox());
+      await tester.pumpAndSettle();
+
+      // Tap Accept button
+      await tester.tap(find.text('Accept & continue'));
+      await tester.pumpAndSettle();
+
+      // Verify terms checkbox shows error (showError = true)
+      final termsCheckbox = tester.widget<LegalCheckbox>(findTermsCheckbox());
+      expect(termsCheckbox.showError, isTrue);
+
+      // AuthService.acceptTerms should NOT be called
+      verifyNever(mockAuthService.acceptTerms());
+    });
+
+    testWidgets('calls AuthService.acceptTerms when both checkboxes checked', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      // Use GoRouter for this test since it tests successful submission which triggers navigation
+      await tester.pumpWidget(buildTestWidget(useGoRouter: true));
+      await tester.pumpAndSettle();
+
+      // Check age checkbox
+      await tester.tap(findAgeCheckbox());
+      await tester.pumpAndSettle();
+
+      // Check terms checkbox
+      await tester.tap(findTermsCheckbox());
+      await tester.pumpAndSettle();
+
+      // Tap Accept button
+      await tester.tap(find.text('Accept & continue'));
+      await tester.pumpAndSettle();
+
+      // Verify AuthService.acceptTerms was called
+      verify(mockAuthService.acceptTerms()).called(1);
+    });
+
+    testWidgets('loads previously saved acceptance state from preferences', (
+      tester,
+    ) async {
+      // Pre-populate SharedPreferences with saved state
+      SharedPreferences.setMockInitialValues({
+        'age_verified_16_plus': true,
+        'terms_accepted_at': '2024-01-01T00:00:00.000Z',
+      });
+      final prefsWithSavedState = await SharedPreferences.getInstance();
 
       await tester.binding.setSurfaceSize(const Size(800, 1200));
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+            sharedPreferencesProvider.overrideWithValue(prefsWithSavedState),
             authServiceProvider.overrideWithValue(mockAuthService),
-            currentAuthStateProvider.overrideWith(
-              (ref) => AuthState.authenticated,
-            ),
           ],
           child: const MaterialApp(home: WelcomeScreen()),
         ),
       );
-
       await tester.pumpAndSettle();
 
-      // Find the Continue button (shows "Accept Terms to Continue" when TOS not accepted)
-      final continueButton = find.byType(ElevatedButton);
-      expect(continueButton, findsOneWidget);
+      // Verify both checkboxes are checked (loaded from prefs)
+      final checkboxes = tester.widgetList<LegalCheckbox>(
+        find.byType(LegalCheckbox),
+      );
 
-      // Verify button is disabled (onPressed is null) because TOS not accepted
-      final ElevatedButton buttonWidget = tester.widget(continueButton);
-      expect(buttonWidget.onPressed, isNull);
+      for (final checkbox in checkboxes) {
+        expect(checkbox.checked, isTrue);
+      }
     });
 
-    testWidgets(
-      'UI updates when auth state changes from checking to authenticated (race condition test)',
-      (tester) async {
-        // This test verifies that currentAuthStateProvider properly triggers
-        // UI rebuilds when the auth state changes. The provider listens to
-        // authService.authStateStream and uses ref.invalidateSelf() to rebuild.
+    testWidgets('shows branding elements', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      await tester.pumpWidget(buildTestWidget());
+      await tester.pumpAndSettle();
 
-        // Setup: Create stream controller to simulate auth state changes
-        final authStateController = StreamController<AuthState>.broadcast();
-
-        // Start with auth state CHECKING
-        when(mockAuthService.authState).thenReturn(AuthState.checking);
-        when(mockAuthService.isAuthenticated).thenReturn(false);
-        when(mockAuthService.lastError).thenReturn(null);
-        when(
-          mockAuthService.authStateStream,
-        ).thenAnswer((_) => authStateController.stream);
-
-        await tester.binding.setSurfaceSize(const Size(800, 1200));
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-              authServiceProvider.overrideWithValue(mockAuthService),
-              // Let the real currentAuthStateProvider run - it will use
-              // the mocked authService.authStateStream to trigger rebuilds
-            ],
-            child: const MaterialApp(home: WelcomeScreen()),
-          ),
-        );
-
-        await tester.pump();
-
-        // Verify: Loading indicator shown initially (BrandedLoadingIndicator with GIF)
-        expect(find.byType(BrandedLoadingIndicator), findsOneWidget);
-        expect(find.widgetWithText(ElevatedButton, 'Continue'), findsNothing);
-
-        // Simulate auth state changing to AUTHENTICATED (like in real app)
-        // First update the mock's return value, then emit on the stream
-        when(mockAuthService.authState).thenReturn(AuthState.authenticated);
-        when(mockAuthService.isAuthenticated).thenReturn(true);
-        authStateController.add(AuthState.authenticated);
-
-        // This should trigger a rebuild via ref.invalidateSelf()
-        // Need multiple pumps to process stream event and rebuild widget tree
-        await tester.pump();
-        await tester.pump();
-
-        // Expect: Continue button should appear after auth completes (even if disabled)
-        // The button shows "Accept Terms to Continue" when terms not accepted
-        expect(
-          find.byType(ElevatedButton),
-          findsOneWidget,
-          reason:
-              'Continue button widget should appear when auth state changes to authenticated',
-        );
-        expect(
-          find.byType(BrandedLoadingIndicator),
-          findsNothing,
-          reason: 'Loading indicator should disappear when auth completes',
-        );
-
-        // Verify the button shows proper text (may be disabled if terms not accepted)
-        final buttonText = find.descendant(
-          of: find.byType(ElevatedButton),
-          matching: find.byType(Text),
-        );
-        expect(
-          buttonText,
-          findsOneWidget,
-          reason: 'Button should have text widget',
-        );
-
-        // Cleanup
-        await authStateController.close();
-      },
-    );
+      // Verify tagline is shown
+      expect(
+        find.text('Create and share short videos\non the decentralized web'),
+        findsOneWidget,
+      );
+    });
   });
 }

@@ -1,4 +1,4 @@
-// ABOUTME: Cubit for managing authentication flow
+// ABOUTME: Cubit for managing diVine authentication flow
 // ABOUTME: Handles sign in, sign up, and email verification states
 
 import 'package:equatable/equatable.dart';
@@ -9,24 +9,24 @@ import 'package:openvine/services/pending_verification_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/validators.dart';
 
-part 'auth_state.dart';
+part 'divine_auth_state.dart';
 
-/// Cubit for managing authentication flow.
+/// Cubit for managing diVine authentication flow.
 ///
 /// Handles:
 /// - Switching between sign in and sign up modes
 /// - Form field updates and validation
 /// - Submitting login/register requests
 /// - Email verification flow
-class AuthCubit extends Cubit<AuthState> {
-  AuthCubit({
+class DivineAuthCubit extends Cubit<DivineAuthState> {
+  DivineAuthCubit({
     required KeycastOAuth oauthClient,
     required AuthService authService,
     required PendingVerificationService pendingVerificationService,
   }) : _oauthClient = oauthClient,
        _authService = authService,
        _pendingVerificationService = pendingVerificationService,
-       super(const AuthInitial());
+       super(const DivineAuthInitial());
 
   final KeycastOAuth _oauthClient;
   final AuthService _authService;
@@ -34,18 +34,18 @@ class AuthCubit extends Cubit<AuthState> {
 
   /// Initialize form with default state (sign up mode)
   void initialize({bool isSignIn = false, String? initialEmail}) {
-    emit(AuthFormState(isSignIn: isSignIn, email: initialEmail ?? ''));
+    emit(DivineAuthFormState(isSignIn: isSignIn, email: initialEmail ?? ''));
   }
 
   /// Switch between sign in and sign up modes
   void toggleMode() {
     final current = state;
-    if (current is! AuthFormState) return;
+    if (current is! DivineAuthFormState) return;
 
     Log.info(
       'Toggling auth mode from ${current.isSignIn ? "sign in" : "sign up"} '
       'to ${!current.isSignIn ? "sign in" : "sign up"}',
-      name: 'AuthCubit',
+      name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );
 
@@ -62,7 +62,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Update email field
   void updateEmail(String email) {
     final current = state;
-    if (current is! AuthFormState) return;
+    if (current is! DivineAuthFormState) return;
 
     emit(
       current.copyWith(
@@ -76,7 +76,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Update password field
   void updatePassword(String password) {
     final current = state;
-    if (current is! AuthFormState) return;
+    if (current is! DivineAuthFormState) return;
 
     emit(
       current.copyWith(
@@ -90,7 +90,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Toggle password visibility
   void togglePasswordVisibility() {
     final current = state;
-    if (current is! AuthFormState) return;
+    if (current is! DivineAuthFormState) return;
 
     emit(current.copyWith(obscurePassword: !current.obscurePassword));
   }
@@ -98,7 +98,7 @@ class AuthCubit extends Cubit<AuthState> {
   /// Validate and submit the form
   Future<void> submit() async {
     final current = state;
-    if (current is! AuthFormState) return;
+    if (current is! DivineAuthFormState) return;
     if (current.isSubmitting) return;
 
     // Validate fields
@@ -124,12 +124,12 @@ class AuthCubit extends Cubit<AuthState> {
     } catch (e) {
       Log.error(
         'Auth submission error: $e',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
       final currentState = state;
-      if (currentState is AuthFormState) {
+      if (currentState is DivineAuthFormState) {
         emit(
           currentState.copyWith(
             isSubmitting: false,
@@ -143,7 +143,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> _handleSignIn(String email, String password) async {
     Log.info(
       'Attempting sign in for $email',
-      name: 'AuthCubit',
+      name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );
 
@@ -158,12 +158,12 @@ class AuthCubit extends Cubit<AuthState> {
           result.errorDescription ?? result.error ?? 'Sign in failed';
       Log.warning(
         'Sign in failed: $errorMsg',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
       final current = state;
-      if (current is AuthFormState) {
+      if (current is DivineAuthFormState) {
         emit(current.copyWith(isSubmitting: false, generalError: errorMsg));
       }
       return;
@@ -176,7 +176,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> _handleSignUp(String email, String password) async {
     Log.info(
       'Attempting sign up for $email',
-      name: 'AuthCubit',
+      name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );
 
@@ -191,7 +191,7 @@ class AuthCubit extends Cubit<AuthState> {
       Log.warning(
         'Sign up failed: errorCode=${result.errorCode}, '
         'errorDescription=${result.errorDescription}',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
@@ -202,7 +202,7 @@ class AuthCubit extends Cubit<AuthState> {
       );
 
       final current = state;
-      if (current is AuthFormState) {
+      if (current is DivineAuthFormState) {
         emit(current.copyWith(isSubmitting: false, generalError: errorMsg));
       }
       return;
@@ -211,7 +211,7 @@ class AuthCubit extends Cubit<AuthState> {
     if (result.verificationRequired && result.deviceCode != null) {
       Log.info(
         'Email verification required for $email',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
@@ -224,7 +224,7 @@ class AuthCubit extends Cubit<AuthState> {
 
       // Emit email verification state
       emit(
-        AuthEmailVerification(
+        DivineAuthEmailVerification(
           email: email,
           deviceCode: result.deviceCode!,
           verifier: verifier,
@@ -232,7 +232,7 @@ class AuthCubit extends Cubit<AuthState> {
       );
     } else {
       final current = state;
-      if (current is AuthFormState) {
+      if (current is DivineAuthFormState) {
         emit(
           current.copyWith(
             isSubmitting: false,
@@ -247,7 +247,7 @@ class AuthCubit extends Cubit<AuthState> {
     try {
       Log.info(
         'Exchanging code for tokens',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
@@ -262,31 +262,31 @@ class AuthCubit extends Cubit<AuthState> {
 
       Log.info(
         'Successfully signed in',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
-      emit(const AuthSuccess());
+      emit(const DivineAuthSuccess());
     } on OAuthException catch (e) {
       Log.error(
         'OAuth exchange failed: ${e.message}',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
       final current = state;
-      if (current is AuthFormState) {
+      if (current is DivineAuthFormState) {
         emit(current.copyWith(isSubmitting: false, generalError: e.message));
       }
     } catch (e) {
       Log.error(
         'Error exchanging code: $e',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
       final current = state;
-      if (current is AuthFormState) {
+      if (current is DivineAuthFormState) {
         emit(
           current.copyWith(
             isSubmitting: false,
@@ -301,7 +301,7 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> sendPasswordResetEmail(String email) async {
     Log.info(
       'Sending password reset email to $email',
-      name: 'AuthCubit',
+      name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );
 
@@ -311,14 +311,14 @@ class AuthCubit extends Cubit<AuthState> {
       if (!result.success) {
         Log.warning(
           'Password reset failed: ${result.error}',
-          name: 'AuthCubit',
+          name: 'DivineAuthCubit',
           category: LogCategory.auth,
         );
       }
     } catch (e) {
       Log.error(
         'Password reset error: $e',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
     }
@@ -327,10 +327,10 @@ class AuthCubit extends Cubit<AuthState> {
   /// Return to form from email verification state
   void returnToForm() {
     final current = state;
-    if (current is AuthEmailVerification) {
-      emit(AuthFormState(email: current.email, isSignIn: false));
+    if (current is DivineAuthEmailVerification) {
+      emit(DivineAuthFormState(email: current.email, isSignIn: false));
     } else {
-      emit(const AuthFormState());
+      emit(const DivineAuthFormState());
     }
   }
 
@@ -338,22 +338,22 @@ class AuthCubit extends Cubit<AuthState> {
   Future<void> skipSignUp() async {
     Log.info(
       'Skipping sign up, signing in automatically',
-      name: 'AuthCubit',
+      name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );
 
     try {
       await _authService.signInAutomatically();
-      emit(const AuthSuccess());
+      emit(const DivineAuthSuccess());
     } catch (e) {
       Log.error(
         'Failed to sign in automatically: $e',
-        name: 'AuthCubit',
+        name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
 
       final current = state;
-      if (current is AuthFormState) {
+      if (current is DivineAuthFormState) {
         emit(
           current.copyWith(
             generalError: 'Failed to create account. Please try again.',
@@ -393,7 +393,7 @@ class AuthCubit extends Cubit<AuthState> {
         if (errorCode != null && errorCode != 'registration_failed') {
           Log.info(
             'Unhandled registration error code: $errorCode',
-            name: 'AuthCubit',
+            name: 'DivineAuthCubit',
             category: LogCategory.auth,
           );
         }

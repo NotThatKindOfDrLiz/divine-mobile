@@ -1,24 +1,24 @@
-// ABOUTME: States for authentication cubit
+// ABOUTME: States for diVine authentication cubit
 // ABOUTME: Tracks sign in/sign up form state and email verification
 
-part of 'auth_cubit.dart';
+part of 'divine_auth_cubit.dart';
 
-/// State for authentication cubit
-sealed class AuthState extends Equatable {
-  const AuthState();
+/// State for diVine authentication cubit
+sealed class DivineAuthState extends Equatable {
+  const DivineAuthState();
 
   @override
   List<Object?> get props => [];
 }
 
 /// Initial state before form is ready
-class AuthInitial extends AuthState {
-  const AuthInitial();
+class DivineAuthInitial extends DivineAuthState {
+  const DivineAuthInitial();
 }
 
 /// State when auth form is displayed and interactive
-class AuthFormState extends AuthState {
-  const AuthFormState({
+class DivineAuthFormState extends DivineAuthState {
+  const DivineAuthFormState({
     this.email = '',
     this.password = '',
     this.isSignIn = false,
@@ -61,7 +61,7 @@ class AuthFormState extends AuthState {
       passwordError == null &&
       !isSubmitting;
 
-  AuthFormState copyWith({
+  DivineAuthFormState copyWith({
     String? email,
     String? password,
     bool? isSignIn,
@@ -74,7 +74,7 @@ class AuthFormState extends AuthState {
     bool clearPasswordError = false,
     bool clearGeneralError = false,
   }) {
-    return AuthFormState(
+    return DivineAuthFormState(
       email: email ?? this.email,
       password: password ?? this.password,
       isSignIn: isSignIn ?? this.isSignIn,
@@ -104,8 +104,8 @@ class AuthFormState extends AuthState {
 }
 
 /// State when email verification is required after registration
-class AuthEmailVerification extends AuthState {
-  const AuthEmailVerification({
+class DivineAuthEmailVerification extends DivineAuthState {
+  const DivineAuthEmailVerification({
     required this.email,
     required this.deviceCode,
     required this.verifier,
@@ -125,13 +125,13 @@ class AuthEmailVerification extends AuthState {
 }
 
 /// State after successful authentication
-class AuthSuccess extends AuthState {
-  const AuthSuccess();
+class DivineAuthSuccess extends DivineAuthState {
+  const DivineAuthSuccess();
 }
 
 /// State when an error occurs that requires user action
-class AuthError extends AuthState {
-  const AuthError({required this.message});
+class DivineAuthError extends DivineAuthState {
+  const DivineAuthError({required this.message});
 
   final String message;
 

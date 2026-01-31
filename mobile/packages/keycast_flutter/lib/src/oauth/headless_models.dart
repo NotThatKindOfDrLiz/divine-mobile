@@ -36,15 +36,12 @@ class HeadlessRegisterResult {
       deviceCode: json['device_code'] as String?,
       email: json['email'] as String?,
       errorCode: json['error'] as String?,
-      errorDescription: json['error_description'] as String? ??
-          json['message'] as String?,
+      errorDescription:
+          json['error_description'] as String? ?? json['message'] as String?,
     );
   }
 
-  factory HeadlessRegisterResult.error(
-    String message, {
-    String? code,
-  }) {
+  factory HeadlessRegisterResult.error(String message, {String? code}) {
     return HeadlessRegisterResult(
       success: false,
       pubkey: '',

@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/blocs/auth/auth_cubit.dart';
+import 'package:openvine/blocs/divine_auth/divine_auth_cubit.dart';
 import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
@@ -41,7 +41,7 @@ class DivineAuthScreen extends ConsumerWidget {
     );
 
     return BlocProvider(
-      create: (_) => AuthCubit(
+      create: (_) => DivineAuthCubit(
         oauthClient: oauthClient,
         authService: authService,
         pendingVerificationService: pendingVerificationService,
@@ -56,11 +56,11 @@ class _DivineAuthScreenView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthCubit, AuthState>(
+    return BlocListener<DivineAuthCubit, DivineAuthState>(
       listenWhen: (prev, next) =>
-          next is AuthEmailVerification || next is AuthSuccess,
+          next is DivineAuthEmailVerification || next is DivineAuthSuccess,
       listener: (context, state) {
-        if (state is AuthEmailVerification) {
+        if (state is DivineAuthEmailVerification) {
           // Navigate to email verification screen
           final encodedEmail = Uri.encodeComponent(state.email);
           context.go(
@@ -69,16 +69,16 @@ class _DivineAuthScreenView extends StatelessWidget {
             '&verifier=${state.verifier}'
             '&email=$encodedEmail',
           );
-        } else if (state is AuthSuccess) {
+        } else if (state is DivineAuthSuccess) {
           // Navigation will be handled by auth state listener in router
         }
       },
       child: Scaffold(
         backgroundColor: Colors.black,
         body: SafeArea(
-          child: BlocBuilder<AuthCubit, AuthState>(
+          child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
             builder: (context, state) {
-              if (state is AuthFormState) {
+              if (state is DivineAuthFormState) {
                 return _AuthForm(state: state);
               }
               return const Center(
@@ -95,13 +95,13 @@ class _DivineAuthScreenView extends StatelessWidget {
 class _AuthForm extends StatefulWidget {
   const _AuthForm({required this.state});
 
-  final AuthFormState state;
+  final DivineAuthFormState state;
 
   @override
-  State<_AuthForm> createState() => _AuthFormState();
+  State<_AuthForm> createState() => _DivineAuthFormState();
 }
 
-class _AuthFormState extends State<_AuthForm> {
+class _DivineAuthFormState extends State<_AuthForm> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
 
@@ -175,7 +175,7 @@ class _AuthFormState extends State<_AuthForm> {
               keyboardType: TextInputType.emailAddress,
               errorText: widget.state.emailError,
               onChanged: (value) =>
-                  context.read<AuthCubit>().updateEmail(value),
+                  context.read<DivineAuthCubit>().updateEmail(value),
               enabled: !isSubmitting,
             ),
 
@@ -188,7 +188,7 @@ class _AuthFormState extends State<_AuthForm> {
               obscureText: widget.state.obscurePassword,
               errorText: widget.state.passwordError,
               onChanged: (value) =>
-                  context.read<AuthCubit>().updatePassword(value),
+                  context.read<DivineAuthCubit>().updatePassword(value),
               enabled: !isSubmitting,
               suffixIcon: IconButton(
                 icon: Icon(
@@ -198,7 +198,7 @@ class _AuthFormState extends State<_AuthForm> {
                   color: Colors.grey,
                 ),
                 onPressed: () =>
-                    context.read<AuthCubit>().togglePasswordVisibility(),
+                    context.read<DivineAuthCubit>().togglePasswordVisibility(),
               ),
             ),
 
@@ -230,7 +230,7 @@ class _AuthFormState extends State<_AuthForm> {
               child: ElevatedButton(
                 onPressed: isSubmitting
                     ? null
-                    : () => context.read<AuthCubit>().submit(),
+                    : () => context.read<DivineAuthCubit>().submit(),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: VineTheme.vineGreen,
                   foregroundColor: Colors.white,
@@ -266,7 +266,7 @@ class _AuthFormState extends State<_AuthForm> {
               TextButton(
                 onPressed: isSubmitting
                     ? null
-                    : () => context.read<AuthCubit>().skipSignUp(),
+                    : () => context.read<DivineAuthCubit>().skipSignUp(),
                 child: const Text(
                   'Skip for now',
                   style: TextStyle(color: Colors.grey, fontSize: 16),
@@ -475,7 +475,7 @@ class _AuthFormState extends State<_AuthForm> {
               if (formKey.currentState!.validate()) {
                 final email = resetEmailController.text.trim();
                 dialogContext.pop();
-                await context.read<AuthCubit>().sendPasswordResetEmail(email);
+                await context.read<DivineAuthCubit>().sendPasswordResetEmail(email);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(

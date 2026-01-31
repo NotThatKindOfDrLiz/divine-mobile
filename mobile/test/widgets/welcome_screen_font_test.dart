@@ -1,5 +1,5 @@
-// ABOUTME: Widget test for welcome screen Google Font rendering
-// ABOUTME: Verifies that the Divine title uses Pacifico font
+// ABOUTME: Widget test for welcome screen layout and text rendering
+// ABOUTME: Verifies that the welcome screen displays correctly with legal checkboxes
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/widgets/legal_checkbox.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:openvine/services/auth_service.dart';
@@ -16,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'welcome_screen_font_test.mocks.dart';
 
 void main() {
-  group('WelcomeScreen Font Tests', () {
+  group('WelcomeScreen Layout Tests', () {
     late MockAuthService mockAuthService;
     late SharedPreferences sharedPreferences;
 
@@ -25,9 +26,8 @@ void main() {
       sharedPreferences = await SharedPreferences.getInstance();
 
       mockAuthService = MockAuthService();
-      // Mock the authState property that welcome screen now uses
-      when(mockAuthService.authState).thenReturn(AuthState.authenticated);
-      when(mockAuthService.isAuthenticated).thenReturn(true);
+      when(mockAuthService.authState).thenReturn(AuthState.unauthenticated);
+      when(mockAuthService.isAuthenticated).thenReturn(false);
       when(mockAuthService.lastError).thenReturn(null);
     });
 
@@ -40,13 +40,12 @@ void main() {
           overrides: [
             sharedPreferencesProvider.overrideWithValue(sharedPreferences),
             authServiceProvider.overrideWithValue(mockAuthService),
-            currentAuthStateProvider.overrideWithValue(AuthState.authenticated),
           ],
           child: const MaterialApp(home: WelcomeScreen()),
         ),
       );
 
-      // Allow font loading to complete (will use fallback in tests)
+      // Allow widget to build
       await tester.pumpAndSettle();
 
       // Verify key elements are present
@@ -54,7 +53,14 @@ void main() {
         find.text('Create and share short videos\non the decentralized web'),
         findsOneWidget,
       );
-      expect(find.text('Have an account? Log In'), findsOneWidget);
+
+      // Verify legal checkboxes are present (2 checkboxes: age and terms)
+      expect(find.text('I am 16 years or older'), findsOneWidget);
+      // Terms checkbox contains RichText, verify via LegalCheckbox count
+      expect(find.byType(LegalCheckbox), findsNWidgets(2));
+
+      // Verify Accept button is present
+      expect(find.text('Accept & continue'), findsOneWidget);
     });
   });
 }
