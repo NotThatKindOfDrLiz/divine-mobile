@@ -79,10 +79,12 @@ class AuthFormState extends AuthState {
       password: password ?? this.password,
       isSignIn: isSignIn ?? this.isSignIn,
       emailError: clearEmailError ? null : (emailError ?? this.emailError),
-      passwordError:
-          clearPasswordError ? null : (passwordError ?? this.passwordError),
-      generalError:
-          clearGeneralError ? null : (generalError ?? this.generalError),
+      passwordError: clearPasswordError
+          ? null
+          : (passwordError ?? this.passwordError),
+      generalError: clearGeneralError
+          ? null
+          : (generalError ?? this.generalError),
       obscurePassword: obscurePassword ?? this.obscurePassword,
       isSubmitting: isSubmitting ?? this.isSubmitting,
     );
@@ -90,15 +92,15 @@ class AuthFormState extends AuthState {
 
   @override
   List<Object?> get props => [
-        email,
-        password,
-        isSignIn,
-        emailError,
-        passwordError,
-        generalError,
-        obscurePassword,
-        isSubmitting,
-      ];
+    email,
+    password,
+    isSignIn,
+    emailError,
+    passwordError,
+    generalError,
+    obscurePassword,
+    isSubmitting,
+  ];
 }
 
 /// State when email verification is required after registration

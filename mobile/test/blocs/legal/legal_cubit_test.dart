@@ -25,20 +25,21 @@ void main() {
 
   group('LegalCubit', () {
     test('initial state is LegalInitial', () {
-      final cubit = LegalCubit(sharedPreferences: prefs, authService: mockAuthService);
+      final cubit = LegalCubit(
+        sharedPreferences: prefs,
+        authService: mockAuthService,
+      );
       expect(cubit.state, const LegalInitial());
       cubit.close();
     });
 
     blocTest<LegalCubit, LegalState>(
       'loadSavedState emits LegalLoaded with false values when prefs are empty',
-      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+      build: () =>
+          LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       act: (cubit) => cubit.loadSavedState(),
       expect: () => [
-        const LegalLoaded(
-          isAgeVerified: false,
-          isTermsAccepted: false,
-        ),
+        const LegalLoaded(isAgeVerified: false, isTermsAccepted: false),
       ],
     );
 
@@ -48,35 +49,30 @@ void main() {
         await prefs.setBool('age_verified_16_plus', true);
         await prefs.setString('terms_accepted_at', '2024-01-01T00:00:00.000Z');
       },
-      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+      build: () =>
+          LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       act: (cubit) => cubit.loadSavedState(),
       expect: () => [
-        const LegalLoaded(
-          isAgeVerified: true,
-          isTermsAccepted: true,
-        ),
+        const LegalLoaded(isAgeVerified: true, isTermsAccepted: true),
       ],
     );
 
     blocTest<LegalCubit, LegalState>(
       'toggleAgeVerified toggles age verification',
-      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
-      seed: () => const LegalLoaded(
-        isAgeVerified: false,
-        isTermsAccepted: false,
-      ),
+      build: () =>
+          LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+      seed: () =>
+          const LegalLoaded(isAgeVerified: false, isTermsAccepted: false),
       act: (cubit) => cubit.toggleAgeVerified(),
       expect: () => [
-        const LegalLoaded(
-          isAgeVerified: true,
-          isTermsAccepted: false,
-        ),
+        const LegalLoaded(isAgeVerified: true, isTermsAccepted: false),
       ],
     );
 
     blocTest<LegalCubit, LegalState>(
       'toggleAgeVerified clears ageShowError when toggling',
-      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+      build: () =>
+          LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       seed: () => const LegalLoaded(
         isAgeVerified: false,
         isTermsAccepted: false,
@@ -94,23 +90,20 @@ void main() {
 
     blocTest<LegalCubit, LegalState>(
       'toggleTermsAccepted toggles terms acceptance',
-      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
-      seed: () => const LegalLoaded(
-        isAgeVerified: false,
-        isTermsAccepted: false,
-      ),
+      build: () =>
+          LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+      seed: () =>
+          const LegalLoaded(isAgeVerified: false, isTermsAccepted: false),
       act: (cubit) => cubit.toggleTermsAccepted(),
       expect: () => [
-        const LegalLoaded(
-          isAgeVerified: false,
-          isTermsAccepted: true,
-        ),
+        const LegalLoaded(isAgeVerified: false, isTermsAccepted: true),
       ],
     );
 
     blocTest<LegalCubit, LegalState>(
       'toggleTermsAccepted clears termsShowError when toggling',
-      build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+      build: () =>
+          LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
       seed: () => const LegalLoaded(
         isAgeVerified: false,
         isTermsAccepted: false,
@@ -129,11 +122,10 @@ void main() {
     group('submit', () {
       blocTest<LegalCubit, LegalState>(
         'shows error on unchecked age when submitting',
-        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
-        seed: () => const LegalLoaded(
-          isAgeVerified: false,
-          isTermsAccepted: true,
-        ),
+        build: () =>
+            LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+        seed: () =>
+            const LegalLoaded(isAgeVerified: false, isTermsAccepted: true),
         act: (cubit) => cubit.submit(),
         expect: () => [
           const LegalLoaded(
@@ -147,11 +139,10 @@ void main() {
 
       blocTest<LegalCubit, LegalState>(
         'shows error on unchecked terms when submitting',
-        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
-        seed: () => const LegalLoaded(
-          isAgeVerified: true,
-          isTermsAccepted: false,
-        ),
+        build: () =>
+            LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+        seed: () =>
+            const LegalLoaded(isAgeVerified: true, isTermsAccepted: false),
         act: (cubit) => cubit.submit(),
         expect: () => [
           const LegalLoaded(
@@ -165,11 +156,10 @@ void main() {
 
       blocTest<LegalCubit, LegalState>(
         'shows errors on both unchecked when submitting',
-        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
-        seed: () => const LegalLoaded(
-          isAgeVerified: false,
-          isTermsAccepted: false,
-        ),
+        build: () =>
+            LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+        seed: () =>
+            const LegalLoaded(isAgeVerified: false, isTermsAccepted: false),
         act: (cubit) => cubit.submit(),
         expect: () => [
           const LegalLoaded(
@@ -183,16 +173,12 @@ void main() {
 
       blocTest<LegalCubit, LegalState>(
         'emits LegalSubmitting then LegalSuccess when both checked',
-        build: () => LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
-        seed: () => const LegalLoaded(
-          isAgeVerified: true,
-          isTermsAccepted: true,
-        ),
+        build: () =>
+            LegalCubit(sharedPreferences: prefs, authService: mockAuthService),
+        seed: () =>
+            const LegalLoaded(isAgeVerified: true, isTermsAccepted: true),
         act: (cubit) => cubit.submit(),
-        expect: () => [
-          const LegalSubmitting(),
-          const LegalSuccess(),
-        ],
+        expect: () => [const LegalSubmitting(), const LegalSuccess()],
         verify: (_) {
           // Verify AuthService.acceptTerms() was called
           verify(() => mockAuthService.acceptTerms()).called(1);
@@ -203,39 +189,24 @@ void main() {
 
   group('LegalLoaded', () {
     test('canSubmit returns false when age not verified', () {
-      const state = LegalLoaded(
-        isAgeVerified: false,
-        isTermsAccepted: true,
-      );
+      const state = LegalLoaded(isAgeVerified: false, isTermsAccepted: true);
       expect(state.canSubmit, false);
     });
 
     test('canSubmit returns false when terms not accepted', () {
-      const state = LegalLoaded(
-        isAgeVerified: true,
-        isTermsAccepted: false,
-      );
+      const state = LegalLoaded(isAgeVerified: true, isTermsAccepted: false);
       expect(state.canSubmit, false);
     });
 
     test('canSubmit returns true when both checked', () {
-      const state = LegalLoaded(
-        isAgeVerified: true,
-        isTermsAccepted: true,
-      );
+      const state = LegalLoaded(isAgeVerified: true, isTermsAccepted: true);
       expect(state.canSubmit, true);
     });
 
     test('copyWith creates correct copy', () {
-      const state = LegalLoaded(
-        isAgeVerified: false,
-        isTermsAccepted: false,
-      );
+      const state = LegalLoaded(isAgeVerified: false, isTermsAccepted: false);
 
-      final updated = state.copyWith(
-        isAgeVerified: true,
-        termsShowError: true,
-      );
+      final updated = state.copyWith(isAgeVerified: true, termsShowError: true);
 
       expect(updated.isAgeVerified, true);
       expect(updated.isTermsAccepted, false);

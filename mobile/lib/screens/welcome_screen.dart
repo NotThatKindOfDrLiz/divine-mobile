@@ -64,7 +64,9 @@ class _LegalScreenView extends StatelessWidget {
       listener: (context, state) {
         if (state is LegalSuccess) {
           // Navigate to sign-up mode (signIn=false)
-          context.go('${WelcomeScreen.path}${DivineAuthScreen.path}?signIn=false');
+          context.go(
+            '${WelcomeScreen.path}${DivineAuthScreen.path}?signIn=false',
+          );
           // Reset state for when user navigates back
           context.read<LegalCubit>().loadSavedState();
         } else if (state is LegalError) {

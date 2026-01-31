@@ -42,10 +42,12 @@ class LegalCubit extends Cubit<LegalState> {
       category: LogCategory.auth,
     );
 
-    emit(LegalLoaded(
-      isAgeVerified: isAgeVerified,
-      isTermsAccepted: isTermsAccepted,
-    ));
+    emit(
+      LegalLoaded(
+        isAgeVerified: isAgeVerified,
+        isTermsAccepted: isTermsAccepted,
+      ),
+    );
   }
 
   /// Toggle age verification checkbox
@@ -53,10 +55,12 @@ class LegalCubit extends Cubit<LegalState> {
     final current = state;
     if (current is! LegalLoaded) return;
 
-    emit(current.copyWith(
-      isAgeVerified: !current.isAgeVerified,
-      ageShowError: false, // Clear error when toggling
-    ));
+    emit(
+      current.copyWith(
+        isAgeVerified: !current.isAgeVerified,
+        ageShowError: false, // Clear error when toggling
+      ),
+    );
   }
 
   /// Toggle terms acceptance checkbox
@@ -64,10 +68,12 @@ class LegalCubit extends Cubit<LegalState> {
     final current = state;
     if (current is! LegalLoaded) return;
 
-    emit(current.copyWith(
-      isTermsAccepted: !current.isTermsAccepted,
-      termsShowError: false, // Clear error when toggling
-    ));
+    emit(
+      current.copyWith(
+        isTermsAccepted: !current.isTermsAccepted,
+        termsShowError: false, // Clear error when toggling
+      ),
+    );
   }
 
   /// Submit acceptance - validates and persists to SharedPreferences
@@ -83,10 +89,12 @@ class LegalCubit extends Cubit<LegalState> {
         category: LogCategory.auth,
       );
 
-      emit(current.copyWith(
-        ageShowError: !current.isAgeVerified,
-        termsShowError: !current.isTermsAccepted,
-      ));
+      emit(
+        current.copyWith(
+          ageShowError: !current.isAgeVerified,
+          termsShowError: !current.isTermsAccepted,
+        ),
+      );
       return;
     }
 

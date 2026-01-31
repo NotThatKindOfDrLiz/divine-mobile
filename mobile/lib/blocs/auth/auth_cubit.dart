@@ -23,10 +23,10 @@ class AuthCubit extends Cubit<AuthState> {
     required KeycastOAuth oauthClient,
     required AuthService authService,
     required PendingVerificationService pendingVerificationService,
-  })  : _oauthClient = oauthClient,
-        _authService = authService,
-        _pendingVerificationService = pendingVerificationService,
-        super(const AuthInitial());
+  }) : _oauthClient = oauthClient,
+       _authService = authService,
+       _pendingVerificationService = pendingVerificationService,
+       super(const AuthInitial());
 
   final KeycastOAuth _oauthClient;
   final AuthService _authService;
@@ -49,12 +49,14 @@ class AuthCubit extends Cubit<AuthState> {
       category: LogCategory.auth,
     );
 
-    emit(current.copyWith(
-      isSignIn: !current.isSignIn,
-      clearEmailError: true,
-      clearPasswordError: true,
-      clearGeneralError: true,
-    ));
+    emit(
+      current.copyWith(
+        isSignIn: !current.isSignIn,
+        clearEmailError: true,
+        clearPasswordError: true,
+        clearGeneralError: true,
+      ),
+    );
   }
 
   /// Update email field
@@ -62,11 +64,13 @@ class AuthCubit extends Cubit<AuthState> {
     final current = state;
     if (current is! AuthFormState) return;
 
-    emit(current.copyWith(
-      email: email,
-      clearEmailError: true,
-      clearGeneralError: true,
-    ));
+    emit(
+      current.copyWith(
+        email: email,
+        clearEmailError: true,
+        clearGeneralError: true,
+      ),
+    );
   }
 
   /// Update password field
@@ -74,11 +78,13 @@ class AuthCubit extends Cubit<AuthState> {
     final current = state;
     if (current is! AuthFormState) return;
 
-    emit(current.copyWith(
-      password: password,
-      clearPasswordError: true,
-      clearGeneralError: true,
-    ));
+    emit(
+      current.copyWith(
+        password: password,
+        clearPasswordError: true,
+        clearGeneralError: true,
+      ),
+    );
   }
 
   /// Toggle password visibility
@@ -100,10 +106,9 @@ class AuthCubit extends Cubit<AuthState> {
     final passwordError = Validators.validatePassword(current.password);
 
     if (emailError != null || passwordError != null) {
-      emit(current.copyWith(
-        emailError: emailError,
-        passwordError: passwordError,
-      ));
+      emit(
+        current.copyWith(emailError: emailError, passwordError: passwordError),
+      );
       return;
     }
 
@@ -125,10 +130,12 @@ class AuthCubit extends Cubit<AuthState> {
 
       final currentState = state;
       if (currentState is AuthFormState) {
-        emit(currentState.copyWith(
-          isSubmitting: false,
-          generalError: 'An unexpected error occurred. Please try again.',
-        ));
+        emit(
+          currentState.copyWith(
+            isSubmitting: false,
+            generalError: 'An unexpected error occurred. Please try again.',
+          ),
+        );
       }
     }
   }
@@ -216,18 +223,22 @@ class AuthCubit extends Cubit<AuthState> {
       );
 
       // Emit email verification state
-      emit(AuthEmailVerification(
-        email: email,
-        deviceCode: result.deviceCode!,
-        verifier: verifier,
-      ));
+      emit(
+        AuthEmailVerification(
+          email: email,
+          deviceCode: result.deviceCode!,
+          verifier: verifier,
+        ),
+      );
     } else {
       final current = state;
       if (current is AuthFormState) {
-        emit(current.copyWith(
-          isSubmitting: false,
-          generalError: 'Registration complete. Please check your email.',
-        ));
+        emit(
+          current.copyWith(
+            isSubmitting: false,
+            generalError: 'Registration complete. Please check your email.',
+          ),
+        );
       }
     }
   }
@@ -276,10 +287,12 @@ class AuthCubit extends Cubit<AuthState> {
 
       final current = state;
       if (current is AuthFormState) {
-        emit(current.copyWith(
-          isSubmitting: false,
-          generalError: 'Failed to complete authentication',
-        ));
+        emit(
+          current.copyWith(
+            isSubmitting: false,
+            generalError: 'Failed to complete authentication',
+          ),
+        );
       }
     }
   }
@@ -341,9 +354,11 @@ class AuthCubit extends Cubit<AuthState> {
 
       final current = state;
       if (current is AuthFormState) {
-        emit(current.copyWith(
-          generalError: 'Failed to create account. Please try again.',
-        ));
+        emit(
+          current.copyWith(
+            generalError: 'Failed to create account. Please try again.',
+          ),
+        );
       }
     }
   }

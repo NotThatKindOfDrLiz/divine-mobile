@@ -234,8 +234,9 @@ class _AuthFormState extends State<_AuthForm> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: VineTheme.vineGreen,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      VineTheme.vineGreen.withValues(alpha: 0.7),
+                  disabledBackgroundColor: VineTheme.vineGreen.withValues(
+                    alpha: 0.7,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -369,7 +370,9 @@ class _AuthFormState extends State<_AuthForm> {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: errorText != null ? VineTheme.error : VineTheme.vineGreen,
+                color: errorText != null
+                    ? VineTheme.error
+                    : VineTheme.vineGreen,
                 width: 2,
               ),
             ),

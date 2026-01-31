@@ -72,7 +72,11 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
 
                 // Back button
                 IconButton(
-                  icon: const Icon(Icons.chevron_left, color: Colors.white, size: 32),
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    color: Colors.white,
+                    size: 32,
+                  ),
                   onPressed: () => context.pop(),
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,
@@ -143,7 +147,9 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
                       children: [
                         IconButton(
                           icon: Icon(
-                            _obscureKey ? Icons.visibility : Icons.visibility_off,
+                            _obscureKey
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                             color: Colors.grey,
                           ),
                           onPressed: () {
@@ -200,8 +206,9 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: VineTheme.vineGreen,
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                          VineTheme.vineGreen.withValues(alpha: 0.7),
+                      disabledBackgroundColor: VineTheme.vineGreen.withValues(
+                        alpha: 0.7,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
@@ -292,14 +299,18 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
                       RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
-                          style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[400],
+                          ),
                           children: const [
                             TextSpan(
                               text: "Don't have a Nostr identity? ",
                               style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                             TextSpan(
-                              text: "We'll automatically create one for you when you sign up for diVine.",
+                              text:
+                                  "We'll automatically create one for you when you sign up for diVine.",
                             ),
                           ],
                         ),
@@ -413,7 +424,10 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: VineTheme.error),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: VineTheme.error,
+          ),
         );
       }
     } finally {
