@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory, NIP71VideoKinds;
+import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
@@ -49,6 +50,8 @@ import 'package:openvine/widgets/video_feed_item/video_follow_button.dart';
 import 'package:openvine/widgets/video_metrics_tracker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:visibility_detector/visibility_detector.dart';
+
+import '../video_thumbnail_widget.dart';
 
 /// Video feed item using individual controller architecture
 class VideoFeedItem extends ConsumerStatefulWidget {
@@ -197,9 +200,13 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
   String get _stableVideoId => widget.video.stableId;
 
   /// Controller params for the current video
+  /// Uses platform-aware URL selection: HLS on Android, MP4 on iOS/macOS
+  /// Cache uses original MP4 URL (HLS can't be cached as single file)
   VideoControllerParams get _controllerParams => VideoControllerParams(
     videoId: widget.video.id,
-    videoUrl: widget.video.videoUrl!,
+    videoUrl:
+        widget.video.getOptimalVideoUrlForPlatform() ?? widget.video.videoUrl!,
+    cacheUrl: widget.video.videoUrl, // Always cache original MP4
     videoEvent: widget.video,
   );
 
@@ -808,9 +815,47 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
                   individualVideoControllerProvider(_controllerParams),
                 );
 
+                final isAgeVerificationRetry = ref.watch(
+                  ageVerificationRetryProvider.select(
+                    (state) => state[video.id] ?? false,
+                  ),
+                );
+
                 final videoWidget = ValueListenableBuilder<VideoPlayerValue>(
                   valueListenable: controller,
                   builder: (context, value, _) {
+                    if (isAgeVerificationRetry) {
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          VideoThumbnailWidget(
+                            video: video,
+                            fit: BoxFit.cover,
+                            showPlayIcon: false,
+                          ),
+                          Container(
+                            color: Colors.black54,
+                            child: const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  BrandedLoadingIndicator(size: 60),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'Loading video...',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
                     // Check for video error state
                     // IMPORTANT: Only show error if video is NOT playing
                     // hasError can be stale after transient errors; if video recovered
@@ -1184,9 +1229,13 @@ class VideoOverlayActions extends ConsumerWidget {
                     final profile = userProfileService.getCachedProfile(
                       video.pubkey,
                     );
-                    final avatarUrl = profile?.picture;
+                    // Use embedded author data from REST API as fallback
+                    // This avoids WebSocket profile fetches for videos
+                    // that already have author_name/author_avatar embedded
+                    final avatarUrl = profile?.picture ?? video.authorAvatar;
                     final displayName =
                         profile?.bestDisplayName ??
+                        video.authorName ??
                         NostrKeyUtils.truncateNpub(video.pubkey);
                     final loopCount = video.originalLoops ?? 0;
 
@@ -1577,7 +1626,8 @@ class VideoOverlayActions extends ConsumerWidget {
     try {
       final controllerParams = VideoControllerParams(
         videoId: video.id,
-        videoUrl: video.videoUrl!,
+        videoUrl: video.getOptimalVideoUrlForPlatform() ?? video.videoUrl!,
+        cacheUrl: video.videoUrl,
         videoEvent: video,
       );
       final controller = ref.read(
@@ -1628,7 +1678,8 @@ class VideoOverlayActions extends ConsumerWidget {
     try {
       final controllerParams = VideoControllerParams(
         videoId: video.id,
-        videoUrl: video.videoUrl!,
+        videoUrl: video.getOptimalVideoUrlForPlatform() ?? video.videoUrl!,
+        cacheUrl: video.videoUrl,
         videoEvent: video,
       );
       final controller = ref.read(
@@ -1819,6 +1870,7 @@ class VideoAuthorRow extends ConsumerWidget {
                 const SizedBox(width: 6),
                 UserName.fromPubKey(
                   video.pubkey,
+                  embeddedName: video.authorName,
                   style: const TextStyle(color: Colors.white, fontSize: 12),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1908,8 +1960,12 @@ class _CommentActionButton extends StatelessWidget {
     if (interactionsBloc != null) {
       return BlocBuilder<VideoInteractionsBloc, VideoInteractionsState>(
         builder: (context, state) {
-          final commentCount = state.commentCount ?? 0;
-          final totalComments = commentCount + (video.originalComments ?? 0);
+          // Use bloc's commentCount if available (fetched from relays),
+          // otherwise fall back to video metadata's originalComments.
+          // Don't add them together - they represent the same data from
+          // different sources.
+          final totalComments =
+              state.commentCount ?? video.originalComments ?? 0;
           return _buildButton(context, totalComments);
         },
       );
@@ -1947,7 +2003,10 @@ class _CommentActionButton extends StatelessWidget {
                 try {
                   final controllerParams = VideoControllerParams(
                     videoId: video.id,
-                    videoUrl: video.videoUrl!,
+                    videoUrl:
+                        video.getOptimalVideoUrlForPlatform() ??
+                        video.videoUrl!,
+                    cacheUrl: video.videoUrl,
                     videoEvent: video,
                   );
                   final controller = ref.read(
