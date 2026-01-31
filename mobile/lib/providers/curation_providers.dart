@@ -13,6 +13,7 @@ import 'package:openvine/providers/video_events_providers.dart';
 import 'package:openvine/services/analytics_api_service.dart';
 import 'package:openvine/state/curation_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_deduplication.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'curation_providers.g.dart';
@@ -313,19 +314,19 @@ class AnalyticsTrending extends _$AnalyticsTrending {
       if (!ref.mounted) return;
 
       if (videos.isNotEmpty) {
-        // Deduplicate and merge
-        final existingIds = state.map((v) => v.id).toSet();
-        final newVideos = videos
-            .where((v) => !existingIds.contains(v.id))
-            .toList();
+        // Merge with deduplication using vineId+pubkey as stable identifier
+        // This handles edited videos correctly - newer version replaces older
+        final beforeCount = state.length;
+        final mergedVideos = VideoDeduplication.merge(state, videos);
+        final newVideosAdded = mergedVideos.length - beforeCount;
 
-        if (newVideos.isNotEmpty) {
-          state = [...state, ...newVideos];
+        if (newVideosAdded > 0 || mergedVideos.length != beforeCount) {
+          state = mergedVideos;
           _nextCursor = _getOldestTimestamp(videos);
           _hasMore = videos.length >= AppConstants.paginationBatchSize;
 
           Log.info(
-            'AnalyticsTrending: Loaded ${newVideos.length} more videos (total: ${state.length})',
+            'AnalyticsTrending: Merged ${videos.length} videos, added $newVideosAdded new (total: ${state.length})',
             name: 'AnalyticsTrendingProvider',
             category: LogCategory.system,
           );

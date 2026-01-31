@@ -43,6 +43,7 @@ import 'package:openvine/services/video_filter_builder.dart';
 import 'package:openvine/utils/log_batcher.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/services/repost_resolver.dart';
+import 'package:openvine/utils/video_deduplication.dart';
 
 /// Pagination state for tracking cursor position and loading status per subscription
 class PaginationState {
@@ -2509,28 +2510,24 @@ class VideoEventService extends ChangeNotifier {
   ///    immediately appear in home feed
   /// 2. Home feed is refreshed with an updated following list
   ///
-  /// Videos are deduplicated by ID to prevent duplicates when the relay
-  /// subscription also returns the same videos.
+  /// Videos are deduplicated by vineId+pubkey (stable ID) to properly handle
+  /// edited addressable events (NIP-71 kind 34236). When the same video exists
+  /// in both discovery and home feed, the newer version (by createdAt) is kept.
   void seedHomeFeedFromDiscoveryCache(List<String> followingPubkeys) {
     if (followingPubkeys.isEmpty) return;
 
     final followingSet = followingPubkeys.toSet();
     final homeFeedList = _eventLists[SubscriptionType.homeFeed] ?? [];
-    final existingIds = homeFeedList.map((v) => v.id).toSet();
     final discoveryVideos = _eventLists[SubscriptionType.discovery] ?? [];
 
-    // Find videos in discovery that belong to followed users but aren't in home feed
-    final videosToSeed = discoveryVideos
-        .where(
-          (video) =>
-              followingSet.contains(video.pubkey) &&
-              !existingIds.contains(video.id),
-        )
+    // Find videos in discovery that belong to followed users
+    final candidateVideos = discoveryVideos
+        .where((video) => followingSet.contains(video.pubkey))
         .toList();
 
-    if (videosToSeed.isEmpty) {
+    if (candidateVideos.isEmpty) {
       Log.debug(
-        '🏠 seedHomeFeedFromDiscoveryCache: No new videos to seed '
+        '🏠 seedHomeFeedFromDiscoveryCache: No videos from followed users in discovery '
         '(discovery has ${discoveryVideos.length} videos, '
         'following ${followingPubkeys.length} users)',
         name: 'VideoEventService',
@@ -2539,15 +2536,33 @@ class VideoEventService extends ChangeNotifier {
       return;
     }
 
+    // Merge with deduplication using vineId+pubkey as stable identifier
+    // This handles edited videos correctly - newer version replaces older
+    final beforeCount = homeFeedList.length;
+    final mergedList = VideoDeduplication.merge(homeFeedList, candidateVideos);
+
+    // Update the list in place
+    homeFeedList
+      ..clear()
+      ..addAll(mergedList);
+
+    final newVideosAdded = homeFeedList.length - beforeCount;
+    if (newVideosAdded == 0 && mergedList.length == beforeCount) {
+      Log.debug(
+        '🏠 seedHomeFeedFromDiscoveryCache: No new videos to seed '
+        '(${candidateVideos.length} candidates already in home feed)',
+        name: 'VideoEventService',
+        category: LogCategory.video,
+      );
+      return;
+    }
+
     Log.info(
-      '🏠 seedHomeFeedFromDiscoveryCache: Seeding ${videosToSeed.length} videos '
-      'from discovery cache into home feed',
+      '🏠 seedHomeFeedFromDiscoveryCache: Merged ${candidateVideos.length} candidates, '
+      'added $newVideosAdded new videos to home feed (total: ${homeFeedList.length})',
       name: 'VideoEventService',
       category: LogCategory.video,
     );
-
-    // Add videos to home feed list
-    homeFeedList.addAll(videosToSeed);
 
     // Sort by creation time (newest first)
     homeFeedList.sortByCreationTime();
@@ -2566,7 +2581,9 @@ class VideoEventService extends ChangeNotifier {
   /// [followingPubkeys] - List of pubkeys the user is following
   /// [limit] - Maximum number of videos to fetch per author (default 50)
   ///
-  /// Videos are deduplicated by ID to prevent duplicates.
+  /// Videos are deduplicated by vineId+pubkey (stable ID) to properly handle
+  /// edited addressable events (NIP-71 kind 34236). When the same video exists
+  /// in both fetched results and home feed, the newer version is kept.
   Future<void> seedHomeFeedFromFollowedUsers(
     List<String> followingPubkeys, {
     int limit = 50,
@@ -2607,17 +2624,10 @@ class VideoEventService extends ChangeNotifier {
         return;
       }
 
-      // Get existing video IDs in home feed for deduplication
-      final homeFeedList = _eventLists[SubscriptionType.homeFeed] ?? [];
-      final existingIds = homeFeedList.map((v) => v.id).toSet();
-
-      final videosToSeed = <VideoEvent>[];
-
+      // Parse fetched events into VideoEvents
+      final fetchedVideos = <VideoEvent>[];
       for (final event in events) {
-        // Skip if already in home feed
-        if (existingIds.contains(event.id)) continue;
-
-        // Check if video exists in other subscription lists
+        // Check if video exists in other subscription lists (reuse parsed version)
         VideoEvent? existingVideo;
         for (final list in _eventLists.values) {
           existingVideo = list.cast<VideoEvent?>().firstWhere(
@@ -2628,14 +2638,13 @@ class VideoEventService extends ChangeNotifier {
         }
 
         if (existingVideo != null) {
-          // Reuse existing parsed video
-          videosToSeed.add(existingVideo);
+          fetchedVideos.add(existingVideo);
         } else {
           // Parse new video event
           final videoEvent = VideoEvent.fromNostrEvent(event);
           final url = videoEvent.videoUrl;
           if (url != null && url.isNotEmpty) {
-            videosToSeed.add(videoEvent);
+            fetchedVideos.add(videoEvent);
             // Mark as seen in pagination state
             _paginationStates[SubscriptionType.homeFeed]?.markEventSeen(
               event.id,
@@ -2644,23 +2653,34 @@ class VideoEventService extends ChangeNotifier {
         }
       }
 
-      if (videosToSeed.isEmpty) {
+      if (fetchedVideos.isEmpty) {
         Log.debug(
-          '🏠 seedHomeFeedFromFollowedUsers: All ${events.length} videos already in feed',
+          '🏠 seedHomeFeedFromFollowedUsers: No valid videos in ${events.length} fetched events',
           name: 'VideoEventService',
           category: LogCategory.video,
         );
         return;
       }
 
+      // Merge with deduplication using vineId+pubkey as stable identifier
+      // This handles edited videos correctly - newer version replaces older
+      final homeFeedList = _eventLists[SubscriptionType.homeFeed] ?? [];
+      final beforeCount = homeFeedList.length;
+      final mergedList = VideoDeduplication.merge(homeFeedList, fetchedVideos);
+
+      // Update the list in place
+      homeFeedList
+        ..clear()
+        ..addAll(mergedList);
+
+      final newVideosAdded = homeFeedList.length - beforeCount;
+
       Log.info(
-        '🏠 seedHomeFeedFromFollowedUsers: Seeding ${videosToSeed.length} videos into home feed',
+        '🏠 seedHomeFeedFromFollowedUsers: Merged ${fetchedVideos.length} fetched videos, '
+        'added $newVideosAdded new to home feed (total: ${homeFeedList.length})',
         name: 'VideoEventService',
         category: LogCategory.video,
       );
-
-      // Add videos to home feed list
-      homeFeedList.addAll(videosToSeed);
 
       // Sort by creation time (newest first)
       homeFeedList.sortByCreationTime();

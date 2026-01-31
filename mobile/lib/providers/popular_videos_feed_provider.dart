@@ -9,6 +9,7 @@ import 'package:openvine/providers/readiness_gate_providers.dart';
 import 'package:openvine/providers/video_events_providers.dart';
 import 'package:openvine/state/video_feed_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_deduplication.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'popular_videos_feed_provider.g.dart';
@@ -106,12 +107,9 @@ class PopularVideosFeed extends _$PopularVideosFeed {
           final recentVideos = await analyticsService.getRecentVideos(
             limit: 100,
           );
-          // Merge: trending first, then recent (excluding duplicates)
-          final existingIds = apiVideos.map((v) => v.id).toSet();
-          final additionalVideos = recentVideos
-              .where((v) => !existingIds.contains(v.id))
-              .toList();
-          apiVideos = [...apiVideos, ...additionalVideos];
+          // Merge: trending first, then recent with vineId+pubkey deduplication
+          // This handles edited videos correctly - newer version replaces older
+          apiVideos = VideoDeduplication.merge(apiVideos, recentVideos);
         }
 
         if (apiVideos.isNotEmpty) {

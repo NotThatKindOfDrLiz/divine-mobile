@@ -9,6 +9,7 @@ import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/readiness_gate_providers.dart';
 import 'package:openvine/state/video_feed_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_deduplication.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'classic_vines_provider.g.dart';
@@ -195,7 +196,13 @@ class ClassicVinesFeed extends _$ClassicVinesFeed {
           .toList();
 
       final maxPages = (_totalClassicVines / _pageSize).ceil();
-      final allVideos = [...currentState.videos, ...filteredVideos];
+
+      // Merge with deduplication using vineId+pubkey as stable identifier
+      // This handles any potential duplicates from API pagination edge cases
+      final allVideos = VideoDeduplication.merge(
+        currentState.videos,
+        filteredVideos,
+      );
 
       Log.info(
         '🎬 ClassicVinesFeed: Loaded ${filteredVideos.length} more (total: ${allVideos.length})',

@@ -14,6 +14,7 @@ import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_filter_builder.dart';
 import 'package:openvine/state/video_feed_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_deduplication.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'home_feed_provider.g.dart';
@@ -727,35 +728,44 @@ class HomeFeed extends _$HomeFeed {
         if (!ref.mounted) return;
 
         if (feedResult.videos.isNotEmpty) {
-          // Deduplicate and merge
-          final existingIds = currentState.videos.map((v) => v.id).toSet();
-          final newVideos = feedResult.videos
-              .where((v) => !existingIds.contains(v.id))
+          // Filter for platform compatibility first
+          final platformCompatible = feedResult.videos
               .where((v) => v.isSupportedOnCurrentPlatform)
               .toList();
+
+          // Merge with deduplication using vineId+pubkey as stable identifier
+          // This handles edited videos correctly - newer version replaces older
+          final mergedVideos = VideoDeduplication.merge(
+            currentState.videos,
+            platformCompatible,
+          );
 
           // Update cursor for next pagination
           _nextCursor = feedResult.nextCursor;
           _hasMoreFromApi = feedResult.hasMore;
 
-          if (newVideos.isNotEmpty) {
-            final allVideos = [...currentState.videos, ...newVideos];
+          final newVideosAdded =
+              mergedVideos.length - currentState.videos.length;
+
+          if (newVideosAdded > 0 ||
+              mergedVideos.length != currentState.videos.length) {
             Log.info(
-              'HomeFeed: Loaded ${newVideos.length} new videos from REST API (total: ${allVideos.length})',
+              'HomeFeed: Merged ${platformCompatible.length} videos from REST API, '
+              'added $newVideosAdded new (total: ${mergedVideos.length})',
               name: 'HomeFeedProvider',
               category: LogCategory.video,
             );
 
             state = AsyncData(
               currentState.copyWith(
-                videos: allVideos,
+                videos: mergedVideos,
                 hasMoreContent: feedResult.hasMore,
                 isLoadingMore: false,
               ),
             );
           } else {
             Log.info(
-              'HomeFeed: All returned videos already in state',
+              'HomeFeed: All returned videos already in state (no new unique videos)',
               name: 'HomeFeedProvider',
               category: LogCategory.video,
             );
@@ -854,10 +864,14 @@ class HomeFeed extends _$HomeFeed {
   /// Call this after a video is updated to sync the provider's state
   void refreshFromService() {
     final videoEventService = ref.read(videoEventServiceProvider);
-    var updatedVideos = List<VideoEvent>.from(videoEventService.homeFeedVideos);
+    final followingVideos = List<VideoEvent>.from(
+      videoEventService.homeFeedVideos,
+    );
 
-    // Track IDs of videos from followed users for deduplication
-    final followingVideoIds = updatedVideos.map((v) => v.id).toSet();
+    // Track stable IDs (vineId+pubkey) of videos from followed users for deduplication
+    final followingStableIds = followingVideos
+        .map(VideoDeduplication.stableId)
+        .toSet();
 
     // Merge videos from subscribed curated lists
     final subscribedListCache = ref.read(subscribedListVideoCacheProvider);
@@ -867,17 +881,28 @@ class HomeFeed extends _$HomeFeed {
     final listOnlyVideoIds = <String>{};
     final videoListSources = <String, Set<String>>{};
 
+    // Collect list-only videos for merging
+    final listOnlyVideos = <VideoEvent>[];
+
     for (final video in subscribedVideos) {
       final listIds = subscribedListCache?.getListsForVideo(video.id) ?? {};
       if (listIds.isNotEmpty) {
         videoListSources[video.id] = listIds;
 
-        if (!followingVideoIds.contains(video.id)) {
+        // Check using stable ID (vineId+pubkey) not just event ID
+        final stableId = VideoDeduplication.stableId(video);
+        if (!followingStableIds.contains(stableId)) {
           listOnlyVideoIds.add(video.id);
-          updatedVideos.add(video);
+          listOnlyVideos.add(video);
         }
       }
     }
+
+    // Merge with proper vineId+pubkey deduplication (handles edited videos)
+    var updatedVideos = VideoDeduplication.merge(
+      followingVideos,
+      listOnlyVideos,
+    );
 
     // Apply same filtering as build()
     updatedVideos = updatedVideos
