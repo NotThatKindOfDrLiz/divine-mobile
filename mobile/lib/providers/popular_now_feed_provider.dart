@@ -87,24 +87,8 @@ class PopularNowFeed extends _$PopularNowFeed {
               .where((v) => v.isSupportedOnCurrentPlatform)
               .toList();
 
-          // Log incoming videos before deduplication to diagnose issues
-          Log.debug(
-            '📝 PopularNowFeed build(): ${platformFiltered.length} videos before dedup: ${platformFiltered.map((v) => '"${v.title}" vineId=${(v.vineId ?? 'null').length >= 8 ? (v.vineId ?? 'null').substring(0, 8) : v.vineId ?? 'null'}').join(', ')}',
-            name: 'PopularNowFeedProvider',
-            category: LogCategory.video,
-          );
-
-          // Deduplicate by vineId + pubkey, keeping newest version of each video
-          final beforeCount = platformFiltered.length;
           final filteredVideos = VideoDeduplication.deduplicate(
             platformFiltered,
-          );
-          final duplicatesFound = beforeCount - filteredVideos.length;
-
-          Log.info(
-            '✅ PopularNowFeed: Got ${filteredVideos.length} videos from REST API (deduped $duplicatesFound from ${platformFiltered.length}), cursor: $_nextCursor',
-            name: 'PopularNowFeedProvider',
-            category: LogCategory.video,
           );
 
           return VideoFeedState(
