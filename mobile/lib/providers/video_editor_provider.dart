@@ -515,7 +515,39 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       allowAudioReuse: state.allowAudioReuse,
       expireTime: state.expiration.value,
       selectedApproach: 'video',
+      editorStateHistory: state.editorStateHistory,
+      editorEditingParameters: state.editorEditingParameters,
     );
+  }
+
+  // === EDITOR STATE PERSISTENCE ===
+
+  /// Update the editor state history for undo/redo functionality.
+  ///
+  /// This stores the serialized state history from ProImageEditor,
+  /// allowing users to restore their editing progress when reopening a draft.
+  void updateEditorStateHistory(Map<String, dynamic> stateHistory) {
+    Log.debug(
+      '📜 Updated editor state history',
+      name: 'VideoEditorNotifier',
+      category: LogCategory.video,
+    );
+    state = state.copyWith(editorStateHistory: stateHistory);
+    triggerAutosave();
+  }
+
+  /// Update the editor editing parameters (filters, drawings, etc.).
+  ///
+  /// This stores the serialized editing parameters from ProImageEditor,
+  /// enabling restoration of all applied effects when reopening a draft.
+  void updateEditorEditingParameters(Map<String, dynamic> editingParameters) {
+    Log.debug(
+      '🎨 Updated editor editing parameters',
+      name: 'VideoEditorNotifier',
+      category: LogCategory.video,
+    );
+    state = state.copyWith(editorEditingParameters: editingParameters);
+    triggerAutosave();
   }
 
   // === DRAFT PERSISTENCE ===
@@ -657,6 +689,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         tags: draft.hashtags,
         allowAudioReuse: draft.allowAudioReuse,
         expiration: VideoMetadataExpiration.fromDuration(draft.expireTime),
+        editorStateHistory: draft.editorStateHistory,
+        editorEditingParameters: draft.editorEditingParameters,
       );
       _clipManager.addMultipleClips(draft.clips);
       // We set the aspect ratio in the video recorder to match the clips,
@@ -707,9 +741,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   ///
   /// Combines all clips, applies audio settings, generates proofmode
   /// attestation, and creates the final rendered clip for publishing.
-  ///
-  /// On success, sets [finalRenderedClip] and clears any previous error.
-  /// On failure, sets [renderErrorMessage] with the failure reason.
   Future<void> startRenderVideo() async {
     if (state.isProcessing) return;
 
@@ -718,12 +749,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       name: 'VideoEditorNotifier',
       category: .video,
     );
+    state = state.copyWith(isProcessing: true);
 
-    state = state.copyWith(isProcessing: true, renderErrorMessage: null);
-
+    // Render video and get proofmode data
     final (outputPath, proofManifestJson) = await _renderVideo();
+
     final validToPublish = outputPath != null;
 
+    // Extract metadata from rendered video
     final metaData = validToPublish
         ? await ProVideoEditor.instance.getMetadata(
             EditorVideo.file(outputPath),
@@ -736,10 +769,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         name: 'VideoEditorNotifier',
         category: .video,
       );
-      state = state.copyWith(
-        isProcessing: false,
-        renderErrorMessage: 'Video rendering failed. Please try again.',
-      );
       return;
     }
 
@@ -750,6 +779,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       category: .video,
     );
 
+    // Create final clip for publishing
     final finalRenderedClip = RecordingClip(
       id: 'clip-${DateTime.now()}',
       video: EditorVideo.file(outputPath),
@@ -761,7 +791,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
 
     Log.info(
-      '📤 Ready to navigate to publish screen',
+      '📤 Navigating to publish screen',
       name: 'VideoEditorNotifier',
       category: .video,
     );
@@ -769,13 +799,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(
       isProcessing: false,
       finalRenderedClip: finalRenderedClip,
-      renderErrorMessage: null,
     );
-  }
-
-  /// Clear the render error message.
-  void clearRenderError() {
-    state = state.copyWith(renderErrorMessage: null);
   }
 
   /// Cancel an ongoing video render operation.
