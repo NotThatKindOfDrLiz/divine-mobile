@@ -70,7 +70,6 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
   bool _isSearching = false;
   bool _isSearchingExternal = false;
-  int _localResultCount = 0; // Track local results before external search
   String _currentQuery = '';
   Timer? _debounceTimer;
 
@@ -205,7 +204,6 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
           _videoResults = filteredVideos;
           _hashtagResults = hashtags.take(20).toList();
           _userResults = users.take(20).toList();
-          _localResultCount = filteredVideos.length;
           _isSearching = false;
         });
         ref.read(searchScreenVideosProvider.notifier).state = filteredVideos;
