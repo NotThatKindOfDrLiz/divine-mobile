@@ -4809,30 +4809,13 @@ class VideoEventService extends ChangeNotifier {
     }
 
     if (foundAny) {
-      Log.info(
-        '📝 updateVideoEvent: Found in internal lists, calling notifyListeners()',
-        name: 'VideoEventService',
-        category: LogCategory.video,
-      );
       notifyListeners();
+      // Notify registered callbacks about the update
+      _notifyVideoUpdated(updatedVideo);
     } else {
-      Log.info(
-        '📝 updateVideoEvent: NOT found in internal lists (likely REST API mode)',
-        name: 'VideoEventService',
-        category: LogCategory.video,
-      );
+      // If not found anywhere, add it to discovery feed
+      addVideoEvent(updatedVideo);
     }
-    // Always notify registered callbacks about the update, even if the video
-    // wasn't found in our internal lists. This is important for REST API mode
-    // where videos are cached in providers (profile feed, popular now feed)
-    // but not stored in VideoEventService's _eventLists or _authorBuckets.
-    // Without this, providers wouldn't be notified and duplicates would appear.
-    Log.info(
-      '📝 updateVideoEvent: Notifying ${_onVideoUpdatedCallbacks.length} registered callbacks',
-      name: 'VideoEventService',
-      category: LogCategory.video,
-    );
-    _notifyVideoUpdated(updatedVideo);
   }
 
   // NIP-50 Search Methods
