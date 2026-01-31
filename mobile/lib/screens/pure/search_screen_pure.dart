@@ -157,6 +157,7 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
       final videoEventService = ref.read(videoEventServiceProvider);
       final videos = videoEventService.discoveryVideos;
       final profileService = ref.read(userProfileServiceProvider);
+      final blocklistService = ref.read(contentBlocklistServiceProvider);
 
       Log.debug(
         '🔍 SearchScreenPure: Filtering ${videos.length} cached videos',
@@ -165,9 +166,12 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
       final users = <String>{};
 
+      // Use fuzzy search and filter out blocked users
       final matchingProfiles = SearchUtils.searchProfiles(
         query,
-        profileService.allProfiles.values,
+        profileService.allProfiles.values.where(
+          (p) => !blocklistService.shouldFilterFromFeeds(p.pubkey),
+        ),
         minScore: 0.3,
         limit: 50,
       );
@@ -175,6 +179,11 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
       _userResults.addAll(matchingProfiles.map((p) => p.pubkey));
 
       final filteredVideos = videos.where((video) {
+        // Filter out blocked users first
+        if (blocklistService.shouldFilterFromFeeds(video.pubkey)) {
+          return false;
+        }
+
         final creatorName = profileService.getDisplayName(video.pubkey);
         final score = SearchUtils.matchVideo(
           query: query,
@@ -194,7 +203,9 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
             hashtags.add(tag);
           }
         }
-        users.add(video.pubkey);
+        if (!blocklistService.shouldFilterFromFeeds(video.pubkey)) {
+          users.add(video.pubkey);
+        }
       }
 
       filteredVideos.sort(VideoEvent.compareByLoopsThenTime);
@@ -244,15 +255,27 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
     try {
       final videoEventService = ref.read(videoEventServiceProvider);
+      final blocklistService = ref.read(contentBlocklistServiceProvider);
+
+      // Search external relays via NIP-50
       await videoEventService.searchVideos(_currentQuery, limit: 100);
-      final remoteResults = videoEventService.searchResults;
+
+      // Filter out blocked users from remote results
+      final remoteResults = videoEventService.searchResults
+          .where(
+            (video) => !blocklistService.shouldFilterFromFeeds(video.pubkey),
+          )
+          .toList();
 
       final profileService = ref.read(userProfileServiceProvider);
       await profileService.searchUsers(_currentQuery, limit: 100);
 
+      // Use fuzzy search and filter out blocked users
       final matchingRemoteUsers = SearchUtils.searchProfiles(
         _currentQuery,
-        profileService.allProfiles.values,
+        profileService.allProfiles.values.where(
+          (p) => !blocklistService.shouldFilterFromFeeds(p.pubkey),
+        ),
         minScore: 0.3,
         limit: 50,
       ).map((p) => p.pubkey).toList();
@@ -277,7 +300,9 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
             allHashtags.add(tag);
           }
         }
-        allUsers.add(video.pubkey);
+        if (!blocklistService.shouldFilterFromFeeds(video.pubkey)) {
+          allUsers.add(video.pubkey);
+        }
       }
 
       if (mounted) {
