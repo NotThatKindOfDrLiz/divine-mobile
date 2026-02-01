@@ -280,8 +280,16 @@ void main() {
         discoveryState.startQuery(); // Simulate starting a historical query
 
         // Act - Simulate processing historical events
-        final mockEvent1 = _createMockVideoEvent('historical1', 1000);
-        final mockEvent2 = _createMockVideoEvent('historical2', 900);
+        final mockEvent1 = _createMockVideoEvent(
+          id: 'historical1',
+          createdAt: 1000,
+          vineId: 'vine1',
+        );
+        final mockEvent2 = _createMockVideoEvent(
+          id: 'historical2',
+          createdAt: 900,
+          vineId: 'vine2',
+        );
 
         // Add events as historical (this would normally be done by _handleHistoricalVideoEvent)
         videoEventService.addVideoEventForTesting(
@@ -315,7 +323,11 @@ void main() {
         discoveryState.startQuery();
 
         // Act - Add a real-time event (not historical)
-        final mockEvent = _createMockVideoEvent('realtime1', 1000);
+        final mockEvent = _createMockVideoEvent(
+          id: 'realtime1',
+          createdAt: 1000,
+          vineId: 'vine1',
+        );
         videoEventService.addVideoEventForTesting(
           mockEvent,
           SubscriptionType.discovery,
@@ -332,9 +344,14 @@ void main() {
 }
 
 // Helper functions for creating mock data
-VideoEvent _createMockVideoEvent(String id, int createdAt) {
+VideoEvent _createMockVideoEvent({
+  required String id,
+  required int createdAt,
+  required String vineId,
+}) {
   return VideoEvent(
     id: id,
+    vineId: vineId,
     pubkey: 'mock-pubkey',
     createdAt: createdAt,
     content: 'Mock video content',
