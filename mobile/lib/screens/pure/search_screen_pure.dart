@@ -11,13 +11,12 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/route_feed_providers.dart';
+import 'package:openvine/router/router.dart';
 import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/user_profile_service.dart';
-import 'package:openvine/router/page_context_provider.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
-import 'package:openvine/screens/profile_screen_router.dart';
+import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/screens/pure/explore_video_screen_pure.dart';
-import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/search_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -888,10 +887,7 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
                           '🔍 SearchScreenPure: Tapped user: $userPubkey',
                           category: LogCategory.video,
                         );
-                        final npub = normalizeToNpub(userPubkey);
-                        if (npub != null) {
-                          context.push(ProfileScreenRouter.pathForNpub(npub));
-                        }
+                        context.pushOtherProfile(userPubkey);
                       },
                     );
                   },

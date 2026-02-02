@@ -27,7 +27,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:openvine/constants/nip71_migration.dart';
-import 'package:openvine/router/app_router.dart';
+import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
 
@@ -1271,15 +1271,12 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
           ),
         );
 
-        // Remove video from local feeds after successful deletion
+        // Remove video from all local feeds after successful deletion
         if (result.success) {
           final videoEventService = ref.read(videoEventServiceProvider);
-          videoEventService.removeVideoFromAuthorList(
-            widget.video.pubkey,
-            widget.video.id,
-          );
+          videoEventService.removeVideoCompletely(widget.video.id);
           Log.info(
-            'Video removed from local feeds after deletion: ${widget.video.id}',
+            'Video removed from all local feeds after deletion: ${widget.video.id}',
             name: 'ShareVideoMenu',
             category: LogCategory.ui,
           );

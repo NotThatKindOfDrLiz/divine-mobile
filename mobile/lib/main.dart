@@ -25,11 +25,8 @@ import 'package:openvine/providers/deep_link_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/router/app_router.dart';
-import 'package:openvine/router/last_tab_position_provider.dart';
-import 'package:openvine/router/page_context_provider.dart';
-import 'package:openvine/router/route_normalization_provider.dart';
-import 'package:openvine/router/tab_history_provider.dart';
+
+import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/screens/home_screen_router.dart';
@@ -501,17 +498,11 @@ Future<void> _initializeCoreServices(ProviderContainer container) async {
   );
 
   // Initialize auth service
+  // NOTE: NostrService (relay connections) is initialized lazily in AuthService
+  // when user actually authenticates, to avoid blocking startup for unauthenticated users
   await container.read(authServiceProvider).initialize();
   Log.info(
     '[INIT] ✅ AuthService initialized',
-    name: 'Main',
-    category: LogCategory.system,
-  );
-
-  // Initialize nostr service (depends on auth)
-  await container.read(nostrServiceProvider).initialize();
-  Log.info(
-    '[INIT] ✅ NostrService initialized',
     name: 'Main',
     category: LogCategory.system,
   );
