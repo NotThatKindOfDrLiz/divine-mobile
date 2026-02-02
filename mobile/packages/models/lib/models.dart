@@ -21,4 +21,5 @@ export 'src/user_profile.dart';
 export 'src/video_editor/sticker_data.dart';
 export 'src/video_event.dart';
 export 'src/video_state.dart';
+export 'src/video_stats.dart';
 export 'src/vine_draft.dart';
