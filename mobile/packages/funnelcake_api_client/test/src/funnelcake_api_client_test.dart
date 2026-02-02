@@ -344,6 +344,233 @@ void main() {
       });
     });
 
+    group('searchProfiles', () {
+      const validProfileResponse =
+          '''
+[
+  {
+    "pubkey": "$testPubkey",
+    "name": "testuser",
+    "display_name": "Test User",
+    "about": "A test profile",
+    "picture": "https://example.com/avatar.jpg",
+    "nip05": "testuser@example.com",
+    "created_at": 1700000000,
+    "event_id": "event123"
+  }
+]
+''';
+
+      test('returns profiles on successful response', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response(validProfileResponse, 200),
+        );
+
+        final profiles = await client.searchProfiles(query: 'test');
+
+        expect(profiles, hasLength(1));
+        expect(profiles.first.pubkey, equals(testPubkey));
+        expect(profiles.first.name, equals('testuser'));
+        expect(profiles.first.displayName, equals('Test User'));
+        expect(profiles.first.nip05, equals('testuser@example.com'));
+      });
+
+      test('constructs correct URL with default limit', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response('[]', 200),
+        );
+
+        await client.searchProfiles(query: 'test');
+
+        final captured = verify(
+          () =>
+              mockHttpClient.get(captureAny(), headers: any(named: 'headers')),
+        ).captured;
+
+        final uri = captured.first as Uri;
+        expect(uri.path, equals('/api/search/profiles'));
+        expect(uri.queryParameters['q'], equals('test'));
+        expect(uri.queryParameters['limit'], equals('50'));
+        expect(uri.queryParameters.containsKey('offset'), isFalse);
+      });
+
+      test('constructs correct URL with custom limit and offset', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response('[]', 200),
+        );
+
+        await client.searchProfiles(query: 'test', limit: 25, offset: 10);
+
+        final captured = verify(
+          () =>
+              mockHttpClient.get(captureAny(), headers: any(named: 'headers')),
+        ).captured;
+
+        final uri = captured.first as Uri;
+        expect(uri.queryParameters['limit'], equals('25'));
+        expect(uri.queryParameters['offset'], equals('10'));
+      });
+
+      test('trims whitespace from query', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response('[]', 200),
+        );
+
+        await client.searchProfiles(query: '  test  ');
+
+        final captured = verify(
+          () =>
+              mockHttpClient.get(captureAny(), headers: any(named: 'headers')),
+        ).captured;
+
+        final uri = captured.first as Uri;
+        expect(uri.queryParameters['q'], equals('test'));
+      });
+
+      test('filters out profiles with empty pubkey', () async {
+        const responseWithEmptyPubkey = '''
+[
+  {
+    "pubkey": "",
+    "name": "invalid",
+    "display_name": "Invalid User"
+  }
+]
+''';
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response(responseWithEmptyPubkey, 200),
+        );
+
+        final profiles = await client.searchProfiles(query: 'test');
+
+        expect(profiles, isEmpty);
+      });
+
+      test('throws FunnelcakeNotConfiguredException when not available', () {
+        final emptyClient = FunnelcakeApiClient(
+          baseUrl: '',
+          httpClient: mockHttpClient,
+        );
+
+        expect(
+          () => emptyClient.searchProfiles(query: 'test'),
+          throwsA(isA<FunnelcakeNotConfiguredException>()),
+        );
+
+        emptyClient.dispose();
+      });
+
+      test('throws FunnelcakeException when query is empty', () {
+        expect(
+          () => client.searchProfiles(query: ''),
+          throwsA(
+            isA<FunnelcakeException>().having(
+              (e) => e.message,
+              'message',
+              contains('Search query cannot be empty'),
+            ),
+          ),
+        );
+      });
+
+      test('throws FunnelcakeException when query is only whitespace', () {
+        expect(
+          () => client.searchProfiles(query: '   '),
+          throwsA(
+            isA<FunnelcakeException>().having(
+              (e) => e.message,
+              'message',
+              contains('Search query cannot be empty'),
+            ),
+          ),
+        );
+      });
+
+      test(
+        'throws FunnelcakeApiException on error status codes',
+        () async {
+          when(
+            () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+          ).thenAnswer(
+            (_) async => http.Response('Internal Server Error', 500),
+          );
+
+          expect(
+            () => client.searchProfiles(query: 'test'),
+            throwsA(
+              isA<FunnelcakeApiException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                equals(500),
+              ),
+            ),
+          );
+        },
+      );
+
+      test('throws FunnelcakeTimeoutException on timeout', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => throw TimeoutException('Request timed out'),
+        );
+
+        expect(
+          () => client.searchProfiles(query: 'test'),
+          throwsA(isA<FunnelcakeTimeoutException>()),
+        );
+      });
+
+      test('throws FunnelcakeException on network error', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenThrow(Exception('Network error'));
+
+        expect(
+          () => client.searchProfiles(query: 'test'),
+          throwsA(
+            isA<FunnelcakeException>().having(
+              (e) => e.message,
+              'message',
+              contains('Failed to search profiles'),
+            ),
+          ),
+        );
+      });
+
+      test('handles pubkey as byte array', () async {
+        // Funnelcake sometimes returns IDs as ASCII byte arrays
+        const byteArrayResponse = '''
+[
+  {
+    "pubkey": [49, 50, 51, 52, 53, 54, 55, 56],
+    "name": "testuser"
+  }
+]
+''';
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response(byteArrayResponse, 200),
+        );
+
+        final profiles = await client.searchProfiles(query: 'test');
+
+        expect(profiles, hasLength(1));
+        expect(profiles.first.pubkey, equals('12345678'));
+      });
+    });
+
     group('dispose', () {
       test('does not close externally provided httpClient', () {
         client.dispose();

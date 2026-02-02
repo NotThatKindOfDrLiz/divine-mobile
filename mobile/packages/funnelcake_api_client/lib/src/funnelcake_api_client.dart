@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'package:funnelcake_api_client/src/exceptions.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
-import 'package:models/models.dart';
+import 'package:models/models.dart' show ProfileSearchResult, VideoStats;
 
 /// HTTP client for the Funnelcake REST API.
 ///
@@ -129,6 +129,81 @@ class FunnelcakeApiClient {
       rethrow;
     } catch (e) {
       throw FunnelcakeException('Failed to fetch author videos: $e');
+    }
+  }
+
+  /// Searches for user profiles by query string.
+  ///
+  /// [query] is the search term to look for in profile names, display names,
+  /// and NIP-05 identifiers.
+  /// [limit] is the maximum number of profiles to return (defaults to 50).
+  /// [offset] is the number of results to skip for pagination.
+  ///
+  /// Returns a list of [ProfileSearchResult] objects.
+  ///
+  /// Throws:
+  /// - [FunnelcakeNotConfiguredException] if the API is not configured.
+  /// - [FunnelcakeException] if the query is empty.
+  /// - [FunnelcakeApiException] if the request fails with a non-success status.
+  /// - [FunnelcakeTimeoutException] if the request times out.
+  /// - [FunnelcakeException] for other errors.
+  Future<List<ProfileSearchResult>> searchProfiles({
+    required String query,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    if (!isAvailable) {
+      throw const FunnelcakeNotConfiguredException();
+    }
+
+    final trimmedQuery = query.trim();
+    if (trimmedQuery.isEmpty) {
+      throw const FunnelcakeException('Search query cannot be empty');
+    }
+
+    final queryParams = <String, String>{
+      'q': trimmedQuery,
+      'limit': limit.toString(),
+    };
+    if (offset > 0) {
+      queryParams['offset'] = offset.toString();
+    }
+
+    final uri = Uri.parse(
+      '$_baseUrl/api/search/profiles',
+    ).replace(queryParameters: queryParams);
+
+    try {
+      final response = await _httpClient
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List<dynamic>;
+
+        return data
+            .map((p) => ProfileSearchResult.fromJson(p as Map<String, dynamic>))
+            .where((p) => p.pubkey.isNotEmpty)
+            .toList();
+      } else {
+        throw FunnelcakeApiException(
+          message: 'Failed to search profiles',
+          statusCode: response.statusCode,
+          url: uri.toString(),
+        );
+      }
+    } on TimeoutException {
+      throw FunnelcakeTimeoutException(uri.toString());
+    } on FunnelcakeException {
+      rethrow;
+    } catch (e) {
+      throw FunnelcakeException('Failed to search profiles: $e');
     }
   }
 
