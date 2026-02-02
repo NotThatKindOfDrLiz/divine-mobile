@@ -20,17 +20,17 @@ class VideoStats {
     required this.kind,
     required this.dTag,
     required this.title,
-    this.description,
     required this.thumbnail,
     required this.videoUrl,
-    this.sha256,
-    this.authorName,
-    this.authorAvatar,
-    this.blurhash,
     required this.reactions,
     required this.comments,
     required this.reposts,
     required this.engagementScore,
+    this.description,
+    this.sha256,
+    this.authorName,
+    this.authorAvatar,
+    this.blurhash,
     this.trendingScore,
     this.loops,
   });
@@ -206,9 +206,9 @@ class VideoStats {
       engagementScore:
           (statsData['engagement_score'] ?? json['engagement_score'] ?? 0)
               as int,
-      trendingScore:
-          (statsData['trending_score'] ?? json['trending_score'])?.toDouble()
-              as double?,
+      trendingScore: _parseDouble(
+        statsData['trending_score'] ?? json['trending_score'],
+      ),
       loops: loops,
     );
   }
@@ -307,4 +307,13 @@ class VideoStats {
 
   @override
   String toString() => 'VideoStats(id: $id, title: $title)';
+}
+
+/// Safely parses a dynamic value to double.
+double? _parseDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }

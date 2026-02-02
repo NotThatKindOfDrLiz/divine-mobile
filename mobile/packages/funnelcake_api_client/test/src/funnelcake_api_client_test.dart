@@ -3,10 +3,10 @@
 
 import 'dart:async';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:funnelcake_api_client/funnelcake_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
+import 'package:test/test.dart';
 
 class MockHttpClient extends Mock implements http.Client {}
 
@@ -356,7 +356,7 @@ void main() {
         final internalClient = FunnelcakeApiClient(baseUrl: testBaseUrl);
         // We can't verify the internal client is closed, but we can verify
         // the method doesn't throw
-        expect(() => internalClient.dispose(), returnsNormally);
+        expect(internalClient.dispose, returnsNormally);
       });
     });
   });
