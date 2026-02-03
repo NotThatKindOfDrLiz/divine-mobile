@@ -476,7 +476,25 @@ Future<void> _startOpenVineApp() async {
 
   Log.info('divine starting...', name: 'Main');
   Log.info('Log level: ${UnifiedLogger.currentLevel.name}', name: 'Main');
+  // Configure audio session for media playback
+  // This ensures audio plays even when iOS mute switch is on
+  final session = await AudioSession.instance;
+  await session.configure(
+    const AudioSessionConfiguration(
+      avAudioSessionCategory: AVAudioSessionCategory.playback,
+      avAudioSessionMode: AVAudioSessionMode.moviePlayback,
+      androidAudioAttributes: AndroidAudioAttributes(
+        contentType: AndroidAudioContentType.movie,
+        usage: AndroidAudioUsage.media,
+      ),
+    ),
+  );
 
+  // Initialize MediaKit for pooled_video_player (uses media_kit internally)
+  MediaKit.ensureInitialized();
+
+  // Initialize the player pool singleton
+  await PlayerPool.init();
   runApp(
     UncontrolledProviderScope(container: container, child: const DivineApp()),
   );
@@ -560,14 +578,6 @@ Future<void> _initializeCoreServices(ProviderContainer container) async {
   await container.read(uploadManagerProvider).initialize();
   Log.info(
     '[INIT] ✅ UploadManager initialized',
-    name: 'Main',
-    category: LogCategory.system,
-  );
-
-  final poolManager = await VideoControllerPoolManager.initialize();
-  Log.info(
-    '[INIT] ✅ VideoControllerPoolManager initialized '
-    '(poolSize: ${poolManager.poolSize})',
     name: 'Main',
     category: LogCategory.system,
   );
@@ -1120,14 +1130,12 @@ class _DivineAppState extends ConsumerState<DivineApp> {
     Future<VideoPublishService> createPublishService({
       required OnProgressChanged onProgress,
     }) async {
-      final prefs = await SharedPreferences.getInstance();
-
       return VideoPublishService(
         uploadManager: ref.read(uploadManagerProvider),
         authService: ref.read(authServiceProvider),
         videoEventPublisher: ref.read(videoEventPublisherProvider),
         blossomService: ref.read(blossomUploadServiceProvider),
-        draftService: DraftStorageService(prefs),
+        draftService: DraftStorageService(),
         onProgressChanged:
             ({required String draftId, required double progress}) {
               onProgress(draftId: draftId, progress: progress);
