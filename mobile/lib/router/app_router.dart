@@ -92,7 +92,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         final isInviteCodeRoute = location.startsWith(InviteCodeScreen.path);
         if (!isInviteCodeRoute) {
           final hasInviteCode = ref.read(hasInviteCodeProvider);
-          final hasStoredPubkey = ref
+          final hasStoredPubkey =
+              ref
                   .read(sharedPreferencesProvider)
                   .getString('current_user_pubkey_hex')
                   ?.isNotEmpty ??

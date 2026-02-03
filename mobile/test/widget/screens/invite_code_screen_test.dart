@@ -36,15 +36,11 @@ void main() {
           if (pendingCode != null)
             pendingInviteCodeProvider.overrideWithValue(pendingCode),
         ],
-        child: const MaterialApp(
-          home: InviteCodeScreen(),
-        ),
+        child: const MaterialApp(home: InviteCodeScreen()),
       );
     }
 
-    InviteCodeService createMockService({
-      required http.Client client,
-    }) {
+    InviteCodeService createMockService({required http.Client client}) {
       final repository = InviteCodeRepository(mockPrefs);
       return InviteCodeService(
         client: client,
@@ -174,10 +170,7 @@ void main() {
       testWidgets('shows error message when code is invalid', (tester) async {
         final mockClient = MockClient((request) async {
           return http.Response(
-            jsonEncode({
-              'valid': false,
-              'message': 'Invalid invite code',
-            }),
+            jsonEncode({'valid': false, 'message': 'Invalid invite code'}),
             200,
           );
         });
@@ -290,8 +283,9 @@ void main() {
     });
 
     group('error display', () {
-      testWidgets('error message persists until next submission',
-          (tester) async {
+      testWidgets('error message persists until next submission', (
+        tester,
+      ) async {
         final mockClient = MockClient((request) async {
           return http.Response(
             jsonEncode({'valid': false, 'message': 'Invalid code'}),

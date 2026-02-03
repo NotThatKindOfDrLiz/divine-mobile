@@ -38,10 +38,7 @@ void main() {
       });
 
       test('parses invalid code response', () {
-        final json = {
-          'valid': false,
-          'message': 'Invalid invite code',
-        };
+        final json = {'valid': false, 'message': 'Invalid invite code'};
 
         final result = InviteCodeResult.fromJson(json);
 
@@ -68,27 +65,18 @@ void main() {
 
       test('handles claimedAt with different ISO formats', () {
         // With timezone offset
-        final json1 = {
-          'valid': true,
-          'claimedAt': '2026-02-02T10:30:00+00:00',
-        };
+        final json1 = {'valid': true, 'claimedAt': '2026-02-02T10:30:00+00:00'};
         final result1 = InviteCodeResult.fromJson(json1);
         expect(result1.claimedAt, isA<DateTime>());
 
         // Without timezone (UTC assumed)
-        final json2 = {
-          'valid': true,
-          'claimedAt': '2026-02-02T10:30:00Z',
-        };
+        final json2 = {'valid': true, 'claimedAt': '2026-02-02T10:30:00Z'};
         final result2 = InviteCodeResult.fromJson(json2);
         expect(result2.claimedAt, isA<DateTime>());
       });
 
       test('handles null claimedAt gracefully', () {
-        final json = {
-          'valid': true,
-          'claimedAt': null,
-        };
+        final json = {'valid': true, 'claimedAt': null};
 
         final result = InviteCodeResult.fromJson(json);
 
@@ -122,10 +110,7 @@ void main() {
       });
 
       test('can be const constructed', () {
-        const result = InviteCodeResult(
-          valid: false,
-          message: 'Error',
-        );
+        const result = InviteCodeResult(valid: false, message: 'Error');
 
         expect(result.valid, isFalse);
         expect(result.message, equals('Error'));

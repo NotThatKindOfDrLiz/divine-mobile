@@ -77,14 +77,7 @@ class AppConfig {
     return !isDevelopment;
   }
 
-  // Helper for environment-based feature flags.
-  //
-  // NOTE: This helper is currently non-functional. The expression
-  // `const String.fromEnvironment('').isEmpty` always evaluates to true
-  // (empty key returns empty string), so the method always returns
-  // `defaultValue` regardless of what environment variable is set.
-  // This effectively disables all feature flags that use this helper,
-  // making them always use their default values.
+  // Helper for environment-based feature flags
   static bool _getBoolFlag(String envKey, bool defaultValue) {
     final value = const String.fromEnvironment('').isEmpty
         ? ''
