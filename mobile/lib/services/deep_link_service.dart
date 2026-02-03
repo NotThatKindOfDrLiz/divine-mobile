@@ -6,7 +6,7 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:app_links/app_links.dart';
 
 /// Types of deep links supported by the app
-enum DeepLinkType { video, profile, hashtag, search, unknown }
+enum DeepLinkType { video, profile, hashtag, search, invite, unknown }
 
 /// Represents a parsed deep link
 class DeepLink {
@@ -16,6 +16,7 @@ class DeepLink {
     this.npub,
     this.hashtag,
     this.searchTerm,
+    this.inviteCode,
     this.index,
   });
 
@@ -24,6 +25,7 @@ class DeepLink {
   final String? npub;
   final String? hashtag;
   final String? searchTerm;
+  final String? inviteCode;
   final int? index; // Optional video index for feed view
 
   @override
@@ -38,6 +40,8 @@ class DeepLink {
         return 'DeepLink(type: hashtag, hashtag: $hashtag$indexStr)';
       case DeepLinkType.search:
         return 'DeepLink(type: search, searchTerm: $searchTerm$indexStr)';
+      case DeepLinkType.invite:
+        return 'DeepLink(type: invite, code: $inviteCode)';
       case DeepLinkType.unknown:
         return 'DeepLink(type: unknown)';
     }
@@ -168,6 +172,17 @@ class DeepLinkService {
           searchTerm: searchTerm,
           index: index,
         );
+      }
+
+      // Handle /invite/{code}
+      if (pathSegments.length == 2 && pathSegments[0] == 'invite') {
+        final inviteCode = pathSegments[1].toUpperCase();
+        Log.info(
+          '📱 Parsed invite deep link: $inviteCode',
+          name: 'DeepLinkService',
+          category: LogCategory.ui,
+        );
+        return DeepLink(type: DeepLinkType.invite, inviteCode: inviteCode);
       }
 
       Log.warning(

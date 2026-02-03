@@ -5,8 +5,10 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/config/app_config.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/auth/divine_auth_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
@@ -43,6 +45,7 @@ import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/screens/video_editor/video_editor_screen.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
+import 'package:openvine/screens/invite_code_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/video_stop_navigator_observer.dart';
@@ -82,6 +85,30 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         category: LogCategory.ui,
       );
 
+      // FIRST: Check invite code - gates access for new users
+      // Skip if invite is not required (e.g., development environment)
+      // Authenticated users (with stored pubkey) can bypass invite code requirement
+      if (AppConfig.inviteRequired) {
+        final isInviteCodeRoute = location.startsWith(InviteCodeScreen.path);
+        if (!isInviteCodeRoute) {
+          final hasInviteCode = ref.read(hasInviteCodeProvider);
+          final hasStoredPubkey = ref
+                  .read(sharedPreferencesProvider)
+                  .getString('current_user_pubkey_hex')
+                  ?.isNotEmpty ??
+              false;
+          if (!hasInviteCode && !hasStoredPubkey) {
+            Log.debug(
+              'No invite code and not authenticated, redirecting to ${InviteCodeScreen.path}',
+              name: 'AppRouter',
+              category: LogCategory.ui,
+            );
+            return InviteCodeScreen.path;
+          }
+        }
+      }
+
+      // SECOND: Handle authenticated users on auth routes
       final authState = ref.read(authServiceProvider).authState;
       if (authState == AuthState.authenticated &&
           (location == WelcomeScreen.path ||
@@ -437,6 +464,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: DiscoverListsScreen.path,
         name: DiscoverListsScreen.routeName,
         builder: (ctx, st) => const DiscoverListsScreen(),
+      ),
+      // Invite code entry screen (before TOS/auth)
+      GoRoute(
+        path: InviteCodeScreen.path,
+        name: InviteCodeScreen.routeName,
+        builder: (_, __) => const InviteCodeScreen(),
       ),
       GoRoute(
         path: WelcomeScreen.path,
@@ -839,6 +872,7 @@ int tabIndexFromLocation(String loc) {
     case 'import-key':
     case 'nostr-connect':
     case 'welcome':
+    case 'invite-code':
     case 'video-recorder':
     case 'video-editor':
     case 'video-metadata':

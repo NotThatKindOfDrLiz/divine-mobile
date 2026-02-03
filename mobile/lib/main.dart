@@ -23,6 +23,8 @@ import 'package:openvine/network/vine_cdn_http_overrides.dart'
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/deep_link_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
+import 'package:openvine/providers/invite_code_provider.dart';
+import 'package:openvine/screens/invite_code_screen.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 
@@ -515,6 +517,37 @@ Future<void> _initializeCoreServices(ProviderContainer container) async {
     category: LogCategory.system,
   );
 
+  // Verify stored invite code on startup (if any)
+  final inviteService = container.read(inviteCodeServiceProvider);
+  if (inviteService.hasVerifiedCode) {
+    Log.info(
+      '[INIT] Found stored invite code, verifying...',
+      name: 'Main',
+      category: LogCategory.auth,
+    );
+    final result = await inviteService.verifyStoredCode();
+    if (result.valid) {
+      Log.info(
+        '[INIT] ✅ Invite code verified successfully',
+        name: 'Main',
+        category: LogCategory.auth,
+      );
+    } else {
+      Log.warning(
+        '[INIT] Invite code no longer valid: ${result.message}',
+        name: 'Main',
+        category: LogCategory.auth,
+      );
+      // Code was cleared by the service - router will redirect to invite screen
+    }
+  } else {
+    Log.info(
+      '[INIT] No stored invite code - user will need to enter one',
+      name: 'Main',
+      category: LogCategory.auth,
+    );
+  }
+
   // Initialize bandwidth tracker for adaptive quality selection
   await bandwidthTracker.initialize();
   Log.info(
@@ -846,6 +879,40 @@ class _DivineAppState extends ConsumerState<DivineApp> {
               } else {
                 Log.warning(
                   '⚠️ Search deep link missing search term',
+                  name: 'DeepLinkHandler',
+                  category: LogCategory.ui,
+                );
+              }
+              break;
+            case DeepLinkType.invite:
+              if (deepLink.inviteCode != null) {
+                Log.info(
+                  '📱 Received invite code via deep link: ${deepLink.inviteCode}',
+                  name: 'DeepLinkHandler',
+                  category: LogCategory.ui,
+                );
+                // Store the pending invite code for the invite screen to pick up
+                ref
+                    .read(pendingInviteCodeProvider.notifier)
+                    .setCode(deepLink.inviteCode!);
+                // Navigate to invite code screen
+                try {
+                  router.go(InviteCodeScreen.path);
+                  Log.info(
+                    '✅ Navigation completed to: ${InviteCodeScreen.path}',
+                    name: 'DeepLinkHandler',
+                    category: LogCategory.ui,
+                  );
+                } catch (e) {
+                  Log.error(
+                    '❌ Navigation failed: $e',
+                    name: 'DeepLinkHandler',
+                    category: LogCategory.ui,
+                  );
+                }
+              } else {
+                Log.warning(
+                  '⚠️ Invite deep link missing invite code',
                   name: 'DeepLinkHandler',
                   category: LogCategory.ui,
                 );

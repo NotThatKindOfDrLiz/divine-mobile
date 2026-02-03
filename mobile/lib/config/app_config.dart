@@ -64,7 +64,27 @@ class AppConfig {
   static bool get enableUIImprovements =>
       _getBoolFlag('ENABLE_UI_IMPROVEMENTS', false);
 
-  // Helper for environment-based feature flags
+  // Access control flags
+  /// Whether invite code is required for app access.
+  /// Defaults to true in staging/production, false in development.
+  /// Override with INVITE_REQUIRED=true/false at build time.
+  static bool get inviteRequired {
+    const envValue = String.fromEnvironment('INVITE_REQUIRED');
+    if (envValue.isNotEmpty) {
+      return envValue.toLowerCase() == 'true';
+    }
+    // Default: invite is required in non-development environments
+    return !isDevelopment;
+  }
+
+  // Helper for environment-based feature flags.
+  //
+  // NOTE: This helper is currently non-functional. The expression
+  // `const String.fromEnvironment('').isEmpty` always evaluates to true
+  // (empty key returns empty string), so the method always returns
+  // `defaultValue` regardless of what environment variable is set.
+  // This effectively disables all feature flags that use this helper,
+  // making them always use their default values.
   static bool _getBoolFlag(String envKey, bool defaultValue) {
     final value = const String.fromEnvironment('').isEmpty
         ? ''
@@ -81,6 +101,7 @@ class AppConfig {
     'backendUrl': backendBaseUrl,
     'isDevelopment': isDevelopment,
     'isProduction': isProduction,
+    'inviteRequired': inviteRequired,
     'enableStreamCDN': enableStreamCDN,
     'enableCloudinaryUpload': enableCloudinaryUpload,
     'enableNIP96Upload': enableNIP96Upload,

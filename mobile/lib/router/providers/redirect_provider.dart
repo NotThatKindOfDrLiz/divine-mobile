@@ -4,6 +4,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/providers/invite_code_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
@@ -66,6 +67,14 @@ final hasFollowingInCacheProvider = Provider<bool>((ref) {
 final hasTosAcceptedProvider = Provider<bool>((Ref ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return prefs.getBool('age_verified_16_plus') ?? false;
+});
+
+/// Checks if device has a verified invite code stored.
+///
+/// Uses [inviteCodeRepositoryProvider] to avoid duplicating the storage key.
+final hasInviteCodeProvider = Provider<bool>((ref) {
+  final repository = ref.watch(inviteCodeRepositoryProvider);
+  return repository.hasStoredCode;
 });
 
 /// Check if we should redirect to explore because user has no following list.
