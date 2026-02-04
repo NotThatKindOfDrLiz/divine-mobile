@@ -1,6 +1,7 @@
 // ABOUTME: Riverpod providers for npub verification redirect guards
 // ABOUTME: Checks verification status for invite skip flow
 
+import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/invite_code_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
@@ -10,6 +11,23 @@ import 'package:openvine/services/npub_verification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'npub_verification_provider.g.dart';
+
+/// Provider for NpubVerificationBloc instance.
+///
+/// This is created as a Riverpod provider so it can be accessed in both:
+/// - The router (for AppStateListenable)
+/// - The widget tree (via BlocProvider.value)
+@Riverpod(keepAlive: true)
+NpubVerificationBloc npubVerificationBloc(Ref ref) {
+  final service = ref.watch(npubVerificationServiceProvider);
+  final repository = ref.watch(npubVerificationRepositoryProvider);
+  final bloc = NpubVerificationBloc(
+    verificationService: service,
+    repository: repository,
+  );
+  ref.onDispose(bloc.close);
+  return bloc;
+}
 
 /// Provider for NpubVerificationRepository instance.
 ///
@@ -94,20 +112,7 @@ bool needsNpubVerification(Ref ref) {
   return !isVerified;
 }
 
-/// In-memory flag tracking if user has requested to skip invite code entry.
-///
-/// When true, the router should allow access to /welcome and auth routes
-/// even without an invite code. This flag is set when user clicks "Sign In"
-/// on the invite code screen.
-///
-/// This is intentionally NOT persisted - if user restarts the app, they
-/// should see the invite screen again.
-@Riverpod(keepAlive: true)
-class SkipInviteRequested extends _$SkipInviteRequested {
-  @override
-  bool build() => false;
-
-  void set() => state = true;
-
-  void clear() => state = false;
-}
+// NOTE: SkipInviteRequested class has been removed.
+// This is now handled by NpubVerificationBloc with events:
+// - NpubVerificationSkipInviteSet (when user clicks "Sign In")
+// - NpubVerificationSkipInviteCleared (after verification or failure)

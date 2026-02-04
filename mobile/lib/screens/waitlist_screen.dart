@@ -25,8 +25,8 @@ class WaitlistScreen extends StatelessWidget {
   /// Route name for this screen.
   static const String routeName = 'waitlist';
 
-  /// Path for this route.
-  static const String path = '/waitlist';
+  /// Path for this route (nested under /invite).
+  static const String path = '/invite/waitlist';
 
   /// Custom message to display.
   final String? message;
@@ -35,6 +35,14 @@ class WaitlistScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: VineTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: Padding(

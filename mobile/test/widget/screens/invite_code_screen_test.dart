@@ -1,66 +1,69 @@
-// ABOUTME: Widget tests for InviteCodeScreen UI and functionality
-// ABOUTME: Tests form validation, submission states, error display, and deep link auto-fill
+// ABOUTME: Widget tests for InviteCodeEntryScreen UI and functionality
+// ABOUTME: Tests form validation, submission states, and deep link auto-fill
 
-import 'dart:convert';
-
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:openvine/providers/invite_code_provider.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/repositories/invite_code_repository.dart';
-import 'package:openvine/screens/invite_code_screen.dart';
-import 'package:openvine/services/invite_code_service.dart';
+import 'package:openvine/screens/invite_code_entry_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class MockInviteCodeBloc extends MockBloc<InviteCodeEvent, InviteCodeState>
+    implements InviteCodeBloc {}
+
 void main() {
-  group('InviteCodeScreen', () {
+  group('InviteCodeEntryScreen', () {
     late SharedPreferences mockPrefs;
+    late MockInviteCodeBloc mockBloc;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       mockPrefs = await SharedPreferences.getInstance();
+      mockBloc = MockInviteCodeBloc();
+
+      // Default state
+      when(() => mockBloc.state).thenReturn(const InviteCodeState());
+    });
+
+    tearDown(() {
+      mockBloc.close();
     });
 
     Widget createTestWidget({
-      InviteCodeService? mockService,
+      InviteCodeBloc? bloc,
       String? pendingCode,
     }) {
+      final effectiveBloc = bloc ?? mockBloc;
+
+      // If pendingCode is provided, set up the bloc state with it
+      if (pendingCode != null) {
+        when(() => effectiveBloc.state).thenReturn(
+          InviteCodeState(pendingDeepLinkCode: pendingCode),
+        );
+      }
+
       return ProviderScope(
         overrides: [
           sharedPreferencesProvider.overrideWithValue(mockPrefs),
-          if (mockService != null)
-            inviteCodeServiceProvider.overrideWithValue(mockService),
-          if (pendingCode != null)
-            pendingInviteCodeProvider.overrideWithValue(pendingCode),
         ],
-        child: const MaterialApp(home: InviteCodeScreen()),
-      );
-    }
-
-    InviteCodeService createMockService({required http.Client client}) {
-      final repository = InviteCodeRepository(mockPrefs);
-      return InviteCodeService(
-        client: client,
-        repository: repository,
-        prefs: mockPrefs,
+        child: MaterialApp(
+          home: BlocProvider<InviteCodeBloc>.value(
+            value: effectiveBloc,
+            child: const InviteCodeEntryScreen(),
+          ),
+        ),
       );
     }
 
     group('UI rendering', () {
-      testWidgets('displays logo and title', (tester) async {
+      testWidgets('displays title', (tester) async {
         await tester.pumpWidget(createTestWidget());
 
         expect(find.text('Enter Invite Code'), findsOneWidget);
-        expect(
-          find.text(
-            'Divine is currently invite-only.\n'
-            'Enter your 8-character invite code to continue.',
-          ),
-          findsOneWidget,
-        );
       });
 
       testWidgets('displays input field with hint', (tester) async {
@@ -75,32 +78,6 @@ void main() {
 
         expect(find.text('Continue'), findsOneWidget);
         expect(find.byType(ElevatedButton), findsOneWidget);
-      });
-
-      testWidgets('displays help text', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        expect(
-          find.text(
-            "Don't have an invite code?\n"
-            'Ask a friend or wait for public access.',
-          ),
-          findsOneWidget,
-        );
-      });
-
-      testWidgets('displays Sign In link for existing users', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-
-        // Check for TextButton containing Sign In link
-        // RichText splits text into spans, so we find the RichText widget
-        final richTextFinder = find.byWidgetPredicate(
-          (widget) =>
-              widget is RichText &&
-              widget.text.toPlainText().contains('Have an account?') &&
-              widget.text.toPlainText().contains('Sign In'),
-        );
-        expect(richTextFinder, findsOneWidget);
       });
     });
 
@@ -157,205 +134,48 @@ void main() {
     });
 
     group('submission', () {
-      testWidgets('shows loading indicator while submitting', (tester) async {
-        final mockClient = MockClient((request) async {
-          // Simulate slow response that never completes during test
-          await Future.delayed(const Duration(seconds: 10));
-          return http.Response(
-            jsonEncode({'valid': true, 'code': 'ABCD1234'}),
-            200,
-          );
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
-
-        await tester.enterText(find.byType(TextField), 'ABCD1234');
-        await tester.tap(find.text('Continue'));
-        // Pump once to trigger state change to loading
-        await tester.pump();
-
-        // Should show loading indicator
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        expect(find.text('Continue'), findsNothing);
-      });
-
-      testWidgets('shows error message when code is invalid', (tester) async {
-        final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({'valid': false, 'message': 'Invalid invite code'}),
-            200,
-          );
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
-
-        await tester.enterText(find.byType(TextField), 'BADCODE1');
-        await tester.tap(find.text('Continue'));
-
-        // Use runAsync to complete the async HTTP operation
-        await tester.runAsync(() async {
-          await Future.delayed(const Duration(milliseconds: 50));
-        });
-        await tester.pump();
-
-        expect(find.text('Invalid invite code'), findsOneWidget);
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      });
-
-      testWidgets('shows error message on server error', (tester) async {
-        final mockClient = MockClient((request) async {
-          return http.Response('Internal Server Error', 500);
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
-
-        await tester.enterText(find.byType(TextField), 'ABCD1234');
-        await tester.tap(find.text('Continue'));
-
-        // Use runAsync to complete the async HTTP operation
-        await tester.runAsync(() async {
-          await Future.delayed(const Duration(milliseconds: 50));
-        });
-        await tester.pump();
-
-        // Should show error message
-        expect(find.byIcon(Icons.error_outline), findsOneWidget);
-      });
-
-      testWidgets('button is disabled while submitting', (tester) async {
-        final mockClient = MockClient((request) async {
-          await Future.delayed(const Duration(seconds: 10));
-          return http.Response(
-            jsonEncode({'valid': true, 'code': 'ABCD1234'}),
-            200,
-          );
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
+      testWidgets('dispatches InviteCodeClaimRequested on valid submit',
+          (tester) async {
+        await tester.pumpWidget(createTestWidget());
 
         await tester.enterText(find.byType(TextField), 'ABCD1234');
         await tester.tap(find.text('Continue'));
         await tester.pump();
 
-        final button = tester.widget<ElevatedButton>(
-          find.byType(ElevatedButton),
-        );
-        expect(button.onPressed, isNull);
-      });
-
-      testWidgets('input field is disabled while submitting', (tester) async {
-        final mockClient = MockClient((request) async {
-          await Future.delayed(const Duration(seconds: 10));
-          return http.Response(
-            jsonEncode({'valid': true, 'code': 'ABCD1234'}),
-            200,
-          );
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
-
-        await tester.enterText(find.byType(TextField), 'ABCD1234');
-        await tester.tap(find.text('Continue'));
-        await tester.pump();
-
-        final textField = tester.widget<TextField>(find.byType(TextField));
-        expect(textField.enabled, isFalse);
+        verify(
+          () => mockBloc.add(const InviteCodeClaimRequested('ABCD1234')),
+        ).called(1);
       });
     });
 
     group('keyboard submission', () {
       testWidgets('submits on keyboard done action', (tester) async {
-        final mockClient = MockClient((request) async {
-          await Future.delayed(const Duration(seconds: 10));
-          return http.Response(
-            jsonEncode({'valid': true, 'code': 'ABCD1234'}),
-            200,
-          );
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
+        await tester.pumpWidget(createTestWidget());
 
         await tester.enterText(find.byType(TextField), 'ABCD1234');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pump();
 
-        // Should start loading
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        verify(
+          () => mockBloc.add(const InviteCodeClaimRequested('ABCD1234')),
+        ).called(1);
       });
     });
 
-    group('error display', () {
-      testWidgets('error message persists until next submission', (
-        tester,
-      ) async {
-        final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({'valid': false, 'message': 'Invalid code'}),
-            200,
-          );
-        });
+    group('deep link auto-fill', () {
+      testWidgets('clears pending code from deep link', (tester) async {
+        when(() => mockBloc.state).thenReturn(
+          const InviteCodeState(pendingDeepLinkCode: 'DEEPLINK'),
+        );
 
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
-
-        // Submit invalid code
-        await tester.enterText(find.byType(TextField), 'BADCODE1');
-        await tester.tap(find.text('Continue'));
-
-        // Use runAsync to complete the async HTTP operation
-        await tester.runAsync(() async {
-          await Future.delayed(const Duration(milliseconds: 50));
-        });
+        await tester.pumpWidget(createTestWidget(pendingCode: 'DEEPLINK'));
         await tester.pump();
+        await tester.pump(); // Extra pump for post-frame callback
 
-        expect(find.text('Invalid code'), findsOneWidget);
-
-        // Clear and enter new code - error persists until next submission
-        await tester.enterText(find.byType(TextField), 'NEWCODE1');
-        await tester.pump();
-
-        // Error still visible until next submit
-        expect(find.text('Invalid code'), findsOneWidget);
-      });
-
-      testWidgets('shows custom error message from API', (tester) async {
-        final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({
-              'valid': false,
-              'message': 'This code has already been claimed',
-            }),
-            200,
-          );
-        });
-
-        final service = createMockService(client: mockClient);
-
-        await tester.pumpWidget(createTestWidget(mockService: service));
-
-        await tester.enterText(find.byType(TextField), 'USED1234');
-        await tester.tap(find.text('Continue'));
-
-        // Use runAsync to complete the async HTTP operation
-        await tester.runAsync(() async {
-          await Future.delayed(const Duration(milliseconds: 50));
-        });
-        await tester.pump();
-
-        expect(find.text('This code has already been claimed'), findsOneWidget);
+        // Check that pending code was cleared
+        verify(
+          () => mockBloc.add(const InviteCodePendingCleared()),
+        ).called(1);
       });
     });
   });

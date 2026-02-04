@@ -3,9 +3,9 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/router/providers/redirect_provider.dart';
+import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
 import 'package:openvine/screens/invite_code_entry_screen.dart';
 import 'package:openvine/screens/waitlist_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
@@ -16,7 +16,7 @@ import 'package:openvine/screens/welcome_screen.dart';
 /// - Enter an invite code (navigates to code entry screen)
 /// - Join the waitlist (navigates to waitlist screen)
 /// - Sign in with existing account (goes to login flow with npub verification)
-class InviteChoiceScreen extends ConsumerWidget {
+class InviteChoiceScreen extends StatelessWidget {
   const InviteChoiceScreen({super.key});
 
   /// Route name for this screen.
@@ -26,7 +26,7 @@ class InviteChoiceScreen extends ConsumerWidget {
   static const path = '/invite';
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: VineTheme.backgroundColor,
       body: SafeArea(
@@ -81,7 +81,7 @@ class InviteChoiceScreen extends ConsumerWidget {
                     icon: Icons.hourglass_empty,
                     title: 'Join the waitlist',
                     subtitle: 'Get notified when spots open up',
-                    onTap: () => context.go(WaitlistScreen.path),
+                    onTap: () => context.push(WaitlistScreen.path),
                   ),
                   const SizedBox(height: 16),
 
@@ -92,7 +92,9 @@ class InviteChoiceScreen extends ConsumerWidget {
                     subtitle: 'For users who already have access',
                     onTap: () {
                       // Set flag to allow bypassing invite screen for login flow
-                      ref.read(skipInviteRequestedProvider.notifier).set();
+                      context.read<NpubVerificationBloc>().add(
+                        const NpubVerificationSkipInviteSet(),
+                      );
                       context.go(WelcomeScreen.path);
                     },
                   ),
@@ -139,21 +141,14 @@ class _ChoiceButton extends StatelessWidget {
                   color: VineTheme.vineGreen.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: VineTheme.vineGreen,
-                  size: 24,
-                ),
+                child: Icon(icon, color: VineTheme.vineGreen, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: VineTheme.labelLargeFont(),
-                    ),
+                    Text(title, style: VineTheme.labelLargeFont()),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
@@ -162,10 +157,7 @@ class _ChoiceButton extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: Colors.grey,
-              ),
+              const Icon(Icons.chevron_right, color: Colors.grey),
             ],
           ),
         ),

@@ -3,8 +3,11 @@
 
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
+import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
 import 'package:openvine/config/app_config.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -45,12 +48,13 @@ import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/screens/video_editor/video_editor_screen.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
-import 'package:openvine/providers/invite_code_provider.dart';
 import 'package:openvine/screens/invite_choice_screen.dart';
 import 'package:openvine/screens/invite_code_entry_screen.dart';
 import 'package:openvine/screens/npub_verification_screen.dart';
 import 'package:openvine/screens/waitlist_screen.dart';
 import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/providers/invite_code_provider.dart';
+import 'package:openvine/router/providers/app_state_listenable.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/video_stop_navigator_observer.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -67,9 +71,17 @@ void resetNavigationState() {
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   // Use ref.read to avoid recreating the router on auth state changes
-  // The refreshListenable handles reacting to auth state changes
+  // The refreshListenable handles reacting to auth, invite, and verification state changes
   final authService = ref.read(authServiceProvider);
-  final authListenable = AuthStateListenable(authService);
+  final inviteCodeBloc = ref.read(inviteCodeBlocProvider);
+  final npubVerificationBloc = ref.read(npubVerificationBlocProvider);
+
+  // AppStateListenable combines auth, invite code, and verification state changes
+  final appStateListenable = AppStateListenable(
+    authService: authService,
+    inviteCodeBloc: inviteCodeBloc,
+    npubVerificationBloc: npubVerificationBloc,
+  );
 
   return GoRouter(
     navigatorKey: NavigatorKeys.root,
@@ -79,8 +91,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       VideoStopNavigatorObserver(),
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
     ],
-    // Refresh router when auth state changes
-    refreshListenable: authListenable,
+    // Refresh router when auth, invite, or verification state changes
+    refreshListenable: appStateListenable,
     redirect: (context, state) {
       final location = state.matchedLocation;
       Log.debug(
@@ -100,14 +112,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             location.startsWith(NpubVerificationScreen.path) ||
             location.startsWith(WaitlistScreen.path);
         if (!isInviteRoute && !isVerificationRoute) {
-          final hasInviteCode = ref.read(hasStoredInviteCodeProvider);
+          // Use BLoCs for invite code and skip invite state
+          final inviteCodeBloc = context.read<InviteCodeBloc>();
+          final npubVerificationBloc = context.read<NpubVerificationBloc>();
+          final hasInviteCode = inviteCodeBloc.hasStoredInviteCode;
           final hasStoredPubkey =
               ref
                   .read(sharedPreferencesProvider)
                   .getString('current_user_pubkey_hex')
                   ?.isNotEmpty ??
               false;
-          final skipInviteRequested = ref.read(skipInviteRequestedProvider);
+          final skipInviteRequested = npubVerificationBloc.skipInviteRequested;
           if (!hasInviteCode && !hasStoredPubkey && !skipInviteRequested) {
             Log.debug(
               'No invite code and not authenticated, redirecting to ${InviteChoiceScreen.path}',
@@ -121,25 +136,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       // SECOND: Check npub verification for authenticated users without invite code
       // Only applies when user signed in via "Skip invite" flow
-      // NOTE: We check inline here rather than using needsNpubVerificationProvider
-      // because that provider may have stale state when router refresh triggers.
+      // NOTE: We check inline here using BLoC synchronous getters for fresh state.
       if (AppConfig.inviteRequired) {
         final isVerificationRoute = location == NpubVerificationScreen.path;
         final isWaitlistRoute = location == WaitlistScreen.path;
+        // Also skip for invite-related routes (including /invite/enter-code)
+        final isInviteRelatedRoute = location.startsWith(InviteChoiceScreen.path);
 
-        if (!isVerificationRoute && !isWaitlistRoute) {
+        if (!isVerificationRoute && !isWaitlistRoute && !isInviteRelatedRoute) {
           final authService = ref.read(authServiceProvider);
           final isAuthenticated =
               authService.authState == AuthState.authenticated;
-          final hasInviteCode = ref.read(hasStoredInviteCodeProvider);
-          final skipInvite = ref.read(skipInviteRequestedProvider);
+          // Use BLoCs for invite code and verification state
+          final inviteCodeBloc = context.read<InviteCodeBloc>();
+          final npubVerificationBloc = context.read<NpubVerificationBloc>();
+          final hasInviteCode = inviteCodeBloc.hasStoredInviteCode;
+          final skipInvite = npubVerificationBloc.skipInviteRequested;
 
           // User authenticated via skip invite flow without invite code
           if (isAuthenticated && !hasInviteCode && skipInvite) {
             // Check if npub is already verified
             final npub = authService.currentNpub;
-            final repository = ref.read(npubVerificationRepositoryProvider);
-            final isVerified = npub != null && repository.isVerified(npub);
+            final isVerified = npubVerificationBloc.isNpubVerified(npub);
 
             if (!isVerified) {
               Log.debug(
@@ -154,7 +172,32 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         }
       }
 
-      // THIRD: Handle authenticated users on auth routes
+      // THIRD: Handle verified users on npub-verification screen
+      // After successful verification, redirect to home
+      if (location == NpubVerificationScreen.path) {
+        final authService = ref.read(authServiceProvider);
+        final isAuthenticated =
+            authService.authState == AuthState.authenticated;
+        if (isAuthenticated) {
+          // Check if user is now verified (either has invite code or npub verified)
+          final inviteCodeBloc = context.read<InviteCodeBloc>();
+          final npubVerificationBloc = context.read<NpubVerificationBloc>();
+          final hasInviteCode = inviteCodeBloc.hasStoredInviteCode;
+          final npub = authService.currentNpub;
+          final isVerified = npubVerificationBloc.isNpubVerified(npub);
+
+          if (hasInviteCode || isVerified) {
+            Log.debug(
+              'Npub verified, redirecting to home',
+              name: 'AppRouter',
+              category: LogCategory.ui,
+            );
+            return HomeScreenRouter.pathForIndex(0);
+          }
+        }
+      }
+
+      // FOURTH: Handle authenticated users on auth routes
       final authState = ref.read(authServiceProvider).authState;
       if (authState == AuthState.authenticated &&
           (location == WelcomeScreen.path ||
@@ -516,30 +559,32 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (ctx, st) => const DiscoverListsScreen(),
       ),
       // Invite flow screens (before TOS/auth)
+      // Nested structure: /invite, /invite/enter-code, /invite/waitlist
       GoRoute(
         path: InviteChoiceScreen.path,
         name: InviteChoiceScreen.routeName,
         builder: (_, __) => const InviteChoiceScreen(),
-      ),
-      GoRoute(
-        path: InviteCodeEntryScreen.path,
-        name: InviteCodeEntryScreen.routeName,
-        builder: (_, __) => const InviteCodeEntryScreen(),
+        routes: [
+          GoRoute(
+            path: 'enter-code',
+            name: InviteCodeEntryScreen.routeName,
+            builder: (_, __) => const InviteCodeEntryScreen(),
+          ),
+          GoRoute(
+            path: 'waitlist',
+            name: WaitlistScreen.routeName,
+            builder: (_, st) {
+              final args = st.extra as WaitlistScreenArgs?;
+              return WaitlistScreen(message: args?.message);
+            },
+          ),
+        ],
       ),
       // Npub verification screen (for invite skip flow)
       GoRoute(
         path: NpubVerificationScreen.path,
         name: NpubVerificationScreen.routeName,
         builder: (_, __) => const NpubVerificationScreen(),
-      ),
-      // Waitlist screen (for failed npub verification)
-      GoRoute(
-        path: WaitlistScreen.path,
-        name: WaitlistScreen.routeName,
-        builder: (_, st) {
-          final args = st.extra as WaitlistScreenArgs?;
-          return WaitlistScreen(message: args?.message);
-        },
       ),
       GoRoute(
         path: WelcomeScreen.path,

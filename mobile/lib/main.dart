@@ -17,6 +17,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/camera_permission/camera_permission_bloc.dart';
 import 'package:openvine/blocs/email_verification/email_verification_cubit.dart';
+import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
 import 'package:openvine/config/zendesk_config.dart';
 import 'package:openvine/network/vine_cdn_http_overrides.dart'
     if (dart.library.html) 'package:openvine/utils/platform_io_web.dart';
@@ -24,8 +25,8 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/deep_link_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/invite_code_provider.dart';
-import 'package:openvine/screens/invite_code_entry_screen.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/screens/invite_code_entry_screen.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 
 import 'package:openvine/router/router.dart';
@@ -902,9 +903,9 @@ class _DivineAppState extends ConsumerState<DivineApp> {
                   category: LogCategory.ui,
                 );
                 // Store the pending invite code for the invite screen to pick up
-                ref
-                    .read(pendingInviteCodeProvider.notifier)
-                    .setCode(deepLink.inviteCode!);
+                context.read<InviteCodeBloc>().add(
+                  InviteCodePendingSet(deepLink.inviteCode!),
+                );
                 // Navigate to invite code screen
                 try {
                   router.go(InviteCodeEntryScreen.path);
@@ -1162,6 +1163,11 @@ class _DivineAppState extends ConsumerState<DivineApp> {
             authService: ref.read(authServiceProvider),
           ),
         ),
+        // Use BlocProvider.value to expose Riverpod-managed BLoCs to the widget tree.
+        // These BLoCs are created as Riverpod providers so they can be accessed in
+        // both the router (for AppStateListenable) and the widget tree.
+        BlocProvider.value(value: ref.read(inviteCodeBlocProvider)),
+        BlocProvider.value(value: ref.read(npubVerificationBlocProvider)),
       ],
       // Global listener for email verification failures - shows snackbar
       // when verification times out or fails while user is elsewhere in app

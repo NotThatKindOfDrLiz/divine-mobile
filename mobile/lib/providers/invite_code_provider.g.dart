@@ -8,6 +8,64 @@ part of 'invite_code_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Provider for InviteCodeBloc instance.
+///
+/// This is created as a Riverpod provider so it can be accessed in both:
+/// - The router (for AppStateListenable)
+/// - The widget tree (via BlocProvider.value)
+
+@ProviderFor(inviteCodeBloc)
+const inviteCodeBlocProvider = InviteCodeBlocProvider._();
+
+/// Provider for InviteCodeBloc instance.
+///
+/// This is created as a Riverpod provider so it can be accessed in both:
+/// - The router (for AppStateListenable)
+/// - The widget tree (via BlocProvider.value)
+
+final class InviteCodeBlocProvider
+    extends $FunctionalProvider<InviteCodeBloc, InviteCodeBloc, InviteCodeBloc>
+    with $Provider<InviteCodeBloc> {
+  /// Provider for InviteCodeBloc instance.
+  ///
+  /// This is created as a Riverpod provider so it can be accessed in both:
+  /// - The router (for AppStateListenable)
+  /// - The widget tree (via BlocProvider.value)
+  const InviteCodeBlocProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'inviteCodeBlocProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$inviteCodeBlocHash();
+
+  @$internal
+  @override
+  $ProviderElement<InviteCodeBloc> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  InviteCodeBloc create(Ref ref) {
+    return inviteCodeBloc(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(InviteCodeBloc value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<InviteCodeBloc>(value),
+    );
+  }
+}
+
+String _$inviteCodeBlocHash() => r'8c214575d7d6d18208fcbb4adb59c0bac5a0a4bf';
+
 /// Provider for InviteCodeRepository instance.
 ///
 /// Lightweight provider for invite code storage - safe for router redirects.
@@ -234,156 +292,3 @@ final class InviteCodeVerificationProvider
 
 String _$inviteCodeVerificationHash() =>
     r'ee8bb989943ca6122f055134c1aa6e67b7e4577b';
-
-/// State notifier for invite code entry/claiming.
-///
-/// Manages the async state of claiming an invite code.
-/// Uses keepAlive to prevent disposal during async operations.
-
-@ProviderFor(InviteCodeClaim)
-const inviteCodeClaimProvider = InviteCodeClaimProvider._();
-
-/// State notifier for invite code entry/claiming.
-///
-/// Manages the async state of claiming an invite code.
-/// Uses keepAlive to prevent disposal during async operations.
-final class InviteCodeClaimProvider
-    extends $NotifierProvider<InviteCodeClaim, AsyncValue<InviteCodeResult?>> {
-  /// State notifier for invite code entry/claiming.
-  ///
-  /// Manages the async state of claiming an invite code.
-  /// Uses keepAlive to prevent disposal during async operations.
-  const InviteCodeClaimProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'inviteCodeClaimProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$inviteCodeClaimHash();
-
-  @$internal
-  @override
-  InviteCodeClaim create() => InviteCodeClaim();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AsyncValue<InviteCodeResult?> value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<AsyncValue<InviteCodeResult?>>(
-        value,
-      ),
-    );
-  }
-}
-
-String _$inviteCodeClaimHash() => r'391793fa80efac92e3e26f18b96a0f178fe1316b';
-
-/// State notifier for invite code entry/claiming.
-///
-/// Manages the async state of claiming an invite code.
-/// Uses keepAlive to prevent disposal during async operations.
-
-abstract class _$InviteCodeClaim
-    extends $Notifier<AsyncValue<InviteCodeResult?>> {
-  AsyncValue<InviteCodeResult?> build();
-  @$mustCallSuper
-  @override
-  void runBuild() {
-    final created = build();
-    final ref =
-        this.ref
-            as $Ref<
-              AsyncValue<InviteCodeResult?>,
-              AsyncValue<InviteCodeResult?>
-            >;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<
-                AsyncValue<InviteCodeResult?>,
-                AsyncValue<InviteCodeResult?>
-              >,
-              AsyncValue<InviteCodeResult?>,
-              Object?,
-              Object?
-            >;
-    element.handleValue(ref, created);
-  }
-}
-
-/// Provider to store pending invite code from deep link.
-///
-/// When a deep link like https://divine.video/invite/ABC123 is received,
-/// the code is stored here so the InviteCodeEntryScreen can auto-fill it.
-
-@ProviderFor(PendingInviteCode)
-const pendingInviteCodeProvider = PendingInviteCodeProvider._();
-
-/// Provider to store pending invite code from deep link.
-///
-/// When a deep link like https://divine.video/invite/ABC123 is received,
-/// the code is stored here so the InviteCodeEntryScreen can auto-fill it.
-final class PendingInviteCodeProvider
-    extends $NotifierProvider<PendingInviteCode, String?> {
-  /// Provider to store pending invite code from deep link.
-  ///
-  /// When a deep link like https://divine.video/invite/ABC123 is received,
-  /// the code is stored here so the InviteCodeEntryScreen can auto-fill it.
-  const PendingInviteCodeProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'pendingInviteCodeProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$pendingInviteCodeHash();
-
-  @$internal
-  @override
-  PendingInviteCode create() => PendingInviteCode();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(String? value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<String?>(value),
-    );
-  }
-}
-
-String _$pendingInviteCodeHash() => r'195ba58af5d7ca54fb657f32d91fdace294a0984';
-
-/// Provider to store pending invite code from deep link.
-///
-/// When a deep link like https://divine.video/invite/ABC123 is received,
-/// the code is stored here so the InviteCodeEntryScreen can auto-fill it.
-
-abstract class _$PendingInviteCode extends $Notifier<String?> {
-  String? build();
-  @$mustCallSuper
-  @override
-  void runBuild() {
-    final created = build();
-    final ref = this.ref as $Ref<String?, String?>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<String?, String?>,
-              String?,
-              Object?,
-              Object?
-            >;
-    element.handleValue(ref, created);
-  }
-}

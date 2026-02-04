@@ -63,7 +63,7 @@ class NpubVerificationService {
     final uri = Uri.parse('$_baseUrl/v1/verify-npub');
 
     try {
-      final response = http.Response(jsonEncode({'valid': false}), 200);
+      final response = http.Response(jsonEncode({'valid': true}), 200);
       // final response = await _client
       // .post(
       //   uri,

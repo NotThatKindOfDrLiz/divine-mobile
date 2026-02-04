@@ -8,6 +8,71 @@ part of 'npub_verification_provider.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Provider for NpubVerificationBloc instance.
+///
+/// This is created as a Riverpod provider so it can be accessed in both:
+/// - The router (for AppStateListenable)
+/// - The widget tree (via BlocProvider.value)
+
+@ProviderFor(npubVerificationBloc)
+const npubVerificationBlocProvider = NpubVerificationBlocProvider._();
+
+/// Provider for NpubVerificationBloc instance.
+///
+/// This is created as a Riverpod provider so it can be accessed in both:
+/// - The router (for AppStateListenable)
+/// - The widget tree (via BlocProvider.value)
+
+final class NpubVerificationBlocProvider
+    extends
+        $FunctionalProvider<
+          NpubVerificationBloc,
+          NpubVerificationBloc,
+          NpubVerificationBloc
+        >
+    with $Provider<NpubVerificationBloc> {
+  /// Provider for NpubVerificationBloc instance.
+  ///
+  /// This is created as a Riverpod provider so it can be accessed in both:
+  /// - The router (for AppStateListenable)
+  /// - The widget tree (via BlocProvider.value)
+  const NpubVerificationBlocProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'npubVerificationBlocProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$npubVerificationBlocHash();
+
+  @$internal
+  @override
+  $ProviderElement<NpubVerificationBloc> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  NpubVerificationBloc create(Ref ref) {
+    return npubVerificationBloc(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(NpubVerificationBloc value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<NpubVerificationBloc>(value),
+    );
+  }
+}
+
+String _$npubVerificationBlocHash() =>
+    r'e6322a67d2def3d32c13b002e5a47ccd0e858f29';
+
 /// Provider for NpubVerificationRepository instance.
 ///
 /// Lightweight provider for npub verification storage - safe for router redirects.
@@ -260,91 +325,3 @@ final class NeedsNpubVerificationProvider
 
 String _$needsNpubVerificationHash() =>
     r'de4d5b81700282ff05625f6ec555ce8e7d49f4c0';
-
-/// In-memory flag tracking if user has requested to skip invite code entry.
-///
-/// When true, the router should allow access to /welcome and auth routes
-/// even without an invite code. This flag is set when user clicks "Sign In"
-/// on the invite code screen.
-///
-/// This is intentionally NOT persisted - if user restarts the app, they
-/// should see the invite screen again.
-
-@ProviderFor(SkipInviteRequested)
-const skipInviteRequestedProvider = SkipInviteRequestedProvider._();
-
-/// In-memory flag tracking if user has requested to skip invite code entry.
-///
-/// When true, the router should allow access to /welcome and auth routes
-/// even without an invite code. This flag is set when user clicks "Sign In"
-/// on the invite code screen.
-///
-/// This is intentionally NOT persisted - if user restarts the app, they
-/// should see the invite screen again.
-final class SkipInviteRequestedProvider
-    extends $NotifierProvider<SkipInviteRequested, bool> {
-  /// In-memory flag tracking if user has requested to skip invite code entry.
-  ///
-  /// When true, the router should allow access to /welcome and auth routes
-  /// even without an invite code. This flag is set when user clicks "Sign In"
-  /// on the invite code screen.
-  ///
-  /// This is intentionally NOT persisted - if user restarts the app, they
-  /// should see the invite screen again.
-  const SkipInviteRequestedProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'skipInviteRequestedProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$skipInviteRequestedHash();
-
-  @$internal
-  @override
-  SkipInviteRequested create() => SkipInviteRequested();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(bool value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<bool>(value),
-    );
-  }
-}
-
-String _$skipInviteRequestedHash() =>
-    r'1ccc4507e86ce6f1d249095329d163c378cd04f4';
-
-/// In-memory flag tracking if user has requested to skip invite code entry.
-///
-/// When true, the router should allow access to /welcome and auth routes
-/// even without an invite code. This flag is set when user clicks "Sign In"
-/// on the invite code screen.
-///
-/// This is intentionally NOT persisted - if user restarts the app, they
-/// should see the invite screen again.
-
-abstract class _$SkipInviteRequested extends $Notifier<bool> {
-  bool build();
-  @$mustCallSuper
-  @override
-  void runBuild() {
-    final created = build();
-    final ref = this.ref as $Ref<bool, bool>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<bool, bool>,
-              bool,
-              Object?,
-              Object?
-            >;
-    element.handleValue(ref, created);
-  }
-}

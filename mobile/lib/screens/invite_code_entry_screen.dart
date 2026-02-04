@@ -4,21 +4,20 @@
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/providers/invite_code_provider.dart';
+import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
 import 'package:openvine/screens/welcome_screen.dart';
-import 'package:openvine/services/invite_code_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Screen for entering invite codes to access the app.
 ///
 /// Supports:
 /// - Manual 8-character alphanumeric code entry
-/// - Auto-fill from deep links (via [pendingInviteCodeProvider])
+/// - Auto-fill from deep links (via [InviteCodeBloc])
 /// - Uppercase formatting
 /// - Error display with retry
-class InviteCodeEntryScreen extends ConsumerStatefulWidget {
+class InviteCodeEntryScreen extends StatefulWidget {
   /// Route name for this screen.
   static const routeName = 'enter-code';
 
@@ -28,11 +27,10 @@ class InviteCodeEntryScreen extends ConsumerStatefulWidget {
   const InviteCodeEntryScreen({super.key});
 
   @override
-  ConsumerState<InviteCodeEntryScreen> createState() =>
-      _InviteCodeEntryScreenState();
+  State<InviteCodeEntryScreen> createState() => _InviteCodeEntryScreenState();
 }
 
-class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
+class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
   final _codeController = TextEditingController();
   final _focusNode = FocusNode();
   bool _isSubmitting = false;
@@ -56,7 +54,8 @@ class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
 
   /// Check if there's a pending invite code from a deep link.
   void _checkPendingCode() {
-    final pendingCode = ref.read(pendingInviteCodeProvider);
+    final bloc = context.read<InviteCodeBloc>();
+    final pendingCode = bloc.state.pendingDeepLinkCode;
     if (pendingCode != null && pendingCode.isNotEmpty) {
       Log.info(
         'Found pending invite code from deep link: $pendingCode',
@@ -64,7 +63,7 @@ class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
         category: LogCategory.auth,
       );
       _codeController.text = pendingCode;
-      ref.read(pendingInviteCodeProvider.notifier).clear();
+      bloc.add(const InviteCodePendingCleared());
       // Auto-submit if we have a pending code
       _submitCode();
     }
@@ -85,7 +84,7 @@ class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
   }
 
   /// Submit the invite code for verification.
-  Future<void> _submitCode() async {
+  void _submitCode() {
     final code = _codeController.text.trim().toUpperCase();
     final validationError = _validateCode(code);
 
@@ -94,64 +93,56 @@ class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
       return;
     }
 
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
+    setState(() => _errorMessage = null);
 
-    try {
-      final result =
-          await ref.read(inviteCodeClaimProvider.notifier).claimCode(code);
+    // Dispatch claim event - BlocListener handles the result
+    context.read<InviteCodeBloc>().add(InviteCodeClaimRequested(code));
+  }
 
-      if (!mounted) return;
+  /// Handle BLoC state changes for invite code claiming.
+  void _onInviteCodeStateChanged(
+    BuildContext context,
+    InviteCodeState state,
+  ) {
+    // Update loading state
+    if (state.isLoading != _isSubmitting) {
+      setState(() => _isSubmitting = state.isLoading);
+    }
 
-      if (result.valid) {
-        // Success! Navigate to welcome screen for TOS
-        Log.info(
-          'Invite code accepted, navigating to welcome',
-          name: 'InviteCodeEntryScreen',
-          category: LogCategory.auth,
-        );
-        context.go(WelcomeScreen.path);
-      } else {
-        setState(() {
-          _errorMessage = result.message ?? 'Invalid invite code';
-        });
-      }
-    } on InviteCodeException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.message;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'An unexpected error occurred. Please try again.';
-      });
-      Log.error(
-        'Unexpected error claiming invite code: $e',
+    // Handle success
+    if (state.status == InviteCodeStatus.success) {
+      Log.info(
+        'Invite code accepted, navigating to welcome',
         name: 'InviteCodeEntryScreen',
         category: LogCategory.auth,
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      context.go(WelcomeScreen.path);
+      return;
+    }
+
+    // Handle failure
+    if (state.status == InviteCodeStatus.failure) {
+      final errorMsg = state.error ??
+          state.result?.message ??
+          'Invalid invite code';
+      setState(() => _errorMessage = errorMsg);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: VineTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
+    return BlocListener<InviteCodeBloc, InviteCodeState>(
+      listener: _onInviteCodeStateChanged,
+      child: Scaffold(
+        backgroundColor: VineTheme.backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.pop(),
+          ),
         ),
-      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -300,6 +291,7 @@ class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -3,10 +3,11 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/npub_verification_provider.dart';
 import 'package:openvine/screens/waitlist_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -15,7 +16,7 @@ import 'package:openvine/utils/unified_logger.dart';
 ///
 /// This screen:
 /// - Shows a loading indicator while verifying the npub
-/// - On success: invalidates providers to trigger router redirect
+/// - On success: BLoC state triggers router redirect via AppStateListenable
 /// - On failure: signs out and navigates to WaitlistScreen
 class NpubVerificationScreen extends ConsumerStatefulWidget {
   const NpubVerificationScreen({super.key});
@@ -33,7 +34,6 @@ class NpubVerificationScreen extends ConsumerStatefulWidget {
 
 class _NpubVerificationScreenState
     extends ConsumerState<NpubVerificationScreen> {
-  bool _isVerifying = true;
   String? _errorMessage;
 
   @override
@@ -45,7 +45,7 @@ class _NpubVerificationScreenState
     });
   }
 
-  Future<void> _verifyNpub() async {
+  void _verifyNpub() {
     final authService = ref.read(authServiceProvider);
     final npub = authService.currentNpub;
 
@@ -59,43 +59,30 @@ class _NpubVerificationScreenState
       return;
     }
 
-    final verificationService = ref.read(npubVerificationServiceProvider);
+    // Dispatch verification request - BlocListener handles the result
+    context.read<NpubVerificationBloc>().add(NpubVerificationRequested(npub));
+  }
 
-    try {
-      final result = await verificationService.verifyNpub(npub);
-
-      if (!mounted) return;
-
-      if (result.valid) {
-        Log.info(
-          'Npub verification successful, router will redirect',
-          name: 'NpubVerificationScreen',
-          category: LogCategory.auth,
-        );
-        // Clear skip invite flag now that verification succeeded
-        ref.read(skipInviteRequestedProvider.notifier).clear();
-        // Invalidate providers to trigger redirect re-evaluation
-        ref.invalidate(isNpubVerifiedProvider);
-        ref.invalidate(needsNpubVerificationProvider);
-        // Router redirect will handle navigation to home/TOS
-        return;
-      }
-
-      // Verification failed
-      await _handleVerificationFailure(result.message);
-    } catch (e) {
-      if (!mounted) return;
-
-      Log.error(
-        'Npub verification error: $e',
+  /// Handle BLoC state changes for npub verification.
+  void _onVerificationStateChanged(
+    BuildContext context,
+    NpubVerificationState state,
+  ) {
+    // Handle success - router will redirect via AppStateListenable
+    if (state.isVerified) {
+      Log.info(
+        'Npub verification successful, router will redirect',
         name: 'NpubVerificationScreen',
         category: LogCategory.auth,
       );
+      // AppStateListenable is listening to the BLoC and will notify
+      // the router to re-evaluate redirects
+      return;
+    }
 
-      setState(() {
-        _isVerifying = false;
-        _errorMessage = e.toString();
-      });
+    // Handle failure
+    if (state.isFailed) {
+      _handleVerificationFailure(state.error);
     }
   }
 
@@ -112,7 +99,11 @@ class _NpubVerificationScreenState
     await authService.signOut(deleteKeys: true);
 
     // Clear skip invite flag so user goes back to invite screen flow
-    ref.read(skipInviteRequestedProvider.notifier).clear();
+    if (mounted) {
+      context
+          .read<NpubVerificationBloc>()
+          .add(const NpubVerificationSkipInviteCleared());
+    }
 
     if (!mounted) return;
 
@@ -126,86 +117,95 @@ class _NpubVerificationScreenState
     );
   }
 
-  Future<void> _retry() async {
-    setState(() {
-      _isVerifying = true;
-      _errorMessage = null;
-    });
-    await _verifyNpub();
+  void _retry() {
+    setState(() => _errorMessage = null);
+    _verifyNpub();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: VineTheme.backgroundColor,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo
-                Image.asset(
-                  'assets/icon/divine_icon_transparent.png',
-                  height: 100,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 32),
+    return BlocListener<NpubVerificationBloc, NpubVerificationState>(
+      listener: _onVerificationStateChanged,
+      child: BlocBuilder<NpubVerificationBloc, NpubVerificationState>(
+        builder: (context, state) {
+          final isVerifying = state.isVerifying;
+          final errorMessage = _errorMessage ?? state.error;
+          final showError = state.isFailed || _errorMessage != null;
 
-                if (_isVerifying) ...[
-                  const CircularProgressIndicator(
-                    color: VineTheme.vineGreen,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Verifying your account...',
-                    style: VineTheme.headlineSmallFont(),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Please wait while we verify your identity',
-                    style: VineTheme.bodyMediumFont(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ] else if (_errorMessage != null) ...[
-                  Icon(
-                    Icons.error_outline,
-                    color: VineTheme.error,
-                    size: 48,
-                  ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Verification Failed',
-                    style: VineTheme.headlineSmallFont(),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _errorMessage!,
-                    style: VineTheme.bodyMediumFont(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _retry,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: VineTheme.vineGreen,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
+          return Scaffold(
+            backgroundColor: VineTheme.backgroundColor,
+            body: SafeArea(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Logo
+                      Image.asset(
+                        'assets/icon/divine_icon_transparent.png',
+                        height: 100,
+                        fit: BoxFit.contain,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text('Try Again', style: VineTheme.labelLargeFont()),
+                      const SizedBox(height: 32),
+
+                      if (isVerifying) ...[
+                        const CircularProgressIndicator(
+                          color: VineTheme.vineGreen,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Verifying your account...',
+                          style: VineTheme.headlineSmallFont(),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Please wait while we verify your identity',
+                          style: VineTheme.bodyMediumFont(color: Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                      ] else if (showError) ...[
+                        Icon(
+                          Icons.error_outline,
+                          color: VineTheme.error,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Verification Failed',
+                          style: VineTheme.headlineSmallFont(),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          errorMessage ?? 'An error occurred',
+                          style: VineTheme.bodyMediumFont(color: Colors.grey),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: _retry,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: VineTheme.vineGreen,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child:
+                              Text('Try Again', style: VineTheme.labelLargeFont()),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
