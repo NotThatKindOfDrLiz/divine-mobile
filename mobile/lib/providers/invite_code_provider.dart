@@ -112,7 +112,7 @@ class InviteCodeClaim extends _$InviteCodeClaim {
 /// Provider to store pending invite code from deep link.
 ///
 /// When a deep link like https://divine.video/invite/ABC123 is received,
-/// the code is stored here so the InviteCodeScreen can auto-fill it.
+/// the code is stored here so the InviteCodeEntryScreen can auto-fill it.
 @riverpod
 class PendingInviteCode extends _$PendingInviteCode {
   @override

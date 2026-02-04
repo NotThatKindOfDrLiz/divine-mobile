@@ -18,20 +18,21 @@ import 'package:openvine/utils/unified_logger.dart';
 /// - Auto-fill from deep links (via [pendingInviteCodeProvider])
 /// - Uppercase formatting
 /// - Error display with retry
-class InviteCodeScreen extends ConsumerStatefulWidget {
+class InviteCodeEntryScreen extends ConsumerStatefulWidget {
   /// Route name for this screen.
-  static const routeName = 'invite-code';
+  static const routeName = 'enter-code';
 
-  /// Path for this route.
-  static const path = '/invite-code';
+  /// Path for this route (nested under /invite).
+  static const path = '/invite/enter-code';
 
-  const InviteCodeScreen({super.key});
+  const InviteCodeEntryScreen({super.key});
 
   @override
-  ConsumerState<InviteCodeScreen> createState() => _InviteCodeScreenState();
+  ConsumerState<InviteCodeEntryScreen> createState() =>
+      _InviteCodeEntryScreenState();
 }
 
-class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
+class _InviteCodeEntryScreenState extends ConsumerState<InviteCodeEntryScreen> {
   final _codeController = TextEditingController();
   final _focusNode = FocusNode();
   bool _isSubmitting = false;
@@ -59,7 +60,7 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
     if (pendingCode != null && pendingCode.isNotEmpty) {
       Log.info(
         'Found pending invite code from deep link: $pendingCode',
-        name: 'InviteCodeScreen',
+        name: 'InviteCodeEntryScreen',
         category: LogCategory.auth,
       );
       _codeController.text = pendingCode;
@@ -99,9 +100,8 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
     });
 
     try {
-      final result = await ref
-          .read(inviteCodeClaimProvider.notifier)
-          .claimCode(code);
+      final result =
+          await ref.read(inviteCodeClaimProvider.notifier).claimCode(code);
 
       if (!mounted) return;
 
@@ -109,7 +109,7 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
         // Success! Navigate to welcome screen for TOS
         Log.info(
           'Invite code accepted, navigating to welcome',
-          name: 'InviteCodeScreen',
+          name: 'InviteCodeEntryScreen',
           category: LogCategory.auth,
         );
         context.go(WelcomeScreen.path);
@@ -130,7 +130,7 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
       });
       Log.error(
         'Unexpected error claiming invite code: $e',
-        name: 'InviteCodeScreen',
+        name: 'InviteCodeEntryScreen',
         category: LogCategory.auth,
       );
     } finally {
@@ -144,6 +144,14 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: VineTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => context.pop(),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -156,16 +164,10 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
                   // Divine logo
                   Image.asset(
                     'assets/icon/divine_icon_transparent.png',
-                    height: 120,
+                    height: 100,
                     fit: BoxFit.contain,
                   ),
-                  const SizedBox(height: 16),
-                  Image.asset(
-                    'assets/icon/divine_wordmark.png',
-                    width: 100,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 32),
 
                   // Title
                   Text(
@@ -175,7 +177,6 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Divine is currently invite-only.\n'
                     'Enter your 8-character invite code to continue.',
                     style: VineTheme.bodyMediumFont(color: Colors.grey),
                     textAlign: TextAlign.center,
@@ -292,15 +293,6 @@ class _InviteCodeScreenState extends ConsumerState<InviteCodeScreen> {
                             )
                           : Text('Continue', style: VineTheme.labelLargeFont()),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Help text
-                  Text(
-                    "Don't have an invite code?\n"
-                    'Ask a friend or wait for public access.',
-                    style: VineTheme.bodySmallFont(color: Colors.grey),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

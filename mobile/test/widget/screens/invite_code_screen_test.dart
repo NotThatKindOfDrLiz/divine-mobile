@@ -88,6 +88,20 @@ void main() {
           findsOneWidget,
         );
       });
+
+      testWidgets('displays Sign In link for existing users', (tester) async {
+        await tester.pumpWidget(createTestWidget());
+
+        // Check for TextButton containing Sign In link
+        // RichText splits text into spans, so we find the RichText widget
+        final richTextFinder = find.byWidgetPredicate(
+          (widget) =>
+              widget is RichText &&
+              widget.text.toPlainText().contains('Have an account?') &&
+              widget.text.toPlainText().contains('Sign In'),
+        );
+        expect(richTextFinder, findsOneWidget);
+      });
     });
 
     group('input validation', () {

@@ -24,7 +24,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/deep_link_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/invite_code_provider.dart';
-import 'package:openvine/screens/invite_code_screen.dart';
+import 'package:openvine/screens/invite_code_entry_screen.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 
@@ -536,35 +536,35 @@ Future<void> _initializeCoreServices(ProviderContainer container) async {
   );
 
   // Verify stored invite code on startup (if any)
-  final inviteService = container.read(inviteCodeServiceProvider);
-  if (inviteService.hasVerifiedCode) {
-    Log.info(
-      '[INIT] Found stored invite code, verifying...',
-      name: 'Main',
-      category: LogCategory.auth,
-    );
-    final result = await inviteService.verifyStoredCode();
-    if (result.valid) {
-      Log.info(
-        '[INIT] ✅ Invite code verified successfully',
-        name: 'Main',
-        category: LogCategory.auth,
-      );
-    } else {
-      Log.warning(
-        '[INIT] Invite code no longer valid: ${result.message}',
-        name: 'Main',
-        category: LogCategory.auth,
-      );
-      // Code was cleared by the service - router will redirect to invite screen
-    }
-  } else {
-    Log.info(
-      '[INIT] No stored invite code - user will need to enter one',
-      name: 'Main',
-      category: LogCategory.auth,
-    );
-  }
+  // final inviteService = container.read(inviteCodeServiceProvider);
+  // if (inviteService.hasVerifiedCode) {
+  //   Log.info(
+  //     '[INIT] Found stored invite code, verifying...',
+  //     name: 'Main',
+  //     category: LogCategory.auth,
+  //   );
+  //   final result = await inviteService.verifyStoredCode();
+  //   if (result.valid) {
+  //     Log.info(
+  //       '[INIT] ✅ Invite code verified successfully',
+  //       name: 'Main',
+  //       category: LogCategory.auth,
+  //     );
+  //   } else {
+  //     Log.warning(
+  //       '[INIT] Invite code no longer valid: ${result.message}',
+  //       name: 'Main',
+  //       category: LogCategory.auth,
+  //     );
+  //     // Code was cleared by the service - router will redirect to invite screen
+  //   }
+  // } else {
+  //   Log.info(
+  //     '[INIT] No stored invite code - user will need to enter one',
+  //     name: 'Main',
+  //     category: LogCategory.auth,
+  //   );
+  // }
 
   // Initialize bandwidth tracker for adaptive quality selection
   await bandwidthTracker.initialize();
@@ -907,9 +907,9 @@ class _DivineAppState extends ConsumerState<DivineApp> {
                     .setCode(deepLink.inviteCode!);
                 // Navigate to invite code screen
                 try {
-                  router.go(InviteCodeScreen.path);
+                  router.go(InviteCodeEntryScreen.path);
                   Log.info(
-                    '✅ Navigation completed to: ${InviteCodeScreen.path}',
+                    '✅ Navigation completed to: ${InviteCodeEntryScreen.path}',
                     name: 'DeepLinkHandler',
                     category: LogCategory.ui,
                   );

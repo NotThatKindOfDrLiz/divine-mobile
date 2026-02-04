@@ -1,6 +1,8 @@
 // ABOUTME: Riverpod providers for route redirect guards
 // ABOUTME: Checks following cache for redirect logic
 
+export 'package:openvine/providers/npub_verification_provider.dart';
+
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
