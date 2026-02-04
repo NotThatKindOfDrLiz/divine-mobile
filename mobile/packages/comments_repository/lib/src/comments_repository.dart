@@ -3,6 +3,8 @@
 // ABOUTME: Uses NostrClient for relay operations and organizes comments
 // chronologically.
 
+import 'dart:developer' as developer;
+
 import 'package:comments_repository/src/exceptions.dart';
 import 'package:comments_repository/src/models/models.dart';
 import 'package:nostr_client/nostr_client.dart';
@@ -48,11 +50,9 @@ class CommentsRepository {
   /// Parameters:
   /// - [rootEventId]: The ID of the event to load comments for
   /// - [rootEventKind]: The kind of the root event (e.g., 34236 for videos)
-  /// - [rootAddressableId]: Optional addressable identifier for the root event
-  ///   (format: `kind:pubkey:d-tag`). When provided, queries by both E and A
-  ///   tags to find comments that reference the event by either identifier.
-  ///   This is important for Kind 34236 addressable events where some clients
-  ///   may use E tags and others may use A tags.
+  /// - [rootAddressableId]: Deprecated - no longer used. Comments are now
+  ///   queried only by E-tag (event ID) to ensure per-video accuracy.
+  ///   See #1247 for details on the A-tag collision bug this fixes.
   /// - [limit]: Maximum number of comments to fetch (default: 100)
   /// - [before]: Cursor for pagination - fetch comments created
   ///   before this time.
@@ -68,6 +68,7 @@ class CommentsRepository {
   Future<CommentThread> loadComments({
     required String rootEventId,
     required int rootEventKind,
+    @Deprecated('No longer used - comments are queried by E-tag only (#1247)')
     String? rootAddressableId,
     int limit = _defaultLimit,
     DateTime? before,
@@ -78,47 +79,25 @@ class CommentsRepository {
           : null;
 
       // NIP-22: Filter by Kind 1111 and uppercase E tag for root scope
-      final filterByE = Filter(
+      // FIX #1247: Only query by E-tag (event ID), not A-tag (addressable ID).
+      // The A-tag query was causing duplicate comments across videos because
+      // multiple videos can share the same addressable ID if they have the same
+      // d-tag. The E-tag (event ID) is always unique per video.
+      final filter = Filter(
         kinds: const [_commentKind],
         uppercaseE: [rootEventId],
         limit: limit,
         until: untilTimestamp,
       );
 
-      // If we have an addressable ID, also query by uppercase A tag
-      // Some clients may reference addressable events using A instead of E
-      if (rootAddressableId != null && rootAddressableId.isNotEmpty) {
-        final filterByA = Filter(
-          kinds: const [_commentKind],
-          uppercaseA: [rootAddressableId],
-          limit: limit,
-          until: untilTimestamp,
-        );
+      final events = await _nostrClient.queryEvents([filter]);
 
-        // Run both queries in parallel and merge results
-        final results = await Future.wait([
-          _nostrClient.queryEvents([filterByE]),
-          _nostrClient.queryEvents([filterByA]),
-        ]);
+      developer.log(
+        '💬 CommentsRepository.loadComments: '
+        'rootEventId=$rootEventId returned ${events.length} comments',
+        name: 'CommentsRepository',
+      );
 
-        // Merge and deduplicate by event ID
-        final eventMap = <String, Event>{};
-        for (final event in results[0]) {
-          eventMap[event.id] = event;
-        }
-        for (final event in results[1]) {
-          eventMap[event.id] = event;
-        }
-
-        return _buildThreadFromEvents(
-          eventMap.values.toList(),
-          rootEventId,
-          rootEventKind,
-        );
-      }
-
-      // No addressable ID - just query by E tag
-      final events = await _nostrClient.queryEvents([filterByE]);
       return _buildThreadFromEvents(events, rootEventId, rootEventKind);
     } on Exception catch (e) {
       throw LoadCommentsFailedException('Failed to load comments: $e');
@@ -227,48 +206,20 @@ class CommentsRepository {
   ///
   /// Parameters:
   /// - [rootEventId]: The ID of the event to count comments for
-  /// - [rootAddressableId]: Optional addressable identifier for the root event
-  ///   (format: `kind:pubkey:d-tag`). When provided, counts comments from both
-  ///   E and A tag queries to get an accurate total.
   ///
   /// Returns the number of comments on the event.
   ///
   /// Throws [CountCommentsFailedException] if counting fails.
-  Future<int> getCommentsCount(
-    String rootEventId, {
-    String? rootAddressableId,
-  }) async {
+  Future<int> getCommentsCount(String rootEventId) async {
     try {
       // NIP-22: Filter by Kind 1111 and uppercase E tag
-      final filterByE = Filter(
+      // FIX #1247: Only query by E-tag (event ID) for accurate per-video count.
+      final filter = Filter(
         kinds: const [_commentKind],
         uppercaseE: [rootEventId],
       );
 
-      // If we have an addressable ID, also query by uppercase A tag
-      if (rootAddressableId != null && rootAddressableId.isNotEmpty) {
-        final filterByA = Filter(
-          kinds: const [_commentKind],
-          uppercaseA: [rootAddressableId],
-        );
-
-        // Run both COUNT queries in parallel
-        // Note: This may over-count if a comment has both E and A tags,
-        // but that's rare and the count is still useful for UI purposes.
-        // For exact count, use loadComments which deduplicates.
-        final results = await Future.wait([
-          _nostrClient.countEvents([filterByE]),
-          _nostrClient.countEvents([filterByA]),
-        ]);
-
-        // Return the maximum of the two counts
-        // (since comments should have at least one of these tags)
-        final countByE = results[0].count;
-        final countByA = results[1].count;
-        return countByE > countByA ? countByE : countByA;
-      }
-
-      final result = await _nostrClient.countEvents([filterByE]);
+      final result = await _nostrClient.countEvents([filter]);
       return result.count;
     } on Exception catch (e) {
       throw CountCommentsFailedException('Failed to count comments: $e');

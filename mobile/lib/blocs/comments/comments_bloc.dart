@@ -68,7 +68,6 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
       final thread = await _commentsRepository.loadComments(
         rootEventId: state.rootEventId,
         rootEventKind: state.rootEventKind,
-        rootAddressableId: state.rootAddressableId,
         limit: _pageSize,
       );
 
@@ -134,7 +133,6 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
       final thread = await _commentsRepository.loadComments(
         rootEventId: state.rootEventId,
         rootEventKind: state.rootEventKind,
-        rootAddressableId: state.rootAddressableId,
         limit: _pageSize,
         before: cursor,
       );

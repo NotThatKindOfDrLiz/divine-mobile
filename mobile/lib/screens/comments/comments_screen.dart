@@ -6,13 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:models/models.dart' hide NIP71VideoKinds;
+import 'package:models/models.dart' hide NIP71VideoKinds, LogCategory;
 import 'package:openvine/blocs/comments/comments_bloc.dart';
 import 'package:openvine/constants/nip71_migration.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/screens/comments/widgets/widgets.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
+import 'package:openvine/utils/unified_logger.dart';
 
 /// Maps [CommentsError] to user-facing strings.
 /// TODO(l10n): Replace with context.l10n when localization is added.
@@ -120,7 +121,25 @@ class CommentsScreen extends ConsumerWidget {
     // This helps determine hasMoreContent more accurately than page size heuristic
     final initialCount = videoEvent.originalComments;
 
+    // Diagnostic logging to help debug duplicate comments issue (#1247)
+    // This logs the video identifiers being used to fetch comments
+    Log.info(
+      '💬 CommentsScreen opening for video:\n'
+      '  eventId: ${videoEvent.id}\n'
+      '  addressableId: ${videoEvent.addressableId}\n'
+      '  vineId: ${videoEvent.vineId}\n'
+      '  authorPubkey: ${videoEvent.pubkey}\n'
+      '  originalComments: $initialCount',
+      name: 'CommentsScreen',
+      category: LogCategory.ui,
+    );
+
+    // FIX #1247: Add ValueKey to ensure Flutter creates a fresh BlocProvider
+    // for each unique video. Without this key, rapid navigation between videos
+    // on a profile could cause Flutter to reuse the BlocProvider widget,
+    // leading to state leakage where comments from one video appear on another.
     return BlocProvider<CommentsBloc>(
+      key: ValueKey('comments-bloc-${videoEvent.id}'),
       create: (_) => CommentsBloc(
         commentsRepository: commentsRepository,
         authService: authService,

@@ -160,10 +160,7 @@ void main() {
             ),
           ).thenAnswer((_) async => 10);
           when(
-            () => mockCommentsRepository.getCommentsCount(
-              testEventId,
-              rootAddressableId: testAddressableId,
-            ),
+            () => mockCommentsRepository.getCommentsCount(testEventId),
           ).thenAnswer((_) async => 5);
           when(
             () => mockRepostsRepository.getRepostCount(testAddressableId),

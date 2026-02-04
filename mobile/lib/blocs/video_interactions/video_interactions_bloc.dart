@@ -125,10 +125,8 @@ class VideoInteractionsBloc
       // on relays that index by a-tag
       final results = await Future.wait([
         _likesRepository.getLikeCount(_eventId, addressableId: _addressableId),
-        _commentsRepository.getCommentsCount(
-          _eventId,
-          rootAddressableId: _addressableId,
-        ),
+        // FIX #1247: Comment count now uses only event ID to avoid A-tag collision
+        _commentsRepository.getCommentsCount(_eventId),
         repostCountFuture,
       ]);
 
