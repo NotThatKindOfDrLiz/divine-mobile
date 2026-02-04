@@ -7,10 +7,7 @@
 /// is associated with a valid invite code claim.
 class NpubVerificationResult {
   /// Creates a new [NpubVerificationResult].
-  const NpubVerificationResult({
-    required this.valid,
-    this.message,
-  });
+  const NpubVerificationResult({required this.valid, this.message});
 
   /// Creates a [NpubVerificationResult] from JSON response.
   factory NpubVerificationResult.fromJson(Map<String, dynamic> json) {
@@ -28,10 +25,7 @@ class NpubVerificationResult {
 
   /// Converts this result to a JSON map.
   Map<String, dynamic> toJson() {
-    return {
-      'valid': valid,
-      if (message != null) 'message': message,
-    };
+    return {'valid': valid, if (message != null) 'message': message};
   }
 
   @override

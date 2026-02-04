@@ -58,10 +58,12 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           inviteCodeRepositoryProvider.overrideWithValue(inviteCodeRepository),
           inviteCodeServiceProvider.overrideWithValue(inviteCodeService),
-          npubVerificationRepositoryProvider
-              .overrideWithValue(npubVerificationRepository),
-          npubVerificationServiceProvider
-              .overrideWithValue(npubVerificationService),
+          npubVerificationRepositoryProvider.overrideWithValue(
+            npubVerificationRepository,
+          ),
+          npubVerificationServiceProvider.overrideWithValue(
+            npubVerificationService,
+          ),
         ],
       );
     }
@@ -153,10 +155,7 @@ void main() {
           expect(body['npub'], equals('npub1test'));
           expect(body['deviceId'], isNotEmpty);
 
-          return http.Response(
-            jsonEncode({'valid': true}),
-            200,
-          );
+          return http.Response(jsonEncode({'valid': true}), 200);
         });
 
         SharedPreferences.setMockInitialValues({});
@@ -173,10 +172,7 @@ void main() {
 
       test('service stores verification on success', () async {
         final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({'valid': true}),
-            200,
-          );
+          return http.Response(jsonEncode({'valid': true}), 200);
         });
 
         SharedPreferences.setMockInitialValues({});

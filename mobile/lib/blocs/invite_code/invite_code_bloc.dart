@@ -20,9 +20,9 @@ class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
   InviteCodeBloc({
     required InviteCodeService inviteCodeService,
     required InviteCodeRepository repository,
-  })  : _service = inviteCodeService,
-        _repository = repository,
-        super(InviteCodeState(hasStoredCode: repository.hasStoredCode)) {
+  }) : _service = inviteCodeService,
+       _repository = repository,
+       super(InviteCodeState(hasStoredCode: repository.hasStoredCode)) {
     on<InviteCodeClaimRequested>(_onClaimRequested);
     on<InviteCodeReset>(_onReset);
   }
@@ -50,22 +50,26 @@ class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
           name: 'InviteCodeBloc',
           category: LogCategory.auth,
         );
-        emit(state.copyWith(
-          status: InviteCodeStatus.success,
-          hasStoredCode: true,
-          result: result,
-        ));
+        emit(
+          state.copyWith(
+            status: InviteCodeStatus.success,
+            hasStoredCode: true,
+            result: result,
+          ),
+        );
       } else {
         Log.warning(
           'Invite code claim rejected: ${result.message}',
           name: 'InviteCodeBloc',
           category: LogCategory.auth,
         );
-        emit(state.copyWith(
-          status: InviteCodeStatus.failure,
-          result: result,
-          error: result.message,
-        ));
+        emit(
+          state.copyWith(
+            status: InviteCodeStatus.failure,
+            result: result,
+            error: result.message,
+          ),
+        );
       }
     } on InviteCodeException catch (e) {
       Log.error(
@@ -73,27 +77,23 @@ class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
         name: 'InviteCodeBloc',
         category: LogCategory.auth,
       );
-      emit(state.copyWith(
-        status: InviteCodeStatus.failure,
-        error: e.message,
-      ));
+      emit(state.copyWith(status: InviteCodeStatus.failure, error: e.message));
     } catch (e) {
       Log.error(
         'Failed to claim invite code: $e',
         name: 'InviteCodeBloc',
         category: LogCategory.auth,
       );
-      emit(state.copyWith(
-        status: InviteCodeStatus.failure,
-        error: 'An unexpected error occurred. Please try again.',
-      ));
+      emit(
+        state.copyWith(
+          status: InviteCodeStatus.failure,
+          error: 'An unexpected error occurred. Please try again.',
+        ),
+      );
     }
   }
 
-  void _onReset(
-    InviteCodeReset event,
-    Emitter<InviteCodeState> emit,
-  ) {
+  void _onReset(InviteCodeReset event, Emitter<InviteCodeState> emit) {
     emit(InviteCodeState(hasStoredCode: _repository.hasStoredCode));
   }
 }

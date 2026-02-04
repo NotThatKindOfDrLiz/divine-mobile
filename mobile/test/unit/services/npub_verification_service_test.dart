@@ -29,10 +29,7 @@ void main() {
       test('sends correct request to verify endpoint', () async {
         final mockClient = MockClient((request) async {
           capturedRequests.add(request);
-          return http.Response(
-            jsonEncode({'valid': true}),
-            200,
-          );
+          return http.Response(jsonEncode({'valid': true}), 200);
         });
 
         final service = NpubVerificationService(
@@ -78,10 +75,7 @@ void main() {
 
       test('stores verification in repository on success', () async {
         final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({'valid': true}),
-            200,
-          );
+          return http.Response(jsonEncode({'valid': true}), 200);
         });
 
         final service = NpubVerificationService(
@@ -179,10 +173,7 @@ void main() {
     group('clearVerification', () {
       test('removes verification status from repository', () async {
         final mockClient = MockClient((request) async {
-          return http.Response(
-            jsonEncode({'valid': true}),
-            200,
-          );
+          return http.Response(jsonEncode({'valid': true}), 200);
         });
 
         final service = NpubVerificationService(
@@ -240,10 +231,7 @@ void main() {
 
         final mockClient = MockClient((request) async {
           capturedRequests.add(request);
-          return http.Response(
-            jsonEncode({'valid': true}),
-            200,
-          );
+          return http.Response(jsonEncode({'valid': true}), 200);
         });
 
         final service = NpubVerificationService(

@@ -100,9 +100,9 @@ class _NpubVerificationScreenState
 
     // Clear skip invite flag so user goes back to invite screen flow
     if (mounted) {
-      context
-          .read<NpubVerificationBloc>()
-          .add(const NpubVerificationSkipInviteCleared());
+      context.read<NpubVerificationBloc>().add(
+        const NpubVerificationSkipInviteCleared(),
+      );
     }
 
     if (!mounted) return;
@@ -111,7 +111,8 @@ class _NpubVerificationScreenState
     context.go(
       WaitlistScreen.path,
       extra: WaitlistScreenArgs(
-        message: message ??
+        message:
+            message ??
             'Your account is not yet verified. Please enter an invite code.',
       ),
     );
@@ -195,8 +196,10 @@ class _NpubVerificationScreenState
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child:
-                              Text('Try Again', style: VineTheme.labelLargeFont()),
+                          child: Text(
+                            'Try Again',
+                            style: VineTheme.labelLargeFont(),
+                          ),
                         ),
                       ],
                     ],

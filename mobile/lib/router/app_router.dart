@@ -141,7 +141,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         final isVerificationRoute = location == NpubVerificationScreen.path;
         final isWaitlistRoute = location == WaitlistScreen.path;
         // Also skip for invite-related routes (including /invite/enter-code)
-        final isInviteRelatedRoute = location.startsWith(InviteChoiceScreen.path);
+        final isInviteRelatedRoute = location.startsWith(
+          InviteChoiceScreen.path,
+        );
 
         if (!isVerificationRoute && !isWaitlistRoute && !isInviteRelatedRoute) {
           final authService = ref.read(authServiceProvider);

@@ -24,9 +24,9 @@ class NpubVerificationBloc
   NpubVerificationBloc({
     required NpubVerificationService verificationService,
     required NpubVerificationRepository repository,
-  })  : _service = verificationService,
-        _repository = repository,
-        super(const NpubVerificationState()) {
+  }) : _service = verificationService,
+       _repository = repository,
+       super(const NpubVerificationState()) {
     on<NpubVerificationRequested>(_onVerificationRequested);
     on<NpubVerificationSkipInviteSet>(_onSkipInviteSet);
     on<NpubVerificationSkipInviteCleared>(_onSkipInviteCleared);
@@ -54,10 +54,12 @@ class NpubVerificationBloc
     NpubVerificationRequested event,
     Emitter<NpubVerificationState> emit,
   ) async {
-    emit(state.copyWith(
-      status: NpubVerificationStatus.verifying,
-      clearError: true,
-    ));
+    emit(
+      state.copyWith(
+        status: NpubVerificationStatus.verifying,
+        clearError: true,
+      ),
+    );
 
     try {
       final result = await _service.verifyNpub(event.npub);
@@ -68,20 +70,24 @@ class NpubVerificationBloc
           name: 'NpubVerificationBloc',
           category: LogCategory.auth,
         );
-        emit(state.copyWith(
-          status: NpubVerificationStatus.verified,
-          skipInviteRequested: false, // Clear on success
-        ));
+        emit(
+          state.copyWith(
+            status: NpubVerificationStatus.verified,
+            skipInviteRequested: false, // Clear on success
+          ),
+        );
       } else {
         Log.warning(
           'Npub verification rejected: ${result.message}',
           name: 'NpubVerificationBloc',
           category: LogCategory.auth,
         );
-        emit(state.copyWith(
-          status: NpubVerificationStatus.failed,
-          error: result.message,
-        ));
+        emit(
+          state.copyWith(
+            status: NpubVerificationStatus.failed,
+            error: result.message,
+          ),
+        );
       }
     } on NpubVerificationException catch (e) {
       Log.error(
@@ -89,20 +95,21 @@ class NpubVerificationBloc
         name: 'NpubVerificationBloc',
         category: LogCategory.auth,
       );
-      emit(state.copyWith(
-        status: NpubVerificationStatus.failed,
-        error: e.message,
-      ));
+      emit(
+        state.copyWith(status: NpubVerificationStatus.failed, error: e.message),
+      );
     } catch (e) {
       Log.error(
         'Npub verification failed: $e',
         name: 'NpubVerificationBloc',
         category: LogCategory.auth,
       );
-      emit(state.copyWith(
-        status: NpubVerificationStatus.failed,
-        error: 'Verification failed. Please try again.',
-      ));
+      emit(
+        state.copyWith(
+          status: NpubVerificationStatus.failed,
+          error: 'Verification failed. Please try again.',
+        ),
+      );
     }
   }
 

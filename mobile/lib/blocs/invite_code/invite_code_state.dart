@@ -65,10 +65,5 @@ final class InviteCodeState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [
-        status,
-        hasStoredCode,
-        result,
-        error,
-      ];
+  List<Object?> get props => [status, hasStoredCode, result, error];
 }

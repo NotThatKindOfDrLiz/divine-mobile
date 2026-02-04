@@ -33,15 +33,11 @@ void main() {
       mockBloc.close();
     });
 
-    Widget createTestWidget({
-      InviteCodeBloc? bloc,
-    }) {
+    Widget createTestWidget({InviteCodeBloc? bloc}) {
       final effectiveBloc = bloc ?? mockBloc;
 
       return ProviderScope(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(mockPrefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(mockPrefs)],
         child: MaterialApp(
           home: BlocProvider<InviteCodeBloc>.value(
             value: effectiveBloc,
@@ -126,8 +122,9 @@ void main() {
     });
 
     group('submission', () {
-      testWidgets('dispatches InviteCodeClaimRequested on valid submit',
-          (tester) async {
+      testWidgets('dispatches InviteCodeClaimRequested on valid submit', (
+        tester,
+      ) async {
         await tester.pumpWidget(createTestWidget());
 
         await tester.enterText(find.byType(TextField), 'ABCD1234');
@@ -153,6 +150,5 @@ void main() {
         ).called(1);
       });
     });
-
   });
 }

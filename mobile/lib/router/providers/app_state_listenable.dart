@@ -23,9 +23,9 @@ class AppStateListenable extends ChangeNotifier {
     required AuthService authService,
     required InviteCodeBloc inviteCodeBloc,
     required NpubVerificationBloc npubVerificationBloc,
-  })  : _authService = authService,
-        _inviteCodeBloc = inviteCodeBloc,
-        _npubVerificationBloc = npubVerificationBloc {
+  }) : _authService = authService,
+       _inviteCodeBloc = inviteCodeBloc,
+       _npubVerificationBloc = npubVerificationBloc {
     _lastAuthState = _authService.authState;
 
     _authSubscription = _authService.authStateStream.listen((newState) {
@@ -72,7 +72,8 @@ class AppStateListenable extends ChangeNotifier {
   bool get skipInviteRequested => _npubVerificationBloc.skipInviteRequested;
 
   /// Check if the given npub is verified.
-  bool isNpubVerified(String? npub) => _npubVerificationBloc.isNpubVerified(npub);
+  bool isNpubVerified(String? npub) =>
+      _npubVerificationBloc.isNpubVerified(npub);
 
   @override
   void dispose() {
