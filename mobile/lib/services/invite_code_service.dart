@@ -122,11 +122,16 @@ class InviteCodeService {
       category: LogCategory.auth,
     );
 
-    final deviceId = await getDeviceId();
-    final uri = Uri.parse('$_baseUrl/v1/consume-invite');
+    // final deviceId = await getDeviceId();
+    // final uri = Uri.parse('$_baseUrl/v1/consume-invite');
 
     try {
-      final response = http.Response('{"valid":true}', 200);
+      final response = (code.startsWith("GOOD"))
+          ? http.Response('{"valid":true}', 200)
+          : http.Response(
+              '{"valid": false,"message":"Try a code starting with GOOD"}',
+              200,
+            );
       // final response = await _client
       //     .post(
       //       uri,
