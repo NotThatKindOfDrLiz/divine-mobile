@@ -119,7 +119,6 @@
                 <data android:pathPrefix="/search"/>
                 <data android:pathPrefix="/reset-password"/>
                 <data android:pathPrefix="/verify-email"/>
-                <data android:pathPrefix="/invite"/>
             </intent-filter>
 
 

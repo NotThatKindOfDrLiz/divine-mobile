@@ -37,36 +37,10 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
   String? _errorMessage;
 
   @override
-  void initState() {
-    super.initState();
-    // Check for pending invite code from deep link after frame is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkPendingCode();
-    });
-  }
-
-  @override
   void dispose() {
     _codeController.dispose();
     _focusNode.dispose();
     super.dispose();
-  }
-
-  /// Check if there's a pending invite code from a deep link.
-  void _checkPendingCode() {
-    final bloc = context.read<InviteCodeBloc>();
-    final pendingCode = bloc.state.pendingDeepLinkCode;
-    if (pendingCode != null && pendingCode.isNotEmpty) {
-      Log.info(
-        'Found pending invite code from deep link: $pendingCode',
-        name: 'InviteCodeEntryScreen',
-        category: LogCategory.auth,
-      );
-      _codeController.text = pendingCode;
-      bloc.add(const InviteCodePendingCleared());
-      // Auto-submit if we have a pending code
-      _submitCode();
-    }
   }
 
   /// Validate the invite code format.

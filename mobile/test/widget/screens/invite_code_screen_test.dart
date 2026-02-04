@@ -1,5 +1,5 @@
 // ABOUTME: Widget tests for InviteCodeEntryScreen UI and functionality
-// ABOUTME: Tests form validation, submission states, and deep link auto-fill
+// ABOUTME: Tests form validation and submission states
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
@@ -35,16 +35,8 @@ void main() {
 
     Widget createTestWidget({
       InviteCodeBloc? bloc,
-      String? pendingCode,
     }) {
       final effectiveBloc = bloc ?? mockBloc;
-
-      // If pendingCode is provided, set up the bloc state with it
-      if (pendingCode != null) {
-        when(() => effectiveBloc.state).thenReturn(
-          InviteCodeState(pendingDeepLinkCode: pendingCode),
-        );
-      }
 
       return ProviderScope(
         overrides: [
@@ -162,21 +154,5 @@ void main() {
       });
     });
 
-    group('deep link auto-fill', () {
-      testWidgets('clears pending code from deep link', (tester) async {
-        when(() => mockBloc.state).thenReturn(
-          const InviteCodeState(pendingDeepLinkCode: 'DEEPLINK'),
-        );
-
-        await tester.pumpWidget(createTestWidget(pendingCode: 'DEEPLINK'));
-        await tester.pump();
-        await tester.pump(); // Extra pump for post-frame callback
-
-        // Check that pending code was cleared
-        verify(
-          () => mockBloc.add(const InviteCodePendingCleared()),
-        ).called(1);
-      });
-    });
   });
 }

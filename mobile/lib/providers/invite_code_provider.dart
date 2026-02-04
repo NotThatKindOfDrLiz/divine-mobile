@@ -76,7 +76,5 @@ Future<InviteCodeResult> inviteCodeVerification(Ref ref) async {
   return service.verifyStoredCode();
 }
 
-// NOTE: InviteCodeClaim and PendingInviteCode classes have been removed.
-// These are now handled by InviteCodeBloc with events:
-// - InviteCodeClaimRequested (for claiming codes)
-// - InviteCodePendingSet / InviteCodePendingCleared (for deep link codes)
+// NOTE: InviteCodeClaim class has been removed.
+// This is now handled by InviteCodeBloc with the InviteCodeClaimRequested event.

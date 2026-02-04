@@ -25,7 +25,6 @@ final class InviteCodeState extends Equatable {
     this.hasStoredCode = false,
     this.result,
     this.error,
-    this.pendingDeepLinkCode,
   });
 
   /// Current status of invite code operations.
@@ -39,9 +38,6 @@ final class InviteCodeState extends Equatable {
 
   /// Error message from the last failed operation.
   final String? error;
-
-  /// Pending invite code from a deep link (in-memory, not persisted).
-  final String? pendingDeepLinkCode;
 
   /// Whether an operation is in progress.
   bool get isLoading => status == InviteCodeStatus.loading;
@@ -58,8 +54,6 @@ final class InviteCodeState extends Equatable {
     bool? hasStoredCode,
     InviteCodeResult? result,
     String? error,
-    String? pendingDeepLinkCode,
-    bool clearPending = false,
     bool clearError = false,
   }) {
     return InviteCodeState(
@@ -67,8 +61,6 @@ final class InviteCodeState extends Equatable {
       hasStoredCode: hasStoredCode ?? this.hasStoredCode,
       result: result ?? this.result,
       error: clearError ? null : (error ?? this.error),
-      pendingDeepLinkCode:
-          clearPending ? null : (pendingDeepLinkCode ?? this.pendingDeepLinkCode),
     );
   }
 
@@ -78,6 +70,5 @@ final class InviteCodeState extends Equatable {
         hasStoredCode,
         result,
         error,
-        pendingDeepLinkCode,
       ];
 }

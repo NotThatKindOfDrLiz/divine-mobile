@@ -1,4 +1,4 @@
-// ABOUTME: BLoC for invite code claiming and deep link handling
+// ABOUTME: BLoC for invite code claiming
 // ABOUTME: Manages invite code state with synchronous getters for router
 
 import 'package:bloc/bloc.dart';
@@ -15,7 +15,6 @@ part 'invite_code_state.dart';
 ///
 /// Handles:
 /// - Claiming invite codes via API
-/// - Storing pending codes from deep links
 /// - Providing synchronous state for router redirect logic
 class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
   InviteCodeBloc({
@@ -25,8 +24,6 @@ class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
         _repository = repository,
         super(InviteCodeState(hasStoredCode: repository.hasStoredCode)) {
     on<InviteCodeClaimRequested>(_onClaimRequested);
-    on<InviteCodePendingSet>(_onPendingSet);
-    on<InviteCodePendingCleared>(_onPendingCleared);
     on<InviteCodeReset>(_onReset);
   }
 
@@ -91,25 +88,6 @@ class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
         error: 'An unexpected error occurred. Please try again.',
       ));
     }
-  }
-
-  void _onPendingSet(
-    InviteCodePendingSet event,
-    Emitter<InviteCodeState> emit,
-  ) {
-    Log.info(
-      'Setting pending invite code from deep link',
-      name: 'InviteCodeBloc',
-      category: LogCategory.auth,
-    );
-    emit(state.copyWith(pendingDeepLinkCode: event.code.toUpperCase().trim()));
-  }
-
-  void _onPendingCleared(
-    InviteCodePendingCleared event,
-    Emitter<InviteCodeState> emit,
-  ) {
-    emit(state.copyWith(clearPending: true));
   }
 
   void _onReset(
