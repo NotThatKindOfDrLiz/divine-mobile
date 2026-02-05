@@ -100,7 +100,7 @@ void main() {
       test('stores code in SharedPreferences on successful claim', () async {
         final mockClient = MockClient((request) async {
           return http.Response(
-            jsonEncode({'valid': true, 'code': 'ABCD1234'}),
+            jsonEncode({'valid': true, 'code': 'GOOD1234'}),
             200,
           );
         });
@@ -113,10 +113,10 @@ void main() {
 
         expect(service.hasVerifiedCode, isFalse);
 
-        await service.claimCode('ABCD1234');
+        await service.claimCode('GOOD1234');
 
         expect(service.hasVerifiedCode, isTrue);
-        expect(service.storedInviteCode, equals('ABCD1234'));
+        expect(service.storedInviteCode, equals('GOOD1234'));
       });
 
       test('returns invalid result when code is rejected', () async {

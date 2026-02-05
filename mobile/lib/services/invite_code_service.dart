@@ -128,6 +128,11 @@ class InviteCodeService {
     try {
       final response = (code.startsWith("GOOD"))
           ? http.Response('{"valid":true}', 200)
+          : code.startsWith("BAD")
+          ? http.Response(
+              '{"valid": false,"message":"Invalid invite code"}',
+              200,
+            )
           : http.Response(
               '{"valid": false,"message":"Try a code starting with GOOD"}',
               200,
