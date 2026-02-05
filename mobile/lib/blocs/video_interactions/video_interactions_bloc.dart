@@ -44,6 +44,7 @@ class VideoInteractionsBloc
     on<VideoInteractionsLikeToggled>(_onLikeToggled);
     on<VideoInteractionsRepostToggled>(_onRepostToggled);
     on<VideoInteractionsSubscriptionRequested>(_onSubscriptionRequested);
+    on<VideoInteractionsCommentCountUpdated>(_onCommentCountUpdated);
   }
 
   final String _eventId;
@@ -123,10 +124,16 @@ class VideoInteractionsBloc
 
       // Query like count with addressable ID for better discoverability
       // on relays that index by a-tag
+      // NIP-22: Comment count queries by both A-tag and E-tag for compatibility
       final results = await Future.wait([
         _likesRepository.getLikeCount(_eventId, addressableId: _addressableId),
-        // FIX #1247: Comment count now uses only event ID to avoid A-tag collision
-        _commentsRepository.getCommentsCount(_eventId),
+        if (_addressableId != null)
+          _commentsRepository.getCommentsCount(
+            _addressableId,
+            rootEventId: _eventId,
+          )
+        else
+          Future.value(0),
         repostCountFuture,
       ]);
 
@@ -160,6 +167,19 @@ class VideoInteractionsBloc
           error: VideoInteractionsError.fetchFailed,
         ),
       );
+    }
+  }
+
+  /// Handle comment count update from CommentsBloc.
+  ///
+  /// Called when the comment sheet closes to sync the feed's cached count
+  /// with the actual loaded comments count.
+  void _onCommentCountUpdated(
+    VideoInteractionsCommentCountUpdated event,
+    Emitter<VideoInteractionsState> emit,
+  ) {
+    if (state.commentCount != event.count) {
+      emit(state.copyWith(commentCount: event.count));
     }
   }
 

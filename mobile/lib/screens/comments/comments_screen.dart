@@ -71,11 +71,21 @@ class CommentsScreen extends ConsumerWidget {
   final VideoEvent videoEvent;
   final ScrollController sheetScrollController;
 
-  /// Shows comments as a modal bottom sheet overlay
-  static Future<void> show(BuildContext context, VideoEvent video) {
+  /// Shows comments as a modal bottom sheet overlay.
+  ///
+  /// [onCommentCountChanged] is called when the sheet closes with the actual
+  /// loaded comment count, allowing the caller to sync their cached count.
+  static Future<void> show(
+    BuildContext context,
+    VideoEvent video, {
+    void Function(int count)? onCommentCountChanged,
+  }) {
     final container = ProviderScope.containerOf(context, listen: false);
     final overlayNotifier = container.read(overlayVisibilityProvider.notifier);
     overlayNotifier.setModalOpen(true);
+
+    // Track the loaded comment count to sync when sheet closes
+    int? loadedCommentCount;
 
     return showModalBottomSheet<void>(
       context: context,
@@ -100,15 +110,20 @@ class CommentsScreen extends ConsumerWidget {
                 topRight: Radius.circular(20),
               ),
             ),
-            child: CommentsScreen(
+            child: _CommentsScreenWithCallback(
               videoEvent: video,
               sheetScrollController: scrollController,
+              onCountLoaded: (count) => loadedCommentCount = count,
             ),
           ),
         );
       },
     ).whenComplete(() {
       overlayNotifier.setModalOpen(false);
+      // Sync the comment count when sheet closes
+      if (loadedCommentCount != null && onCommentCountChanged != null) {
+        onCommentCountChanged(loadedCommentCount!);
+      }
     });
   }
 
@@ -134,6 +149,18 @@ class CommentsScreen extends ConsumerWidget {
       category: LogCategory.ui,
     );
 
+    // NIP-22: Comments on addressable events require the A-tag (addressableId).
+    // For kind 34236 videos, addressableId should always be present.
+    final addressableId = videoEvent.addressableId;
+    if (addressableId == null) {
+      Log.warning(
+        '💬 CommentsScreen: Video missing addressableId, comments disabled',
+        name: 'CommentsScreen',
+        category: LogCategory.ui,
+      );
+      return const SizedBox.shrink();
+    }
+
     // FIX #1247: Add ValueKey to ensure Flutter creates a fresh BlocProvider
     // for each unique video. Without this key, rapid navigation between videos
     // on a profile could cause Flutter to reuse the BlocProvider widget,
@@ -146,7 +173,7 @@ class CommentsScreen extends ConsumerWidget {
         rootEventId: videoEvent.id,
         rootEventKind: NIP71VideoKinds.addressableShortVideo,
         rootAuthorPubkey: videoEvent.pubkey,
-        rootAddressableId: videoEvent.addressableId,
+        rootAddressableId: addressableId,
         initialTotalCount: initialCount,
       )..add(const CommentsLoadRequested()),
       child: VineBottomSheet(
@@ -156,6 +183,66 @@ class CommentsScreen extends ConsumerWidget {
           sheetScrollController: sheetScrollController,
         ),
         bottomInput: const _MainCommentInput(),
+      ),
+    );
+  }
+}
+
+/// Wrapper that provides the callback for tracking loaded comment count.
+///
+/// This is used by the `show` method to capture the comment count
+/// when comments are loaded, so it can be synced to VideoInteractionsBloc.
+class _CommentsScreenWithCallback extends ConsumerWidget {
+  const _CommentsScreenWithCallback({
+    required this.videoEvent,
+    required this.sheetScrollController,
+    required this.onCountLoaded,
+  });
+
+  final VideoEvent videoEvent;
+  final ScrollController sheetScrollController;
+  final void Function(int count) onCountLoaded;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final commentsRepository = ref.watch(commentsRepositoryProvider);
+    final authService = ref.watch(authServiceProvider);
+    final addressableId = videoEvent.addressableId;
+
+    if (addressableId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return BlocProvider<CommentsBloc>(
+      key: ValueKey('comments-bloc-callback-${videoEvent.id}'),
+      create: (_) => CommentsBloc(
+        commentsRepository: commentsRepository,
+        authService: authService,
+        rootEventId: videoEvent.id,
+        rootEventKind: NIP71VideoKinds.addressableShortVideo,
+        rootAuthorPubkey: videoEvent.pubkey,
+        rootAddressableId: addressableId,
+        initialTotalCount: videoEvent.originalComments,
+      )..add(const CommentsLoadRequested()),
+      child: BlocListener<CommentsBloc, CommentsState>(
+        listenWhen: (prev, next) =>
+            prev.comments.length != next.comments.length ||
+            (prev.status != CommentsStatus.success &&
+                next.status == CommentsStatus.success),
+        listener: (context, state) {
+          // Report the loaded count whenever it changes
+          if (state.status == CommentsStatus.success) {
+            onCountLoaded(state.comments.length);
+          }
+        },
+        child: VineBottomSheet(
+          title: _CommentsTitle(initialCount: videoEvent.originalComments ?? 0),
+          body: _CommentsScreenBody(
+            videoEvent: videoEvent,
+            sheetScrollController: sheetScrollController,
+          ),
+          bottomInput: const _MainCommentInput(),
+        ),
       ),
     );
   }

@@ -49,7 +49,7 @@ final class CommentsState extends Equatable {
     this.rootEventId = '',
     this.rootEventKind = 0,
     this.rootAuthorPubkey = '',
-    this.rootAddressableId,
+    this.rootAddressableId = '',
     this.commentsById = const {},
     this.error,
     this.mainInputText = '',
@@ -72,10 +72,11 @@ final class CommentsState extends Equatable {
   /// The author pubkey of the root event (video)
   final String rootAuthorPubkey;
 
-  /// Optional addressable identifier for the root event (format: `kind:pubkey:d-tag`).
-  /// Used for Kind 34236 addressable events to ensure comments can be found/created
-  /// using both E and A tags.
-  final String? rootAddressableId;
+  /// Addressable identifier for the root event (format: `kind:pubkey:d-tag`).
+  /// Required for Kind 34236 addressable events. Per NIP-22, comments on
+  /// addressable events are queried by A-tag to ensure comments persist
+  /// across video edits.
+  final String rootAddressableId;
 
   /// Comments indexed by ID for O(1) deduplication.
   /// Uses [Comment] from the repository layer.

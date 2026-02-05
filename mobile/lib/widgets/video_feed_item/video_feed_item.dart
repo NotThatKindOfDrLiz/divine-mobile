@@ -1962,16 +1962,20 @@ class _CommentActionButton extends StatelessWidget {
           // different sources.
           final totalComments =
               state.commentCount ?? video.originalComments ?? 0;
-          return _buildButton(context, totalComments);
+          return _buildButton(context, totalComments, interactionsBloc);
         },
       );
     }
 
     // Fall back to original comment count
-    return _buildButton(context, video.originalComments ?? 0);
+    return _buildButton(context, video.originalComments ?? 0, null);
   }
 
-  Widget _buildButton(BuildContext context, int totalComments) {
+  Widget _buildButton(
+    BuildContext context,
+    int totalComments,
+    VideoInteractionsBloc? interactionsBloc,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2024,7 +2028,17 @@ class _CommentActionButton extends StatelessWidget {
                   }
                 }
               }
-              CommentsScreen.show(context, video);
+              CommentsScreen.show(
+                context,
+                video,
+                onCommentCountChanged: interactionsBloc != null
+                    ? (count) {
+                        interactionsBloc.add(
+                          VideoInteractionsCommentCountUpdated(count),
+                        );
+                      }
+                    : null,
+              );
             },
             icon: DecoratedBox(
               decoration: BoxDecoration(

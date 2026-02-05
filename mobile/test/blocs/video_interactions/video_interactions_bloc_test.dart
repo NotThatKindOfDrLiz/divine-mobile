@@ -91,9 +91,7 @@ void main() {
           when(
             () => mockLikesRepository.getLikeCount(testEventId),
           ).thenAnswer((_) async => 42);
-          when(
-            () => mockCommentsRepository.getCommentsCount(testEventId),
-          ).thenAnswer((_) async => 10);
+          // No addressableId = no comment count (returns 0)
           when(
             () => mockRepostsRepository.getRepostCountByEventId(testEventId),
           ).thenAnswer((_) async => 5);
@@ -107,7 +105,7 @@ void main() {
             isLiked: true,
             likeCount: 42,
             repostCount: 5,
-            commentCount: 10,
+            commentCount: 0,
           ),
         ],
       );
@@ -121,9 +119,7 @@ void main() {
           when(
             () => mockLikesRepository.getLikeCount(testEventId),
           ).thenAnswer((_) async => 5);
-          when(
-            () => mockCommentsRepository.getCommentsCount(testEventId),
-          ).thenAnswer((_) async => 0);
+          // No addressableId = no comment count (returns 0)
           when(
             () => mockRepostsRepository.getRepostCountByEventId(testEventId),
           ).thenAnswer((_) async => 0);
@@ -159,8 +155,12 @@ void main() {
               addressableId: testAddressableId,
             ),
           ).thenAnswer((_) async => 10);
+          // NIP-22: Comment count uses both A-tag and E-tag for compatibility
           when(
-            () => mockCommentsRepository.getCommentsCount(testEventId),
+            () => mockCommentsRepository.getCommentsCount(
+              testAddressableId,
+              rootEventId: testEventId,
+            ),
           ).thenAnswer((_) async => 5);
           when(
             () => mockRepostsRepository.getRepostCount(testAddressableId),
@@ -194,6 +194,13 @@ void main() {
               addressableId: testAddressableId,
             ),
           ).called(1);
+          // Verifies getCommentsCount is called with both addressableId and eventId
+          verify(
+            () => mockCommentsRepository.getCommentsCount(
+              testAddressableId,
+              rootEventId: testEventId,
+            ),
+          ).called(1);
         },
       );
 
@@ -206,9 +213,7 @@ void main() {
           when(
             () => mockLikesRepository.getLikeCount(testEventId),
           ).thenAnswer((_) async => 10);
-          when(
-            () => mockCommentsRepository.getCommentsCount(testEventId),
-          ).thenAnswer((_) async => 5);
+          // No addressableId = no comment count query (returns 0)
           when(
             () => mockRepostsRepository.getRepostCountByEventId(testEventId),
           ).thenAnswer((_) async => 2);
@@ -222,7 +227,7 @@ void main() {
             isLiked: false,
             likeCount: 10,
             repostCount: 2,
-            commentCount: 5,
+            commentCount: 0,
           ),
         ],
         verify: (_) {
@@ -231,6 +236,13 @@ void main() {
             () => mockRepostsRepository.getRepostCountByEventId(testEventId),
           ).called(1);
           verifyNever(() => mockRepostsRepository.getRepostCount(any()));
+          // No comment count query for non-addressable videos
+          verifyNever(
+            () => mockCommentsRepository.getCommentsCount(
+              any(),
+              rootEventId: any(named: 'rootEventId'),
+            ),
+          );
         },
       );
 
@@ -261,9 +273,6 @@ void main() {
           when(
             () => mockLikesRepository.getLikeCount(testEventId),
           ).thenAnswer((_) async => 42);
-          when(
-            () => mockCommentsRepository.getCommentsCount(testEventId),
-          ).thenAnswer((_) async => 10);
         },
         build: createBloc,
         seed: () => const VideoInteractionsState(
@@ -285,9 +294,6 @@ void main() {
           when(
             () => mockLikesRepository.getLikeCount(testEventId),
           ).thenAnswer((_) async => 42);
-          when(
-            () => mockCommentsRepository.getCommentsCount(testEventId),
-          ).thenAnswer((_) async => 10);
         },
         build: createBloc,
         seed: () => const VideoInteractionsState(

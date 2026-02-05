@@ -38,14 +38,21 @@ void main() {
     // Video kind 34236 for NIP-71 addressable short videos
     const testRootEventKind = 34236;
 
-    CommentsBloc createBloc({String? rootEventId, String? rootAuthorPubkey}) =>
-        CommentsBloc(
-          commentsRepository: mockCommentsRepository,
-          authService: mockAuthService,
-          rootEventId: rootEventId ?? validId('root'),
-          rootEventKind: testRootEventKind,
-          rootAuthorPubkey: rootAuthorPubkey ?? validId('author'),
-        );
+    // NIP-22: Addressable ID format is kind:pubkey:d-tag
+    String testAddressableId(String pubkey) =>
+        '$testRootEventKind:$pubkey:test-video-d-tag';
+
+    CommentsBloc createBloc({String? rootEventId, String? rootAuthorPubkey}) {
+      final authorPubkey = rootAuthorPubkey ?? validId('author');
+      return CommentsBloc(
+        commentsRepository: mockCommentsRepository,
+        authService: mockAuthService,
+        rootEventId: rootEventId ?? validId('root'),
+        rootEventKind: testRootEventKind,
+        rootAuthorPubkey: authorPubkey,
+        rootAddressableId: testAddressableId(authorPubkey),
+      );
+    }
 
     test('initial state has correct rootEventId and rootAuthorPubkey', () {
       final bloc = createBloc(
@@ -82,6 +89,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
             ),
           ).thenAnswer((_) async => thread);
@@ -107,6 +115,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
             ),
           ).thenAnswer((_) async => CommentThread.empty(validId('root')));
@@ -132,6 +141,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
             ),
           ).thenThrow(Exception('Network error'));
@@ -184,6 +194,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
             ),
           ).thenAnswer((_) async => thread);
@@ -271,6 +282,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
@@ -327,6 +339,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
@@ -368,6 +381,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
@@ -410,6 +424,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
@@ -444,6 +459,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: 50,
               before: expectedCursor,
             ),
@@ -484,6 +500,7 @@ void main() {
             () => mockCommentsRepository.loadComments(
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
@@ -614,6 +631,7 @@ void main() {
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
               rootEventAuthorPubkey: any(named: 'rootEventAuthorPubkey'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               replyToEventId: any(named: 'replyToEventId'),
               replyToAuthorPubkey: any(named: 'replyToAuthorPubkey'),
             ),
@@ -629,6 +647,7 @@ void main() {
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
               rootEventAuthorPubkey: any(named: 'rootEventAuthorPubkey'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               replyToEventId: null,
               replyToAuthorPubkey: null,
             ),
@@ -659,6 +678,7 @@ void main() {
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
               rootEventAuthorPubkey: any(named: 'rootEventAuthorPubkey'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               replyToEventId: any(named: 'replyToEventId'),
               replyToAuthorPubkey: any(named: 'replyToAuthorPubkey'),
             ),
@@ -682,6 +702,7 @@ void main() {
               rootEventId: any(named: 'rootEventId'),
               rootEventKind: any(named: 'rootEventKind'),
               rootEventAuthorPubkey: any(named: 'rootEventAuthorPubkey'),
+              rootAddressableId: any(named: 'rootAddressableId'),
               replyToEventId: 'parent1',
               replyToAuthorPubkey: 'author1',
             ),

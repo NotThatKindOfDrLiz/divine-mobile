@@ -2,8 +2,10 @@
 // ABOUTME: Displays comment icon with count, navigates to comments screen.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
 import 'package:openvine/screens/comments/comments.dart';
@@ -105,6 +107,17 @@ class CommentActionButton extends ConsumerWidget {
       }
     }
 
-    CommentsScreen.show(context, video);
+    // Try to read VideoInteractionsBloc from context for count sync
+    final interactionsBloc = context.read<VideoInteractionsBloc?>();
+
+    CommentsScreen.show(
+      context,
+      video,
+      onCommentCountChanged: interactionsBloc != null
+          ? (count) {
+              interactionsBloc.add(VideoInteractionsCommentCountUpdated(count));
+            }
+          : null,
+    );
   }
 }

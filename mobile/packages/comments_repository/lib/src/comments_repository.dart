@@ -28,8 +28,13 @@ const _defaultLimit = 100;
 /// - Counting comments on events
 ///
 /// Comments use NIP-22 threading with uppercase/lowercase tags:
-/// - Uppercase tags (`E`, `K`, `P`): Point to the root scope (e.g., video)
-/// - Lowercase tags (`e`, `k`, `p`): Point to the parent item (for replies)
+/// - Uppercase tags (`A`, `K`, `P`): Point to the root scope (e.g., video)
+/// - Lowercase tags (`a`, `e`, `k`, `p`): Point to the parent item
+///   (for replies)
+///
+/// For addressable events (kind 30000-39999 like videos), NIP-22 specifies
+/// using `A` tag for root scope, not `E` tag. This ensures comments persist
+/// across video edits (same address, different event IDs).
 class CommentsRepository {
   /// Creates a new comments repository.
   ///
@@ -50,9 +55,9 @@ class CommentsRepository {
   /// Parameters:
   /// - [rootEventId]: The ID of the event to load comments for
   /// - [rootEventKind]: The kind of the root event (e.g., 34236 for videos)
-  /// - [rootAddressableId]: Deprecated - no longer used. Comments are now
-  ///   queried only by E-tag (event ID) to ensure per-video accuracy.
-  ///   See #1247 for details on the A-tag collision bug this fixes.
+  /// - [rootAddressableId]: Required for addressable events (kind 30000-39999).
+  ///   Format: `kind:pubkey:d-tag`. Per NIP-22, comments on addressable events
+  ///   are queried by A-tag to ensure comments persist across video edits.
   /// - [limit]: Maximum number of comments to fetch (default: 100)
   /// - [before]: Cursor for pagination - fetch comments created
   ///   before this time.
@@ -68,8 +73,7 @@ class CommentsRepository {
   Future<CommentThread> loadComments({
     required String rootEventId,
     required int rootEventKind,
-    @Deprecated('No longer used - comments are queried by E-tag only (#1247)')
-    String? rootAddressableId,
+    required String rootAddressableId,
     int limit = _defaultLimit,
     DateTime? before,
   }) async {
@@ -78,23 +82,31 @@ class CommentsRepository {
           ? before.millisecondsSinceEpoch ~/ 1000
           : null;
 
-      // NIP-22: Filter by Kind 1111 and uppercase E tag for root scope
-      // FIX #1247: Only query by E-tag (event ID), not A-tag (addressable ID).
-      // The A-tag query was causing duplicate comments across videos because
-      // multiple videos can share the same addressable ID if they have the same
-      // d-tag. The E-tag (event ID) is always unique per video.
-      final filter = Filter(
+      // NIP-22: Query by BOTH A-tag and E-tag to catch all comments.
+      // - A-tag: For NIP-22 compliant clients (addressable events)
+      // - E-tag: For older clients or those using event ID references
+      // Results are deduplicated by event ID when building the thread.
+      final filterByA = Filter(
+        kinds: const [_commentKind],
+        uppercaseA: [rootAddressableId],
+        limit: limit,
+        until: untilTimestamp,
+      );
+
+      final filterByE = Filter(
         kinds: const [_commentKind],
         uppercaseE: [rootEventId],
         limit: limit,
         until: untilTimestamp,
       );
 
-      final events = await _nostrClient.queryEvents([filter]);
+      // Query with both filters - Nostr returns events matching ANY filter
+      final events = await _nostrClient.queryEvents([filterByA, filterByE]);
 
       developer.log(
         '💬 CommentsRepository.loadComments: '
-        'rootEventId=$rootEventId returned ${events.length} comments',
+        'A-tag=$rootAddressableId, E-tag=$rootEventId '
+        'returned ${events.length} comments (deduplicated)',
         name: 'CommentsRepository',
       );
 
@@ -140,13 +152,14 @@ class CommentsRepository {
 
     // Build tags for NIP-22 threading
     // Uppercase tags point to root scope, lowercase to parent item
+    //
+    // Per NIP-22 spec: For addressable events (kind 30000-39999), use A tag
+    // as the primary root scope identifier. This matches the blog post example
+    // in the spec which uses A tag for kind 30023.
     final tags = <List<String>>[
-      // Root scope tags (uppercase) - always point to the original event
-      ['E', rootEventId, '', rootEventAuthorPubkey],
-      // Include A tag for addressable events (Kind 30000-39999)
-      // This ensures comments can be found by clients querying by either E or A
+      // Root scope tags (uppercase) - A tag is primary for addressable events
       if (rootAddressableId != null && rootAddressableId.isNotEmpty)
-        ['A', rootAddressableId, '', rootEventAuthorPubkey],
+        ['A', rootAddressableId, ''],
       ['K', rootEventKind.toString()],
       ['P', rootEventAuthorPubkey],
       // Parent item tags (lowercase)
@@ -157,10 +170,11 @@ class CommentsRepository {
         ['p', replyToAuthorPubkey],
       ] else ...[
         // Top-level comment - parent is the same as root
-        ['e', rootEventId, '', rootEventAuthorPubkey],
-        // Include lowercase 'a' tag for addressable events too
+        // Per NIP-22: "when the parent event is replaceable or addressable,
+        // also include an `e` tag referencing its id"
         if (rootAddressableId != null && rootAddressableId.isNotEmpty)
-          ['a', rootAddressableId, '', rootEventAuthorPubkey],
+          ['a', rootAddressableId, ''],
+        ['e', rootEventId, ''],
         ['k', rootEventKind.toString()],
         ['p', rootEventAuthorPubkey],
       ],
@@ -199,28 +213,49 @@ class CommentsRepository {
     }
   }
 
-  /// Gets the comment count for an event.
+  /// Gets the comment count for an addressable event.
   ///
-  /// Uses NIP-45 COUNT requests if supported by relays,
-  /// otherwise falls back to querying and counting.
+  /// Queries by both A-tag and E-tag to catch all comments regardless of
+  /// how they were tagged by different clients. Uses a lightweight REQ query
+  /// instead of NIP-45 COUNT for consistent results across relays.
   ///
   /// Parameters:
-  /// - [rootEventId]: The ID of the event to count comments for
+  /// - [rootAddressableId]: The addressable ID of the event to count comments
+  ///   for. Format: `kind:pubkey:d-tag`.
+  /// - [rootEventId]: The event ID to also query by E-tag.
   ///
-  /// Returns the number of comments on the event.
+  /// Returns the number of unique comments on the event.
   ///
   /// Throws [CountCommentsFailedException] if counting fails.
-  Future<int> getCommentsCount(String rootEventId) async {
+  Future<int> getCommentsCount(
+    String rootAddressableId, {
+    required String rootEventId,
+  }) async {
     try {
-      // NIP-22: Filter by Kind 1111 and uppercase E tag
-      // FIX #1247: Only query by E-tag (event ID) for accurate per-video count.
-      final filter = Filter(
+      // Query by BOTH A-tag and E-tag to catch all comments.
+      // Using REQ query instead of NIP-45 COUNT for consistency,
+      // as COUNT support varies across relays.
+      final filterByA = Filter(
+        kinds: const [_commentKind],
+        uppercaseA: [rootAddressableId],
+      );
+
+      final filterByE = Filter(
         kinds: const [_commentKind],
         uppercaseE: [rootEventId],
       );
 
-      final result = await _nostrClient.countEvents([filter]);
-      return result.count;
+      final events = await _nostrClient.queryEvents([filterByA, filterByE]);
+
+      // Events are deduplicated by ID, so length is the unique count
+      developer.log(
+        '💬 CommentsRepository.getCommentsCount: '
+        'A-tag=$rootAddressableId, E-tag=$rootEventId '
+        'returned ${events.length} unique comments',
+        name: 'CommentsRepository',
+      );
+
+      return events.length;
     } on Exception catch (e) {
       throw CountCommentsFailedException('Failed to count comments: $e');
     }
@@ -275,14 +310,15 @@ class CommentsRepository {
   Comment? _eventToComment(Event event, String rootEventId, int rootEventKind) {
     try {
       String? parsedRootEventId;
+      String? parsedRootAddressableId;
       String? replyToEventId;
       String? rootAuthorPubkey;
       String? replyToAuthorPubkey;
       String? parentKind;
 
       // Parse NIP-22 tags to determine comment relationships
-      // Uppercase tags (E, K, P) = root scope
-      // Lowercase tags (e, k, p) = parent item
+      // Uppercase tags (A, E, K, P) = root scope
+      // Lowercase tags (a, e, k, p) = parent item
       for (final rawTag in event.tags) {
         final tag = rawTag as List<dynamic>;
         if (tag.length < 2) continue;
@@ -291,8 +327,11 @@ class CommentsRepository {
         final tagValue = tag[1] as String;
 
         switch (tagType) {
+          case 'A':
+            // Root addressable ID (uppercase = root scope)
+            parsedRootAddressableId = tagValue;
           case 'E':
-            // Root event ID (uppercase = root scope)
+            // Root event ID (uppercase = root scope for non-addressable events)
             parsedRootEventId = tagValue;
             if (tag.length >= 4) {
               rootAuthorPubkey = tag[3] as String;
@@ -320,6 +359,15 @@ class CommentsRepository {
       final isTopLevel =
           parentKind == rootEventKind.toString() ||
           replyToEventId == parsedRootEventId;
+
+      // For addressable events, extract pubkey from the A tag if available
+      // A tag format: kind:pubkey:d-tag
+      if (rootAuthorPubkey == null && parsedRootAddressableId != null) {
+        final parts = parsedRootAddressableId.split(':');
+        if (parts.length >= 2) {
+          rootAuthorPubkey = parts[1];
+        }
+      }
 
       return Comment(
         id: event.id,

@@ -28,6 +28,9 @@ void main() {
         'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
     const testUserPubkey =
         'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc';
+    // NIP-22: Addressable ID format is kind:pubkey:d-tag
+    const testAddressableId =
+        '$_testRootEventKind:$testRootAuthorPubkey:test-video-d-tag';
 
     setUpAll(() {
       registerFallbackValue(<Filter>[]);
@@ -56,12 +59,40 @@ void main() {
         final result = await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         expect(result.isEmpty, isTrue);
         expect(result.totalCount, equals(0));
         expect(result.comments, isEmpty);
         expect(result.rootEventId, equals(testRootEventId));
+      });
+
+      test('queries by both A-tag and E-tag for compatibility', () async {
+        when(
+          () => mockNostrClient.queryEvents(any()),
+        ).thenAnswer((_) async => []);
+
+        await repository.loadComments(
+          rootEventId: testRootEventId,
+          rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
+        );
+
+        final captured = verify(
+          () => mockNostrClient.queryEvents(captureAny()),
+        ).captured;
+
+        final filters = captured.first as List<Filter>;
+        expect(filters.length, equals(2));
+
+        // First filter should be A-tag
+        expect(filters[0].kinds, contains(_commentKind));
+        expect(filters[0].uppercaseA, contains(testAddressableId));
+
+        // Second filter should be E-tag
+        expect(filters[1].kinds, contains(_commentKind));
+        expect(filters[1].uppercaseE, contains(testRootEventId));
       });
 
       test('returns thread with single top-level comment', () async {
@@ -72,6 +103,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         when(
@@ -81,6 +113,7 @@ void main() {
         final result = await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         expect(result.isNotEmpty, isTrue);
@@ -98,6 +131,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         final replyComment = _createCommentEvent(
@@ -107,6 +141,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
           replyToEventId: 'comment1',
           replyToAuthorPubkey: testUserPubkey,
           createdAt: 2000,
@@ -119,6 +154,7 @@ void main() {
         final result = await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         expect(result.totalCount, equals(2));
@@ -137,6 +173,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         final newComment = _createCommentEvent(
@@ -146,6 +183,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
           createdAt: 2000,
         );
 
@@ -156,6 +194,7 @@ void main() {
         final result = await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         expect(result.comments.first.content, 'New comment');
@@ -170,6 +209,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         final oldReply = _createCommentEvent(
@@ -179,6 +219,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
           replyToEventId: 'parent',
           replyToAuthorPubkey: testUserPubkey,
           createdAt: 2000,
@@ -191,6 +232,7 @@ void main() {
           rootEventId: testRootEventId,
           rootAuthorPubkey: testRootAuthorPubkey,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
           replyToEventId: 'parent',
           replyToAuthorPubkey: testUserPubkey,
           createdAt: 3000,
@@ -203,6 +245,7 @@ void main() {
         final result = await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         expect(result.comments.length, equals(3));
@@ -224,6 +267,7 @@ void main() {
             rootEventId: testRootEventId,
             rootAuthorPubkey: testRootAuthorPubkey,
             rootEventKind: _testRootEventKind,
+            rootAddressableId: testAddressableId,
             replyToEventId: 'nonexistent_parent',
             replyToAuthorPubkey: testUserPubkey,
           );
@@ -235,6 +279,7 @@ void main() {
           final result = await repository.loadComments(
             rootEventId: testRootEventId,
             rootEventKind: _testRootEventKind,
+            rootAddressableId: testAddressableId,
           );
 
           // Orphan is in the flat list
@@ -253,6 +298,7 @@ void main() {
           () => repository.loadComments(
             rootEventId: testRootEventId,
             rootEventKind: _testRootEventKind,
+            rootAddressableId: testAddressableId,
           ),
           throwsA(isA<LoadCommentsFailedException>()),
         );
@@ -266,6 +312,7 @@ void main() {
         await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
           limit: 50,
         );
 
@@ -286,6 +333,7 @@ void main() {
         await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
           before: beforeTime,
         );
 
@@ -306,6 +354,7 @@ void main() {
         await repository.loadComments(
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
+          rootAddressableId: testAddressableId,
         );
 
         final captured = verify(
@@ -318,71 +367,90 @@ void main() {
     });
 
     group('postComment', () {
-      test('posts top-level comment with correct tags', () async {
-        Event? capturedEvent;
+      test(
+        'posts top-level comment with correct NIP-22 tags',
+        () async {
+          Event? capturedEvent;
 
-        when(() => mockNostrClient.publishEvent(any())).thenAnswer((inv) async {
-          return capturedEvent = inv.positionalArguments.first as Event;
-        });
+          when(() => mockNostrClient.publishEvent(any())).thenAnswer((
+            inv,
+          ) async {
+            return capturedEvent = inv.positionalArguments.first as Event;
+          });
 
-        await repository.postComment(
-          content: 'Test comment',
-          rootEventId: testRootEventId,
-          rootEventKind: _testRootEventKind,
-          rootEventAuthorPubkey: testRootAuthorPubkey,
-        );
+          await repository.postComment(
+            content: 'Test comment',
+            rootEventId: testRootEventId,
+            rootEventKind: _testRootEventKind,
+            rootEventAuthorPubkey: testRootAuthorPubkey,
+            rootAddressableId: testAddressableId,
+          );
 
-        expect(capturedEvent, isNotNull);
-        expect(capturedEvent!.kind, equals(_commentKind));
-        expect(capturedEvent!.content, equals('Test comment'));
+          expect(capturedEvent, isNotNull);
+          expect(capturedEvent!.kind, equals(_commentKind));
+          expect(capturedEvent!.content, equals('Test comment'));
 
-        // Check NIP-22 tags
-        // Uppercase tags = root scope
-        final uppercaseETags = capturedEvent!.tags
-            .cast<List<dynamic>>()
-            .where((t) => t[0] == 'E')
-            .toList();
-        final uppercaseKTags = capturedEvent!.tags
-            .cast<List<dynamic>>()
-            .where((t) => t[0] == 'K')
-            .toList();
-        final uppercasePTags = capturedEvent!.tags
-            .cast<List<dynamic>>()
-            .where((t) => t[0] == 'P')
-            .toList();
+          // Check NIP-22 tags
+          // For addressable events, A tag is primary root scope (not E)
+          final uppercaseATags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'A')
+              .toList();
+          final uppercaseKTags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'K')
+              .toList();
+          final uppercasePTags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'P')
+              .toList();
 
-        // Lowercase tags = parent item (for top-level, same as root)
-        final lowercaseETags = capturedEvent!.tags
-            .cast<List<dynamic>>()
-            .where((t) => t[0] == 'e')
-            .toList();
-        final lowercaseKTags = capturedEvent!.tags
-            .cast<List<dynamic>>()
-            .where((t) => t[0] == 'k')
-            .toList();
-        final lowercasePTags = capturedEvent!.tags
-            .cast<List<dynamic>>()
-            .where((t) => t[0] == 'p')
-            .toList();
+          // Lowercase tags = parent item
+          final lowercaseATags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'a')
+              .toList();
+          final lowercaseETags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'e')
+              .toList();
+          final lowercaseKTags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'k')
+              .toList();
+          final lowercasePTags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'p')
+              .toList();
 
-        // Root scope tags
-        expect(uppercaseETags.length, equals(1));
-        expect(uppercaseETags.first[1], equals(testRootEventId));
-        expect(uppercaseKTags.length, equals(1));
-        expect(uppercaseKTags.first[1], equals(_testRootEventKind.toString()));
-        expect(uppercasePTags.length, equals(1));
-        expect(uppercasePTags.first[1], equals(testRootAuthorPubkey));
+          // Root scope tags - A tag for addressable events
+          expect(uppercaseATags.length, equals(1));
+          expect(uppercaseATags.first[1], equals(testAddressableId));
+          expect(uppercaseKTags.length, equals(1));
+          expect(
+            uppercaseKTags.first[1],
+            equals(_testRootEventKind.toString()),
+          );
+          expect(uppercasePTags.length, equals(1));
+          expect(uppercasePTags.first[1], equals(testRootAuthorPubkey));
 
-        // Parent item tags (same as root for top-level)
-        expect(lowercaseETags.length, equals(1));
-        expect(lowercaseETags.first[1], equals(testRootEventId));
-        expect(lowercaseKTags.length, equals(1));
-        expect(lowercaseKTags.first[1], equals(_testRootEventKind.toString()));
-        expect(lowercasePTags.length, equals(1));
-        expect(lowercasePTags.first[1], equals(testRootAuthorPubkey));
-      });
+          // Parent item tags (for top-level comment on addressable event)
+          // Per NIP-22: include both 'a' and 'e' tags
+          expect(lowercaseATags.length, equals(1));
+          expect(lowercaseATags.first[1], equals(testAddressableId));
+          expect(lowercaseETags.length, equals(1));
+          expect(lowercaseETags.first[1], equals(testRootEventId));
+          expect(lowercaseKTags.length, equals(1));
+          expect(
+            lowercaseKTags.first[1],
+            equals(_testRootEventKind.toString()),
+          );
+          expect(lowercasePTags.length, equals(1));
+          expect(lowercasePTags.first[1], equals(testRootAuthorPubkey));
+        },
+      );
 
-      test('posts reply with correct tags', () async {
+      test('posts reply with correct NIP-22 tags', () async {
         Event? capturedEvent;
         const parentCommentId =
             'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
@@ -398,6 +466,7 @@ void main() {
           rootEventId: testRootEventId,
           rootEventKind: _testRootEventKind,
           rootEventAuthorPubkey: testRootAuthorPubkey,
+          rootAddressableId: testAddressableId,
           replyToEventId: parentCommentId,
           replyToAuthorPubkey: parentAuthorPubkey,
         );
@@ -405,10 +474,10 @@ void main() {
         expect(capturedEvent, isNotNull);
 
         // Check NIP-22 tags
-        // Uppercase tags = root scope
-        final uppercaseETags = capturedEvent!.tags
+        // For addressable events, A tag is primary root scope
+        final uppercaseATags = capturedEvent!.tags
             .cast<List<dynamic>>()
-            .where((t) => t[0] == 'E')
+            .where((t) => t[0] == 'A')
             .toList();
         final uppercaseKTags = capturedEvent!.tags
             .cast<List<dynamic>>()
@@ -433,9 +502,9 @@ void main() {
             .where((t) => t[0] == 'p')
             .toList();
 
-        // Root scope tags (uppercase)
-        expect(uppercaseETags.length, equals(1));
-        expect(uppercaseETags.first[1], equals(testRootEventId));
+        // Root scope tags (uppercase) - A tag for addressable events
+        expect(uppercaseATags.length, equals(1));
+        expect(uppercaseATags.first[1], equals(testAddressableId));
         expect(uppercaseKTags.length, equals(1));
         expect(uppercaseKTags.first[1], equals(_testRootEventKind.toString()));
         expect(uppercasePTags.length, equals(1));
@@ -547,39 +616,69 @@ void main() {
     });
 
     group('getCommentsCount', () {
-      test('returns count from NIP-45', () async {
-        when(() => mockNostrClient.countEvents(any())).thenAnswer(
-          (_) async => const CountResult(count: 42),
+      test('returns count of unique events from dual-query', () async {
+        // Mock queryEvents to return some comment events
+        final mockEvents = List.generate(
+          5,
+          (i) => Event(
+            testUserPubkey,
+            _commentKind,
+            [
+              ['A', testAddressableId, ''],
+              ['K', _testRootEventKind.toString()],
+            ],
+            'Comment $i',
+          ),
         );
 
-        final result = await repository.getCommentsCount(testRootEventId);
+        when(() => mockNostrClient.queryEvents(any())).thenAnswer(
+          (_) async => mockEvents,
+        );
 
-        expect(result, equals(42));
+        final result = await repository.getCommentsCount(
+          testAddressableId,
+          rootEventId: testRootEventId,
+        );
+
+        expect(result, equals(5));
       });
 
-      test('queries with correct filter', () async {
-        when(() => mockNostrClient.countEvents(any())).thenAnswer(
-          (_) async => const CountResult(count: 0),
+      test('queries by both A-tag and E-tag for compatibility', () async {
+        when(() => mockNostrClient.queryEvents(any())).thenAnswer(
+          (_) async => <Event>[],
         );
 
-        await repository.getCommentsCount(testRootEventId);
+        await repository.getCommentsCount(
+          testAddressableId,
+          rootEventId: testRootEventId,
+        );
 
         final captured = verify(
-          () => mockNostrClient.countEvents(captureAny()),
+          () => mockNostrClient.queryEvents(captureAny()),
         ).captured;
 
         final filters = captured.first as List<Filter>;
-        expect(filters.first.kinds, contains(_commentKind));
-        expect(filters.first.uppercaseE, contains(testRootEventId));
+        expect(filters.length, equals(2));
+
+        // First filter should be A-tag
+        expect(filters[0].kinds, contains(_commentKind));
+        expect(filters[0].uppercaseA, contains(testAddressableId));
+
+        // Second filter should be E-tag
+        expect(filters[1].kinds, contains(_commentKind));
+        expect(filters[1].uppercaseE, contains(testRootEventId));
       });
 
       test('throws CountCommentsFailedException on error', () async {
         when(
-          () => mockNostrClient.countEvents(any()),
-        ).thenThrow(Exception('Count failed'));
+          () => mockNostrClient.queryEvents(any()),
+        ).thenThrow(Exception('Query failed'));
 
         expect(
-          () => repository.getCommentsCount(testRootEventId),
+          () => repository.getCommentsCount(
+            testAddressableId,
+            rootEventId: testRootEventId,
+          ),
           throwsA(isA<CountCommentsFailedException>()),
         );
       });
@@ -697,6 +796,10 @@ void main() {
 }
 
 /// Helper to create a NIP-22 comment event for testing.
+///
+/// Per NIP-22, for addressable events (kind 30000-39999):
+/// - Uppercase `A` tag is used for root scope
+/// - Lowercase `a` and `e` tags are used for parent item
 Event _createCommentEvent({
   required String id,
   required String content,
@@ -704,16 +807,18 @@ Event _createCommentEvent({
   required String rootEventId,
   required String rootAuthorPubkey,
   required int rootEventKind,
+  String? rootAddressableId,
   String? replyToEventId,
   String? replyToAuthorPubkey,
   int createdAt = 1000,
 }) {
   // NIP-22 tags:
-  // Uppercase tags (E, K, P) = root scope
-  // Lowercase tags (e, k, p) = parent item
+  // Uppercase tags (A, K, P) = root scope for addressable events
+  // Lowercase tags (a, e, k, p) = parent item
   final tags = <List<String>>[
-    // Root scope tags (uppercase) - always point to the original event
-    ['E', rootEventId, '', rootAuthorPubkey],
+    // Root scope tags (uppercase)
+    // For addressable events, use A tag as primary
+    if (rootAddressableId != null) ['A', rootAddressableId, ''],
     ['K', rootEventKind.toString()],
     ['P', rootAuthorPubkey],
     // Parent item tags (lowercase)
@@ -724,7 +829,8 @@ Event _createCommentEvent({
       ['p', replyToAuthorPubkey],
     ] else ...[
       // Top-level comment - parent is the same as root
-      ['e', rootEventId, '', rootAuthorPubkey],
+      if (rootAddressableId != null) ['a', rootAddressableId, ''],
+      ['e', rootEventId, ''],
       ['k', rootEventKind.toString()],
       ['p', rootAuthorPubkey],
     ],
