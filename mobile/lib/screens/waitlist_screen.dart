@@ -1,10 +1,12 @@
-// ABOUTME: Screen shown when user fails npub verification
-// ABOUTME: Directs user to enter invite code or wait for public access
+// ABOUTME: Screen for joining the waitlist with email signup
+// ABOUTME: Dark theme UI with email input and foam finger sticker
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/screens/invite_choice_screen.dart';
+import 'package:openvine/blocs/waitlist/waitlist_bloc.dart';
+import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Arguments for WaitlistScreen navigation.
 class WaitlistScreenArgs {
@@ -14,12 +16,11 @@ class WaitlistScreenArgs {
   final String? message;
 }
 
-/// Screen shown when a user's npub verification fails.
+/// Screen for joining the Divine waitlist.
 ///
-/// This screen is displayed when a user signs in without an invite code
-/// and their npub is not verified for access. The user can either enter
-/// an invite code or wait for public access.
-class WaitlistScreen extends StatelessWidget {
+/// Allows users to enter their email to be notified when Divine
+/// launches publicly or when they receive an invite.
+class WaitlistScreen extends StatefulWidget {
   const WaitlistScreen({super.key, this.message});
 
   /// Route name for this screen.
@@ -32,90 +33,306 @@ class WaitlistScreen extends StatelessWidget {
   final String? message;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: VineTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => context.pop(),
-        ),
+  State<WaitlistScreen> createState() => _WaitlistScreenState();
+}
+
+class _WaitlistScreenState extends State<WaitlistScreen> {
+  final _emailController = TextEditingController();
+  final _focusNode = FocusNode();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _submitEmail() {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _focusNode.requestFocus();
+      return;
+    }
+
+    context.read<WaitlistBloc>().add(WaitlistEmailSubmitted(email));
+  }
+
+  void _onWaitlistStateChanged(BuildContext context, WaitlistState state) {
+    if (state.isSuccess && state.submittedEmail != null) {
+      _showSuccessBottomSheet(state.submittedEmail!);
+    }
+  }
+
+  void _showSuccessBottomSheet(String email) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VineTheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Shaka emoji
+            const Text('🤙', style: TextStyle(fontSize: 80)),
+            const SizedBox(height: 20),
+
+            // "You're in!" title
+            Text(
+              "You're in!",
+              style: TextStyle(
+                fontFamily: 'BricolageGrotesque',
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: VineTheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Description with email
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[400],
+                  height: 1.4,
+                ),
                 children: [
-                  // Logo
-                  Image.asset(
-                    'assets/icon/divine_icon_transparent.png',
-                    height: 100,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 16),
-                  Image.asset(
-                    'assets/icon/divine_wordmark.png',
-                    width: 100,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 48),
-
-                  // Title
-                  Text(
-                    'Waitlist',
-                    style: VineTheme.headlineMediumFont(),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Message
-                  Text(
-                    message ??
-                        'Your account is not yet verified for access.\n\n'
-                            'Divine is currently invite-only. Please enter an '
-                            'invite code to continue.',
-                    style: VineTheme.bodyMediumFont(color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Enter invite code button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => context.go(InviteChoiceScreen.path),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: VineTheme.vineGreen,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        'Enter Invite Code',
-                        style: VineTheme.labelLargeFont(),
-                      ),
+                  const TextSpan(text: "We'll send updates to "),
+                  TextSpan(
+                    text: email,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  // Help text
-                  Text(
-                    "Don't have an invite code?\n"
-                    'Ask a friend or wait for public access.',
-                    style: VineTheme.bodySmallFont(color: Colors.grey),
-                    textAlign: TextAlign.center,
+                  const TextSpan(
+                    text:
+                        ". When more invite codes are available, "
+                        "we'll send them your way.",
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+
+            // OK button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  context.pop(); // Dismiss bottom sheet
+                  context.pop(); // Pop back to InviteChoiceScreen
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: VineTheme.vineGreen,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<WaitlistBloc, WaitlistState>(
+      listener: _onWaitlistStateChanged,
+      child: Scaffold(
+        backgroundColor: VineTheme.backgroundColor,
+        resizeToAvoidBottomInset: false,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Back button
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AuthBackButton(),
+                ),
+              ),
+
+              // Main content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+
+                      // Title
+                      Text(
+                        'Join the waitlist',
+                        style: TextStyle(
+                          fontFamily: 'BricolageGrotesque',
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Subtitle
+                      Text(
+                        'Divine will launch soon! Join the waitlist to '
+                        "try the beta before it's publicly available.",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[400],
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Email input field with floating label
+                      BlocBuilder<WaitlistBloc, WaitlistState>(
+                        buildWhen: (previous, current) =>
+                            previous.isSubmitting != current.isSubmitting,
+                        builder: (context, state) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: VineTheme.surfaceContainer,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Email',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: VineTheme.vineGreen,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                TextField(
+                                  controller: _emailController,
+                                  focusNode: _focusNode,
+                                  enabled: !state.isSubmitting,
+                                  keyboardType: TextInputType.emailAddress,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    hintText: 'user@email.com',
+                                    hintStyle: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                    contentPadding:
+                                        EdgeInsets.symmetric(vertical: 8),
+                                  ),
+                                  onSubmitted: (_) => _submitEmail(),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Foam finger sticker - rotated and partially off-screen
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Transform.translate(
+                            offset: const Offset(70, 0),
+                            child: Transform.rotate(
+                              angle: -35 * 3.14159 / 180,
+                              child: Image.asset(
+                                'assets/stickers/foam_finger.png',
+                                width: 180,
+                                height: 180,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Submit button at bottom
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                child: BlocBuilder<WaitlistBloc, WaitlistState>(
+                  buildWhen: (previous, current) =>
+                      previous.isSubmitting != current.isSubmitting,
+                  builder: (context, state) {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: state.isSubmitting ? null : _submitEmail,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: VineTheme.vineGreen,
+                          foregroundColor: Colors.black,
+                          disabledBackgroundColor:
+                              VineTheme.vineGreen.withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: state.isSubmitting
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.black,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Join waitlist',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -17,6 +17,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/camera_permission/camera_permission_bloc.dart';
 import 'package:openvine/blocs/email_verification/email_verification_cubit.dart';
+import 'package:openvine/blocs/waitlist/waitlist_bloc.dart';
 import 'package:openvine/config/zendesk_config.dart';
 import 'package:openvine/network/vine_cdn_http_overrides.dart'
     if (dart.library.html) 'package:openvine/utils/platform_io_web.dart';
@@ -1132,6 +1133,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
         // both the router (for AppStateListenable) and the widget tree.
         BlocProvider.value(value: ref.read(inviteCodeBlocProvider)),
         BlocProvider.value(value: ref.read(npubVerificationBlocProvider)),
+        BlocProvider(create: (_) => WaitlistBloc()),
       ],
       // Global listener for email verification failures - shows snackbar
       // when verification times out or fails while user is elsewhere in app

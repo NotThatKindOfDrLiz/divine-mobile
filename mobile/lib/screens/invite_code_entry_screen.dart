@@ -1,5 +1,5 @@
 // ABOUTME: Screen for entering invite codes manually or via deep link
-// ABOUTME: Dark theme UI with 8-character alphanumeric input
+// ABOUTME: Dark theme UI with 8-character alphanumeric input (XXXX-XXXX format)
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
 import 'package:openvine/screens/welcome_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Screen for entering invite codes to access the app.
 ///
@@ -43,15 +44,17 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
     super.dispose();
   }
 
-  /// Validate the invite code format.
+  /// Validate the invite code format (strips dash for validation).
   String? _validateCode(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter an invite code';
     }
-    if (value.length != 8) {
+    // Strip dash for validation
+    final cleanValue = value.replaceAll('-', '');
+    if (cleanValue.length != 8) {
       return 'Invite code must be 8 characters';
     }
-    if (!RegExp(r'^[A-Z0-9]+$').hasMatch(value.toUpperCase())) {
+    if (!RegExp(r'^[A-Z0-9]+$').hasMatch(cleanValue.toUpperCase())) {
       return 'Invite code can only contain letters and numbers';
     }
     return null;
@@ -59,7 +62,8 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
 
   /// Submit the invite code for verification.
   void _submitCode() {
-    final code = _codeController.text.trim().toUpperCase();
+    // Strip dash and normalize
+    final code = _codeController.text.replaceAll('-', '').trim().toUpperCase();
     final validationError = _validateCode(code);
 
     if (validationError != null) {
@@ -105,164 +109,194 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
       listener: _onInviteCodeStateChanged,
       child: Scaffold(
         backgroundColor: VineTheme.backgroundColor,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => context.pop(),
-          ),
-        ),
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Divine logo
-                    Image.asset(
-                      'assets/icon/divine_icon_transparent.png',
-                      height: 100,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(height: 32),
+          child: Column(
+            children: [
+              // Back button
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AuthBackButton(),
+                ),
+              ),
 
-                    // Title
-                    Text(
-                      'Enter Invite Code',
-                      style: VineTheme.headlineMediumFont(),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Enter your 8-character invite code to continue.',
-                      style: VineTheme.bodyMediumFont(color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Code input field
-                    TextField(
-                      controller: _codeController,
-                      focusNode: _focusNode,
-                      enabled: !_isSubmitting,
-                      textAlign: TextAlign.center,
-                      textCapitalization: TextCapitalization.characters,
-                      maxLength: 8,
-                      style: VineTheme.headlineSmallFont().copyWith(
-                        letterSpacing: 4,
-                      ),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[A-Za-z0-9]'),
-                        ),
-                        _UpperCaseTextFormatter(),
-                      ],
-                      decoration: InputDecoration(
-                        hintText: 'ABCD1234',
-                        hintStyle: VineTheme.headlineSmallFont(
-                          color: Colors.grey.withValues(alpha: 0.5),
-                        ).copyWith(letterSpacing: 4),
-                        counterText: '',
-                        filled: true,
-                        fillColor: VineTheme.cardBackground,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: VineTheme.vineGreen,
-                            width: 2,
-                          ),
-                        ),
-                        errorBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: VineTheme.error,
-                            width: 2,
-                          ),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 20,
-                        ),
-                      ),
-                      onSubmitted: (_) => _submitCode(),
-                    ),
-
-                    // Error message
-                    if (_errorMessage != null) ...[
+              // Main content
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       const SizedBox(height: 16),
+
+                      // Title
+                      Text(
+                        'Add your invite code',
+                        style: TextStyle(
+                          fontFamily: 'BricolageGrotesque',
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Code input field with floating label
                       Container(
+                        decoration: BoxDecoration(
+                          color: VineTheme.surfaceContainer,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
+                          horizontal: 20,
                           vertical: 12,
                         ),
-                        decoration: BoxDecoration(
-                          color: VineTheme.error.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.error_outline,
-                              color: VineTheme.error,
-                              size: 20,
+                            Text(
+                              'Invite code',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: VineTheme.vineGreen,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _errorMessage!,
-                                style: VineTheme.bodySmallFont(
-                                  color: VineTheme.error,
+                            TextField(
+                              controller: _codeController,
+                              focusNode: _focusNode,
+                              enabled: !_isSubmitting,
+                              textCapitalization: TextCapitalization.characters,
+                              maxLength: 9, // 8 chars + 1 dash
+                              style: const TextStyle(
+                                fontSize: 24,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[A-Za-z0-9\-]'),
+                                ),
+                                _UpperCaseTextFormatter(),
+                                _InviteCodeFormatter(),
+                              ],
+                              decoration: const InputDecoration(
+                                hintText: '1234-5678',
+                                hintStyle: TextStyle(
+                                  fontSize: 24,
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                counterText: '',
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8,
                                 ),
                               ),
+                              onSubmitted: (_) => _submitCode(),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 24),
 
-                    // Submit button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isSubmitting ? null : _submitCode,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: VineTheme.vineGreen,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor: VineTheme.vineGreen
-                              .withValues(alpha: 0.5),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                      // Error message
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: VineTheme.error.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: VineTheme.error,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: VineTheme.bodySmallFont(
+                                    color: VineTheme.error,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        child: _isSubmitting
-                            ? const SizedBox(
-                                height: 24,
-                                width: 24,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : Text(
-                                'Continue',
-                                style: VineTheme.labelLargeFont(),
+                      ],
+
+                      // Confetti sticker - rotated and partially off-screen
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Transform.translate(
+                            offset: const Offset(-50, 0),
+                            child: Transform.rotate(
+                              angle: 10 * 3.14159 / 180,
+                              child: Image.asset(
+                                'assets/stickers/confetti.png',
+                                width: 180,
+                                height: 180,
+                                fit: BoxFit.contain,
                               ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
+
+              // Submit button at bottom
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _submitCode,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: VineTheme.vineGreen,
+                      foregroundColor: Colors.black,
+                      disabledBackgroundColor: VineTheme.vineGreen.withValues(
+                        alpha: 0.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.black,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "Let's go!",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -280,6 +314,47 @@ class _UpperCaseTextFormatter extends TextInputFormatter {
     return TextEditingValue(
       text: newValue.text.toUpperCase(),
       selection: newValue.selection,
+    );
+  }
+}
+
+/// Text formatter to add dash after 4 characters (XXXX-XXXX format).
+class _InviteCodeFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Remove any existing dashes to work with raw input
+    final rawText = newValue.text.replaceAll('-', '');
+
+    // Limit to 8 characters (excluding dash)
+    final limitedText = rawText.length > 8 ? rawText.substring(0, 8) : rawText;
+
+    // Add dash after 4th character if we have more than 4 chars
+    String formattedText;
+    if (limitedText.length > 4) {
+      formattedText =
+          '${limitedText.substring(0, 4)}-${limitedText.substring(4)}';
+    } else {
+      formattedText = limitedText;
+    }
+
+    // Calculate new cursor position
+    var newCursorPosition = newValue.selection.end;
+    if (newValue.text.length < formattedText.length) {
+      // Dash was added, move cursor forward
+      newCursorPosition = formattedText.length;
+    } else if (newValue.text.length > formattedText.length) {
+      // Characters were removed
+      newCursorPosition = formattedText.length;
+    }
+
+    return TextEditingValue(
+      text: formattedText,
+      selection: TextSelection.collapsed(
+        offset: newCursorPosition.clamp(0, formattedText.length),
+      ),
     );
   }
 }

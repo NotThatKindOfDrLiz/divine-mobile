@@ -48,7 +48,7 @@ class InviteChoiceScreen extends StatelessWidget {
                   context.read<NpubVerificationBloc>().add(
                     const NpubVerificationSkipInviteSet(),
                   );
-                  context.go(WelcomeScreen.path);
+                  context.push(WelcomeScreen.path);
                 },
               ),
 
