@@ -1,6 +1,9 @@
 // ABOUTME: For You recommendations provider - ML-powered personalized video feed
 // ABOUTME: Uses Funnelcake REST API for Gorse-based recommendations (staging only)
 
+import 'dart:async';
+
+import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
@@ -20,8 +23,14 @@ part 'for_you_provider.g.dart';
 class ForYouFeed extends _$ForYouFeed {
   int _currentLimit = 50;
 
+  // Broadcast controller for reactive video streams
+  final _videosStreamController =
+      StreamController<List<VideoEvent>>.broadcast();
+
   @override
   Future<VideoFeedState> build() async {
+    ref.onDispose(_videosStreamController.close);
+
     // Watch appReady gate
     final isAppReady = ref.watch(appReadyProvider);
 
@@ -102,12 +111,14 @@ class ForYouFeed extends _$ForYouFeed {
           .where((v) => v.isSupportedOnCurrentPlatform)
           .toList();
 
-      return VideoFeedState(
+      final feedState = VideoFeedState(
         videos: filteredVideos,
         hasMoreContent: filteredVideos.length >= 20,
         isLoadingMore: false,
         lastUpdated: DateTime.now(),
       );
+      _notifyVideosChanged(filteredVideos);
+      return feedState;
     } catch (e) {
       Log.error(
         '🎯 ForYouFeed: Error fetching recommendations: $e',
@@ -180,6 +191,7 @@ class ForYouFeed extends _$ForYouFeed {
           lastUpdated: DateTime.now(),
         ),
       );
+      _notifyVideosChanged(filteredVideos);
     } catch (e) {
       Log.error(
         '🎯 ForYouFeed: Error loading more: $e',
@@ -207,6 +219,41 @@ class ForYouFeed extends _$ForYouFeed {
     _currentLimit = 50; // Reset limit on refresh
     ref.invalidateSelf();
     await future; // Wait for rebuild to complete
+  }
+
+  /// Creates a reactive stream of videos from this feed.
+  /// Emits the current video list immediately (buffered), then emits
+  /// on every state change via the internal broadcast controller.
+  Stream<List<VideoEvent>> createVideosStream() {
+    final controller = StreamController<List<VideoEvent>>();
+    late final StreamSubscription<List<VideoEvent>> sub;
+
+    controller
+      ..onListen = () {
+        sub = _videosStreamController.stream.listen(
+          controller.add,
+          onError: controller.addError,
+        );
+      }
+      ..onCancel = () {
+        sub.cancel();
+        controller.close();
+      };
+
+    // Emit current videos immediately (buffered until listened)
+    final current = state.asData?.value.videos;
+    if (current != null) {
+      controller.add(current);
+    }
+
+    return controller.stream;
+  }
+
+  /// Pushes the current video list to any active stream subscribers.
+  void _notifyVideosChanged(List<VideoEvent> videos) {
+    if (!_videosStreamController.isClosed) {
+      _videosStreamController.add(videos);
+    }
   }
 }
 
