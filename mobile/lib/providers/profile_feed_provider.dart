@@ -37,6 +37,10 @@ class ProfileFeed extends _$ProfileFeed {
   // Key: video ID, Value: metadata fields
   final Map<String, _VideoMetadataCache> _metadataCache = {};
 
+  // Broadcast controller for reactive video streams
+  final _videosStreamController =
+      StreamController<List<VideoEvent>>.broadcast();
+
   @override
   Future<VideoFeedState> build(String userId) async {
     // Reset cursor state at start of build to ensure clean state
@@ -197,6 +201,7 @@ class ProfileFeed extends _$ProfileFeed {
     ref.onDispose(() {
       unregisterUpdate();
       unregisterNew();
+      _videosStreamController.close();
     });
 
     Log.info(
@@ -249,6 +254,7 @@ class ProfileFeed extends _$ProfileFeed {
         lastUpdated: DateTime.now(),
       ),
     );
+    _notifyVideosChanged(updatedVideos);
   }
 
   /// Optimistically add a newly published video to the profile feed state.
@@ -305,6 +311,7 @@ class ProfileFeed extends _$ProfileFeed {
         lastUpdated: DateTime.now(),
       ),
     );
+    _notifyVideosChanged(updatedVideos);
   }
 
   /// Fix #2: Refresh from REST API when in REST API mode
@@ -334,6 +341,7 @@ class ProfileFeed extends _$ProfileFeed {
             lastUpdated: DateTime.now(),
           ),
         );
+        _notifyVideosChanged(authorVideos);
 
         Log.info(
           'ProfileFeed: Refreshed ${authorVideos.length} videos from REST API for user=$userId',
@@ -447,6 +455,7 @@ class ProfileFeed extends _$ProfileFeed {
                 lastUpdated: DateTime.now(),
               ),
             );
+            _notifyVideosChanged(allVideos);
           } else {
             Log.info(
               'ProfileFeed: All returned videos already in state for user=$userId',
@@ -531,6 +540,7 @@ class ProfileFeed extends _$ProfileFeed {
           lastUpdated: DateTime.now(),
         ),
       );
+      _notifyVideosChanged(updatedVideos);
     } catch (e) {
       Log.error(
         'ProfileFeed: Error loading more: $e',
@@ -583,6 +593,7 @@ class ProfileFeed extends _$ProfileFeed {
               lastUpdated: DateTime.now(),
             ),
           );
+          _notifyVideosChanged(authorVideos);
 
           Log.info(
             'ProfileFeed: Refreshed ${authorVideos.length} videos from REST API for user=$userId',
@@ -606,6 +617,41 @@ class ProfileFeed extends _$ProfileFeed {
 
     // Invalidate to re-run build() which will try REST API then Nostr
     ref.invalidateSelf();
+  }
+
+  /// Creates a reactive stream of videos from this feed.
+  /// Emits the current video list immediately (buffered), then emits
+  /// on every state change via the internal broadcast controller.
+  Stream<List<VideoEvent>> createVideosStream() {
+    final controller = StreamController<List<VideoEvent>>();
+    late final StreamSubscription<List<VideoEvent>> sub;
+
+    controller
+      ..onListen = () {
+        sub = _videosStreamController.stream.listen(
+          controller.add,
+          onError: controller.addError,
+        );
+      }
+      ..onCancel = () {
+        sub.cancel();
+        controller.close();
+      };
+
+    // Emit current videos immediately (buffered until listened)
+    final current = state.asData?.value.videos;
+    if (current != null) {
+      controller.add(current);
+    }
+
+    return controller.stream;
+  }
+
+  /// Pushes the current video list to any active stream subscribers.
+  void _notifyVideosChanged(List<VideoEvent> videos) {
+    if (!_videosStreamController.isClosed) {
+      _videosStreamController.add(videos);
+    }
   }
 
   /// Cache metadata from REST API videos for later merging with Nostr data

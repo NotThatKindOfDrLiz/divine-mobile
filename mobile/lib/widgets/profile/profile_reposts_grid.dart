@@ -8,7 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/profile_reposted_videos/profile_reposted_videos_bloc.dart';
-import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Grid widget displaying user's reposted videos
@@ -151,6 +151,18 @@ class _RepostsEmptyState extends StatelessWidget {
   );
 }
 
+/// Creates a reactive stream from a [ProfileRepostedVideosBloc].
+/// Emits the current video list immediately, then emits on each state change.
+Stream<List<VideoEvent>> _createReactiveStream(
+  ProfileRepostedVideosBloc bloc,
+  List<VideoEvent> currentVideos,
+) async* {
+  yield currentVideos;
+  await for (final state in bloc.stream) {
+    yield state.videos;
+  }
+}
+
 /// Individual repost tile in the grid with repost badge
 class _RepostGridTile extends StatelessWidget {
   const _RepostGridTile({
@@ -173,9 +185,12 @@ class _RepostGridTile extends StatelessWidget {
       );
 
       context.push(
-        FullscreenVideoFeedScreen.path,
-        extra: FullscreenVideoFeedArgs(
-          source: StaticFeedSource(allVideos),
+        PooledFullscreenVideoFeedScreen.path,
+        extra: PooledFullscreenVideoFeedArgs(
+          videosStream: _createReactiveStream(
+            context.read<ProfileRepostedVideosBloc>(),
+            allVideos,
+          ),
           initialIndex: index,
         ),
       );

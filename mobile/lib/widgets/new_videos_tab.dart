@@ -7,7 +7,7 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/popular_now_feed_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
 import 'package:openvine/services/feed_performance_tracker.dart';
 import 'package:openvine/services/error_analytics_tracker.dart';
@@ -197,14 +197,14 @@ class _NewVideosContent extends ConsumerWidget {
         );
         // Navigate to fullscreen video feed
         context.push(
-          FullscreenVideoFeedScreen.path,
-          extra: FullscreenVideoFeedArgs(
+          PooledFullscreenVideoFeedScreen.path,
+          extra: PooledFullscreenVideoFeedArgs(
+            videosStream: ref
+                .read(popularNowFeedProvider.notifier)
+                .createVideosStream(),
             initialIndex: index,
+            onLoadMore: ref.read(popularNowFeedProvider.notifier).loadMore,
             contextTitle: 'New Videos',
-            source: StaticFeedSource(
-              videoList,
-              onLoadMore: ref.read(popularNowFeedProvider.notifier).loadMore,
-            ),
           ),
         );
       },

@@ -1,6 +1,8 @@
 // ABOUTME: PopularNow feed provider showing newest videos with REST API + Nostr fallback
 // ABOUTME: Tries Funnelcake REST API first, falls back to Nostr subscription if unavailable
 
+import 'dart:async';
+
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/helpers/video_feed_builder.dart';
 import 'package:models/models.dart' hide LogCategory;
@@ -31,6 +33,10 @@ class PopularNowFeed extends _$PopularNowFeed {
   VideoFeedBuilder? _builder;
   bool _usingRestApi = false;
   int? _nextCursor; // Cursor for REST API pagination
+
+  // Broadcast controller for reactive video streams
+  final _videosStreamController =
+      StreamController<List<VideoEvent>>.broadcast();
 
   @override
   Future<VideoFeedState> build() async {
@@ -162,6 +168,7 @@ class PopularNowFeed extends _$PopularNowFeed {
       onUpdate: (newState) {
         if (ref.mounted) {
           this.state = AsyncData(newState);
+          _notifyVideosChanged(newState.videos);
         }
       },
     );
@@ -180,6 +187,7 @@ class PopularNowFeed extends _$PopularNowFeed {
       _builder?.cleanup();
       _builder = null;
       unregisterVideoUpdate(); // Clean up video update callback
+      _videosStreamController.close();
       Log.info(
         '🆕 PopularNowFeed: Disposed',
         name: 'PopularNowFeedProvider',
@@ -256,6 +264,7 @@ class PopularNowFeed extends _$PopularNowFeed {
                 lastUpdated: DateTime.now(),
               ),
             );
+            _notifyVideosChanged(allVideos);
           } else {
             Log.info(
               '🆕 PopularNowFeed: All returned videos already in state',
@@ -363,6 +372,7 @@ class PopularNowFeed extends _$PopularNowFeed {
         lastUpdated: DateTime.now(),
       ),
     );
+    _notifyVideosChanged(updatedVideos);
   }
 
   /// Refresh the feed - invalidates self to re-run build() with REST API fallback logic
@@ -402,6 +412,7 @@ class PopularNowFeed extends _$PopularNowFeed {
               lastUpdated: DateTime.now(),
             ),
           );
+          _notifyVideosChanged(filteredVideos);
 
           Log.info(
             '✅ PopularNowFeed: Refreshed ${filteredVideos.length} videos from REST API, cursor: $_nextCursor',
@@ -425,6 +436,41 @@ class PopularNowFeed extends _$PopularNowFeed {
 
     // Invalidate to re-run build() which will try REST API then Nostr
     ref.invalidateSelf();
+  }
+
+  /// Creates a reactive stream of videos from this feed.
+  /// Emits the current video list immediately (buffered), then emits
+  /// on every state change via the internal broadcast controller.
+  Stream<List<VideoEvent>> createVideosStream() {
+    final controller = StreamController<List<VideoEvent>>();
+    late final StreamSubscription<List<VideoEvent>> sub;
+
+    controller
+      ..onListen = () {
+        sub = _videosStreamController.stream.listen(
+          controller.add,
+          onError: controller.addError,
+        );
+      }
+      ..onCancel = () {
+        sub.cancel();
+        controller.close();
+      };
+
+    // Emit current videos immediately (buffered until listened)
+    final current = state.asData?.value.videos;
+    if (current != null) {
+      controller.add(current);
+    }
+
+    return controller.stream;
+  }
+
+  /// Pushes the current video list to any active stream subscribers.
+  void _notifyVideosChanged(List<VideoEvent> videos) {
+    if (!_videosStreamController.isClosed) {
+      _videosStreamController.add(videos);
+    }
   }
 
   /// Get oldest timestamp from videos for cursor pagination

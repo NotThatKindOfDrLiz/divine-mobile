@@ -8,7 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/profile_liked_videos/profile_liked_videos_bloc.dart';
-import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Grid widget displaying user's liked videos
@@ -151,6 +151,18 @@ class _LikedEmptyState extends StatelessWidget {
   );
 }
 
+/// Creates a reactive stream from a [ProfileLikedVideosBloc].
+/// Emits the current video list immediately, then emits on each state change.
+Stream<List<VideoEvent>> _createReactiveStream(
+  ProfileLikedVideosBloc bloc,
+  List<VideoEvent> currentVideos,
+) async* {
+  yield currentVideos;
+  await for (final state in bloc.stream) {
+    yield state.videos;
+  }
+}
+
 /// Individual liked video tile in the grid with heart badge
 class _LikedGridTile extends StatelessWidget {
   const _LikedGridTile({
@@ -173,11 +185,13 @@ class _LikedGridTile extends StatelessWidget {
           'videoId=${videoEvent.id}',
           category: LogCategory.video,
         );
-        // Use LikedVideosFeedSource for fullscreen playback
         context.push(
-          FullscreenVideoFeedScreen.path,
-          extra: FullscreenVideoFeedArgs(
-            source: LikedVideosFeedSource(allVideos),
+          PooledFullscreenVideoFeedScreen.path,
+          extra: PooledFullscreenVideoFeedArgs(
+            videosStream: _createReactiveStream(
+              context.read<ProfileLikedVideosBloc>(),
+              allVideos,
+            ),
             initialIndex: index,
           ),
         );

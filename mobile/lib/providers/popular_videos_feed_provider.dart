@@ -1,6 +1,8 @@
 // ABOUTME: Popular Videos feed provider showing trending videos (recent engagement)
 // ABOUTME: Tries Funnelcake REST API (sort=trending) first, falls back to Nostr if unavailable
 
+import 'dart:async';
+
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
@@ -26,11 +28,17 @@ class PopularVideosFeed extends _$PopularVideosFeed {
   bool _usingRestApi = false;
   int? _nextCursor;
 
+  // Broadcast controller for reactive video streams
+  final _videosStreamController =
+      StreamController<List<VideoEvent>>.broadcast();
+
   @override
   Future<VideoFeedState> build() async {
     // Reset state
     _usingRestApi = false;
     _nextCursor = null;
+
+    ref.onDispose(_videosStreamController.close);
 
     // Watch appReady gate
     final isAppReady = ref.watch(appReadyProvider);
@@ -267,6 +275,7 @@ class PopularVideosFeed extends _$PopularVideosFeed {
                 lastUpdated: DateTime.now(),
               ),
             );
+            _notifyVideosChanged(allVideos);
           } else {
             state = AsyncData(
               currentState.copyWith(
@@ -337,6 +346,7 @@ class PopularVideosFeed extends _$PopularVideosFeed {
               lastUpdated: DateTime.now(),
             ),
           );
+          _notifyVideosChanged(filteredVideos);
 
           Log.info(
             'PopularVideosFeed: Refreshed ${filteredVideos.length} videos from REST API',
@@ -358,6 +368,41 @@ class PopularVideosFeed extends _$PopularVideosFeed {
     _usingRestApi = false;
     _nextCursor = null;
     ref.invalidateSelf();
+  }
+
+  /// Creates a reactive stream of videos from this feed.
+  /// Emits the current video list immediately (buffered), then emits
+  /// on every state change via the internal broadcast controller.
+  Stream<List<VideoEvent>> createVideosStream() {
+    final controller = StreamController<List<VideoEvent>>();
+    late final StreamSubscription<List<VideoEvent>> sub;
+
+    controller
+      ..onListen = () {
+        sub = _videosStreamController.stream.listen(
+          controller.add,
+          onError: controller.addError,
+        );
+      }
+      ..onCancel = () {
+        sub.cancel();
+        controller.close();
+      };
+
+    // Emit current videos immediately (buffered until listened)
+    final current = state.asData?.value.videos;
+    if (current != null) {
+      controller.add(current);
+    }
+
+    return controller.stream;
+  }
+
+  /// Pushes the current video list to any active stream subscribers.
+  void _notifyVideosChanged(List<VideoEvent> videos) {
+    if (!_videosStreamController.isClosed) {
+      _videosStreamController.add(videos);
+    }
   }
 
   int? _getOldestTimestamp(List<VideoEvent> videos) {

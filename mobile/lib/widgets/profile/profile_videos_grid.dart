@@ -12,7 +12,7 @@ import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -187,7 +187,7 @@ class _VideoGridUploadingTile extends StatelessWidget {
 }
 
 /// Individual video tile in the grid
-class _VideoGridTile extends StatelessWidget {
+class _VideoGridTile extends ConsumerWidget {
   const _VideoGridTile({
     required this.videoEvent,
     required this.userIdHex,
@@ -199,22 +199,20 @@ class _VideoGridTile extends StatelessWidget {
   final int index;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context, WidgetRef ref) => GestureDetector(
     onTap: () {
       Log.info(
         '🎯 ProfileVideosGrid TAP: gridIndex=$index, '
         'videoId=${videoEvent.id}',
         category: LogCategory.video,
       );
-      // Use FullscreenVideoFeedScreen with ProfileFeedSource for
-      // reactive updates when loadMore fetches new videos
-      // TODO(migration): Migrate to PooledFullscreenVideoFeedScreen once
-      // ProfileVideosBloc is created
+      final notifier = ref.read(profileFeedProvider(userIdHex).notifier);
       context.push(
-        FullscreenVideoFeedScreen.path,
-        extra: FullscreenVideoFeedArgs(
-          source: ProfileFeedSource(userIdHex),
+        PooledFullscreenVideoFeedScreen.path,
+        extra: PooledFullscreenVideoFeedArgs(
+          videosStream: notifier.createVideosStream(),
           initialIndex: index,
+          onLoadMore: notifier.loadMore,
         ),
       );
     },
