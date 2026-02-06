@@ -9,11 +9,14 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    <!-- Media/Storage Permissions for Profile Picture Selection -->
-    <!-- For Android 13+ (API 33+) - Only images for profile pictures -->
+    <!-- Media/Storage Permissions -->
+    <!-- For Android 13+ (API 33+) - Granular media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <!-- For Android 10-12 (API 29-32) - Only needed for profile pictures on older devices -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- For Android 10-12 (API 29-32) - Read external storage -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <!-- For Android 9 and below (API <=28) - Write to gallery (gal package requirement) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
@@ -81,7 +84,8 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:theme="@style/NormalTheme"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
