@@ -391,10 +391,13 @@ void main() {
           expect(capturedEvent!.content, equals('Test comment'));
 
           // Check NIP-22 tags
-          // For addressable events, A tag is primary root scope (not E)
           final uppercaseATags = capturedEvent!.tags
               .cast<List<dynamic>>()
               .where((t) => t[0] == 'A')
+              .toList();
+          final uppercaseETags = capturedEvent!.tags
+              .cast<List<dynamic>>()
+              .where((t) => t[0] == 'E')
               .toList();
           final uppercaseKTags = capturedEvent!.tags
               .cast<List<dynamic>>()
@@ -423,9 +426,12 @@ void main() {
               .where((t) => t[0] == 'p')
               .toList();
 
-          // Root scope tags - A tag for addressable events
+          // Root scope tags - A and E tags for queryability
           expect(uppercaseATags.length, equals(1));
           expect(uppercaseATags.first[1], equals(testAddressableId));
+          expect(uppercaseETags.length, equals(1));
+          expect(uppercaseETags.first[1], equals(testRootEventId));
+          expect(uppercaseETags.first[3], equals(testRootAuthorPubkey));
           expect(uppercaseKTags.length, equals(1));
           expect(
             uppercaseKTags.first[1],
@@ -474,10 +480,13 @@ void main() {
         expect(capturedEvent, isNotNull);
 
         // Check NIP-22 tags
-        // For addressable events, A tag is primary root scope
         final uppercaseATags = capturedEvent!.tags
             .cast<List<dynamic>>()
             .where((t) => t[0] == 'A')
+            .toList();
+        final uppercaseETags = capturedEvent!.tags
+            .cast<List<dynamic>>()
+            .where((t) => t[0] == 'E')
             .toList();
         final uppercaseKTags = capturedEvent!.tags
             .cast<List<dynamic>>()
@@ -502,9 +511,12 @@ void main() {
             .where((t) => t[0] == 'p')
             .toList();
 
-        // Root scope tags (uppercase) - A tag for addressable events
+        // Root scope tags (uppercase) - A and E tags
         expect(uppercaseATags.length, equals(1));
         expect(uppercaseATags.first[1], equals(testAddressableId));
+        expect(uppercaseETags.length, equals(1));
+        expect(uppercaseETags.first[1], equals(testRootEventId));
+        expect(uppercaseETags.first[3], equals(testRootAuthorPubkey));
         expect(uppercaseKTags.length, equals(1));
         expect(uppercaseKTags.first[1], equals(_testRootEventKind.toString()));
         expect(uppercasePTags.length, equals(1));
@@ -798,7 +810,7 @@ void main() {
 /// Helper to create a NIP-22 comment event for testing.
 ///
 /// Per NIP-22, for addressable events (kind 30000-39999):
-/// - Uppercase `A` tag is used for root scope
+/// - Uppercase `A` and `E` tags are used for root scope
 /// - Lowercase `a` and `e` tags are used for parent item
 Event _createCommentEvent({
   required String id,
@@ -813,12 +825,12 @@ Event _createCommentEvent({
   int createdAt = 1000,
 }) {
   // NIP-22 tags:
-  // Uppercase tags (A, K, P) = root scope for addressable events
+  // Uppercase tags (A, E, K, P) = root scope
   // Lowercase tags (a, e, k, p) = parent item
   final tags = <List<String>>[
     // Root scope tags (uppercase)
-    // For addressable events, use A tag as primary
     if (rootAddressableId != null) ['A', rootAddressableId, ''],
+    ['E', rootEventId, '', rootAuthorPubkey],
     ['K', rootEventKind.toString()],
     ['P', rootAuthorPubkey],
     // Parent item tags (lowercase)

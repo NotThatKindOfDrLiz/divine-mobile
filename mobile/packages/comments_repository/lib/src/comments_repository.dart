@@ -33,8 +33,9 @@ const _defaultLimit = 100;
 ///   (for replies)
 ///
 /// For addressable events (kind 30000-39999 like videos), NIP-22 specifies
-/// using `A` tag for root scope, not `E` tag. This ensures comments persist
-/// across video edits (same address, different event IDs).
+/// using `A` tag for root scope. We also include `E` tag so comments are
+/// queryable by both address and event ID, improving cross-client
+/// compatibility.
 class CommentsRepository {
   /// Creates a new comments repository.
   ///
@@ -157,9 +158,11 @@ class CommentsRepository {
     // as the primary root scope identifier. This matches the blog post example
     // in the spec which uses A tag for kind 30023.
     final tags = <List<String>>[
-      // Root scope tags (uppercase) - A tag is primary for addressable events
+      // Root scope tags (uppercase)
+      // Per NIP-22: use A tag for addressable events + E tag for queryability
       if (rootAddressableId != null && rootAddressableId.isNotEmpty)
         ['A', rootAddressableId, ''],
+      ['E', rootEventId, '', rootEventAuthorPubkey],
       ['K', rootEventKind.toString()],
       ['P', rootEventAuthorPubkey],
       // Parent item tags (lowercase)
