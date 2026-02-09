@@ -12,6 +12,7 @@ import 'package:openvine/providers/profile_stats_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/clipboard_utils.dart';
+import 'package:openvine/utils/user_profile_utils.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/npub_hex.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
