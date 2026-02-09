@@ -338,6 +338,11 @@ class VideoFeedController extends ChangeNotifier {
     if (_isDisposed) return;
     _isDisposed = true;
 
+    // Pause all playing videos before releasing references
+    for (final index in _loadedPlayers.keys) {
+      _pauseVideo(index);
+    }
+
     // Cancel all subscriptions
     for (final subscription in _bufferSubscriptions.values) {
       unawaited(subscription.cancel());

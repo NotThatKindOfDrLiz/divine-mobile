@@ -22,17 +22,24 @@ import 'package:pooled_video_player/pooled_video_player.dart';
 ///
 /// Uses a stream-based approach where the source BLoC/provider remains
 /// the single source of truth. The fullscreen screen receives:
-/// - A stream of videos for reactive updates
+/// - An initial video to display immediately (no loading delay)
+/// - A stream of videos for reactive updates (enables swiping)
 /// - A callback to trigger load more on the source
 class PooledFullscreenVideoFeedArgs {
   const PooledFullscreenVideoFeedArgs({
+    required this.initialVideo,
     required this.videosStream,
     required this.initialIndex,
     this.onLoadMore,
     this.contextTitle,
   });
 
+  /// The video to display immediately when the screen opens.
+  /// This eliminates the loading delay - playback starts instantly.
+  final VideoEvent initialVideo;
+
   /// Stream of videos from the source (BLoC or provider).
+  /// Provides the full list for swiping to adjacent videos.
   final Stream<List<VideoEvent>> videosStream;
 
   /// Initial video index to start playback.
@@ -61,6 +68,7 @@ class PooledFullscreenVideoFeedScreen extends StatelessWidget {
   static const path = '/pooled-video-feed';
 
   const PooledFullscreenVideoFeedScreen({
+    required this.initialVideo,
     required this.videosStream,
     required this.initialIndex,
     this.onLoadMore,
@@ -68,6 +76,7 @@ class PooledFullscreenVideoFeedScreen extends StatelessWidget {
     super.key,
   });
 
+  final VideoEvent initialVideo;
   final Stream<List<VideoEvent>> videosStream;
   final int initialIndex;
   final VoidCallback? onLoadMore;
@@ -77,6 +86,7 @@ class PooledFullscreenVideoFeedScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => FullscreenFeedBloc(
+        initialVideo: initialVideo,
         videosStream: videosStream,
         initialIndex: initialIndex,
         onLoadMore: onLoadMore,

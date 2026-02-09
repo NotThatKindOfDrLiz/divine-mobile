@@ -786,6 +786,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             );
           }
           return PooledFullscreenVideoFeedScreen(
+            initialVideo: args.initialVideo,
             videosStream: args.videosStream,
             initialIndex: args.initialIndex,
             onLoadMore: args.onLoadMore,

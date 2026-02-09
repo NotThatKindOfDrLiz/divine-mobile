@@ -35,19 +35,23 @@ void main() {
     }
 
     FullscreenFeedBloc createBloc({
+      VideoEvent? initialVideo,
       int initialIndex = 0,
       void Function()? onLoadMore,
     }) => FullscreenFeedBloc(
+      initialVideo: initialVideo ?? createTestVideo('initial'),
       videosStream: videosController.stream,
       initialIndex: initialIndex,
       onLoadMore: onLoadMore,
     );
 
-    test('initial state has correct values', () {
-      final bloc = createBloc(initialIndex: 2);
-      expect(bloc.state.status, FullscreenFeedStatus.initial);
-      expect(bloc.state.videos, isEmpty);
-      expect(bloc.state.currentIndex, 2);
+    test('initial state has correct values with initialVideo', () {
+      final initialVideo = createTestVideo('initial_video');
+      final bloc = createBloc(initialVideo: initialVideo, initialIndex: 2);
+      // BLoC now starts ready with the initial video for instant display
+      expect(bloc.state.status, FullscreenFeedStatus.ready);
+      expect(bloc.state.videos, [initialVideo]);
+      expect(bloc.state.currentIndex, 0); // Always 0 for single initial video
       expect(bloc.state.isLoadingMore, isFalse);
       bloc.close();
     });
@@ -240,6 +244,7 @@ void main() {
       test('calls onLoadMore callback when triggered', () async {
         var called = false;
         final bloc = FullscreenFeedBloc(
+          initialVideo: createTestVideo('initial'),
           videosStream: videosController.stream,
           initialIndex: 0,
           onLoadMore: () => called = true,

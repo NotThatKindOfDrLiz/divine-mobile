@@ -8,7 +8,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/profile_liked_videos/profile_liked_videos_bloc.dart';
-import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Grid widget displaying user's liked videos
@@ -173,11 +174,17 @@ class _LikedGridTile extends StatelessWidget {
           'videoId=${videoEvent.id}',
           category: LogCategory.video,
         );
+        final bloc = context.read<ProfileLikedVideosBloc>();
+        final videosStream = bloc.stream
+            .map((state) => state.videos)
+            .startWith(bloc.state.videos);
+
         // Use LikedVideosFeedSource for fullscreen playback
         context.push(
-          FullscreenVideoFeedScreen.path,
-          extra: FullscreenVideoFeedArgs(
-            source: LikedVideosFeedSource(allVideos),
+          PooledFullscreenVideoFeedScreen.path,
+          extra: PooledFullscreenVideoFeedArgs(
+            initialVideo: videoEvent,
+            videosStream: videosStream,
             initialIndex: index,
           ),
         );

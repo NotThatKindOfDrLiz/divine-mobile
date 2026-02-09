@@ -18,7 +18,8 @@ part 'fullscreen_feed_state.dart';
 /// liked videos, reposts, etc.) and the fullscreen video player UI.
 ///
 /// It receives:
-/// - A [Stream] of videos from the source (for reactive updates)
+/// - An [initialVideo] to display immediately (no loading delay)
+/// - A [Stream] of videos from the source (for reactive updates/swiping)
 /// - An optional [onLoadMore] callback to trigger pagination on the source
 /// - An [initialIndex] for starting playback position
 ///
@@ -28,12 +29,20 @@ part 'fullscreen_feed_state.dart';
 class FullscreenFeedBloc
     extends Bloc<FullscreenFeedEvent, FullscreenFeedState> {
   FullscreenFeedBloc({
+    required VideoEvent initialVideo,
     required Stream<List<VideoEvent>> videosStream,
     required int initialIndex,
     VoidCallback? onLoadMore,
   }) : _videosStream = videosStream,
        _onLoadMore = onLoadMore,
-       super(FullscreenFeedState(currentIndex: initialIndex)) {
+       _initialIndex = initialIndex,
+       super(
+         FullscreenFeedState(
+           status: FullscreenFeedStatus.ready,
+           videos: [initialVideo],
+           currentIndex: 0,
+         ),
+       ) {
     on<FullscreenFeedStarted>(_onStarted);
     on<FullscreenFeedLoadMoreRequested>(_onLoadMoreRequested);
     on<FullscreenFeedIndexChanged>(_onIndexChanged);
@@ -41,6 +50,8 @@ class FullscreenFeedBloc
 
   final Stream<List<VideoEvent>> _videosStream;
   final VoidCallback? _onLoadMore;
+  final int _initialIndex;
+  bool _hasReceivedFullList = false;
 
   /// Handle feed started - subscribe to the videos stream using emit.forEach.
   ///
@@ -48,6 +59,10 @@ class FullscreenFeedBloc
   /// - Subscribes to the stream
   /// - Emits states for each data event
   /// - Cancels the subscription when the bloc is closed
+  ///
+  /// Note: The BLoC is initialized with [initialVideo] and ready status,
+  /// so the UI renders immediately. The first stream emission provides
+  /// the full video list for swiping navigation.
   Future<void> _onStarted(
     FullscreenFeedStarted event,
     Emitter<FullscreenFeedState> emit,
@@ -61,15 +76,24 @@ class FullscreenFeedBloc
           category: LogCategory.video,
         );
 
-        // Clamp current index to valid range
-        final clampedIndex = videos.isEmpty
-            ? 0
-            : state.currentIndex.clamp(0, videos.length - 1);
+        // On first emission, use the original initialIndex to restore position
+        // in the full list. After that, preserve user's current position.
+        final int newIndex;
+        if (!_hasReceivedFullList) {
+          _hasReceivedFullList = true;
+          newIndex = videos.isEmpty
+              ? 0
+              : _initialIndex.clamp(0, videos.length - 1);
+        } else {
+          newIndex = videos.isEmpty
+              ? 0
+              : state.currentIndex.clamp(0, videos.length - 1);
+        }
 
         return state.copyWith(
           status: FullscreenFeedStatus.ready,
           videos: videos,
-          currentIndex: clampedIndex,
+          currentIndex: newIndex,
           isLoadingMore: false,
         );
       },
