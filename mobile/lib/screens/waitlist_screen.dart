@@ -255,8 +255,9 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                                     ),
                                     border: InputBorder.none,
                                     isDense: true,
-                                    contentPadding:
-                                        EdgeInsets.symmetric(vertical: 8),
+                                    contentPadding: EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
                                   ),
                                   onSubmitted: (_) => _submitEmail(),
                                 ),
@@ -304,8 +305,8 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: VineTheme.vineGreen,
                           foregroundColor: Colors.black,
-                          disabledBackgroundColor:
-                              VineTheme.vineGreen.withValues(alpha: 0.5),
+                          disabledBackgroundColor: VineTheme.vineGreen
+                              .withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
