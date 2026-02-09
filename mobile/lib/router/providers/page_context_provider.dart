@@ -10,6 +10,7 @@ import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/screens/discover_lists_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/screens/feed/video_feed_page.dart';
 import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
@@ -28,6 +29,7 @@ import 'package:openvine/screens/relay_settings_screen.dart';
 import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/screens/settings_screen.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
+import 'package:openvine/screens/video_detail_screen.dart';
 import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/screens/video_editor/video_editor_screen.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
@@ -73,6 +75,8 @@ enum RouteType {
   sound, // Sound detail screen for audio reuse
   secureAccount,
   newVideoFeed,
+  pooledVideoFeed, // Pooled fullscreen video feed (uses pooled_video_player)
+  videoDetail, // Video detail screen (deep link to specific video)
 }
 
 /// Structured representation of a route
@@ -85,6 +89,7 @@ class RouteContext {
     this.searchTerm,
     this.listId,
     this.soundId,
+    this.videoId,
   });
 
   final RouteType type;
@@ -94,6 +99,7 @@ class RouteContext {
   final String? searchTerm;
   final String? listId;
   final String? soundId;
+  final String? videoId;
 }
 
 /// Parse a URL path into a structured RouteContext
@@ -298,6 +304,16 @@ RouteContext parseRoute(String path) {
     case 'new-video-feed':
       return const RouteContext(type: RouteType.newVideoFeed);
 
+    case 'pooled-video-feed':
+      return const RouteContext(type: RouteType.pooledVideoFeed);
+
+    case 'video':
+      if (segments.length < 2) {
+        return const RouteContext(type: RouteType.home);
+      }
+      final videoId = Uri.decodeComponent(segments[1]);
+      return RouteContext(type: RouteType.videoDetail, videoId: videoId);
+
     default:
       return const RouteContext(type: RouteType.home, videoIndex: 0);
   }
@@ -454,6 +470,12 @@ String buildRoute(RouteContext context) {
 
     case RouteType.newVideoFeed:
       return VideoFeedPage.path;
+
+    case RouteType.pooledVideoFeed:
+      return PooledFullscreenVideoFeedScreen.path;
+
+    case RouteType.videoDetail:
+      return VideoDetailScreen.pathForId(context.videoId ?? '');
   }
 }
 

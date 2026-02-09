@@ -233,6 +233,11 @@ class NostrClient {
     final sentEvent = await _nostr.sendEvent(
       event,
       targetRelays: targetRelays,
+      // Also pass as tempRelays so the SDK creates temporary connections
+      // to target relays not already in the connected pool. Without this,
+      // targetRelays only filters the existing pool and the event could
+      // be sent to zero relays.
+      tempRelays: targetRelays,
     );
 
     if (sentEvent == null) {
@@ -887,6 +892,26 @@ class NostrClient {
     );
 
     return subscribe([filter], tempRelays: _nip50SearchRelays);
+  }
+
+  /// Queries for user profiles using NIP-50 search
+  ///
+  /// Returns a list of profile events (kind 0) matching the search query.
+  /// Uses NIP-50 search parameter for full-text search on compatible relays.
+  ///
+  /// Unlike [searchUsers], this returns a Future that completes once,
+  /// making it suitable for one-time search operations.
+  Future<List<Event>> queryUsers(
+    String query, {
+    int? limit,
+  }) {
+    final filter = Filter(
+      kinds: const [EventKind.metadata],
+      limit: limit ?? 100,
+      search: query,
+    );
+
+    return queryEvents([filter]);
   }
 
   /// Creates a NIP-98 HTTP authentication header.

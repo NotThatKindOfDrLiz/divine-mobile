@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/router/router.dart';
+import 'package:openvine/services/page_load_observer.dart';
 import 'package:openvine/screens/auth/divine_auth_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
@@ -19,6 +20,7 @@ import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/screens/developer_options_screen.dart';
 import 'package:openvine/screens/discover_lists_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/screens/feed/video_feed_page.dart';
 import 'package:openvine/screens/fullscreen_video_feed_screen.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
@@ -68,6 +70,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     // Start at /welcome - redirect logic will navigate to appropriate route
     initialLocation: WelcomeScreen.path,
     observers: [
+      PageLoadObserver(),
       VideoStopNavigatorObserver(),
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
     ],
@@ -775,6 +778,26 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           return FullscreenVideoFeedScreen(
             source: args.source,
             initialIndex: args.initialIndex,
+            contextTitle: args.contextTitle,
+          );
+        },
+      ),
+      // Pooled fullscreen video feed (uses pooled_video_player package)
+      GoRoute(
+        path: PooledFullscreenVideoFeedScreen.path,
+        name: PooledFullscreenVideoFeedScreen.routeName,
+        builder: (ctx, st) {
+          final args = st.extra as PooledFullscreenVideoFeedArgs?;
+          if (args == null) {
+            return Scaffold(
+              appBar: AppBar(title: const Text('Error')),
+              body: const Center(child: Text('No videos to display')),
+            );
+          }
+          return PooledFullscreenVideoFeedScreen(
+            videosStream: args.videosStream,
+            initialIndex: args.initialIndex,
+            onLoadMore: args.onLoadMore,
             contextTitle: args.contextTitle,
           );
         },

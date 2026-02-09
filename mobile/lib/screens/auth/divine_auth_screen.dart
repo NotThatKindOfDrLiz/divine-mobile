@@ -463,7 +463,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
             onPressed: () => dialogContext.pop(),
             child: const Text(
               'Cancel',
-              style: TextStyle(color: Colors.white60),
+              style: TextStyle(color: VineTheme.onSurfaceMuted),
             ),
           ),
           ElevatedButton(
