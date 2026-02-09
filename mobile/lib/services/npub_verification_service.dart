@@ -62,17 +62,13 @@ class NpubVerificationService {
     final deviceId = await _getDeviceId();
     final uri = Uri.parse('$_baseUrl/v1/verify-npub');
     Log.info(
-      'Verifying npub is stubbed out to always succeed unless '
-      'npub starts with npub16 '
+      'Verifying npub is stubbed out to always fail '
       'Ignoring $deviceId $uri $_timeout',
       name: 'NpubVerificationService',
       category: LogCategory.auth,
     );
     try {
-      final response = http.Response(
-        jsonEncode({'valid': !npub.startsWith('npub16')}),
-        200,
-      );
+      final response = http.Response(jsonEncode({'valid': false}), 200);
       // final response = await _client
       // .post(
       //   uri,

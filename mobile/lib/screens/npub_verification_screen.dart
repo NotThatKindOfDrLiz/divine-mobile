@@ -17,7 +17,7 @@ import 'package:openvine/utils/unified_logger.dart';
 /// This screen:
 /// - Shows a loading indicator while verifying the npub
 /// - On success: BLoC state triggers router redirect via AppStateListenable
-/// - On failure: signs out and navigates to WaitlistScreen
+/// - On failure: signs out (preserving keys) and navigates to WaitlistScreen
 class NpubVerificationScreen extends ConsumerStatefulWidget {
   const NpubVerificationScreen({super.key});
 
@@ -95,8 +95,8 @@ class _NpubVerificationScreenState
 
     final authService = ref.read(authServiceProvider);
 
-    // Sign out and delete keys to prevent bypass
-    await authService.signOut(deleteKeys: true);
+    // Sign out but preserve keys so the user can retry or use an invite code
+    await authService.signOut();
 
     // Clear skip invite flag so user goes back to invite screen flow
     if (mounted) {
@@ -111,9 +111,7 @@ class _NpubVerificationScreenState
     context.go(
       WaitlistScreen.path,
       extra: WaitlistScreenArgs(
-        message:
-            message ??
-            'Your account is not yet verified. Please enter an invite code.',
+        message: message ?? 'Divine is currently in private beta.',
       ),
     );
   }
