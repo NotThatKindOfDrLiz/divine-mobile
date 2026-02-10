@@ -41,6 +41,16 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
   final _focusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.message != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showMessageBottomSheet(widget.message!);
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _focusNode.dispose();
@@ -55,6 +65,88 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
     }
 
     context.read<WaitlistBloc>().add(WaitlistEmailSubmitted(email));
+  }
+
+  void _showMessageBottomSheet(String message) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VineTheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[600],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Waving hand emoji
+            const Text('👋', style: TextStyle(fontSize: 80)),
+            const SizedBox(height: 20),
+
+            // Title
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'BricolageGrotesque',
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: VineTheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Description
+            Text(
+              "Please join the waitlist and we'll notify you as "
+              'soon as you can get access.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[400],
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // OK button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  context.pop();
+                  _focusNode.requestFocus();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: VineTheme.vineGreen,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onWaitlistStateChanged(BuildContext context, WaitlistState state) {
