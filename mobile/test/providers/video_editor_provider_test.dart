@@ -552,58 +552,49 @@ void main() {
       container.dispose();
     });
 
-    test(
-      'should use _clips when finalRenderedClip is null',
-      () {
-        // Add clips to the clip manager
-        container
-            .read(clipManagerProvider.notifier)
-            .addClip(
-              video: EditorVideo.file('/docs/original.mp4'),
-              targetAspectRatio: .vertical,
-              originalAspectRatio: 9 / 16,
-              duration: const Duration(seconds: 2),
-            );
+    test('should use _clips when finalRenderedClip is null', () {
+      // Add clips to the clip manager
+      container
+          .read(clipManagerProvider.notifier)
+          .addClip(
+            video: EditorVideo.file('/docs/original.mp4'),
+            targetAspectRatio: .vertical,
+            originalAspectRatio: 9 / 16,
+            duration: const Duration(seconds: 2),
+          );
 
-        container.read(videoEditorProvider.notifier).setDraftId('test-draft');
+      container.read(videoEditorProvider.notifier).setDraftId('test-draft');
 
-        // finalRenderedClip is null by default, so getActiveDraft should
-        // use _clips for both autosave and non-autosave
-        final draft = container
-            .read(videoEditorProvider.notifier)
-            .getActiveDraft();
+      // finalRenderedClip is null by default, so getActiveDraft should
+      // use _clips for both autosave and non-autosave
+      final draft = container
+          .read(videoEditorProvider.notifier)
+          .getActiveDraft();
 
-        expect(draft.clips, hasLength(1));
-        expect(draft.id, equals('test-draft'));
-      },
-    );
+      expect(draft.clips, hasLength(1));
+      expect(draft.id, equals('test-draft'));
+    });
 
-    test(
-      'autosave should always use _clips even if '
-      'finalRenderedClip were set',
-      () {
-        // Add clips to the clip manager
-        container
-            .read(clipManagerProvider.notifier)
-            .addClip(
-              video: EditorVideo.file('/docs/original.mp4'),
-              targetAspectRatio: .vertical,
-              originalAspectRatio: 9 / 16,
-              duration: const Duration(seconds: 2),
-            );
+    test('autosave should always use _clips even if '
+        'finalRenderedClip were set', () {
+      // Add clips to the clip manager
+      container
+          .read(clipManagerProvider.notifier)
+          .addClip(
+            video: EditorVideo.file('/docs/original.mp4'),
+            targetAspectRatio: .vertical,
+            originalAspectRatio: 9 / 16,
+            duration: const Duration(seconds: 2),
+          );
 
-        // Autosave should use _clips
-        final autosaveDraft = container
-            .read(videoEditorProvider.notifier)
-            .getActiveDraft(isAutosave: true);
+      // Autosave should use _clips
+      final autosaveDraft = container
+          .read(videoEditorProvider.notifier)
+          .getActiveDraft(isAutosave: true);
 
-        expect(autosaveDraft.clips, hasLength(1));
-        expect(
-          autosaveDraft.id,
-          equals(VideoEditorConstants.autoSaveId),
-        );
-      },
-    );
+      expect(autosaveDraft.clips, hasLength(1));
+      expect(autosaveDraft.id, equals(VideoEditorConstants.autoSaveId));
+    });
   });
 
   group('VideoEditorProviderState', () {
