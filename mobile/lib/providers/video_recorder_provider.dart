@@ -48,6 +48,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   // Flag to prevent multiple simultaneous stopRecording calls
   bool _isStoppingRecording = false;
 
+  // When stop is requested while start is in progress, defer the stop
+  // until after the native start completes.
+  bool _stopRequestedDuringStartup = false;
+
   @override
   VideoRecorderProviderState build() {
     _cameraService =
@@ -157,6 +161,16 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     _isDestroyed = true;
     _focusPointTimer?.cancel();
     await _cameraService.dispose();
+  }
+
+  /// Toggle audio recording on or off.
+  void toggleAudio() {
+    state = state.copyWith(isAudioEnabled: !state.isAudioEnabled);
+    Log.debug(
+      'Audio ${state.isAudioEnabled ? "enabled" : "disabled"}',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
   }
 
   /// Toggle ghost mode (onion-skin overlay of last recorded frame).
@@ -375,6 +389,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// If timer duration is set, displays countdown before starting recording.
   /// Notifies clip manager to begin tracking recording duration.
   Future<void> startRecording() async {
+    final sw = Stopwatch()..start();
     final clipProvider = ref.read(clipManagerProvider.notifier);
     final remainingDuration = clipProvider.remainingDuration;
 
@@ -385,6 +400,16 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         _isStartingRecording ||
         _isStoppingRecording ||
         remainingDuration < const Duration(milliseconds: 30)) {
+      Log.debug(
+        '🚫 startRecording blocked at ${sw.elapsedMilliseconds}ms '
+        '(canRecord=${_cameraService.canRecord}, '
+        'isRecording=${state.isRecording}, '
+        'isStarting=$_isStartingRecording, '
+        'isStopping=$_isStoppingRecording, '
+        'remaining=${remainingDuration.inMilliseconds}ms)',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
       return;
     }
 
@@ -424,27 +449,44 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     state = state.copyWith(recordingState: .recording);
 
     Log.info(
-      '🎥 Starting recording - aspect ratio: ${state.aspectRatio.name}',
+      '🎥 Starting recording at ${sw.elapsedMilliseconds}ms - '
+      'aspect ratio: ${state.aspectRatio.name}, '
+      'audio: ${state.isAudioEnabled}',
       name: 'VideoRecorderNotifier',
       category: .video,
     );
 
     final success = await _cameraService.startRecording(
       maxDuration: remainingDuration,
+      enableAudio: state.isAudioEnabled,
     );
 
     _isStartingRecording = false;
 
     if (success) {
       Log.info(
-        '✅ Recording truly started',
+        '✅ Recording truly started at ${sw.elapsedMilliseconds}ms',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
       clipProvider.startRecording();
+
+      // If stop was requested while we were waiting for the native start,
+      // immediately stop now that recording is active.
+      if (_stopRequestedDuringStartup) {
+        _stopRequestedDuringStartup = false;
+        Log.info(
+          '⏹️ Executing deferred stop at ${sw.elapsedMilliseconds}ms',
+          name: 'VideoRecorderNotifier',
+          category: .video,
+        );
+        unawaited(stopRecording());
+      }
     } else {
+      _stopRequestedDuringStartup = false;
       Log.warning(
-        '⚠️ Recording failed to start or was stopped early',
+        '⚠️ Recording failed to start or was stopped early '
+        'at ${sw.elapsedMilliseconds}ms',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
@@ -457,35 +499,55 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// Stops camera recording, extracts video metadata for exact duration,
   /// generates thumbnail, and adds clip to clip manager.
   Future<void> stopRecording([EditorVideo? result]) async {
+    final sw = Stopwatch()..start();
+
     // Prevent multiple simultaneous stop calls.
     if (_isStoppingRecording) {
-      return;
-    }
-
-    // If we're still starting up (waiting for first keyframe), just call native stop
-    // The native Finalize event will trigger startRecordingCallback with error,
-    // which makes startRecording return false and set state to idle
-    if (_isStartingRecording) {
-      Log.info(
-        '⏳ Stop requested during startup - calling native stop (startRecording will handle state)',
+      Log.debug(
+        '🚫 stopRecording blocked - already stopping',
         name: 'VideoRecorderNotifier',
         category: .video,
       );
-      // Don't await - let native handle it asynchronously
-      // The startRecording method will get the error callback and set state to idle
-      unawaited(_cameraService.stopRecording());
       return;
     }
 
-    if (!state.isRecording && result == null) return;
+    // If we're still starting up (waiting for first keyframe), defer the stop.
+    // The native stop races with the native start and often loses, so instead
+    // we set a flag and let startRecording() handle it after the await returns.
+    if (_isStartingRecording) {
+      _stopRequestedDuringStartup = true;
+      Log.info(
+        '⏳ Stop requested during startup at ${sw.elapsedMilliseconds}ms '
+        '- deferring until start completes',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+      return;
+    }
+
+    if (!state.isRecording && result == null) {
+      Log.debug(
+        '🚫 stopRecording blocked - not recording '
+        '(recordingState=${state.recordingState}, result=$result)',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+      return;
+    }
 
     Log.info(
-      '⏹️  Stopping recording and processing clip...',
+      '⏹️  Stopping recording at ${sw.elapsedMilliseconds}ms...',
       name: 'VideoRecorderNotifier',
       category: .video,
     );
     _isStoppingRecording = true;
     final videoResult = result ?? await _cameraService.stopRecording();
+    Log.debug(
+      '⏹️  Camera service stopped at ${sw.elapsedMilliseconds}ms '
+      '(got video: ${videoResult != null})',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
 
     final clipProvider = ref.read(clipManagerProvider.notifier)
       ..stopRecording();
@@ -704,6 +766,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       canSwitchCamera: _cameraService.canSwitchCamera,
       isGhostEnabled: state.isGhostEnabled,
       ghostFramePath: state.ghostFramePath,
+      isAudioEnabled: state.isAudioEnabled,
     );
   }
 

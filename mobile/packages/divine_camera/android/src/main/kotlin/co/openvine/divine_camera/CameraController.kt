@@ -789,10 +789,11 @@ class CameraController(
      * Starts video recording.
      * @param maxDurationMs Optional maximum duration in milliseconds. Recording stops automatically when reached.
      * @param useCache If true, saves video to cache directory (temporary). If false, saves to external files directory (permanent).
+     * @param enableAudio If true, records audio along with video. If false, records video only (faster startup).
      * @param outputDirectory If provided, saves video to this directory (overrides useCache when false). Should be Flutter's getApplicationDocumentsDirectory() path.
      */
     @SuppressLint("MissingPermission")
-    fun startRecording(maxDurationMs: Int?, useCache: Boolean = true, outputDirectory: String? = null, callback: (String?) -> Unit) {
+    fun startRecording(maxDurationMs: Int?, useCache: Boolean = true, enableAudio: Boolean = true, outputDirectory: String? = null, callback: (String?) -> Unit) {
         val videoCap = videoCapture ?: run {
             callback("Video capture not initialized")
             return
@@ -803,8 +804,8 @@ class CameraController(
             return
         }
 
-        // Check audio permission
-        if (ActivityCompat.checkSelfPermission(
+        // Check audio permission (only required when audio is enabled)
+        if (enableAudio && ActivityCompat.checkSelfPermission(
                 context,
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
@@ -838,9 +839,12 @@ class CameraController(
             // Store callback so it can be called from Finalize if recording is stopped early
             startRecordingCallback = callback
 
-            recording = videoCap.output
+            val pendingRecording = videoCap.output
                 .prepareRecording(context, outputOptions)
-                .withAudioEnabled()
+            if (enableAudio) {
+                pendingRecording.withAudioEnabled()
+            }
+            recording = pendingRecording
                 .start(ContextCompat.getMainExecutor(context)) { event ->
                     when (event) {
                         is VideoRecordEvent.Start -> {

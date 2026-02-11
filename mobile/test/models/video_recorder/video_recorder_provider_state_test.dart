@@ -1,5 +1,5 @@
-// ABOUTME: Tests for VideoRecorderProviderState ghost mode fields
-// ABOUTME: Validates ghost state defaults, copyWith, and hasGhostFrame getter
+// ABOUTME: Tests for VideoRecorderProviderState ghost mode and audio fields
+// ABOUTME: Validates ghost state defaults, audio defaults, copyWith, and hasGhostFrame getter
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/video_recorder/video_recorder_provider_state.dart';
@@ -20,6 +20,13 @@ void main() {
       test('hasGhostFrame is false by default', () {
         const state = VideoRecorderProviderState();
         expect(state.hasGhostFrame, isFalse);
+      });
+    });
+
+    group('audio defaults', () {
+      test('isAudioEnabled defaults to true', () {
+        const state = VideoRecorderProviderState();
+        expect(state.isAudioEnabled, isTrue);
       });
     });
 
@@ -89,6 +96,20 @@ void main() {
         );
 
         expect(copied.ghostFramePath, isNull);
+      });
+
+      test('preserves isAudioEnabled when not specified', () {
+        const state = VideoRecorderProviderState(isAudioEnabled: false);
+        final copied = state.copyWith(zoomLevel: 2.0);
+
+        expect(copied.isAudioEnabled, isFalse);
+      });
+
+      test('updates isAudioEnabled', () {
+        const state = VideoRecorderProviderState();
+        final copied = state.copyWith(isAudioEnabled: false);
+
+        expect(copied.isAudioEnabled, isFalse);
       });
     });
   });

@@ -180,12 +180,14 @@ class DivineCamera {
   Future<bool> startRecording({
     Duration? maxDuration,
     bool useCache = true,
+    bool enableAudio = true,
     String? outputDirectory,
   }) async {
     if (!_state.canRecord) return false;
     final result = await _platform.startRecording(
       maxDuration: maxDuration,
       useCache: useCache,
+      enableAudio: enableAudio,
       outputDirectory: outputDirectory,
     );
     if (result) {

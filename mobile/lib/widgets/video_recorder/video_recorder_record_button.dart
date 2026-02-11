@@ -44,7 +44,8 @@ class RecordButton extends ConsumerWidget {
         // TODO(l10n): Replace with context.l10n when localization is added.
         tooltip: state.isRecording ? 'Stop recording' : 'Start recording',
         child: GestureDetector(
-          onTap: isEnabled ? notifier.toggleRecording : null,
+          onTapDown: isEnabled ? (_) => notifier.startRecording() : null,
+          onTapUp: isEnabled ? (_) => notifier.stopRecording() : null,
           onLongPressStart: isEnabled && isLongPressSupported
               ? (_) => notifier.startRecording()
               : null,

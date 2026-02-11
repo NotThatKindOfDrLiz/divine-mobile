@@ -382,6 +382,7 @@ class CameraMacOSService extends CameraService {
   @override
   Future<bool> startRecording({
     Duration? maxDuration,
+    bool enableAudio = true,
     String? outputDirectory,
   }) async {
     try {

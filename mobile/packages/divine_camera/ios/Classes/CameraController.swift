@@ -655,9 +655,10 @@ class CameraController: NSObject {
     /// - Parameters:
     ///   - maxDurationMs: Optional maximum duration in milliseconds. Recording stops automatically when reached.
     ///   - useCache: If true, saves video to temporary directory. If false, saves to documents directory (permanent).
+    ///   - enableAudio: If true, records audio along with video. If false, records video only (faster startup).
     ///   - outputDirectory: If provided, saves video to this directory (overrides useCache when false).
     ///   - completion: Callback with error message if failed, nil if successful.
-    func startRecording(maxDurationMs: Int?, useCache: Bool = true, outputDirectory: String? = nil, completion: @escaping (String?) -> Void) {
+    func startRecording(maxDurationMs: Int?, useCache: Bool = true, enableAudio: Bool = true, outputDirectory: String? = nil, completion: @escaping (String?) -> Void) {
         if isRecording {
             completion("Already recording")
             return
@@ -738,26 +739,31 @@ class CameraController: NSObject {
                     sourcePixelBufferAttributes: sourcePixelBufferAttributes
                 )
                 
-                // Audio input settings
-                let audioSettings: [String: Any] = [
-                    AVFormatIDKey: kAudioFormatMPEG4AAC,
-                    AVSampleRateKey: 44100.0,
-                    AVNumberOfChannelsKey: 1,
-                    AVEncoderBitRateKey: 64000
-                ]
-                let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-                audioInput.expectsMediaDataInRealTime = true
-                
                 if writer.canAdd(videoInput) {
                     writer.add(videoInput)
                 }
-                if writer.canAdd(audioInput) {
-                    writer.add(audioInput)
+
+                // Audio input settings (only when audio is enabled)
+                if enableAudio {
+                    let audioSettings: [String: Any] = [
+                        AVFormatIDKey: kAudioFormatMPEG4AAC,
+                        AVSampleRateKey: 44100.0,
+                        AVNumberOfChannelsKey: 1,
+                        AVEncoderBitRateKey: 64000
+                    ]
+                    let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+                    audioInput.expectsMediaDataInRealTime = true
+
+                    if writer.canAdd(audioInput) {
+                        writer.add(audioInput)
+                    }
+                    self.audioWriterInput = audioInput
+                } else {
+                    self.audioWriterInput = nil
                 }
-                
+
                 self.assetWriter = writer
                 self.videoWriterInput = videoInput
-                self.audioWriterInput = audioInput
                 self.pixelBufferAdaptor = adaptor
                 
                 // Start writing

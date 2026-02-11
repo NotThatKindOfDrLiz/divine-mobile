@@ -20,6 +20,7 @@ class VideoRecorderProviderState {
     this.isCameraInitialized = false,
     this.canSwitchCamera = true,
     this.hasFlash = true,
+    this.isAudioEnabled = true,
     this.isGhostEnabled = false,
     this.countdownValue = 0,
     this.cameraRebuildCount = 0,
@@ -45,6 +46,9 @@ class VideoRecorderProviderState {
 
   /// Whether the camera has flash capability.
   final bool hasFlash;
+
+  /// Whether audio recording is enabled.
+  final bool isAudioEnabled;
 
   /// Whether ghost mode (onion-skin overlay) is enabled.
   final bool isGhostEnabled;
@@ -111,6 +115,7 @@ class VideoRecorderProviderState {
     bool? isCameraInitialized,
     bool? canSwitchCamera,
     bool? hasFlash,
+    bool? isAudioEnabled,
     bool? isGhostEnabled,
     int? countdownValue,
     int? cameraRebuildCount,
@@ -131,6 +136,7 @@ class VideoRecorderProviderState {
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
       hasFlash: hasFlash ?? this.hasFlash,
+      isAudioEnabled: isAudioEnabled ?? this.isAudioEnabled,
       isGhostEnabled: isGhostEnabled ?? this.isGhostEnabled,
       countdownValue: countdownValue ?? this.countdownValue,
       cameraRebuildCount: cameraRebuildCount ?? this.cameraRebuildCount,

@@ -43,8 +43,13 @@ class VideoRecorderBottomBar extends ConsumerWidget {
     );
     final clipsNotifier = ref.read(clipManagerProvider.notifier);
     final recorderNotifier = ref.read(videoRecorderProvider.notifier);
-    final isGhostEnabled = ref.read(
-      videoRecorderProvider.select((p) => p.isGhostEnabled),
+    final recorderState = ref.read(
+      videoRecorderProvider.select(
+        (p) => (
+          isGhostEnabled: p.isGhostEnabled,
+          isAudioEnabled: p.isAudioEnabled,
+        ),
+      ),
     );
 
     VineBottomSheetActionMenu.show(
@@ -54,8 +59,17 @@ class VideoRecorderBottomBar extends ConsumerWidget {
         VineBottomSheetActionData(
           iconPath: 'assets/icon/ghost.svg',
           // TODO(l10n): Replace with context.l10n when localization is added.
-          label: isGhostEnabled ? 'Ghost mode (on)' : 'Ghost mode',
+          label: recorderState.isGhostEnabled
+              ? 'Ghost mode (on)'
+              : 'Ghost mode',
           onTap: clipManager.hasClips ? recorderNotifier.toggleGhost : null,
+        ),
+        // Audio toggle
+        VineBottomSheetActionData(
+          iconPath: 'assets/icon/mic.svg',
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          label: recorderState.isAudioEnabled ? 'Audio (on)' : 'Audio (off)',
+          onTap: recorderNotifier.toggleAudio,
         ),
         VineBottomSheetActionData(
           iconPath: 'assets/icon/save.svg',

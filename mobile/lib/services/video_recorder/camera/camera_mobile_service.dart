@@ -186,6 +186,7 @@ class CameraMobileService extends CameraService {
   @override
   Future<bool> startRecording({
     Duration? maxDuration,
+    bool enableAudio = true,
     String? outputDirectory,
   }) async {
     if (!_isInitialized) return false;
@@ -201,6 +202,7 @@ class CameraMobileService extends CameraService {
       final success = await _camera.startRecording(
         maxDuration: maxDuration,
         useCache: false,
+        enableAudio: enableAudio,
         outputDirectory: outputPath,
       );
       if (success) {

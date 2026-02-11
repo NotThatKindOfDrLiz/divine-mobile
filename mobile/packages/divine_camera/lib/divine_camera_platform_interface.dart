@@ -89,6 +89,7 @@ abstract class DivineCameraPlatform extends PlatformInterface {
   Future<bool> startRecording({
     Duration? maxDuration,
     bool useCache = true,
+    bool enableAudio = true,
     String? outputDirectory,
   }) {
     throw UnimplementedError('startRecording() has not been implemented.');
