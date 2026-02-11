@@ -2,19 +2,21 @@
 // ABOUTME: Displays comment icon with count, navigates to comments screen.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
 import 'package:openvine/screens/comments/comments.dart';
 import 'package:openvine/utils/string_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/widgets/circular_icon_button.dart';
 
 /// Comment action button with count display for video overlay.
 ///
 /// Shows a comment icon that navigates to the comments screen.
-/// Pauses the video before navigation and displays the original comment count.
+/// Pauses the video before navigation and displays the comment count.
 class CommentActionButton extends ConsumerWidget {
   const CommentActionButton({required this.video, super.key});
 
@@ -22,6 +24,22 @@ class CommentActionButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final interactionsBloc = context.read<VideoInteractionsBloc?>();
+
+    if (interactionsBloc != null) {
+      return BlocBuilder<VideoInteractionsBloc, VideoInteractionsState>(
+        builder: (context, state) {
+          final totalComments =
+              state.commentCount ?? video.originalComments ?? 0;
+          return _buildButton(context, ref, totalComments);
+        },
+      );
+    }
+
+    return _buildButton(context, ref, video.originalComments ?? 0);
+  }
+
+  Widget _buildButton(BuildContext context, WidgetRef ref, int totalComments) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -31,44 +49,60 @@ class CommentActionButton extends ConsumerWidget {
           explicitChildNodes: true,
           button: true,
           label: 'View comments',
-          child: CircularIconButton(
-            onPressed: () => _onPressed(context, ref),
-            icon: const Icon(
-              Icons.comment_outlined,
-              color: Colors.white,
-              size: 32,
+          child: IconButton(
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+            style: IconButton.styleFrom(
+              highlightColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+            ),
+            onPressed: () => _onPressed(context, ref, totalComments),
+            icon: DecoratedBox(
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: SvgPicture.asset(
+                'assets/icon/content-controls/comment.svg',
+                width: 32,
+                height: 32,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
             ),
           ),
         ),
-        // Show original comment count if available
-        if (video.originalComments != null && video.originalComments! > 0) ...[
-          const SizedBox(height: 0),
-          Text(
-            StringUtils.formatCompactNumber(video.originalComments!),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              shadows: [
-                Shadow(
-                  offset: Offset(0, 0),
-                  blurRadius: 6,
-                  color: Colors.black,
-                ),
-                Shadow(
-                  offset: Offset(1, 1),
-                  blurRadius: 3,
-                  color: Colors.black,
-                ),
-              ],
+        if (totalComments > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              StringUtils.formatCompactNumber(totalComments),
+              style: const TextStyle(
+                fontFamily: 'Bricolage Grotesque',
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1,
+                letterSpacing: 0.5,
+              ),
             ),
           ),
-        ],
       ],
     );
   }
 
-  void _onPressed(BuildContext context, WidgetRef ref) {
+  void _onPressed(
+    BuildContext context,
+    WidgetRef ref,
+    int initialCommentCount,
+  ) {
     Log.info(
       '💬 Comment button tapped for ${video.id}',
       name: 'CommentActionButton',
@@ -108,7 +142,7 @@ class CommentActionButton extends ConsumerWidget {
     CommentsScreen.show(
       context,
       video,
-      initialCommentCount: video.originalComments ?? 0,
+      initialCommentCount: initialCommentCount,
     );
   }
 }

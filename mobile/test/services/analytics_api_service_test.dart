@@ -244,6 +244,30 @@ void main() {
         expect(stats.reactions, 0);
         expect(stats.trendingScore, isNull);
       });
+
+      test('parses views from stats payload', () {
+        final json = {
+          'event': {
+            'id': 'abc123',
+            'pubkey': 'def456',
+            'created_at': 1767316187,
+            'kind': 34236,
+          },
+          'stats': {
+            'loops': 100,
+            'views': 25,
+            'reactions': 1,
+            'comments': 2,
+            'reposts': 3,
+            'engagement_score': 4,
+          },
+        };
+
+        final stats = VideoStats.fromJson(json);
+
+        expect(stats.loops, 100);
+        expect(stats.views, 25);
+      });
     });
 
     group('toVideoEvent', () {
@@ -262,6 +286,8 @@ void main() {
           reposts: 2,
           engagementScore: 22,
           trendingScore: 7.5,
+          loops: 123,
+          views: 45,
         );
 
         final event = stats.toVideoEvent();
@@ -275,6 +301,8 @@ void main() {
         expect(event.originalLikes, 10);
         expect(event.originalComments, 5);
         expect(event.originalReposts, 2);
+        expect(event.originalLoops, 123);
+        expect(event.rawTags['views'], '45');
       });
 
       test('handles empty strings as null in VideoEvent', () {

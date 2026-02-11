@@ -31,6 +31,7 @@ class VideoStats {
   final int engagementScore;
   final double? trendingScore;
   final int? loops; // Original loop count for classic Vines
+  final int? views; // Live/new views from Funnelcake analytics
 
   VideoStats({
     required this.id,
@@ -53,6 +54,7 @@ class VideoStats {
     required this.engagementScore,
     this.trendingScore,
     this.loops,
+    this.views,
   });
 
   factory VideoStats.fromJson(Map<String, dynamic> json) {
@@ -107,6 +109,30 @@ class VideoStats {
       for (final tag in tags) {
         if (tag is List && tag.length >= 2 && tag[0] == 'loops') {
           loops = int.tryParse(tag[1].toString());
+          break;
+        }
+      }
+    }
+
+    // Parse view counts (new/live loop activity in Funnelcake).
+    int? views;
+    final directViews =
+        statsData['views'] ??
+        statsData['view_count'] ??
+        json['views'] ??
+        json['view_count'];
+    if (directViews is int) {
+      views = directViews;
+    } else if (directViews is String) {
+      views = int.tryParse(directViews);
+    }
+
+    // Also check event tags for views if not found directly.
+    if (views == null && eventData['tags'] is List) {
+      final tags = eventData['tags'] as List;
+      for (final tag in tags) {
+        if (tag is List && tag.length >= 2 && tag[0] == 'views') {
+          views = int.tryParse(tag[1].toString());
           break;
         }
       }
@@ -229,6 +255,7 @@ class VideoStats {
       trendingScore: (statsData['trending_score'] ?? json['trending_score'])
           ?.toDouble(),
       loops: loops,
+      views: views,
     );
   }
 
@@ -251,6 +278,10 @@ class VideoStats {
       authorName: authorName,
       authorAvatar: authorAvatar,
       blurhash: blurhash,
+      rawTags: {
+        if (loops != null) 'loops': loops.toString(),
+        if (views != null) 'views': views.toString(),
+      },
       originalLikes: reactions,
       originalComments: comments,
       originalReposts: reposts,
