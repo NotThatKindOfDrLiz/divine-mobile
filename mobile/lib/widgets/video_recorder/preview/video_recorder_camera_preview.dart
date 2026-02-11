@@ -94,6 +94,7 @@ class _StackItems extends ConsumerWidget {
           VideoRecorderCameraPlaceholder(
             errorMessage: state.initializationErrorMessage,
           ),
+        const _GhostOverlay(),
         const _OverlayGrid(),
         const VideoRecorderFocusPoint(),
       ],
@@ -126,6 +127,36 @@ class _CameraPreview extends ConsumerWidget {
               const VideoRecorderMobilePreview(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GhostOverlay extends ConsumerWidget {
+  const _GhostOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ghost = ref.watch(
+      videoRecorderProvider.select(
+        (s) =>
+            (hasGhostFrame: s.hasGhostFrame, ghostFramePath: s.ghostFramePath),
+      ),
+    );
+
+    return IgnorePointer(
+      child: AnimatedOpacity(
+        opacity: ghost.hasGhostFrame ? 0.5 : 0.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        child: ghost.ghostFramePath != null
+            ? Image.file(
+                File(ghost.ghostFramePath!),
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }

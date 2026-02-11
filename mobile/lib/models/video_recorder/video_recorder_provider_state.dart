@@ -20,11 +20,13 @@ class VideoRecorderProviderState {
     this.isCameraInitialized = false,
     this.canSwitchCamera = true,
     this.hasFlash = true,
+    this.isGhostEnabled = false,
     this.countdownValue = 0,
     this.cameraRebuildCount = 0,
     this.aspectRatio = .vertical,
     this.flashMode = .auto,
     this.timerDuration = .off,
+    this.ghostFramePath,
     this.initializationErrorMessage,
   });
 
@@ -43,6 +45,9 @@ class VideoRecorderProviderState {
 
   /// Whether the camera has flash capability.
   final bool hasFlash;
+
+  /// Whether ghost mode (onion-skin overlay) is enabled.
+  final bool isGhostEnabled;
 
   // Double values
   /// Current zoom level.
@@ -71,6 +76,9 @@ class VideoRecorderProviderState {
   /// Current recording state.
   final VideoRecorderState recordingState;
 
+  /// Path to the last frame image of the most recent clip, used for ghost overlay.
+  final String? ghostFramePath;
+
   /// Custom error message when camera initialization fails.
   final String? initializationErrorMessage;
 
@@ -83,6 +91,9 @@ class VideoRecorderProviderState {
 
   /// Whether in error state.
   bool get isError => recordingState == .error;
+
+  /// Whether the ghost overlay should be displayed.
+  bool get hasGhostFrame => isGhostEnabled && ghostFramePath != null;
 
   /// Error message if in error state or initialization failed.
   String? get errorMessage =>
@@ -100,12 +111,15 @@ class VideoRecorderProviderState {
     bool? isCameraInitialized,
     bool? canSwitchCamera,
     bool? hasFlash,
+    bool? isGhostEnabled,
     int? countdownValue,
     int? cameraRebuildCount,
     model.AspectRatio? aspectRatio,
     DivineFlashMode? flashMode,
     TimerDuration? timerDuration,
+    String? ghostFramePath,
     String? initializationErrorMessage,
+    bool clearGhostFrame = false,
   }) {
     return VideoRecorderProviderState(
       recordingState: recordingState ?? this.recordingState,
@@ -117,11 +131,15 @@ class VideoRecorderProviderState {
       isCameraInitialized: isCameraInitialized ?? this.isCameraInitialized,
       canSwitchCamera: canSwitchCamera ?? this.canSwitchCamera,
       hasFlash: hasFlash ?? this.hasFlash,
+      isGhostEnabled: isGhostEnabled ?? this.isGhostEnabled,
       countdownValue: countdownValue ?? this.countdownValue,
       cameraRebuildCount: cameraRebuildCount ?? this.cameraRebuildCount,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       flashMode: flashMode ?? this.flashMode,
       timerDuration: timerDuration ?? this.timerDuration,
+      ghostFramePath: clearGhostFrame
+          ? null
+          : (ghostFramePath ?? this.ghostFramePath),
       initializationErrorMessage:
           initializationErrorMessage ?? this.initializationErrorMessage,
     );

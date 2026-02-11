@@ -159,6 +159,62 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     await _cameraService.dispose();
   }
 
+  /// Toggle ghost mode (onion-skin overlay of last recorded frame).
+  void toggleGhost() {
+    state = state.copyWith(isGhostEnabled: !state.isGhostEnabled);
+    Log.debug(
+      'Ghost mode ${state.isGhostEnabled ? "enabled" : "disabled"}',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
+  }
+
+  /// Disable ghost mode and clear the ghost frame.
+  void clearGhost() {
+    state = state.copyWith(isGhostEnabled: false, clearGhostFrame: true);
+  }
+
+  /// Update the ghost frame from the current last clip.
+  ///
+  /// Call after clips are added or removed. If no clips remain,
+  /// clears the ghost frame path.
+  Future<void> updateGhostFrame() async {
+    final clips = ref.read(clipManagerProvider).clips;
+    if (clips.isEmpty) {
+      state = state.copyWith(clearGhostFrame: true);
+      return;
+    }
+
+    final lastClip = clips.last;
+    final videoPath = await lastClip.video.safeFilePath();
+
+    // Extract the last frame (50ms before end to avoid EOF issues)
+    final targetTimestamp =
+        lastClip.duration > const Duration(milliseconds: 100)
+        ? lastClip.duration - const Duration(milliseconds: 50)
+        : lastClip.duration;
+
+    final result = await VideoThumbnailService.extractThumbnail(
+      videoPath: videoPath,
+      targetTimestamp: targetTimestamp,
+    );
+
+    if (result != null) {
+      state = state.copyWith(ghostFramePath: result.path);
+      Log.debug(
+        'Ghost frame updated: ${result.path}',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        'Failed to extract ghost frame',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    }
+  }
+
   /// Toggle flash mode between `off`, `torch`, and `auto`.
   ///
   /// Returns `true` if flash mode was successfully changed, `false` otherwise.
@@ -515,6 +571,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         category: .video,
       );
     }
+
+    // Update ghost frame for onion-skin overlay
+    unawaited(updateGhostFrame());
   }
 
   /// Adjust zoom by vertical drag distance during long press.
@@ -643,6 +702,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       isCameraInitialized: _cameraService.isInitialized,
       hasFlash: _cameraService.hasFlash,
       canSwitchCamera: _cameraService.canSwitchCamera,
+      isGhostEnabled: state.isGhostEnabled,
+      ghostFramePath: state.ghostFramePath,
     );
   }
 

@@ -42,10 +42,21 @@ class VideoRecorderBottomBar extends ConsumerWidget {
       ),
     );
     final clipsNotifier = ref.read(clipManagerProvider.notifier);
+    final recorderNotifier = ref.read(videoRecorderProvider.notifier);
+    final isGhostEnabled = ref.read(
+      videoRecorderProvider.select((p) => p.isGhostEnabled),
+    );
 
     VineBottomSheetActionMenu.show(
       context: context,
       options: [
+        // Ghost mode toggle
+        VineBottomSheetActionData(
+          iconPath: 'assets/icon/ghost.svg',
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          label: isGhostEnabled ? 'Ghost mode (on)' : 'Ghost mode',
+          onTap: clipManager.hasClips ? recorderNotifier.toggleGhost : null,
+        ),
         VineBottomSheetActionData(
           iconPath: 'assets/icon/save.svg',
           // TODO(l10n): Replace with context.l10n when localization is added.
@@ -74,6 +85,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           onTap: clipManager.hasClips
               ? () {
                   unawaited(clipsNotifier.removeLastClip());
+                  unawaited(recorderNotifier.updateGhostFrame());
                   // TODO(l10n): Replace with context.l10n when localization is added.
                   _showSnackBar(context: context, message: 'Clip removed');
                 }
@@ -86,6 +98,7 @@ class VideoRecorderBottomBar extends ConsumerWidget {
           onTap: clipManager.hasClips
               ? () {
                   unawaited(clipsNotifier.clearAll());
+                  recorderNotifier.clearGhost();
                   // TODO(l10n): Replace with context.l10n when localization is added.
                   _showSnackBar(context: context, message: 'All clips cleared');
                 }
