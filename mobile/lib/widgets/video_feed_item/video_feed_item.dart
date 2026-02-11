@@ -1593,13 +1593,13 @@ class VideoOverlayActions extends ConsumerWidget {
 
                   const SizedBox(height: 4),
 
-                  // Share button
+                  // More menu button (opens share/actions sheet)
                   Semantics(
                     identifier: 'share_button',
                     container: true,
                     explicitChildNodes: true,
                     button: true,
-                    label: 'Share video',
+                    label: 'More options',
                     child: IconButton(
                       padding: const EdgeInsets.all(8),
                       constraints: const BoxConstraints.tightFor(
@@ -1618,25 +1618,11 @@ class VideoOverlayActions extends ConsumerWidget {
                         );
                         _showShareMenu(context, ref, video, isActive);
                       },
-                      icon: DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 15,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: SvgPicture.asset(
-                          'assets/icon/content-controls/share.svg',
-                          width: 32,
-                          height: 32,
-                          colorFilter: const ColorFilter.mode(
-                            Colors.white,
-                            BlendMode.srcIn,
-                          ),
-                        ),
+                      icon: const Icon(
+                        Icons.more_horiz,
+                        size: 32,
+                        color: Colors.white,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 15)],
                       ),
                     ),
                   ),
