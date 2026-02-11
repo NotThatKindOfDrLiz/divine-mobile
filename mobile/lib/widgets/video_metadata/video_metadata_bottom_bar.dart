@@ -122,6 +122,7 @@ class _SaveForLaterButton extends ConsumerWidget {
 
       gallerySaveMessage = switch (galleryResult) {
         GallerySaveSuccess() => 'Saved to camera roll',
+        GallerySavePermissionDenied() => 'Camera roll: permission denied',
         GallerySaveFailure(:final reason) => 'Camera roll: $reason',
       };
 

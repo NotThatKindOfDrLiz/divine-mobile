@@ -1,5 +1,5 @@
-// ABOUTME: Progress bottom sheet for watermark video download
-// ABOUTME: Shows downloading -> watermarking -> saving stages with completion actions
+// ABOUTME: Progress bottom sheet for saving original video (no watermark)
+// ABOUTME: Shows downloading -> saving stages with completion actions
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -10,15 +10,14 @@ import 'package:openvine/providers/watermark_download_provider.dart';
 import 'package:openvine/services/watermark_download_service.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Shows a bottom sheet that tracks watermark download progress.
+/// Shows a bottom sheet that tracks original video save progress.
 ///
-/// Call this to start the watermark download flow. The sheet displays
-/// progress through downloading, watermarking, and saving stages.
-Future<void> showWatermarkDownloadSheet({
+/// Call this to start the save-original flow. The sheet displays
+/// progress through downloading and saving stages (no watermark step).
+Future<void> showSaveOriginalSheet({
   required BuildContext context,
   required WidgetRef ref,
   required VideoEvent video,
-  required String username,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -28,33 +27,25 @@ Future<void> showWatermarkDownloadSheet({
         top: Radius.circular(VineTheme.bottomSheetBorderRadius),
       ),
     ),
-    builder: (sheetContext) => _WatermarkDownloadProgressSheet(
-      video: video,
-      username: username,
-      ref: ref,
-    ),
+    builder: (sheetContext) =>
+        _SaveOriginalProgressSheet(video: video, ref: ref),
   );
 }
 
-class _WatermarkDownloadProgressSheet extends StatefulWidget {
-  const _WatermarkDownloadProgressSheet({
-    required this.video,
-    required this.username,
-    required this.ref,
-  });
+class _SaveOriginalProgressSheet extends StatefulWidget {
+  const _SaveOriginalProgressSheet({required this.video, required this.ref});
 
   final VideoEvent video;
-  final String username;
   final WidgetRef ref;
 
   @override
-  State<_WatermarkDownloadProgressSheet> createState() =>
-      _WatermarkDownloadProgressSheetState();
+  State<_SaveOriginalProgressSheet> createState() =>
+      _SaveOriginalProgressSheetState();
 }
 
-class _WatermarkDownloadProgressSheetState
-    extends State<_WatermarkDownloadProgressSheet> {
-  WatermarkDownloadStage _stage = WatermarkDownloadStage.downloading;
+class _SaveOriginalProgressSheetState
+    extends State<_SaveOriginalProgressSheet> {
+  OriginalSaveStage _stage = OriginalSaveStage.downloading;
   WatermarkDownloadResult? _result;
   bool _isProcessing = true;
 
@@ -67,9 +58,8 @@ class _WatermarkDownloadProgressSheetState
   Future<void> _startDownload() async {
     final service = widget.ref.read(watermarkDownloadServiceProvider);
 
-    final result = await service.downloadWithWatermark(
+    final result = await service.downloadOriginal(
       video: widget.video,
-      username: widget.username,
       onProgress: (stage) {
         if (mounted) {
           setState(() => _stage = stage);
@@ -211,17 +201,14 @@ class _WatermarkDownloadProgressSheetState
   );
 
   String get _stageLabel => switch (_stage) {
-    WatermarkDownloadStage.downloading => 'Downloading Video',
-    WatermarkDownloadStage.watermarking => 'Adding Watermark',
-    WatermarkDownloadStage.saving => 'Saving to Camera Roll',
+    OriginalSaveStage.downloading => 'Downloading Video',
+    OriginalSaveStage.saving => 'Saving to Camera Roll',
   };
 
   String get _stageDescription => switch (_stage) {
-    WatermarkDownloadStage.downloading =>
-      'Fetching the video from the network...',
-    WatermarkDownloadStage.watermarking => 'Applying the diVine watermark...',
-    WatermarkDownloadStage.saving =>
-      'Saving the watermarked video to your camera roll...',
+    OriginalSaveStage.downloading => 'Fetching the video from the network...',
+    OriginalSaveStage.saving =>
+      'Saving the original video to your camera roll...',
   };
 
   Future<void> _openSettings() async {
