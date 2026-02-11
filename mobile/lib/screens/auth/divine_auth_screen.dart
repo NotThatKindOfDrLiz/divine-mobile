@@ -74,7 +74,7 @@ class _DivineAuthScreenView extends StatelessWidget {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: VineTheme.backgroundColor,
         body: SafeArea(
           child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
             builder: (context, state) {
@@ -135,206 +135,260 @@ class _DivineAuthFormState extends State<_AuthForm> {
   Widget build(BuildContext context) {
     final isSignIn = widget.state.isSignIn;
     final isSubmitting = widget.state.isSubmitting;
+    return CustomScrollView(
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
 
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 16),
-
-            // Back button
-            Align(
-              alignment: Alignment.centerLeft,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => context.pop(),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-
-            // Title
-            Text(
-              isSignIn ? 'Sign in' : 'Welcome to diVine!',
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            const SizedBox(height: 48),
-
-            // Email field
-            _buildTextField(
-              controller: _emailController,
-              label: 'Email',
-              keyboardType: TextInputType.emailAddress,
-              errorText: widget.state.emailError,
-              onChanged: (value) =>
-                  context.read<DivineAuthCubit>().updateEmail(value),
-              enabled: !isSubmitting,
-            ),
-
-            const SizedBox(height: 16),
-
-            // Password field
-            _buildTextField(
-              controller: _passwordController,
-              label: 'Password',
-              obscureText: widget.state.obscurePassword,
-              errorText: widget.state.passwordError,
-              onChanged: (value) =>
-                  context.read<DivineAuthCubit>().updatePassword(value),
-              enabled: !isSubmitting,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  widget.state.obscurePassword
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  color: Colors.grey,
-                ),
-                onPressed: () =>
-                    context.read<DivineAuthCubit>().togglePasswordVisibility(),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // General error message
-            if (widget.state.generalError != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: VineTheme.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: VineTheme.error),
-                ),
-                child: Text(
-                  widget.state.generalError!,
-                  style: const TextStyle(color: VineTheme.error, fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 24),
-
-            // Submit button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () => context.read<DivineAuthCubit>().submit(),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: VineTheme.vineGreen,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: VineTheme.vineGreen.withValues(
-                    alpha: 0.7,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                // Back button
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: VineTheme.whiteText,
+                    ),
+                    onPressed: () => context.pop(),
                   ),
                 ),
-                child: isSubmitting
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+
+                const SizedBox(height: 32),
+
+                // Title
+                Text(
+                  isSignIn ? 'Sign in' : 'Welcome to diVine!',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: VineTheme.primaryText,
+                  ),
+                ),
+
+                // Subtitle (sign-up only)
+                if (!isSignIn) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Unlike other social apps, you can use diVine '
+                    'without an email or password. Add them now or '
+                    'later to recover your account on any device.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: VineTheme.secondaryText,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+
+                SizedBox(height: isSignIn ? 48 : 40),
+
+                // Email field
+                _buildTextField(
+                  controller: _emailController,
+                  label: 'Email',
+                  keyboardType: TextInputType.emailAddress,
+                  errorText: widget.state.emailError,
+                  onChanged: (value) =>
+                      context.read<DivineAuthCubit>().updateEmail(value),
+                  enabled: !isSubmitting,
+                ),
+
+                const SizedBox(height: 16),
+
+                // Password field
+                _buildTextField(
+                  controller: _passwordController,
+                  label: 'Password',
+                  obscureText: widget.state.obscurePassword,
+                  errorText: widget.state.passwordError,
+                  onChanged: (value) =>
+                      context.read<DivineAuthCubit>().updatePassword(value),
+                  enabled: !isSubmitting,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      widget.state.obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: VineTheme.lightText,
+                    ),
+                    onPressed: () => context
+                        .read<DivineAuthCubit>()
+                        .togglePasswordVisibility(),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // General error message
+                if (widget.state.generalError != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: VineTheme.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: VineTheme.error),
+                    ),
+                    child: Text(
+                      widget.state.generalError!,
+                      style: const TextStyle(
+                        color: VineTheme.error,
+                        fontSize: 14,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+
+                // Spacer pushes buttons toward bottom
+                const Spacer(),
+
+                // Submit button
+                SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => context.read<DivineAuthCubit>().submit(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: VineTheme.vineGreen,
+                      foregroundColor: VineTheme.whiteText,
+                      disabledBackgroundColor: VineTheme.vineGreen.withValues(
+                        alpha: 0.7,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: VineTheme.whiteText,
+                            ),
+                          )
+                        : Text(
+                            isSignIn ? 'Sign in' : 'Set email & password',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: isSignIn
+                                  ? null
+                                  : VineTheme.backgroundColor,
+                            ),
+                          ),
+                  ),
+                ),
+                // Sign up specific: Skip button (outlined green)
+                if (!isSignIn) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 50,
+                    child: OutlinedButton(
+                      onPressed: isSubmitting
+                          ? null
+                          : () => context.read<DivineAuthCubit>().skipSignUp(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: VineTheme.vineGreen,
+                        side: const BorderSide(color: VineTheme.vineGreen),
+                        disabledForegroundColor: VineTheme.vineGreen.withValues(
+                          alpha: 0.5,
                         ),
-                      )
-                    : Text(
-                        isSignIn ? 'Sign in' : 'Set email & password',
-                        style: const TextStyle(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Skip for now',
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-              ),
-            ),
-
-            // Sign up specific: Skip button
-            if (!isSignIn) ...[
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () => context.read<DivineAuthCubit>().skipSignUp(),
-                child: const Text(
-                  'Skip for now',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-              ),
-            ],
-
-            // Sign in specific: Forgot password
-            if (isSignIn) ...[
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () => _showForgotPasswordDialog(context),
-                child: const Text(
-                  'Forgot password?',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Import Nostr key button
-              OutlinedButton(
-                onPressed: isSubmitting ? null : () => _importNostrKey(context),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.grey),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: const Text(
-                  'Import Nostr key',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 32),
-
-            // Toggle mode link
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  isSignIn
-                      ? "Don't have an account? "
-                      : 'Already on diVine or Nostr? ',
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                GestureDetector(
-                  onTap: isSubmitting ? null : () => _toggleMode(context),
-                  child: Text(
-                    isSignIn ? 'Sign up' : 'Sign in',
-                    style: const TextStyle(
-                      color: VineTheme.vineGreen,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                ],
+
+                // Sign in specific: Forgot password
+                if (isSignIn) ...[
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => _showForgotPasswordDialog(context),
+                    child: const Text(
+                      'Forgot password?',
+                      style: TextStyle(
+                        color: VineTheme.lightText,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Import Nostr key button
+                  OutlinedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => _importNostrKey(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: VineTheme.whiteText,
+                      side: const BorderSide(color: VineTheme.lightText),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text(
+                      'Import Nostr key',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 32),
+
+                // Toggle mode link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isSignIn
+                          ? "Don't have an account? "
+                          : 'Already on diVine or Nostr? ',
+                      style: const TextStyle(
+                        color: VineTheme.lightText,
+                        fontSize: 14,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: isSubmitting ? null : () => _toggleMode(context),
+                      child: Text(
+                        isSignIn ? 'Sign up' : 'Sign in',
+                        style: const TextStyle(
+                          color: VineTheme.vineGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          decorationColor: VineTheme.vineGreen,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+
+                const SizedBox(height: 32),
               ],
             ),
-
-            const SizedBox(height: 32),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -357,14 +411,16 @@ class _DivineAuthFormState extends State<_AuthForm> {
           obscureText: obscureText,
           enabled: enabled,
           autocorrect: false,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: VineTheme.primaryText),
           decoration: InputDecoration(
             labelText: label,
-            labelStyle: const TextStyle(color: Colors.grey),
+            labelStyle: const TextStyle(color: VineTheme.lightText),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(
-                color: errorText != null ? VineTheme.error : Colors.grey,
+                color: errorText != null
+                    ? VineTheme.error
+                    : VineTheme.outlineVariant,
               ),
             ),
             focusedBorder: OutlineInputBorder(
@@ -378,7 +434,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
             ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: const BorderSide(color: VineTheme.outlineVariant),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -390,7 +446,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
             ),
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: Colors.black,
+            fillColor: VineTheme.surfaceContainer,
           ),
           onChanged: onChanged,
         ),
@@ -417,7 +473,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
         backgroundColor: VineTheme.cardBackground,
         title: const Text(
           'Reset Password',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: VineTheme.primaryText),
         ),
         content: Form(
           key: formKey,
@@ -425,24 +481,29 @@ class _DivineAuthFormState extends State<_AuthForm> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
+                const Text(
                   "Enter your email address and we'll send you a link to "
                   'reset your password.',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  style: TextStyle(
+                    color: VineTheme.secondaryText,
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 TextFormField(
                   controller: resetEmailController,
                   keyboardType: TextInputType.emailAddress,
                   autocorrect: false,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: VineTheme.primaryText),
                   decoration: InputDecoration(
                     labelText: 'Email Address',
-                    labelStyle: const TextStyle(color: Colors.grey),
+                    labelStyle: const TextStyle(color: VineTheme.lightText),
                     prefixIcon: const Icon(Icons.email_outlined),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.grey),
+                      borderSide: const BorderSide(
+                        color: VineTheme.outlineVariant,
+                      ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -469,7 +530,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: VineTheme.vineGreen,
-              foregroundColor: Colors.white,
+              foregroundColor: VineTheme.whiteText,
             ),
             onPressed: () async {
               if (formKey.currentState!.validate()) {
