@@ -8,9 +8,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
-import 'package:openvine/screens/invite_code_entry_screen.dart';
-import 'package:openvine/screens/waitlist_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
+import 'package:openvine/screens/auth/waitlist_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 
 /// Screen presenting options for new users without an invite code.
 ///

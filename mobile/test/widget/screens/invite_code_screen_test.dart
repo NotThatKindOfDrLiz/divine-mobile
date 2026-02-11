@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/screens/invite_code_entry_screen.dart';
+import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MockInviteCodeBloc extends MockBloc<InviteCodeEvent, InviteCodeState>

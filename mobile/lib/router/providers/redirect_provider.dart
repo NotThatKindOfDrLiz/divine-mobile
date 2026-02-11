@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/invite_code_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/explore_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Checks if the current user has any following in cache.

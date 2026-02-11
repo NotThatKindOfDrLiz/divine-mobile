@@ -84,7 +84,7 @@ class NpubVerificationBloc
         );
         emit(
           state.copyWith(
-            status: NpubVerificationStatus.failed,
+            status: NpubVerificationStatus.rejected,
             error: result.message,
           ),
         );

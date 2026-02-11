@@ -7,10 +7,10 @@ import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/auth/reset_password.dart';
-import 'package:openvine/screens/invite_choice_screen.dart';
+import 'package:openvine/screens/auth/invite_choice_screen.dart';
 import 'package:openvine/screens/npub_verification_screen.dart';
-import 'package:openvine/screens/waitlist_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/waitlist_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Watches router location changes and redirects to canonical URLs when needed.

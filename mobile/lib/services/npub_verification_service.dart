@@ -68,7 +68,7 @@ class NpubVerificationService {
       category: LogCategory.auth,
     );
     try {
-      final response = http.Response(jsonEncode({'valid': false}), 200);
+      final response = http.Response(jsonEncode({'valid': false}), 500);
       // final response = await _client
       // .post(
       //   uri,

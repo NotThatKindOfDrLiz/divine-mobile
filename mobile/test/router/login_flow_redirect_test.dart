@@ -8,7 +8,7 @@ import 'package:openvine/screens/auth/login_options_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/key_import_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 
 /// Isolated test of the redirect logic that mirrors app_router.dart redirect function

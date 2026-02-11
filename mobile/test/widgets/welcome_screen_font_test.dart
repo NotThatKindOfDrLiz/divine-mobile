@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';

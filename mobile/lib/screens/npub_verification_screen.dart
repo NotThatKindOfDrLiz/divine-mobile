@@ -8,8 +8,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/screens/waitlist_screen.dart';
+import 'package:openvine/screens/auth/invite_choice_screen.dart';
+import 'package:openvine/screens/auth/waitlist_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Screen shown during npub verification for users who signed in
 /// without an invite code.
@@ -55,7 +57,7 @@ class _NpubVerificationScreenState
         name: 'NpubVerificationScreen',
         category: LogCategory.auth,
       );
-      _handleVerificationFailure('No account found to verify.');
+      _handleVerificationRejection('No account found to verify.');
       return;
     }
 
@@ -80,15 +82,21 @@ class _NpubVerificationScreenState
       return;
     }
 
-    // Handle failure
+    // Handle rejection (npub not authorized) - go to waitlist
+    if (state.isRejected) {
+      _handleVerificationRejection(state.error);
+      return;
+    }
+
+    // Handle server/network error - show retry on this screen
     if (state.isFailed) {
-      _handleVerificationFailure(state.error);
+      setState(() => _errorMessage = state.error ?? 'Server error occurred.');
     }
   }
 
-  Future<void> _handleVerificationFailure(String? message) async {
+  Future<void> _handleVerificationRejection(String? message) async {
     Log.warning(
-      'Npub verification failed: $message',
+      'Npub verification rejected: $message',
       name: 'NpubVerificationScreen',
       category: LogCategory.auth,
     );
@@ -116,6 +124,18 @@ class _NpubVerificationScreenState
     );
   }
 
+  Future<void> _cancel() async {
+    final authService = ref.read(authServiceProvider);
+    await authService.signOut();
+
+    if (!mounted) return;
+
+    context.read<NpubVerificationBloc>().add(
+      const NpubVerificationSkipInviteCleared(),
+    );
+    context.go(InviteChoiceScreen.path);
+  }
+
   void _retry() {
     setState(() => _errorMessage = null);
     _verifyNpub();
@@ -129,80 +149,95 @@ class _NpubVerificationScreenState
         builder: (context, state) {
           final isVerifying = state.isVerifying;
           final errorMessage = _errorMessage ?? state.error;
-          final showError = state.isFailed || _errorMessage != null;
+          final showError = _errorMessage != null;
 
           return Scaffold(
             backgroundColor: VineTheme.backgroundColor,
             body: SafeArea(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo
-                      Image.asset(
-                        'assets/icon/divine_icon_transparent.png',
-                        height: 100,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(height: 32),
-
-                      if (isVerifying) ...[
-                        const CircularProgressIndicator(
-                          color: VineTheme.vineGreen,
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Verifying your account...',
-                          style: VineTheme.headlineSmallFont(),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Please wait while we verify your identity',
-                          style: VineTheme.bodyMediumFont(color: Colors.grey),
-                          textAlign: TextAlign.center,
-                        ),
-                      ] else if (showError) ...[
-                        Icon(
-                          Icons.error_outline,
-                          color: VineTheme.error,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Verification Failed',
-                          style: VineTheme.headlineSmallFont(),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          errorMessage ?? 'An error occurred',
-                          style: VineTheme.bodyMediumFont(color: Colors.grey),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton(
-                          onPressed: _retry,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: VineTheme.vineGreen,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            'Try Again',
-                            style: VineTheme.labelLargeFont(),
-                          ),
-                        ),
-                      ],
-                    ],
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: AuthBackButton(onPressed: _cancel),
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/icon/divine_icon_transparent.png',
+                              height: 100,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 32),
+                            if (isVerifying) ...[
+                              const CircularProgressIndicator(
+                                color: VineTheme.vineGreen,
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Verifying your account...',
+                                style: VineTheme.headlineSmallFont(),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Please wait while we verify your identity',
+                                style: VineTheme.bodyMediumFont(
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ] else if (showError) ...[
+                              Icon(
+                                Icons.error_outline,
+                                color: VineTheme.error,
+                                size: 48,
+                              ),
+                              const SizedBox(height: 24),
+                              Text(
+                                'Verification Failed',
+                                style: VineTheme.headlineSmallFont(),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                errorMessage ?? 'An error occurred',
+                                style: VineTheme.bodyMediumFont(
+                                  color: Colors.grey,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton(
+                                onPressed: _retry,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: VineTheme.vineGreen,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Try Again',
+                                  style: VineTheme.labelLargeFont(),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           );

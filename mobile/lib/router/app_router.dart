@@ -50,11 +50,11 @@ import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/screens/video_editor/video_editor_screen.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
-import 'package:openvine/screens/invite_choice_screen.dart';
-import 'package:openvine/screens/invite_code_entry_screen.dart';
+import 'package:openvine/screens/auth/invite_choice_screen.dart';
+import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
 import 'package:openvine/screens/npub_verification_screen.dart';
-import 'package:openvine/screens/waitlist_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/waitlist_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/providers/invite_code_provider.dart';
 import 'package:openvine/router/providers/app_state_listenable.dart';
 import 'package:openvine/services/auth_service.dart';
@@ -138,8 +138,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // SECOND: Check npub verification for authenticated users without invite code
-      // Only applies when user signed in via "Skip invite" flow
-      // NOTE: We check inline here using BLoC synchronous getters for fresh state.
+      // Any authenticated user without an invite code must have their npub
+      // verified. This catches both the in-session "Sign In" flow and app
+      // restarts where auth was persisted but verification wasn't completed.
       if (AppConfig.inviteRequired) {
         final isVerificationRoute = location == NpubVerificationScreen.path;
         final isWaitlistRoute = location == WaitlistScreen.path;
@@ -147,21 +148,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           final authService = ref.read(authServiceProvider);
           final isAuthenticated =
               authService.authState == AuthState.authenticated;
-          // Use BLoCs for invite code and verification state
           final inviteCodeBloc = context.read<InviteCodeBloc>();
           final npubVerificationBloc = context.read<NpubVerificationBloc>();
           final hasInviteCode = inviteCodeBloc.hasStoredInviteCode;
-          final skipInvite = npubVerificationBloc.skipInviteRequested;
 
-          // User authenticated via skip invite flow without invite code
-          if (isAuthenticated && !hasInviteCode && skipInvite) {
-            // Check if npub is already verified
+          if (isAuthenticated && !hasInviteCode) {
             final npub = authService.currentNpub;
             final isVerified = npubVerificationBloc.isNpubVerified(npub);
 
             if (!isVerified) {
               Log.debug(
-                'Authenticated via skip invite but npub not verified, '
+                'Authenticated without invite code and npub not verified, '
                 'redirecting to ${NpubVerificationScreen.path}',
                 name: 'AppRouter',
                 category: LogCategory.ui,

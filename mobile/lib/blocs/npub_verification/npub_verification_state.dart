@@ -14,7 +14,10 @@ enum NpubVerificationStatus {
   /// Npub verified successfully.
   verified,
 
-  /// Verification failed.
+  /// Verification rejected (npub not authorized).
+  rejected,
+
+  /// Verification failed due to server/network error.
   failed,
 }
 
@@ -44,7 +47,10 @@ final class NpubVerificationState extends Equatable {
   /// Whether the last verification was successful.
   bool get isVerified => status == NpubVerificationStatus.verified;
 
-  /// Whether the last verification failed.
+  /// Whether the npub was rejected (not authorized).
+  bool get isRejected => status == NpubVerificationStatus.rejected;
+
+  /// Whether verification failed due to a server/network error.
   bool get isFailed => status == NpubVerificationStatus.failed;
 
   /// Creates a copy of this state with the given fields replaced.
