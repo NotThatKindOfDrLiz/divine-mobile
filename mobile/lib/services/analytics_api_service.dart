@@ -428,6 +428,7 @@ class BulkVideoStatsEntry {
   final int comments;
   final int reposts;
   final int? loops;
+  final int? views;
 
   const BulkVideoStatsEntry({
     required this.eventId,
@@ -435,15 +436,23 @@ class BulkVideoStatsEntry {
     required this.comments,
     required this.reposts,
     this.loops,
+    this.views,
   });
 
   factory BulkVideoStatsEntry.fromJson(Map<String, dynamic> json) {
+    int? parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
     return BulkVideoStatsEntry(
       eventId: json['event_id']?.toString() ?? '',
       reactions: json['reactions'] as int? ?? 0,
       comments: json['comments'] as int? ?? 0,
       reposts: json['reposts'] as int? ?? 0,
-      loops: json['loops'] as int?,
+      loops: parseInt(json['loops'] ?? json['loop_count']),
+      views: parseInt(json['views'] ?? json['view_count']),
     );
   }
 }

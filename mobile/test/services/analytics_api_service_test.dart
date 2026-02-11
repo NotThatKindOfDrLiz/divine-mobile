@@ -9,6 +9,28 @@ import 'package:http/testing.dart';
 import 'package:openvine/services/analytics_api_service.dart';
 
 void main() {
+  group('BulkVideoStatsEntry', () {
+    test('parses loops and views from multiple field names', () {
+      final json = {
+        'event_id': 'abc123',
+        'reactions': 10,
+        'comments': 2,
+        'reposts': 1,
+        'loop_count': '99',
+        'view_count': 123,
+      };
+
+      final entry = BulkVideoStatsEntry.fromJson(json);
+
+      expect(entry.eventId, 'abc123');
+      expect(entry.reactions, 10);
+      expect(entry.comments, 2);
+      expect(entry.reposts, 1);
+      expect(entry.loops, 99);
+      expect(entry.views, 123);
+    });
+  });
+
   group('VideoStats', () {
     group('fromJson', () {
       test('parses id and pubkey from byte arrays', () {

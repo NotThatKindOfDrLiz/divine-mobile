@@ -10,6 +10,7 @@ import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/services/analytics_api_service.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_filter_builder.dart';
 import 'package:openvine/state/video_feed_state.dart';
@@ -175,11 +176,15 @@ class HomeFeed extends _$HomeFeed {
         );
 
         if (feedResult.videos.isNotEmpty) {
+          final enrichedVideos = await _enrichVideosWithBulkStats(
+            feedResult.videos,
+          );
+
           _usingRestApi = true;
           _restApiSucceededOnce = true;
           _nextCursor = feedResult.nextCursor;
           _hasMoreFromApi = feedResult.hasMore;
-          followingVideosFromSource = feedResult.videos;
+          followingVideosFromSource = enrichedVideos;
 
           Log.info(
             '✅ HomeFeed: Got ${feedResult.videos.length} videos from REST API, '
@@ -699,6 +704,44 @@ class HomeFeed extends _$HomeFeed {
     }
   }
 
+  Future<List<VideoEvent>> _enrichVideosWithBulkStats(
+    List<VideoEvent> videos,
+  ) async {
+    if (videos.isEmpty) return videos;
+
+    final analyticsService = ref.read(analyticsApiServiceProvider);
+    final statsByEventId = await analyticsService.getBulkVideoStats(
+      videos.map((video) => video.id).toList(),
+    );
+    if (statsByEventId.isEmpty) return videos;
+
+    final statsByIdLower = <String, BulkVideoStatsEntry>{
+      for (final entry in statsByEventId.entries)
+        entry.key.toLowerCase(): entry.value,
+    };
+
+    return videos.map((video) {
+      final stats = statsByIdLower[video.id.toLowerCase()];
+      if (stats == null) return video;
+
+      final existingViews = int.tryParse(video.rawTags['views'] ?? '');
+      final mergedLoops = stats.loops ?? video.originalLoops;
+      final mergedViews = stats.views ?? existingViews;
+      final hasSameLoops = mergedLoops == video.originalLoops;
+      final hasSameViews = mergedViews == existingViews;
+      if (hasSameLoops && hasSameViews) return video;
+
+      return video.copyWith(
+        originalLoops: mergedLoops,
+        rawTags: {
+          ...video.rawTags,
+          if (mergedLoops != null) 'loops': mergedLoops.toString(),
+          if (mergedViews != null) 'views': mergedViews.toString(),
+        },
+      );
+    }).toList();
+  }
+
   /// Load more historical events from followed authors
   Future<void> loadMore() async {
     final currentState = await future;
@@ -762,11 +805,16 @@ class HomeFeed extends _$HomeFeed {
         if (!ref.mounted) return;
 
         if (feedResult.videos.isNotEmpty) {
+          final enrichedVideos = await _enrichVideosWithBulkStats(
+            feedResult.videos,
+          );
+          if (!ref.mounted) return;
+
           // Deduplicate and merge (case-insensitive for Nostr IDs)
           final existingIds = currentState.videos
               .map((v) => v.id.toLowerCase())
               .toSet();
-          final newVideos = feedResult.videos
+          final newVideos = enrichedVideos
               .where((v) => !existingIds.contains(v.id.toLowerCase()))
               .where((v) => v.isSupportedOnCurrentPlatform)
               .toList();
@@ -911,11 +959,16 @@ class HomeFeed extends _$HomeFeed {
       if (!ref.mounted) return;
 
       if (feedResult.videos.isNotEmpty) {
+        final enrichedVideos = await _enrichVideosWithBulkStats(
+          feedResult.videos,
+        );
+        if (!ref.mounted) return;
+
         _usingRestApi = true;
         _nextCursor = feedResult.nextCursor;
         _hasMoreFromApi = feedResult.hasMore;
 
-        var videos = feedResult.videos
+        var videos = enrichedVideos
             .where((v) => v.isSupportedOnCurrentPlatform)
             .toList();
 
