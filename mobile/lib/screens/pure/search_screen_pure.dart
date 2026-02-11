@@ -19,6 +19,7 @@ import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/screens/pure/explore_video_screen_pure.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
+import 'package:openvine/mixins/grid_prefetch_mixin.dart';
 import 'package:openvine/utils/search_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
@@ -62,7 +63,7 @@ class SearchScreenPure extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, GridPrefetchMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   late TabController _tabController;
@@ -434,6 +435,9 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
     });
     // Update provider so active video system can access merged search results
     ref.read(searchScreenVideosProvider.notifier).state = uniqueVideos;
+
+    // Prefetch top video files for faster playback on tap
+    prefetchGridVideos(uniqueVideos);
   }
 
   @override
@@ -559,8 +563,8 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
     if (widget.embedded) {
       return BlocProvider.value(
         value: _userSearchBloc,
-        child: Container(
-          color: VineTheme.backgroundColor, // Ensure visible background
+        child: Material(
+          color: VineTheme.backgroundColor,
           child: Column(
             children: [
               Container(
@@ -694,6 +698,8 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
                 '🔍 SearchScreenPure: Tapped video at index $index',
                 category: LogCategory.video,
               );
+              // Pre-warm adjacent videos before navigation
+              prefetchAroundIndex(index, videos);
               // Navigate using GoRouter to enable router-driven video playback
               context.go(
                 SearchScreenPure.pathForTerm(
