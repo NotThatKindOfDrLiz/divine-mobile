@@ -1298,6 +1298,10 @@ class VideoOverlayActions extends ConsumerWidget {
                     final loopCount = isClassicVine
                         ? archivedLoops + liveViews
                         : (archivedLoops > 0 ? archivedLoops : liveViews);
+                    final hasLoopMetadata =
+                        video.originalLoops != null ||
+                        video.rawTags.containsKey('loops') ||
+                        video.rawTags.containsKey('views');
 
                     void navigateToProfile() {
                       Log.info(
@@ -1427,7 +1431,7 @@ class VideoOverlayActions extends ConsumerWidget {
                                   ],
                                 ),
                                 Text(
-                                  loopCount > 0
+                                  hasLoopMetadata
                                       ? '${StringUtils.formatCompactNumber(loopCount)} loops'
                                       : video.relativeTime,
                                   style: const TextStyle(
