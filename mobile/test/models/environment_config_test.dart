@@ -19,17 +19,17 @@ void main() {
     group('relayUrl', () {
       test('poc returns poc relay', () {
         final config = EnvironmentConfig(environment: AppEnvironment.poc);
-        expect(config.relayUrl, 'wss://relay.poc.dvines.org');
+        expect(config.relayUrl, 'wss://relay.poc.divine.video');
       });
 
       test('staging returns staging relay', () {
         final config = EnvironmentConfig(environment: AppEnvironment.staging);
-        expect(config.relayUrl, 'wss://relay.staging.dvines.org');
+        expect(config.relayUrl, 'wss://relay.staging.divine.video');
       });
 
       test('test returns test relay', () {
         final config = EnvironmentConfig(environment: AppEnvironment.test);
-        expect(config.relayUrl, 'wss://relay.test.dvines.org');
+        expect(config.relayUrl, 'wss://relay.test.divine.video');
       });
 
       test('production returns divine.video relay', () {
@@ -45,17 +45,17 @@ void main() {
       // This ensures the API URL always matches the relay being used
       test('poc derives from relay URL', () {
         final config = EnvironmentConfig(environment: AppEnvironment.poc);
-        expect(config.apiBaseUrl, 'https://relay.poc.dvines.org');
+        expect(config.apiBaseUrl, 'https://relay.poc.divine.video');
       });
 
       test('staging derives from relay URL', () {
         final config = EnvironmentConfig(environment: AppEnvironment.staging);
-        expect(config.apiBaseUrl, 'https://relay.staging.dvines.org');
+        expect(config.apiBaseUrl, 'https://relay.staging.divine.video');
       });
 
       test('test derives from relay URL', () {
         final config = EnvironmentConfig(environment: AppEnvironment.test);
-        expect(config.apiBaseUrl, 'https://relay.test.dvines.org');
+        expect(config.apiBaseUrl, 'https://relay.test.divine.video');
       });
 
       test('production derives from relay URL', () {

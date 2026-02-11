@@ -70,7 +70,7 @@ void main() {
     late FakeVideoEventService fakeService;
     late ProviderContainer container;
 
-    // Real Nostr user from staging-relay.divine.video - @BJFrankowski
+    // Real Nostr user from relay.poc.divine.video - @BJFrankowski
     const testHex =
         '1363966ad89a17df0711e270658153c2dbe5e163e06cdd6f9dba36b616846ee0';
     late String testNpub;

@@ -26,7 +26,7 @@ void main() {
 
     group('NIP-11 Information Document', () {
       test('parses divine.video relay capabilities correctly', () async {
-        // NIP-11 response from staging-relay.divine.video
+        // NIP-11 response from relay.poc.divine.video
         const nip11Response = '''
 {
   "name": "Divine Video Relay",
@@ -65,16 +65,16 @@ void main() {
 
         when(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).thenAnswer((_) async => http.Response(nip11Response, 200));
 
         final capabilities = await service.getRelayCapabilities(
-          'wss://staging-relay.divine.video',
+          'wss://relay.poc.divine.video',
         );
 
-        expect(capabilities.relayUrl, 'wss://staging-relay.divine.video');
+        expect(capabilities.relayUrl, 'wss://relay.poc.divine.video');
         expect(capabilities.name, 'Divine Video Relay');
         expect(capabilities.supportedNips, contains(71));
         expect(capabilities.hasDivineExtensions, true);
@@ -124,16 +124,16 @@ void main() {
       test('converts wss:// to https:// for NIP-11 fetch', () async {
         when(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).thenAnswer((_) async => http.Response('{"name": "Test Relay"}', 200));
 
-        await service.getRelayCapabilities('wss://staging-relay.divine.video');
+        await service.getRelayCapabilities('wss://relay.poc.divine.video');
 
         verify(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).called(1);
@@ -179,21 +179,21 @@ void main() {
 
         when(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).thenAnswer((_) async => http.Response(nip11Response, 200));
 
         // First call - should fetch from network
-        await service.getRelayCapabilities('wss://staging-relay.divine.video');
+        await service.getRelayCapabilities('wss://relay.poc.divine.video');
 
         // Second call - should use cache
-        await service.getRelayCapabilities('wss://staging-relay.divine.video');
+        await service.getRelayCapabilities('wss://relay.poc.divine.video');
 
         // Should only fetch once
         verify(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).called(1);
@@ -209,14 +209,14 @@ void main() {
 
         when(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).thenAnswer((_) async => http.Response(nip11Response, 200));
 
         // First call
         await shortTtlService.getRelayCapabilities(
-          'wss://staging-relay.divine.video',
+          'wss://relay.poc.divine.video',
         );
 
         // Wait for cache to expire
@@ -224,13 +224,13 @@ void main() {
 
         // Second call after expiration
         await shortTtlService.getRelayCapabilities(
-          'wss://staging-relay.divine.video',
+          'wss://relay.poc.divine.video',
         );
 
         // Should fetch twice
         verify(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).called(2);
@@ -246,17 +246,17 @@ void main() {
         ).thenAnswer((_) async => http.Response(nip11Response, 200));
 
         // Fetch and cache
-        await service.getRelayCapabilities('wss://staging-relay.divine.video');
+        await service.getRelayCapabilities('wss://relay.poc.divine.video');
 
         // Clear cache
         service.clearCache();
 
         // Should fetch again
-        await service.getRelayCapabilities('wss://staging-relay.divine.video');
+        await service.getRelayCapabilities('wss://relay.poc.divine.video');
 
         verify(
           mockHttpClient.get(
-            Uri.parse('https://staging-relay.divine.video'),
+            Uri.parse('https://relay.poc.divine.video'),
             headers: {'Accept': 'application/nostr+json'},
           ),
         ).called(2);
@@ -280,7 +280,7 @@ void main() {
         ).thenAnswer((_) async => http.Response(nip11Response, 200));
 
         final capabilities = await service.getRelayCapabilities(
-          'wss://staging-relay.divine.video',
+          'wss://relay.poc.divine.video',
         );
 
         expect(capabilities.supportsMetric('loop_count'), true);
@@ -304,7 +304,7 @@ void main() {
         ).thenAnswer((_) async => http.Response(nip11Response, 200));
 
         final capabilities = await service.getRelayCapabilities(
-          'wss://staging-relay.divine.video',
+          'wss://relay.poc.divine.video',
         );
 
         expect(capabilities.supportsSortBy('loop_count'), true);

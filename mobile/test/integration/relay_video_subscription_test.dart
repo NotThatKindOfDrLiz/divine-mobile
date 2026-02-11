@@ -1,4 +1,4 @@
-// ABOUTME: Real world test to verify VideoEventService works with actual staging-relay.divine.video relay
+// ABOUTME: Real world test to verify VideoEventService works with actual relay.poc.divine.video relay
 // ABOUTME: This test connects to the real relay to debug why videos aren't showing in app
 
 // TODO(any): Fix and re-enable this test
@@ -112,10 +112,10 @@ void main() {}
 //    });
 //
 //    test(
-//      'VideoEventService should receive videos from staging-relay.divine.video relay',
+//      'VideoEventService should receive videos from relay.poc.divine.video relay',
 //      () async {
 //        Log.debug(
-//          '🔍 Testing VideoEventService with real staging-relay.divine.video relay...',
+//          '🔍 Testing VideoEventService with real relay.poc.divine.video relay...',
 //          name: 'RealVideoSubscriptionTest',
 //          category: LogCategory.system,
 //        );
@@ -220,7 +220,7 @@ void main() {}
 //            receivedVideos.length,
 //            greaterThan(0),
 //            reason:
-//                'Should receive videos from staging-relay.divine.video relay',
+//                'Should receive videos from relay.poc.divine.video relay',
 //          );
 //
 //          // Verify the videos have proper URLs

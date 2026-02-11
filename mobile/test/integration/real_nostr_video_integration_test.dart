@@ -32,9 +32,9 @@ void main() {
     });
 
     testWidgets(
-      'can fetch real video events from staging-relay.divine.video relay',
+      'can fetch real video events from relay.poc.divine.video relay',
       (tester) async {
-        // This test uses REAL network connections to staging-relay.divine.video
+        // This test uses REAL network connections to relay.poc.divine.video
         // No mocking of NostrService, network, or relay connections
 
         // Subscribe to video feed

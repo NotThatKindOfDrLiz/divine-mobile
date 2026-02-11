@@ -77,7 +77,7 @@ void main() {
     });
 
     test(
-      'should get real kind 34236 video events from staging-relay.divine.video',
+      'should get real kind 34236 video events from relay.poc.divine.video',
       () async {
         // Subscribe to discovery feed
         await videoEventService.subscribeToVideoFeed(

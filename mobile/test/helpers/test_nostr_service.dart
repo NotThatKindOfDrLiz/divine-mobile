@@ -274,7 +274,7 @@ class TestNostrService implements NostrClient {
   }
 
   bool get isVineRelayAuthenticated =>
-      isRelayAuthenticated('wss://staging-relay.divine.video');
+      isRelayAuthenticated('wss://relay.poc.divine.video');
 
   void setAuthTimeout(Duration timeout) {
     // No-op for tests

@@ -41,11 +41,11 @@ class EnvironmentConfig {
   String get relayUrl {
     switch (environment) {
       case AppEnvironment.poc:
-        return 'wss://relay.poc.dvines.org';
+        return 'wss://relay.poc.divine.video';
       case AppEnvironment.staging:
-        return 'wss://relay.staging.dvines.org';
+        return 'wss://relay.staging.divine.video';
       case AppEnvironment.test:
-        return 'wss://relay.test.dvines.org';
+        return 'wss://relay.test.divine.video';
       case AppEnvironment.production:
         return 'wss://relay.divine.video';
     }

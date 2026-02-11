@@ -1,5 +1,5 @@
 // ABOUTME: Test that nostr_sdk Filter class properly supports h tag filtering
-// ABOUTME: Verifies the extended Filter functionality for staging-relay.divine.video relay compatibility
+// ABOUTME: Verifies the extended Filter functionality for relay.poc.divine.video relay compatibility
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nostr_sdk/event.dart';

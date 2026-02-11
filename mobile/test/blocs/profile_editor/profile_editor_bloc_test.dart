@@ -1,5 +1,5 @@
 // ABOUTME: Unit tests for ProfileEditorBloc
-// ABOUTME: Tests profile publishing and username claiming with rollback on failure
+// ABOUTME: Tests claim-first profile publishing (claim username, then Kind 0)
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -138,7 +138,7 @@ void main() {
         );
 
         blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'publishes profile with existing profile data',
+          'preserves existing nip05 when no username provided',
           setUp: () {
             final existingProfile = createTestProfile(nip05: testOriginalNip05);
             when(
@@ -148,7 +148,7 @@ void main() {
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
                 about: testAbout,
-                nip05: null,
+                nip05: testOriginalNip05,
                 picture: testPicture,
                 currentProfile: existingProfile,
               ),
@@ -175,6 +175,17 @@ void main() {
               ProfileEditorStatus.success,
             ),
           ],
+          verify: (_) {
+            verify(
+              () => mockProfileRepository.saveProfileEvent(
+                displayName: testDisplayName,
+                about: testAbout,
+                nip05: testOriginalNip05,
+                picture: testPicture,
+                currentProfile: any(named: 'currentProfile'),
+              ),
+            ).called(1);
+          },
         );
 
         blocTest<ProfileEditorBloc, ProfileEditorState>(
@@ -231,11 +242,14 @@ void main() {
 
       group('with username', () {
         blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'emits [loading, success] when profile and username claim succeed',
+          'claims username first then publishes Kind 0 with nip05',
           setUp: () {
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => null);
+            when(
+              () => mockProfileRepository.claimUsername(username: testUsername),
+            ).thenAnswer((_) async => const UsernameClaimSuccess());
             when(
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
@@ -244,10 +258,7 @@ void main() {
                 picture: testPicture,
                 currentProfile: null,
               ),
-            ).thenAnswer((_) async => createTestProfile());
-            when(
-              () => mockProfileRepository.claimUsername(username: testUsername),
-            ).thenAnswer((_) async => const UsernameClaimSuccess());
+            ).thenAnswer((_) async => createTestProfile(nip05: testNip05));
           },
           build: createBloc,
           act: (bloc) => bloc.add(
@@ -272,7 +283,8 @@ void main() {
             ),
           ],
           verify: (_) {
-            verify(
+            verifyInOrder([
+              () => mockProfileRepository.claimUsername(username: testUsername),
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
                 about: testAbout,
@@ -280,10 +292,7 @@ void main() {
                 picture: testPicture,
                 currentProfile: null,
               ),
-            ).called(1);
-            verify(
-              () => mockProfileRepository.claimUsername(username: testUsername),
-            ).called(1);
+            ]);
           },
         );
       });
@@ -331,11 +340,14 @@ void main() {
         );
 
         blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'does not attempt username claim when profile publish fails',
+          'claims username but fails to publish profile',
           setUp: () {
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => null);
+            when(
+              () => mockProfileRepository.claimUsername(username: testUsername),
+            ).thenAnswer((_) async => const UsernameClaimSuccess());
             when(
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
@@ -356,13 +368,20 @@ void main() {
               username: testUsername,
             ),
           ),
-          verify: (_) {
-            verifyNever(
-              () => mockProfileRepository.claimUsername(
-                username: any(named: 'username'),
-              ),
-            );
-          },
+          expect: () => [
+            isA<ProfileEditorState>().having(
+              (s) => s.status,
+              'status',
+              ProfileEditorStatus.loading,
+            ),
+            isA<ProfileEditorState>()
+                .having((s) => s.status, 'status', ProfileEditorStatus.failure)
+                .having(
+                  (s) => s.error,
+                  'error',
+                  ProfileEditorError.publishFailed,
+                ),
+          ],
         );
       });
 
@@ -374,15 +393,6 @@ void main() {
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => existingProfile);
-            when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
             when(
               () => mockProfileRepository.claimUsername(username: testUsername),
             ).thenAnswer((_) async => const UsernameClaimTaken());
@@ -423,22 +433,13 @@ void main() {
         );
 
         blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'rolls back profile with original nip05',
+          'publishes profile with original nip05 when claim fails',
           setUp: () {
             final existingProfile = createTestProfile(nip05: testOriginalNip05);
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => existingProfile);
             when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
-            when(
               () => mockProfileRepository.claimUsername(username: testUsername),
             ).thenAnswer((_) async => const UsernameClaimTaken());
             when(
@@ -462,14 +463,8 @@ void main() {
             ),
           ),
           verify: (_) {
-            verifyInOrder([
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: any(named: 'currentProfile'),
-              ),
+            // Should publish profile once with original nip05 (not new one)
+            verify(
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
                 about: testAbout,
@@ -477,26 +472,27 @@ void main() {
                 picture: testPicture,
                 currentProfile: any(named: 'currentProfile'),
               ),
-            ]);
+            ).called(1);
+            // Should never publish with the new nip05
+            verifyNever(
+              () => mockProfileRepository.saveProfileEvent(
+                displayName: testDisplayName,
+                about: testAbout,
+                nip05: testNip05,
+                picture: testPicture,
+                currentProfile: any(named: 'currentProfile'),
+              ),
+            );
           },
         );
 
         blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'rolls back to null nip05 when no existing profile',
+          'publishes with null nip05 when no existing profile and claim fails',
           setUp: () {
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => null);
             when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: null,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
-            when(
               () => mockProfileRepository.claimUsername(username: testUsername),
             ).thenAnswer((_) async => const UsernameClaimTaken());
             when(
@@ -520,14 +516,8 @@ void main() {
             ),
           ),
           verify: (_) {
-            verifyInOrder([
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: null,
-              ),
+            // Only one profile publish - with null nip05
+            verify(
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
                 about: testAbout,
@@ -535,7 +525,7 @@ void main() {
                 picture: testPicture,
                 currentProfile: null,
               ),
-            ]);
+            ).called(1);
           },
         );
       });
@@ -548,15 +538,6 @@ void main() {
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => existingProfile);
-            when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
             when(
               () => mockProfileRepository.claimUsername(username: testUsername),
             ).thenAnswer((_) async => const UsernameClaimReserved());
@@ -597,21 +578,12 @@ void main() {
         );
 
         blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'rolls back profile when username is reserved',
+          'publishes profile with original nip05 when reserved',
           setUp: () {
             final existingProfile = createTestProfile(nip05: testOriginalNip05);
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => existingProfile);
-            when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
             when(
               () => mockProfileRepository.claimUsername(username: testUsername),
             ).thenAnswer((_) async => const UsernameClaimReserved());
@@ -636,14 +608,8 @@ void main() {
             ),
           ),
           verify: (_) {
-            verifyInOrder([
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: any(named: 'currentProfile'),
-              ),
+            // Only one profile publish - with original nip05
+            verify(
               () => mockProfileRepository.saveProfileEvent(
                 displayName: testDisplayName,
                 about: testAbout,
@@ -651,7 +617,7 @@ void main() {
                 picture: testPicture,
                 currentProfile: any(named: 'currentProfile'),
               ),
-            ]);
+            ).called(1);
           },
         );
       });
@@ -664,15 +630,6 @@ void main() {
             when(
               () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
             ).thenAnswer((_) async => existingProfile);
-            when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
             when(
               () => mockProfileRepository.claimUsername(username: testUsername),
             ).thenAnswer(
@@ -710,63 +667,6 @@ void main() {
                   (s) => s.error,
                   'error',
                   ProfileEditorError.claimFailed,
-                ),
-          ],
-        );
-      });
-
-      group('rollback failure', () {
-        blocTest<ProfileEditorBloc, ProfileEditorState>(
-          'still returns correct error when rollback fails',
-          setUp: () {
-            final existingProfile = createTestProfile(nip05: testOriginalNip05);
-            when(
-              () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
-            ).thenAnswer((_) async => existingProfile);
-            when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenAnswer((_) async => createTestProfile());
-            when(
-              () => mockProfileRepository.claimUsername(username: testUsername),
-            ).thenAnswer((_) async => const UsernameClaimTaken());
-            when(
-              () => mockProfileRepository.saveProfileEvent(
-                displayName: testDisplayName,
-                about: testAbout,
-                nip05: testOriginalNip05,
-                picture: testPicture,
-                currentProfile: existingProfile,
-              ),
-            ).thenThrow(const ProfilePublishFailedException('Rollback failed'));
-          },
-          build: createBloc,
-          act: (bloc) => bloc.add(
-            const ProfileSaved(
-              pubkey: testPubkey,
-              displayName: testDisplayName,
-              about: testAbout,
-              picture: testPicture,
-              username: testUsername,
-            ),
-          ),
-          expect: () => [
-            isA<ProfileEditorState>().having(
-              (s) => s.status,
-              'status',
-              ProfileEditorStatus.loading,
-            ),
-            isA<ProfileEditorState>()
-                .having((s) => s.status, 'status', ProfileEditorStatus.failure)
-                .having(
-                  (s) => s.error,
-                  'error',
-                  ProfileEditorError.usernameTaken,
                 ),
           ],
         );
@@ -977,7 +877,7 @@ void main() {
         },
         wait: debounceDuration,
         verify: (_) {
-          // Should only call API once for the final username due to restartable transformer
+          // Should only call API once for the final username
           verify(
             () => mockProfileRepository.checkUsernameAvailability(
               username: 'test3',
@@ -999,20 +899,10 @@ void main() {
       blocTest<ProfileEditorBloc, ProfileEditorState>(
         'checks reserved cache before making API call',
         setUp: () {
-          // First, trigger a ProfileSaved that returns UsernameClaimReserved
           final existingProfile = createTestProfile(nip05: testOriginalNip05);
           when(
             () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
           ).thenAnswer((_) async => existingProfile);
-          when(
-            () => mockProfileRepository.saveProfileEvent(
-              displayName: testDisplayName,
-              about: testAbout,
-              nip05: testNip05,
-              picture: testPicture,
-              currentProfile: existingProfile,
-            ),
-          ).thenAnswer((_) async => createTestProfile());
           when(
             () => mockProfileRepository.claimUsername(username: testUsername),
           ).thenAnswer((_) async => const UsernameClaimReserved());

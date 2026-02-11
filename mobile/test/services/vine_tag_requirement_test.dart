@@ -1,11 +1,11 @@
 // ABOUTME: Test that ALL events include the required ['h', 'vine'] tag
-// ABOUTME: Verifies AuthService automatically adds staging-relay.divine.video relay requirement
+// ABOUTME: Verifies AuthService automatically adds relay.poc.divine.video relay requirement
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 void main() {
-  group('staging-relay.divine.video Relay Tag Requirement', () {
+  group('relay.poc.divine.video Relay Tag Requirement', () {
     test('Kind 0 (profile) events should include h:vine tag', () async {
       // This test verifies the concept - actual AuthService requires secure storage
 
@@ -93,8 +93,8 @@ void main() {
 
     test('vine tag requirement documentation', () {
       const relayRequirement = '''
-CRITICAL: staging-relay.divine.video Relay Requirement
-ALL events published to the staging-relay.divine.video relay MUST include the tag ['h', 'vine'] 
+CRITICAL: relay.poc.divine.video Relay Requirement
+ALL events published to the relay.poc.divine.video relay MUST include the tag ['h', 'vine'] 
 for the relay to store them. Events without this tag will be accepted (relay 
 returns OK) but will NOT be stored or retrievable.
 ''';

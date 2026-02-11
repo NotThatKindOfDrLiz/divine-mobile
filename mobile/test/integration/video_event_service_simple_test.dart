@@ -45,7 +45,7 @@ void main() {
       when(mockNostrService.isInitialized).thenReturn(true);
       when(
         mockNostrService.connectedRelays,
-      ).thenReturn(['wss://staging-relay.divine.video']);
+      ).thenReturn(['wss://relay.poc.divine.video']);
       when(mockNostrService.hasKeys).thenReturn(true);
       when(mockNostrService.publicKey).thenReturn('test_pubkey');
       when(mockNostrService.connectedRelayCount).thenReturn(1);
