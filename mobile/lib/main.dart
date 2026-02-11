@@ -569,8 +569,12 @@ Future<void> _initializeCoreServices(ProviderContainer container) async {
     category: LogCategory.system,
   );
 
-  // Initialize seen videos service
-  await container.read(seenVideosServiceProvider).initialize();
+  // Initialize independent services in parallel
+  await Future.wait([
+    container.read(seenVideosServiceProvider).initialize(),
+    bandwidthTracker.initialize(),
+    container.read(uploadManagerProvider).initialize(),
+  ]);
   Log.info(
     '[INIT] ✅ SeenVideosService initialized',
     name: 'Main',
