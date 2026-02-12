@@ -567,6 +567,68 @@ class ClipManagerNotifier extends Notifier<ClipManagerState> {
     }
   }
 
+  /// Resizes all clips to a target duration by adjusting playback speed.
+  ///
+  /// Each clip is re-rendered so its output duration matches [targetDuration].
+  /// Clips are processed sequentially to avoid file conflicts.
+  ///
+  /// Returns true if all clips were resized successfully.
+  Future<bool> resizeAllClips(Duration targetDuration) async {
+    Log.info(
+      '🔄 Resizing ${_clips.length} clips to '
+      '${targetDuration.inMilliseconds}ms',
+      name: 'ClipManagerNotifier',
+      category: .video,
+    );
+
+    state = state.copyWith(isProcessing: true);
+    var allSucceeded = true;
+
+    try {
+      // IMPORTANT: Do not change to Future.wait or parallel execution.
+      // Sequential rendering prevents file conflicts and keeps memory bounded.
+      for (var i = 0; i < _clips.length; i++) {
+        final clip = _clips[i];
+        final completer = Completer<bool>();
+
+        await VideoEditorRenderService.resizeClipDuration(
+          clip: clip,
+          targetDuration: targetDuration,
+          onComplete: completer.complete,
+        );
+
+        final success = await completer.future;
+        if (success) {
+          _clips[i] = clip.copyWith(duration: targetDuration);
+        } else {
+          allSucceeded = false;
+        }
+      }
+
+      state = state.copyWith(clips: List.unmodifiable(_clips));
+      _triggerAutosave();
+
+      Log.info(
+        '🔄 Resize complete (success: $allSucceeded)',
+        name: 'ClipManagerNotifier',
+        category: .video,
+      );
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Failed to resize clips: $e',
+        name: 'ClipManagerNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      allSucceeded = false;
+    } finally {
+      state = state.copyWith(isProcessing: false);
+    }
+
+    return allSucceeded;
+  }
+
   /// Save specific clip to library.
   ///
   /// Returns true if the clip was successfully saved, false otherwise.

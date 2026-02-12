@@ -292,6 +292,80 @@ class VideoEditorRenderService {
     }
   }
 
+  /// Resizes a clip to a target duration by adjusting playback speed.
+  ///
+  /// The clip's video file is re-rendered at a calculated playback speed
+  /// so that the output duration matches [targetDuration].
+  ///
+  /// Speed = originalDuration / targetDuration:
+  ///   - speed > 1.0: clip is sped up (compressed)
+  ///   - speed < 1.0: clip is slowed down (stretched)
+  ///
+  /// Throws:
+  ///
+  /// * [ArgumentError] if [targetDuration] is not positive.
+  static Future<void> resizeClipDuration({
+    required RecordingClip clip,
+    required Duration targetDuration,
+    required ValueChanged<bool> onComplete,
+  }) async {
+    if (targetDuration.inMicroseconds <= 0) {
+      throw ArgumentError.value(
+        targetDuration,
+        'targetDuration',
+        'must be positive',
+      );
+    }
+
+    try {
+      final inputPath = await clip.video.safeFilePath();
+      final playbackSpeed =
+          clip.duration.inMicroseconds / targetDuration.inMicroseconds;
+
+      // Write to a new temporary file to avoid file locking issues
+      final tempDir = await getTemporaryDirectory();
+      final outputPath = path.join(
+        tempDir.path,
+        'resized_${DateTime.now().microsecondsSinceEpoch}.mp4',
+      );
+
+      await ProVideoEditor.instance.renderVideoToFile(
+        outputPath,
+        VideoRenderData(video: clip.video, playbackSpeed: playbackSpeed),
+      );
+
+      // Replace original file with resized version
+      final inputFile = File(inputPath);
+      final outputFile = File(outputPath);
+
+      if (outputFile.existsSync()) {
+        await inputFile.delete();
+        await outputFile.rename(inputPath);
+      }
+
+      onComplete(true);
+    } on RenderCanceledException {
+      Log.info(
+        '🚫 Clip resize cancelled',
+        name: 'VideoEditorRenderService',
+        category: .video,
+      );
+      onComplete(false);
+    } catch (e, stack) {
+      Log.error(
+        '❌ Failed to resize clip: $e',
+        name: 'VideoEditorRenderService',
+        category: .video,
+      );
+      CrashReportingService.instance.recordError(
+        e,
+        stack,
+        reason: 'resizeClipDuration failed',
+      );
+      onComplete(false);
+    }
+  }
+
   /// Crops a video to the specified aspect ratio.
   ///
   /// Returns the path to the cropped video file, or the original path if no
