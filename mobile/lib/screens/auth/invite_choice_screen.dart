@@ -5,9 +5,9 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/npub_verification/npub_verification_bloc.dart';
+import 'package:openvine/widgets/auth/auth_hero_section.dart';
 import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
 import 'package:openvine/screens/auth/waitlist_screen.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
@@ -37,7 +37,7 @@ class InviteChoiceScreen extends StatelessWidget {
           child: Column(
             children: [
               // Hero section with text and decorative emojis
-              Expanded(child: Center(child: _HeroSection())),
+              Expanded(child: Center(child: AuthHeroSection())),
 
               // Bottom action buttons
               _ActionButtons(
@@ -58,108 +58,6 @@ class InviteChoiceScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-/// Hero section with large text and decorative 3D emoji stickers.
-class _HeroSection extends StatelessWidget {
-  // Placeholder sticker path - replace with actual assets when available
-  static const String _stickerPath = 'assets/stickers/disco_ball.png';
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 400),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Hero text with positioned emoji stickers
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Main text
-              Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Column(
-                  children: [
-                    // "Authentic moments." - green, BricolageGrotesque font
-                    Text(
-                      'Authentic moments.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'BricolageGrotesque',
-                        fontSize: 48,
-                        fontWeight: FontWeight.w800, // ExtraBold
-                        color: VineTheme.vineGreen,
-                        height: 1.1,
-                      ),
-                    ),
-                    // "Human creativity." - white, BricolageGrotesque font
-                    Text(
-                      'Human creativity.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: 'BricolageGrotesque',
-                        fontSize: 48,
-                        fontWeight: FontWeight.w800, // ExtraBold
-                        color: Colors.white,
-                        height: 1.1,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Camera emoji - top left
-              Positioned(
-                top: -30,
-                left: 10,
-                child: _StickerImage(path: _stickerPath, size: 60),
-              ),
-
-              // Teeth emoji - top right
-              Positioned(
-                top: -5,
-                right: -20,
-                child: _StickerImage(path: _stickerPath, size: 70),
-              ),
-
-              // Balloon dog emoji - bottom left
-              Positioned(
-                bottom: -34,
-                left: 15,
-                child: _StickerImage(path: _stickerPath, size: 80),
-              ),
-
-              // Disco ball emoji - bottom right
-              Positioned(
-                bottom: -10,
-                right: -10,
-                child: _StickerImage(path: _stickerPath, size: 65),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 40),
-
-          // Divine wordmark (green SVG logo)
-          SvgPicture.asset('assets/icon/divine_new.svg', width: 120),
-        ],
-      ),
-    );
-  }
-}
-
-/// Decorative sticker image widget.
-class _StickerImage extends StatelessWidget {
-  const _StickerImage({required this.path, required this.size});
-
-  final String path;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(path, width: size, height: size, fit: BoxFit.contain);
   }
 }
 

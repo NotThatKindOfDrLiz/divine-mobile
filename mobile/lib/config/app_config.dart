@@ -65,16 +65,16 @@ class AppConfig {
       _getBoolFlag('ENABLE_UI_IMPROVEMENTS', false);
 
   // Access control flags
+
   /// Whether invite code is required for app access.
-  /// Defaults to true in staging/production, false in development.
-  /// Override with INVITE_REQUIRED=true/false at build time.
+  /// Defaults to false. Override with environment
+  /// variable INVITE_REQUIRED=true at build time.
   static bool get inviteRequired {
     const envValue = String.fromEnvironment('INVITE_REQUIRED');
     if (envValue.isNotEmpty) {
       return envValue.toLowerCase() == 'true';
     }
-    // Default: invite is required in non-development environments
-    return !isDevelopment;
+    return false;
   }
 
   // Helper for environment-based feature flags
