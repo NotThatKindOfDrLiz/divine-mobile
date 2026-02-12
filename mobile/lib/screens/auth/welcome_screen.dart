@@ -30,6 +30,9 @@ class WelcomeScreen extends ConsumerWidget {
   /// Path for login options route.
   static const loginOptionsPath = '/welcome/login-options';
 
+  /// Path for create account route.
+  static const createAccountPath = '/welcome/create-account';
+
   /// Path for auth native route.
   static const authNativePath = '/welcome/login-options/auth-native';
 
@@ -86,8 +89,15 @@ class _WelcomeView extends StatelessWidget {
             ),
           );
         }
-        if (state.shouldNavigateToLoginOptions) {
-          context.push(WelcomeScreen.loginOptionsPath);
+        if (state.shouldNavigateToLoginOptions ||
+            state.shouldNavigateToCreateAccount) {
+          if (state.shouldNavigateToLoginOptions) {
+            context.push(WelcomeScreen.loginOptionsPath);
+          }
+          if (state.shouldNavigateToCreateAccount) {
+            context.push(WelcomeScreen.createAccountPath);
+          }
+          context.read<WelcomeBloc>().add(const WelcomeNavigationConsumed());
         }
       },
       builder: (context, state) {
@@ -135,7 +145,7 @@ class _NewUserLayout extends StatelessWidget {
           label: 'Create new diVine account',
           isLoading: isLoading,
           onPressed: () => context.read<WelcomeBloc>().add(
-            const WelcomeLogBackInRequested(),
+            const WelcomeCreateAccountRequested(),
           ),
         ),
 

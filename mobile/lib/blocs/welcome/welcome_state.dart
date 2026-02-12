@@ -26,6 +26,7 @@ final class WelcomeState extends Equatable {
     this.lastUserProfile,
     this.error,
     this.shouldNavigateToLoginOptions = false,
+    this.shouldNavigateToCreateAccount = false,
   });
 
   /// Current status of welcome operations.
@@ -43,6 +44,9 @@ final class WelcomeState extends Equatable {
   /// When true, the UI should navigate to the login options screen.
   final bool shouldNavigateToLoginOptions;
 
+  /// When true, the UI should navigate to the create account screen.
+  final bool shouldNavigateToCreateAccount;
+
   /// Whether a returning user was detected.
   bool get hasReturningUser => lastUserPubkeyHex != null;
 
@@ -56,6 +60,7 @@ final class WelcomeState extends Equatable {
     UserProfile? lastUserProfile,
     String? error,
     bool? shouldNavigateToLoginOptions,
+    bool? shouldNavigateToCreateAccount,
     bool clearLastUser = false,
     bool clearError = false,
   }) {
@@ -70,6 +75,8 @@ final class WelcomeState extends Equatable {
       error: clearError ? null : (error ?? this.error),
       shouldNavigateToLoginOptions:
           shouldNavigateToLoginOptions ?? this.shouldNavigateToLoginOptions,
+      shouldNavigateToCreateAccount:
+          shouldNavigateToCreateAccount ?? this.shouldNavigateToCreateAccount,
     );
   }
 
@@ -80,5 +87,6 @@ final class WelcomeState extends Equatable {
     lastUserProfile,
     error,
     shouldNavigateToLoginOptions,
+    shouldNavigateToCreateAccount,
   ];
 }

@@ -90,6 +90,11 @@ void main() {
               builder: (context, state) => const WelcomeScreen(),
               routes: [
                 GoRoute(
+                  path: 'create-account',
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('Create Account')),
+                ),
+                GoRoute(
                   path: 'login-options',
                   builder: (context, state) =>
                       const Scaffold(body: Text('Sign in')),
@@ -143,16 +148,17 @@ void main() {
         expect(richTextFinder, findsOneWidget);
       });
 
-      testWidgets('tapping create account calls signInAutomatically', (
+      testWidgets('tapping create account calls acceptTerms and navigates', (
         tester,
       ) async {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Create new diVine account'));
-        await tester.pump();
+        await tester.pumpAndSettle();
 
-        verify(() => mockAuthService.signInAutomatically()).called(1);
+        verify(() => mockAuthService.acceptTerms()).called(1);
+        expect(find.text('Create Account'), findsOneWidget);
       });
 
       testWidgets('tapping login button calls acceptTerms and navigates', (
@@ -221,23 +227,6 @@ void main() {
         await tester.pump();
 
         verifyNever(() => mockAuthService.acceptTerms());
-      });
-
-      testWidgets('shows snackbar on signInAutomatically failure', (
-        tester,
-      ) async {
-        when(
-          () => mockAuthService.signInAutomatically(),
-        ).thenThrow(Exception('Network error'));
-
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Create new diVine account'));
-        await tester.pumpAndSettle();
-
-        expect(find.byType(SnackBar), findsOneWidget);
-        expect(find.textContaining('Failed to continue'), findsOneWidget);
       });
     });
 

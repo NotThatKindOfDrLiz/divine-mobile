@@ -34,6 +34,8 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
     on<WelcomeLastUserDismissed>(_onLastUserDismissed);
     on<WelcomeLogBackInRequested>(_onLogBackIn);
     on<WelcomeCreateNewAccountRequested>(_onCreateNewAccount);
+    on<WelcomeCreateAccountRequested>(_onCreateAccountRequested);
+    on<WelcomeNavigationConsumed>(_onNavigationConsumed);
     on<WelcomeLoginOptionsRequested>(_onLoginOptionsRequested);
   }
 
@@ -89,6 +91,7 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
         status: WelcomeStatus.accepting,
         clearError: true,
         shouldNavigateToLoginOptions: false,
+        shouldNavigateToCreateAccount: false,
       ),
     );
 
@@ -118,12 +121,20 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
         status: WelcomeStatus.accepting,
         clearError: true,
         shouldNavigateToLoginOptions: false,
+        shouldNavigateToCreateAccount: false,
       ),
     );
 
     try {
       await _authService.signOut(deleteKeys: true);
-      await _authService.signInAutomatically();
+      await _authService.acceptTerms();
+      emit(
+        state.copyWith(
+          status: WelcomeStatus.loaded,
+          shouldNavigateToCreateAccount: true,
+          clearLastUser: true,
+        ),
+      );
     } catch (e) {
       Log.error(
         'Failed to create new account: $e',
@@ -137,6 +148,26 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
         ),
       );
     }
+  }
+
+  Future<void> _onCreateAccountRequested(
+    WelcomeCreateAccountRequested event,
+    Emitter<WelcomeState> emit,
+  ) async {
+    await _authService.acceptTerms();
+    emit(state.copyWith(shouldNavigateToCreateAccount: true));
+  }
+
+  void _onNavigationConsumed(
+    WelcomeNavigationConsumed event,
+    Emitter<WelcomeState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        shouldNavigateToLoginOptions: false,
+        shouldNavigateToCreateAccount: false,
+      ),
+    );
   }
 
   Future<void> _onLoginOptionsRequested(

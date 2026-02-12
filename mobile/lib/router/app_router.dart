@@ -14,6 +14,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/services/page_load_observer.dart';
+import 'package:openvine/screens/auth/create_account_screen.dart';
 import 'package:openvine/screens/auth/divine_auth_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
@@ -200,6 +201,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           (location == WelcomeScreen.path ||
               location == KeyImportScreen.path ||
               location == NostrConnectScreen.path ||
+              location == WelcomeScreen.createAccountPath ||
               location == WelcomeScreen.loginOptionsPath ||
               location == WelcomeScreen.authNativePath ||
               location == WelcomeScreen.resetPasswordPath ||
@@ -564,6 +566,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: WelcomeScreen.routeName,
         builder: (_, __) => const WelcomeScreen(),
         routes: [
+          GoRoute(
+            path: 'create-account',
+            name: CreateAccountScreen.routeName,
+            builder: (_, __) => const CreateAccountScreen(),
+          ),
           GoRoute(
             path: 'login-options',
             name: LoginOptionsScreen.routeName,

@@ -36,12 +36,33 @@ final class WelcomeLogBackInRequested extends WelcomeEvent {
   List<Object?> get props => [];
 }
 
+/// Request to navigate to the create account screen (email/password sign-up).
+///
+/// Calls [AuthService.acceptTerms] and signals the UI to navigate.
+final class WelcomeCreateAccountRequested extends WelcomeEvent {
+  const WelcomeCreateAccountRequested();
+
+  @override
+  List<Object?> get props => [];
+}
+
 /// Request to create a fresh account, discarding the previous identity.
 ///
-/// Calls [AuthService.signOut] with `deleteKeys: true`, then
-/// [AuthService.signInAutomatically] to create a new identity.
+/// Calls [AuthService.signOut] with `deleteKeys: true`, then navigates
+/// to the create account screen.
 final class WelcomeCreateNewAccountRequested extends WelcomeEvent {
   const WelcomeCreateNewAccountRequested();
+
+  @override
+  List<Object?> get props => [];
+}
+
+/// Signals that a navigation flag has been consumed by the UI.
+///
+/// Resets [WelcomeState.shouldNavigateToLoginOptions] and
+/// [WelcomeState.shouldNavigateToCreateAccount] to `false`.
+final class WelcomeNavigationConsumed extends WelcomeEvent {
+  const WelcomeNavigationConsumed();
 
   @override
   List<Object?> get props => [];
