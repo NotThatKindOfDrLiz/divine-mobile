@@ -11,7 +11,7 @@ import 'package:nostr_sdk/nostr_sdk.dart' show AndroidPlugin;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/key_import_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 
 class LoginOptionsScreen extends ConsumerStatefulWidget {
   /// Route name for this screen.
