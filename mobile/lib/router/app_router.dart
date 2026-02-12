@@ -52,6 +52,7 @@ import 'package:openvine/screens/video_recorder_screen.dart';
 import 'package:openvine/screens/auth/invite_choice_screen.dart';
 import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
 import 'package:openvine/screens/npub_verification_screen.dart';
+import 'package:openvine/screens/auth/login_options_screen.dart';
 import 'package:openvine/screens/auth/waitlist_screen.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/providers/invite_code_provider.dart';
@@ -195,16 +196,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
       // FOURTH: Handle authenticated users on auth routes
       final authState = ref.read(authServiceProvider).authState;
-      // Full path for auth-native nested under welcome
-      final authNativePath = '${WelcomeScreen.path}${DivineAuthScreen.path}';
       if (authState == AuthState.authenticated &&
           (location == WelcomeScreen.path ||
               location == KeyImportScreen.path ||
               location == NostrConnectScreen.path ||
               location == WelcomeScreen.loginOptionsPath ||
+              location == WelcomeScreen.authNativePath ||
               location == WelcomeScreen.resetPasswordPath ||
-              location == EmailVerificationScreen.path ||
-              location == authNativePath)) {
+              location == EmailVerificationScreen.path)) {
         debugPrint('[Router] Authenticated. moving to /home/0');
         // On first navigation, redirect to explore if user has no following
         if (!_hasNavigated) {
@@ -217,8 +216,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return HomeScreenRouter.pathForIndex(0);
       }
 
-      // Auth routes are allowed without TOS - user is in the process of logging in
-      // Also includes invite, verification, and waitlist routes
+      // Auth routes don't require authentication — user is in the
+      // process of logging in. Also includes invite, verification,
+      // and waitlist routes.
       final isAuthRoute =
           location.startsWith(WelcomeScreen.path) ||
           location.startsWith(KeyImportScreen.path) ||
@@ -229,42 +229,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location.startsWith(NpubVerificationScreen.path) ||
           location.startsWith(WaitlistScreen.path);
 
-      // Check TOS acceptance for non-auth routes
-      if (!isAuthRoute) {
+      // Unauthenticated users on non-auth routes → redirect to welcome
+      if (!isAuthRoute && authState == AuthState.unauthenticated) {
+        _hasNavigated = false;
         Log.debug(
-          'Checking TOS for: $location',
+          'Not authenticated, redirecting to ${WelcomeScreen.path}',
           name: 'AppRouter',
           category: LogCategory.ui,
         );
-
-        final hasAcceptedTerms = ref.read(hasTosAcceptedProvider);
-
-        Log.debug(
-          'TOS accepted: $hasAcceptedTerms',
-          name: 'AppRouter',
-          category: LogCategory.ui,
-        );
-
-        // Only redirect to welcome if TOS not accepted
-        if (!hasAcceptedTerms) {
-          Log.debug(
-            'TOS not accepted, redirecting to ${WelcomeScreen.path}',
-            name: 'AppRouter',
-            category: LogCategory.ui,
-          );
-          return WelcomeScreen.path;
-        }
-
-        // If TOS is accepted but user is not authenticated, redirect to welcome
-        if (authState == AuthState.unauthenticated) {
-          _hasNavigated = false;
-          Log.debug(
-            'Not authenticated, redirecting to ${WelcomeScreen.path}',
-            name: 'AppRouter',
-            category: LogCategory.ui,
-          );
-          return WelcomeScreen.path;
-        }
+        return WelcomeScreen.path;
       }
 
       Log.debug(
@@ -592,38 +565,46 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const WelcomeScreen(),
         routes: [
           GoRoute(
-            path: DivineAuthScreen.path,
-            name: DivineAuthScreen.routeName,
-            pageBuilder: (ctx, st) {
-              // Read query parameters
-              final signInParam = st.uri.queryParameters['signIn'];
-              final signIn = signInParam == 'true';
-              final email = st.uri.queryParameters['email'];
-              Log.info(
-                'DivineAuthScreen route: uri=${st.uri}, '
-                'signInParam=$signInParam, signIn=$signIn',
-                name: 'AppRouter',
-                category: LogCategory.auth,
-              );
-              // Use signIn value in key so toggling mode creates a new page
-              // with fresh state, but returning to same mode reuses page
-              return MaterialPage(
-                key: ValueKey('auth-native-signIn=$signIn'),
-                child: DivineAuthScreen(
-                  initialSignIn: signIn,
-                  initialEmail: email,
-                ),
-              );
-            },
+            path: 'login-options',
+            name: LoginOptionsScreen.routeName,
+            builder: (_, __) => const LoginOptionsScreen(),
             routes: [
-              // route for deep link when resetting password from emailed link
               GoRoute(
-                path: ResetPasswordScreen.path,
-                name: ResetPasswordScreen.routeName,
-                builder: (ctx, st) {
-                  final token = st.uri.queryParameters['token'];
-                  return ResetPasswordScreen(token: token ?? '');
+                path: 'auth-native',
+                name: DivineAuthScreen.routeName,
+                pageBuilder: (ctx, st) {
+                  // Read query parameters
+                  final signInParam = st.uri.queryParameters['signIn'];
+                  final signIn = signInParam == 'true';
+                  final email = st.uri.queryParameters['email'];
+                  Log.info(
+                    'DivineAuthScreen route: uri=${st.uri}, '
+                    'signInParam=$signInParam, signIn=$signIn',
+                    name: 'AppRouter',
+                    category: LogCategory.auth,
+                  );
+                  // Use signIn value in key so toggling mode creates a new
+                  // page with fresh state, but returning to same mode
+                  // reuses page
+                  return MaterialPage(
+                    key: ValueKey('auth-native-signIn=$signIn'),
+                    child: DivineAuthScreen(
+                      initialSignIn: signIn,
+                      initialEmail: email,
+                    ),
+                  );
                 },
+                routes: [
+                  // route for deep link when resetting password
+                  GoRoute(
+                    path: 'reset-password',
+                    name: ResetPasswordScreen.routeName,
+                    builder: (ctx, st) {
+                      final token = st.uri.queryParameters['token'];
+                      return ResetPasswordScreen(token: token ?? '');
+                    },
+                  ),
+                ],
               ),
             ],
           ),

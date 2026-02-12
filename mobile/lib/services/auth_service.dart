@@ -1540,8 +1540,16 @@ class AuthService implements BackgroundAwareService {
           name: 'AuthService',
           category: LogCategory.auth,
         );
+        await prefs.remove('last_user_pubkey_hex');
         await _keyStorage.deleteKeys();
       } else {
+        // Save last user's pubkey for "Welcome back" screen
+        if (_currentKeyContainer != null) {
+          await prefs.setString(
+            'last_user_pubkey_hex',
+            _currentKeyContainer!.publicKeyHex,
+          );
+        }
         _keyStorage.clearCache();
       }
 

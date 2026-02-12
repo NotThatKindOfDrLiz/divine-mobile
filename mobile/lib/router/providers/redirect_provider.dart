@@ -65,12 +65,6 @@ final hasFollowingInCacheProvider = Provider<bool>((ref) {
   }
 });
 
-/// Checks if TOS (age verification) has been accepted.
-final hasTosAcceptedProvider = Provider<bool>((Ref ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return prefs.getBool('age_verified_16_plus') ?? false;
-});
-
 /// Checks if device has a verified invite code stored.
 ///
 /// Uses [inviteCodeRepositoryProvider] to avoid duplicating the storage key.

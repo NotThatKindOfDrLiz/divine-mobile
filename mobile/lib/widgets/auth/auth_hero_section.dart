@@ -12,9 +12,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 class AuthHeroSection extends StatelessWidget {
   const AuthHeroSection({super.key});
 
-  // Placeholder sticker path - replace with actual assets when available
-  static const String _stickerPath = 'assets/stickers/disco_ball.png';
-
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
@@ -63,28 +60,40 @@ class AuthHeroSection extends StatelessWidget {
               Positioned(
                 top: -30,
                 left: 10,
-                child: _StickerImage(path: _stickerPath, size: 60),
+                child: _StickerImage(
+                  path: 'assets/stickers/video_camera.png',
+                  size: 60,
+                ),
               ),
 
               // Teeth emoji - top right
               Positioned(
                 top: -5,
                 right: -20,
-                child: _StickerImage(path: _stickerPath, size: 70),
+                child: _StickerImage(
+                  path: 'assets/stickers/teeth.png',
+                  size: 70,
+                ),
               ),
 
               // Balloon dog emoji - bottom left
               Positioned(
                 bottom: -34,
                 left: 15,
-                child: _StickerImage(path: _stickerPath, size: 80),
+                child: _StickerImage(
+                  path: 'assets/stickers/balloon_dog.png',
+                  size: 80,
+                ),
               ),
 
               // Disco ball emoji - bottom right
               Positioned(
                 bottom: -10,
                 right: -10,
-                child: _StickerImage(path: _stickerPath, size: 65),
+                child: _StickerImage(
+                  path: 'assets/stickers/disco_ball.png',
+                  size: 65,
+                ),
               ),
             ],
           ),

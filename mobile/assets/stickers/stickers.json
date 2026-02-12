@@ -5,6 +5,11 @@
     "tags": ["cat", "angry", "pet", "animal", "mad", "grumpy"]
   },
   {
+    "assetPath": "assets/stickers/balloon_dog.png",
+    "description": "Balloon dog",
+    "tags": ["dog", "balloon", "pet", "animal", "funny", "party", "toy"]
+  },
+  {
     "assetPath": "assets/stickers/boom.png",
     "description": "Boom explosion",
     "tags": ["boom", "explosion", "bang", "comic", "action", "pow"]
@@ -73,5 +78,15 @@
     "assetPath": "assets/stickers/sparkle.png",
     "description": "Sparkle",
     "tags": ["sparkle", "shine", "glitter", "magic", "star", "bright"]
+  },
+  {
+    "assetPath": "assets/stickers/teeth.png",
+    "description": "Teeth",
+    "tags": ["teeth", "funny", "toy", "happy", "smile"]
+  },
+  {
+    "assetPath": "assets/stickers/video_camera.png",
+    "description": "Video camera",
+    "tags": ["video", "camera", "recording", "film", "movie", "media"]
   }
 ]

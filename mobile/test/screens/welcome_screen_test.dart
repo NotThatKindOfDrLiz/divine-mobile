@@ -1,229 +1,396 @@
-// ABOUTME: Tests for LegalScreen
-// ABOUTME: Verifies checkbox interactions, error states, and navigation
+// ABOUTME: Tests for WelcomeScreen
+// ABOUTME: Verifies default variant, returning-user variant, button interactions,
+// ABOUTME: terms notice, error display, and loading states
 
+import 'package:db_client/db_client.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:models/models.dart';
+import 'package:openvine/blocs/welcome/welcome_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/database_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/screens/welcome_screen.dart';
-import 'package:openvine/services/auth_service.dart';
-import 'package:openvine/widgets/legal_checkbox.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
+import 'package:openvine/services/auth_service.dart' hide UserProfile;
+import 'package:openvine/widgets/auth/auth_hero_section.dart';
+import 'package:openvine/widgets/error_message.dart';
+import 'package:openvine/widgets/user_avatar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MockAuthService extends Mock implements AuthService {}
+class _MockAuthService extends Mock implements AuthService {}
+
+class _MockAppDatabase extends Mock implements AppDatabase {}
+
+class _MockUserProfilesDao extends Mock implements UserProfilesDao {}
+
+const _testPubkeyHex =
+    'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+
+final _testProfile = UserProfile(
+  pubkey: _testPubkeyHex,
+  displayName: 'Test User',
+  picture: 'https://example.com/avatar.png',
+  nip05: 'testuser@example.com',
+  rawData: const {},
+  createdAt: DateTime(2024),
+  eventId: 'e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8',
+);
 
 void main() {
+  late _MockAuthService mockAuthService;
+  late _MockAppDatabase mockDb;
+  late _MockUserProfilesDao mockUserProfilesDao;
   late SharedPreferences prefs;
-  late MockAuthService mockAuthService;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
-    mockAuthService = MockAuthService();
 
-    // Default stub for acceptTerms
+    mockAuthService = _MockAuthService();
+    mockDb = _MockAppDatabase();
+    mockUserProfilesDao = _MockUserProfilesDao();
+
+    when(() => mockDb.userProfilesDao).thenReturn(mockUserProfilesDao);
+    when(
+      () => mockUserProfilesDao.getProfile(any()),
+    ).thenAnswer((_) async => null);
+
+    // Default stubs
+    when(() => mockAuthService.lastError).thenReturn(null);
+    when(() => mockAuthService.authState).thenReturn(AuthState.unauthenticated);
+    when(
+      () => mockAuthService.authStateStream,
+    ).thenAnswer((_) => const Stream.empty());
+    when(() => mockAuthService.signInAutomatically()).thenAnswer((_) async {});
     when(() => mockAuthService.acceptTerms()).thenAnswer((_) async {});
+    when(
+      () => mockAuthService.signOut(deleteKeys: true),
+    ).thenAnswer((_) async {});
   });
 
-  Widget createTestWidget() {
+  Widget createTestWidget({AuthState authState = AuthState.unauthenticated}) {
     return ProviderScope(
       overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
         authServiceProvider.overrideWithValue(mockAuthService),
+        currentAuthStateProvider.overrideWithValue(authState),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+        databaseProvider.overrideWithValue(mockDb),
       ],
-      child: MaterialApp(theme: VineTheme.theme, home: const WelcomeScreen()),
+      child: MaterialApp.router(
+        theme: VineTheme.theme,
+        routerConfig: GoRouter(
+          initialLocation: WelcomeScreen.path,
+          routes: [
+            GoRoute(
+              path: WelcomeScreen.path,
+              builder: (context, state) => const WelcomeScreen(),
+              routes: [
+                GoRoute(
+                  path: 'login-options',
+                  builder: (context, state) =>
+                      const Scaffold(body: Text('Sign in')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  group('WelcomeScreen', () {
-    testWidgets('displays age verification checkbox', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
+  group(WelcomeScreen, () {
+    group('default variant', () {
+      testWidgets('displays $AuthHeroSection', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.text('I am 16 years or older'), findsOneWidget);
-    });
-
-    testWidgets('displays terms acceptance checkbox with links', (
-      tester,
-    ) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // RichText renders as a single widget, so we find it by checking its content
-      final richTextFinder = find.byWidgetPredicate((widget) {
-        if (widget is RichText) {
-          final text = widget.text.toPlainText();
-          return text.contains('Terms of Service') &&
-              text.contains('Privacy Policy') &&
-              text.contains('Safety Standards');
-        }
-        return false;
+        expect(find.byType(AuthHeroSection), findsOneWidget);
       });
-      expect(richTextFinder, findsOneWidget);
-    });
 
-    testWidgets('displays Accept & continue button', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      expect(find.text('Accept & continue'), findsOneWidget);
-    });
-
-    testWidgets('checkboxes are unchecked by default', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      final checkboxes = tester.widgetList<Checkbox>(find.byType(Checkbox));
-      for (final checkbox in checkboxes) {
-        expect(checkbox.value, false);
-      }
-    });
-
-    testWidgets('tapping age checkbox toggles it', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // Find the age checkbox by its parent LegalCheckbox containing the text
-      final ageCheckboxFinder = find.ancestor(
-        of: find.text('I am 16 years or older'),
-        matching: find.byType(LegalCheckbox),
-      );
-
-      await tester.tap(ageCheckboxFinder);
-      await tester.pumpAndSettle();
-
-      // Find the checkbox within the age LegalCheckbox
-      final checkbox = tester.widget<Checkbox>(
-        find.descendant(of: ageCheckboxFinder, matching: find.byType(Checkbox)),
-      );
-      expect(checkbox.value, true);
-    });
-
-    testWidgets('tapping terms checkbox toggles it', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      // Find the terms checkbox - it's the second LegalCheckbox
-      final termsCheckboxFinder = find.byType(LegalCheckbox).last;
-
-      await tester.tap(termsCheckboxFinder);
-      await tester.pumpAndSettle();
-
-      final checkbox = tester.widget<Checkbox>(
-        find.descendant(
-          of: termsCheckboxFinder,
-          matching: find.byType(Checkbox),
-        ),
-      );
-      expect(checkbox.value, true);
-    });
-
-    testWidgets(
-      'submitting without checking shows red borders on unchecked items',
-      (tester) async {
+      testWidgets('displays create account button', (tester) async {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Tap submit without checking anything
-        await tester.tap(find.text('Accept & continue'));
+        expect(find.text('Create new diVine account'), findsOneWidget);
+      });
+
+      testWidgets('displays login button', (tester) async {
+        await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Both checkboxes should now have error state (red border)
-        final containers = tester
-            .widgetList<Container>(
-              find.descendant(
-                of: find.byType(LegalCheckbox),
-                matching: find.byType(Container),
-              ),
-            )
-            .where((c) => c.decoration != null);
+        expect(find.text('Login with a different account'), findsOneWidget);
+      });
 
-        for (final container in containers) {
-          final decoration = container.decoration as BoxDecoration?;
-          final border = decoration?.border as Border?;
-          if (border != null) {
-            expect(border.top.color, VineTheme.error);
+      testWidgets('displays terms notice with legal links', (tester) async {
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        final richTextFinder = find.byWidgetPredicate((widget) {
+          if (widget is RichText) {
+            final text = widget.text.toPlainText();
+            return text.contains('Terms of Service') &&
+                text.contains('Privacy Policy') &&
+                text.contains('Safety Standards');
           }
-        }
-      },
-    );
+          return false;
+        });
+        expect(richTextFinder, findsOneWidget);
+      });
 
-    testWidgets(
-      'checking one box and submitting shows error only on unchecked',
-      (tester) async {
+      testWidgets('tapping create account calls signInAutomatically', (
+        tester,
+      ) async {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Check age only
-        final ageCheckboxFinder = find.ancestor(
-          of: find.text('I am 16 years or older'),
-          matching: find.byType(LegalCheckbox),
-        );
-        await tester.tap(ageCheckboxFinder);
+        await tester.tap(find.text('Create new diVine account'));
+        await tester.pump();
+
+        verify(() => mockAuthService.signInAutomatically()).called(1);
+      });
+
+      testWidgets('tapping login button calls acceptTerms and navigates', (
+        tester,
+      ) async {
+        await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Submit
-        await tester.tap(find.text('Accept & continue'));
+        await tester.tap(find.text('Login with a different account'));
         await tester.pumpAndSettle();
 
-        // Age checkbox should have green border (checked, no error)
-        final ageContainer = tester.widget<Container>(
-          find
-              .descendant(
-                of: ageCheckboxFinder,
-                matching: find.byType(Container),
-              )
-              .first,
+        verify(() => mockAuthService.acceptTerms()).called(1);
+        expect(find.text('Sign in'), findsOneWidget);
+      });
+
+      testWidgets('shows error when lastError is set', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        when(() => mockAuthService.lastError).thenReturn('Auth failed');
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ErrorMessage), findsOneWidget);
+        expect(find.text('Auth failed'), findsOneWidget);
+      });
+
+      testWidgets('does not show error when lastError is null', (tester) async {
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(ErrorMessage), findsNothing);
+      });
+
+      testWidgets('shows loading indicator when auth state is checking', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          createTestWidget(authState: AuthState.checking),
         );
-        final ageDecoration = ageContainer.decoration as BoxDecoration?;
-        final ageBorder = ageDecoration?.border as Border?;
-        expect(ageBorder?.top.color, VineTheme.vineGreen);
+        await tester.pump();
 
-        // Terms checkbox should have red border (unchecked, error)
-        final termsCheckboxFinder = find.byType(LegalCheckbox).last;
-        final termsContainer = tester.widget<Container>(
-          find
-              .descendant(
-                of: termsCheckboxFinder,
-                matching: find.byType(Container),
-              )
-              .first,
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      });
+
+      testWidgets('shows loading indicator when auth state is authenticating', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          createTestWidget(authState: AuthState.authenticating),
         );
-        final termsDecoration = termsContainer.decoration as BoxDecoration?;
-        final termsBorder = termsDecoration?.border as Border?;
-        expect(termsBorder?.top.color, VineTheme.error);
-      },
-    );
+        await tester.pump();
 
-    testWidgets('pre-populates checkboxes from SharedPreferences', (
-      tester,
-    ) async {
-      // Set up saved state
-      await prefs.setBool('age_verified_16_plus', true);
-      await prefs.setString('terms_accepted_at', '2024-01-01T00:00:00.000Z');
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      });
 
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
+      testWidgets('login button disabled when auth state is checking', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          createTestWidget(authState: AuthState.checking),
+        );
+        await tester.pump();
 
-      // Both checkboxes should be checked
-      final checkboxes = tester.widgetList<Checkbox>(find.byType(Checkbox));
-      for (final checkbox in checkboxes) {
-        expect(checkbox.value, true);
-      }
+        await tester.tap(find.text('Login with a different account'));
+        await tester.pump();
+
+        verifyNever(() => mockAuthService.acceptTerms());
+      });
+
+      testWidgets('shows snackbar on signInAutomatically failure', (
+        tester,
+      ) async {
+        when(
+          () => mockAuthService.signInAutomatically(),
+        ).thenThrow(Exception('Network error'));
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Create new diVine account'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(find.textContaining('Failed to continue'), findsOneWidget);
+      });
     });
 
-    testWidgets('displays Divine branding', (tester) async {
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
+    group('returning user variant', () {
+      setUp(() async {
+        await prefs.setString(kLastUserPubkeyHexKey, _testPubkeyHex);
+        when(
+          () => mockUserProfilesDao.getProfile(_testPubkeyHex),
+        ).thenAnswer((_) async => _testProfile);
+      });
 
-      // Check for tagline
-      expect(
-        find.text('Create and share short videos\non the decentralized web'),
-        findsOneWidget,
+      testWidgets('shows "Welcome back!" title', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Welcome back!'), findsOneWidget);
+      });
+
+      testWidgets('shows user avatar', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(UserAvatar), findsOneWidget);
+      });
+
+      testWidgets('shows display name', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Test User'), findsOneWidget);
+      });
+
+      testWidgets('shows NIP-05 identifier', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('testuser@example.com'), findsOneWidget);
+      });
+
+      testWidgets('does not show $AuthHeroSection', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AuthHeroSection), findsNothing);
+      });
+
+      testWidgets('shows "Log back in" button', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log back in'), findsOneWidget);
+      });
+
+      testWidgets('shows "Create a new diVine account" button', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Create a new diVine account'), findsOneWidget);
+      });
+
+      testWidgets('tapping "Log back in" calls signInAutomatically', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Log back in'));
+        await tester.pump();
+
+        verify(() => mockAuthService.signInAutomatically()).called(1);
+      });
+
+      testWidgets(
+        'tapping "Create a new diVine account" shows confirmation bottom sheet',
+        (tester) async {
+          await tester.binding.setSurfaceSize(const Size(800, 1200));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await tester.pumpWidget(createTestWidget());
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.text('Create a new diVine account'));
+          await tester.pumpAndSettle();
+
+          expect(find.text('Create a new Divine account?'), findsOneWidget);
+          expect(find.text('Start fresh'), findsOneWidget);
+          expect(find.text('Cancel'), findsOneWidget);
+        },
       );
+
+      testWidgets('confirming "Start fresh" calls signOut with deleteKeys', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Create a new diVine account'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Start fresh'));
+        await tester.pump();
+
+        verify(() => mockAuthService.signOut(deleteKeys: true)).called(1);
+      });
+
+      testWidgets('tapping "Cancel" on bottom sheet does not call signOut', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Create a new diVine account'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        verifyNever(() => mockAuthService.signOut(deleteKeys: true));
+      });
+
+      testWidgets('tapping login button calls acceptTerms and navigates', (
+        tester,
+      ) async {
+        await tester.binding.setSurfaceSize(const Size(800, 1200));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Login with a different account'));
+        await tester.pumpAndSettle();
+
+        verify(() => mockAuthService.acceptTerms()).called(1);
+        expect(find.text('Sign in'), findsOneWidget);
+      });
     });
   });
 }

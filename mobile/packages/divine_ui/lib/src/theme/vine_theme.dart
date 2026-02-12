@@ -378,6 +378,9 @@ class VineTheme {
   /// Accent orange/amber color.
   static const Color accentOrange = Color(0xFFFF7640);
 
+  /// Accent orange/amber color.
+  static const Color accentOrangeBackground = Color(0xFF471F10);
+
   /// Accent yellow color.
   static const Color accentYellow = Color(0xFFFFF140);
 

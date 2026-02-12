@@ -10,7 +10,7 @@ import 'package:openvine/blocs/divine_auth/divine_auth_cubit.dart';
 import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
-import 'package:openvine/screens/welcome_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/utils/validators.dart';
 
 class DivineAuthScreen extends ConsumerWidget {
@@ -565,7 +565,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
     final email = _emailController.text.trim();
 
     // Build URL with query params
-    var url = '${WelcomeScreen.path}${DivineAuthScreen.path}?signIn=$newSignIn';
+    var url = '${WelcomeScreen.authNativePath}?signIn=$newSignIn';
     if (email.isNotEmpty) {
       url += '&email=${Uri.encodeComponent(email)}';
     }
