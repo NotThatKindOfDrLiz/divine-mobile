@@ -12,18 +12,18 @@ import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class MockInviteCodeBloc extends MockBloc<InviteCodeEvent, InviteCodeState>
+class _MockInviteCodeBloc extends MockBloc<InviteCodeEvent, InviteCodeState>
     implements InviteCodeBloc {}
 
 void main() {
-  group('InviteCodeEntryScreen', () {
+  group(InviteCodeEntryScreen, () {
     late SharedPreferences mockPrefs;
-    late MockInviteCodeBloc mockBloc;
+    late _MockInviteCodeBloc mockBloc;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       mockPrefs = await SharedPreferences.getInstance();
-      mockBloc = MockInviteCodeBloc();
+      mockBloc = _MockInviteCodeBloc();
 
       // Default state
       when(() => mockBloc.state).thenReturn(const InviteCodeState());
@@ -51,20 +51,20 @@ void main() {
       testWidgets('displays title', (tester) async {
         await tester.pumpWidget(createTestWidget());
 
-        expect(find.text('Enter Invite Code'), findsOneWidget);
+        expect(find.text('Add your invite code'), findsOneWidget);
       });
 
       testWidgets('displays input field with hint', (tester) async {
         await tester.pumpWidget(createTestWidget());
 
         expect(find.byType(TextField), findsOneWidget);
-        expect(find.text('ABCD1234'), findsOneWidget); // Hint text
+        expect(find.text('1234-5678'), findsOneWidget);
       });
 
-      testWidgets('displays continue button', (tester) async {
+      testWidgets('displays submit button', (tester) async {
         await tester.pumpWidget(createTestWidget());
 
-        expect(find.text('Continue'), findsOneWidget);
+        expect(find.text("Let's go!"), findsOneWidget);
         expect(find.byType(ElevatedButton), findsOneWidget);
       });
     });
@@ -73,7 +73,7 @@ void main() {
       testWidgets('shows error when submitting empty code', (tester) async {
         await tester.pumpWidget(createTestWidget());
 
-        await tester.tap(find.text('Continue'));
+        await tester.tap(find.text("Let's go!"));
         await tester.pump();
 
         expect(find.text('Please enter an invite code'), findsOneWidget);
@@ -83,7 +83,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
 
         await tester.enterText(find.byType(TextField), 'ABC');
-        await tester.tap(find.text('Continue'));
+        await tester.tap(find.text("Let's go!"));
         await tester.pump();
 
         expect(find.text('Invite code must be 8 characters'), findsOneWidget);
@@ -96,7 +96,8 @@ void main() {
         await tester.pump();
 
         final textField = tester.widget<TextField>(find.byType(TextField));
-        expect(textField.controller?.text, equals('ABCD1234'));
+        // Formatter adds dash: ABCD-1234
+        expect(textField.controller?.text, equals('ABCD-1234'));
       });
 
       testWidgets('filters non-alphanumeric characters', (tester) async {
@@ -106,29 +107,31 @@ void main() {
         await tester.pump();
 
         final textField = tester.widget<TextField>(find.byType(TextField));
-        // Only alphanumeric should remain
-        expect(textField.controller?.text, equals('ABCD1234'));
+        // Non-alphanumeric (except dash) filtered, then reformatted
+        expect(textField.controller?.text, equals('ABCD-1234'));
       });
 
-      testWidgets('limits input to 8 characters', (tester) async {
+      testWidgets('limits input to 8 alphanumeric characters', (tester) async {
         await tester.pumpWidget(createTestWidget());
 
         await tester.enterText(find.byType(TextField), 'ABCD12345678');
         await tester.pump();
 
         final textField = tester.widget<TextField>(find.byType(TextField));
-        expect(textField.controller?.text.length, lessThanOrEqualTo(8));
+        // Stripped of dash, should be at most 8 alphanumeric chars
+        final cleanText = textField.controller?.text.replaceAll('-', '') ?? '';
+        expect(cleanText.length, lessThanOrEqualTo(8));
       });
     });
 
     group('submission', () {
-      testWidgets('dispatches InviteCodeClaimRequested on valid submit', (
+      testWidgets('dispatches $InviteCodeClaimRequested on valid submit', (
         tester,
       ) async {
         await tester.pumpWidget(createTestWidget());
 
         await tester.enterText(find.byType(TextField), 'ABCD1234');
-        await tester.tap(find.text('Continue'));
+        await tester.tap(find.text("Let's go!"));
         await tester.pump();
 
         verify(
