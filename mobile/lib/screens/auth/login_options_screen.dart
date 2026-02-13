@@ -14,9 +14,10 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/key_import_screen.dart';
-import 'package:openvine/utils/validators.dart';
+import 'package:openvine/widgets/auth/auth_error_box.dart';
 import 'package:openvine/widgets/auth/auth_password_field.dart';
 import 'package:openvine/widgets/auth/auth_text_field.dart';
+import 'package:openvine/widgets/auth/forgot_password_dialog.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Sign-in screen — Page that provides [DivineAuthCubit].
@@ -168,100 +169,23 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
   }
 
   void _showForgotPasswordDialog() {
-    final resetEmailController = TextEditingController(
-      text: _emailController.text,
-    );
-    final formKey = GlobalKey<FormState>();
-
-    showDialog<void>(
+    showForgotPasswordDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: VineTheme.cardBackground,
-        title: const Text(
-          'Reset Password',
-          style: TextStyle(color: VineTheme.primaryText),
-        ),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Enter your email address and we'll send you a link to "
-                  'reset your password.',
-                  style: TextStyle(
-                    color: VineTheme.secondaryText,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: resetEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  style: const TextStyle(color: VineTheme.primaryText),
-                  decoration: InputDecoration(
-                    labelText: 'Email Address',
-                    labelStyle: const TextStyle(color: VineTheme.lightText),
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: VineTheme.outlineVariant,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: VineTheme.vineGreen,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  validator: Validators.validateEmail,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => dialogContext.pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: VineTheme.onSurfaceMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
+      initialEmail: _emailController.text,
+      onSendResetEmail: (email) async {
+        await context.read<DivineAuthCubit>().sendPasswordResetEmail(email);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'If an account exists with that email, '
+                'a password reset link has been sent.',
+              ),
               backgroundColor: VineTheme.vineGreen,
-              foregroundColor: VineTheme.whiteText,
             ),
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final email = resetEmailController.text.trim();
-                dialogContext.pop();
-                await context.read<DivineAuthCubit>().sendPasswordResetEmail(
-                  email,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'If an account exists with that email, '
-                        'a password reset link has been sent.',
-                      ),
-                      backgroundColor: VineTheme.vineGreen,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Email Reset Link'),
-          ),
-        ],
-      ),
+          );
+        }
+      },
     );
   }
 
@@ -336,7 +260,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 // General error
                 if (widget.state.generalError != null) ...[
                   const SizedBox(height: 16),
-                  _ErrorBox(message: widget.state.generalError!),
+                  AuthErrorBox(message: widget.state.generalError!),
                 ],
 
                 const SizedBox(height: 24),
@@ -521,31 +445,6 @@ class _AlternativeMethodButton extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-      ),
-    );
-  }
-}
-
-/// Error message box for form validation errors.
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: VineTheme.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: VineTheme.error),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(color: VineTheme.error, fontSize: 14),
-        textAlign: TextAlign.center,
       ),
     );
   }

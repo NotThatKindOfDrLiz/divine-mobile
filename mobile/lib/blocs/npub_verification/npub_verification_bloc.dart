@@ -2,6 +2,7 @@
 // ABOUTME: Manages verification state with synchronous getters for router
 
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:openvine/repositories/npub_verification_repository.dart';
 import 'package:openvine/services/npub_verification_service.dart';
@@ -27,7 +28,10 @@ class NpubVerificationBloc
   }) : _service = verificationService,
        _repository = repository,
        super(const NpubVerificationState()) {
-    on<NpubVerificationRequested>(_onVerificationRequested);
+    on<NpubVerificationRequested>(
+      _onVerificationRequested,
+      transformer: droppable(),
+    );
     on<NpubVerificationSkipInviteSet>(_onSkipInviteSet);
     on<NpubVerificationSkipInviteCleared>(_onSkipInviteCleared);
     on<NpubVerificationReset>(_onReset);

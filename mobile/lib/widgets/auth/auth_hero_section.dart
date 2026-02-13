@@ -48,7 +48,7 @@ class AuthHeroSection extends StatelessWidget {
                         fontFamily: 'BricolageGrotesque',
                         fontSize: 48,
                         fontWeight: FontWeight.w800, // ExtraBold
-                        color: Colors.white,
+                        color: VineTheme.whiteText,
                         height: 1.1,
                       ),
                     ),

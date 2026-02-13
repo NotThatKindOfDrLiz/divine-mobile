@@ -1,6 +1,8 @@
 // ABOUTME: Screen for joining the waitlist with email signup
 // ABOUTME: Dark theme UI with email input and foam finger sticker
 
+import 'dart:math';
+
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -84,7 +86,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[600],
+                color: VineTheme.outlineMuted,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -114,7 +116,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Colors.grey[400],
+                color: VineTheme.secondaryText,
                 height: 1.4,
               ),
             ),
@@ -131,7 +133,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: VineTheme.vineGreen,
-                  foregroundColor: Colors.black,
+                  foregroundColor: VineTheme.backgroundColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -172,7 +174,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey[600],
+                color: VineTheme.outlineMuted,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -200,7 +202,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
               text: TextSpan(
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.grey[400],
+                  color: VineTheme.secondaryText,
                   height: 1.4,
                 ),
                 children: [
@@ -209,7 +211,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                     text: email,
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: VineTheme.whiteText,
                     ),
                   ),
                   const TextSpan(
@@ -233,7 +235,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: VineTheme.vineGreen,
-                  foregroundColor: Colors.black,
+                  foregroundColor: VineTheme.backgroundColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
@@ -286,7 +288,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                           fontFamily: 'BricolageGrotesque',
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: VineTheme.whiteText,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -297,7 +299,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                         "try the beta before it's publicly available.",
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.grey[400],
+                          color: VineTheme.secondaryText,
                           height: 1.4,
                         ),
                       ),
@@ -335,14 +337,14 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                                   keyboardType: TextInputType.emailAddress,
                                   style: const TextStyle(
                                     fontSize: 18,
-                                    color: Colors.white,
+                                    color: VineTheme.whiteText,
                                     fontWeight: FontWeight.w500,
                                   ),
                                   decoration: const InputDecoration(
                                     hintText: 'user@email.com',
                                     hintStyle: TextStyle(
                                       fontSize: 18,
-                                      color: Colors.grey,
+                                      color: VineTheme.lightText,
                                       fontWeight: FontWeight.w500,
                                     ),
                                     border: InputBorder.none,
@@ -366,7 +368,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                           child: Transform.translate(
                             offset: const Offset(70, 0),
                             child: Transform.rotate(
-                              angle: -35 * 3.14159 / 180,
+                              angle: -35 * pi / 180,
                               child: Image.asset(
                                 'assets/stickers/foam_finger.png',
                                 width: 180,
@@ -396,7 +398,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                         onPressed: state.isSubmitting ? null : _submitEmail,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: VineTheme.vineGreen,
-                          foregroundColor: Colors.black,
+                          foregroundColor: VineTheme.backgroundColor,
                           disabledBackgroundColor: VineTheme.vineGreen
                               .withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
@@ -409,7 +411,7 @@ class _WaitlistScreenState extends State<WaitlistScreen> {
                                 height: 24,
                                 width: 24,
                                 child: CircularProgressIndicator(
-                                  color: Colors.black,
+                                  color: VineTheme.backgroundColor,
                                   strokeWidth: 2,
                                 ),
                               )

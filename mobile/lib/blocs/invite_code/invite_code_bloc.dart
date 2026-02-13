@@ -2,6 +2,7 @@
 // ABOUTME: Manages invite code state with synchronous getters for router
 
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:openvine/models/invite_code_result.dart';
 import 'package:openvine/repositories/invite_code_repository.dart';
@@ -23,7 +24,7 @@ class InviteCodeBloc extends Bloc<InviteCodeEvent, InviteCodeState> {
   }) : _service = inviteCodeService,
        _repository = repository,
        super(InviteCodeState(hasStoredCode: repository.hasStoredCode)) {
-    on<InviteCodeClaimRequested>(_onClaimRequested);
+    on<InviteCodeClaimRequested>(_onClaimRequested, transformer: droppable());
     on<InviteCodeReset>(_onReset);
   }
 

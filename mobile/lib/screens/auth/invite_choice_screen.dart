@@ -88,7 +88,7 @@ class _ActionButtons extends StatelessWidget {
               onPressed: onEnterInviteCode,
               style: ElevatedButton.styleFrom(
                 backgroundColor: VineTheme.vineGreen,
-                foregroundColor: Colors.black,
+                foregroundColor: VineTheme.backgroundColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -132,13 +132,13 @@ class _ActionButtons extends StatelessWidget {
           // Tertiary: Sign in text link
           RichText(
             text: TextSpan(
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              style: TextStyle(fontSize: 14, color: VineTheme.secondaryText),
               children: [
                 const TextSpan(text: 'Have an account? '),
                 TextSpan(
                   text: 'Sign in',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: VineTheme.whiteText,
                     decoration: TextDecoration.underline,
                   ),
                   recognizer: TapGestureRecognizer()..onTap = onSignIn,

@@ -1,6 +1,8 @@
 // ABOUTME: Screen for entering invite codes manually or via deep link
 // ABOUTME: Dark theme UI with 8-character alphanumeric input (XXXX-XXXX format)
 
+import 'dart:math';
+
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -138,7 +140,7 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
                           fontFamily: 'BricolageGrotesque',
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: VineTheme.whiteText,
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -172,7 +174,7 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
                               maxLength: 9, // 8 chars + 1 dash
                               style: const TextStyle(
                                 fontSize: 24,
-                                color: Colors.white,
+                                color: VineTheme.whiteText,
                                 fontWeight: FontWeight.w500,
                               ),
                               inputFormatters: [
@@ -186,7 +188,7 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
                                 hintText: '1234-5678',
                                 hintStyle: TextStyle(
                                   fontSize: 24,
-                                  color: Colors.grey,
+                                  color: VineTheme.lightText,
                                   fontWeight: FontWeight.w500,
                                 ),
                                 counterText: '',
@@ -242,7 +244,7 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
                           child: Transform.translate(
                             offset: const Offset(-50, 0),
                             child: Transform.rotate(
-                              angle: 10 * 3.14159 / 180,
+                              angle: 10 * pi / 180,
                               child: Image.asset(
                                 'assets/stickers/confetti.png',
                                 width: 180,
@@ -268,7 +270,7 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
                     onPressed: _isSubmitting ? null : _submitCode,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: VineTheme.vineGreen,
-                      foregroundColor: Colors.black,
+                      foregroundColor: VineTheme.backgroundColor,
                       disabledBackgroundColor: VineTheme.vineGreen.withValues(
                         alpha: 0.5,
                       ),
@@ -282,7 +284,7 @@ class _InviteCodeEntryScreenState extends State<InviteCodeEntryScreen> {
                             height: 24,
                             width: 24,
                             child: CircularProgressIndicator(
-                              color: Colors.black,
+                              color: VineTheme.backgroundColor,
                               strokeWidth: 2,
                             ),
                           )

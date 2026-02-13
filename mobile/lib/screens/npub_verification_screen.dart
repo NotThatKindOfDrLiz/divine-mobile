@@ -189,7 +189,7 @@ class _NpubVerificationScreenState
                               Text(
                                 'Please wait while we verify your identity',
                                 style: VineTheme.bodyMediumFont(
-                                  color: Colors.grey,
+                                  color: VineTheme.secondaryText,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -208,7 +208,7 @@ class _NpubVerificationScreenState
                               Text(
                                 errorMessage ?? 'An error occurred',
                                 style: VineTheme.bodyMediumFont(
-                                  color: Colors.grey,
+                                  color: VineTheme.secondaryText,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -217,7 +217,7 @@ class _NpubVerificationScreenState
                                 onPressed: _retry,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: VineTheme.vineGreen,
-                                  foregroundColor: Colors.white,
+                                  foregroundColor: VineTheme.whiteText,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 32,
                                     vertical: 16,

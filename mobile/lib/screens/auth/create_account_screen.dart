@@ -1,6 +1,8 @@
 // ABOUTME: Create account screen with email/password registration form
 // ABOUTME: Provides DivineAuthCubit in sign-up mode with confirm password
 
+import 'dart:math';
+
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,6 +13,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/widgets/auth/auth_password_field.dart';
+import 'package:openvine/widgets/auth/auth_error_box.dart';
 import 'package:openvine/widgets/auth/auth_text_field.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
 
@@ -252,7 +255,7 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
                       right: -20,
                       bottom: -160,
                       child: Transform.rotate(
-                        angle: 12 * 3.1415926535 / 180,
+                        angle: 12 * pi / 180,
                         child: Image.asset(
                           'assets/stickers/samoyed_dog.png',
                           width: 140,
@@ -266,7 +269,7 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
                 // Error display
                 if (widget.state.generalError != null) ...[
                   const SizedBox(height: 16),
-                  _ErrorBox(message: widget.state.generalError!),
+                  AuthErrorBox(message: widget.state.generalError!),
                 ],
 
                 // Push buttons to bottom
@@ -382,31 +385,6 @@ class _SkipButton extends StatelessWidget {
                 'Skip for now',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-      ),
-    );
-  }
-}
-
-/// Error message box for form validation errors.
-class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: VineTheme.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: VineTheme.error),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(color: VineTheme.error, fontSize: 14),
-        textAlign: TextAlign.center,
       ),
     );
   }

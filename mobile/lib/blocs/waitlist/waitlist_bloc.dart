@@ -2,6 +2,7 @@
 // ABOUTME: Manages waitlist submission state
 
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -15,7 +16,7 @@ part 'waitlist_state.dart';
 /// - Tracking submission state for UI updates
 class WaitlistBloc extends Bloc<WaitlistEvent, WaitlistState> {
   WaitlistBloc() : super(const WaitlistState()) {
-    on<WaitlistEmailSubmitted>(_onEmailSubmitted);
+    on<WaitlistEmailSubmitted>(_onEmailSubmitted, transformer: droppable());
     on<WaitlistReset>(_onReset);
   }
 

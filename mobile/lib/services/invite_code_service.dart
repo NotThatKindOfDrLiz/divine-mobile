@@ -87,8 +87,18 @@ class InviteCodeService {
         return 'web-${webInfo.userAgent?.hashCode ?? DateTime.now().millisecondsSinceEpoch}';
       } else if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
-        // Use Android ID (unique per app per device, survives reinstall)
-        return 'android-${androidInfo.id}';
+        // androidInfo.id is Build.ID (a build label, not a unique device
+        // identifier). Combine device-specific properties with a timestamp
+        // for reasonable uniqueness. Once generated, the result is cached
+        // in SharedPreferences for stability.
+        final deviceHash = Object.hash(
+          androidInfo.fingerprint,
+          androidInfo.device,
+          androidInfo.hardware,
+          androidInfo.host,
+          DateTime.now().microsecondsSinceEpoch,
+        );
+        return 'android-$deviceHash';
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         // Use identifierForVendor (unique per vendor per device)
@@ -126,17 +136,6 @@ class InviteCodeService {
     final uri = Uri.parse('$_baseUrl/v1/consume-invite');
 
     try {
-      // final response = (code.startsWith("GOOD"))
-      //     ? http.Response('{"valid":true}', 200)
-      //     : code.startsWith("BAD")
-      //     ? http.Response(
-      //         '{"valid": false,"message":"Invalid invite code"}',
-      //         200,
-      //       )
-      //     : http.Response(
-      //         '{"valid": false,"message":"Try a code starting with GOOD"}',
-      //         200,
-      //       );
       final response = await _client
           .post(
             uri,
@@ -214,11 +213,6 @@ class InviteCodeService {
       );
     }
 
-    // return const InviteCodeResult(
-    //   valid: true,
-    //   message: 'Allow any stored code.',
-    // );
-
     Log.info(
       'Verifying stored invite code',
       name: 'InviteCodeService',
@@ -261,11 +255,11 @@ class InviteCodeService {
         }
 
         return result;
-      } else {
-        // Non-200 response means code is invalid
+      } else if (response.statusCode >= 400 && response.statusCode < 500) {
+        // 4xx client error: code is invalid, clear it
         await clearStoredCode();
         Log.warning(
-          'Invite verification returned status ${response.statusCode}',
+          'Invite verification returned ${response.statusCode} - clearing',
           name: 'InviteCodeService',
           category: LogCategory.auth,
         );
@@ -273,6 +267,15 @@ class InviteCodeService {
           valid: false,
           message: 'Invite code is no longer valid',
         );
+      } else {
+        // 5xx server error: fail open (allow access with stored code)
+        Log.warning(
+          'Invite verification server error ${response.statusCode} '
+          '- allowing access with stored code',
+          name: 'InviteCodeService',
+          category: LogCategory.auth,
+        );
+        return InviteCodeResult(valid: true, code: code);
       }
     } on TimeoutException {
       // On timeout, fail open (allow access with stored code)

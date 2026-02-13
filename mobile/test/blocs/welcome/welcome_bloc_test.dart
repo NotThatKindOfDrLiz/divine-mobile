@@ -291,6 +291,50 @@ void main() {
         },
       );
     });
+
+    group('$WelcomeNavigationConsumed', () {
+      blocTest<WelcomeBloc, WelcomeState>(
+        'clears shouldNavigateToLoginOptions flag',
+        build: buildBloc,
+        seed: () => const WelcomeState(
+          status: WelcomeStatus.loaded,
+          shouldNavigateToLoginOptions: true,
+        ),
+        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
+        expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
+      );
+
+      blocTest<WelcomeBloc, WelcomeState>(
+        'clears shouldNavigateToCreateAccount flag',
+        build: buildBloc,
+        seed: () => const WelcomeState(
+          status: WelcomeStatus.loaded,
+          shouldNavigateToCreateAccount: true,
+        ),
+        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
+        expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
+      );
+
+      blocTest<WelcomeBloc, WelcomeState>(
+        'clears both navigation flags simultaneously',
+        build: buildBloc,
+        seed: () => const WelcomeState(
+          status: WelcomeStatus.loaded,
+          shouldNavigateToLoginOptions: true,
+          shouldNavigateToCreateAccount: true,
+        ),
+        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
+        expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
+      );
+
+      blocTest<WelcomeBloc, WelcomeState>(
+        'emits no change when both flags are already false',
+        build: buildBloc,
+        seed: () => const WelcomeState(status: WelcomeStatus.loaded),
+        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
+        expect: () => <WelcomeState>[],
+      );
+    });
   });
 
   group('$WelcomeState', () {

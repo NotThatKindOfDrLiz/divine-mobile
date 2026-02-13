@@ -1,8 +1,10 @@
 // ABOUTME: Model for invite code API response
 // ABOUTME: Used by InviteCodeService to parse claim/verify responses
 
+import 'package:equatable/equatable.dart';
+
 /// Result of an invite code claim or verification request.
-class InviteCodeResult {
+class InviteCodeResult extends Equatable {
   const InviteCodeResult({
     required this.valid,
     this.message,
@@ -32,4 +34,7 @@ class InviteCodeResult {
 
   /// When this device claimed the code (null if not yet claimed).
   final DateTime? claimedAt;
+
+  @override
+  List<Object?> get props => [valid, message, code, claimedAt];
 }

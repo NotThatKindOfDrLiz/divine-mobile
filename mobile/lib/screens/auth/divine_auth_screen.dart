@@ -11,7 +11,10 @@ import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
-import 'package:openvine/utils/validators.dart';
+import 'package:openvine/widgets/auth/auth_error_box.dart';
+import 'package:openvine/widgets/auth/auth_password_field.dart';
+import 'package:openvine/widgets/auth/auth_text_field.dart';
+import 'package:openvine/widgets/auth/forgot_password_dialog.dart';
 
 class DivineAuthScreen extends ConsumerWidget {
   /// Route name for the auth screen
@@ -188,9 +191,9 @@ class _DivineAuthFormState extends State<_AuthForm> {
                 SizedBox(height: isSignIn ? 48 : 40),
 
                 // Email field
-                _buildTextField(
+                AuthTextField(
                   controller: _emailController,
-                  label: 'Email',
+                  hintText: 'Email',
                   keyboardType: TextInputType.emailAddress,
                   errorText: widget.state.emailError,
                   onChanged: (value) =>
@@ -201,25 +204,13 @@ class _DivineAuthFormState extends State<_AuthForm> {
                 const SizedBox(height: 16),
 
                 // Password field
-                _buildTextField(
+                AuthPasswordField(
                   controller: _passwordController,
-                  label: 'Password',
-                  obscureText: widget.state.obscurePassword,
+                  hintText: 'Password',
                   errorText: widget.state.passwordError,
                   onChanged: (value) =>
                       context.read<DivineAuthCubit>().updatePassword(value),
                   enabled: !isSubmitting,
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      widget.state.obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      color: VineTheme.lightText,
-                    ),
-                    onPressed: () => context
-                        .read<DivineAuthCubit>()
-                        .togglePasswordVisibility(),
-                  ),
                 ),
 
                 const SizedBox(height: 8),
@@ -227,22 +218,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
                 // General error message
                 if (widget.state.generalError != null) ...[
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: VineTheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: VineTheme.error),
-                    ),
-                    child: Text(
-                      widget.state.generalError!,
-                      style: const TextStyle(
-                        color: VineTheme.error,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  AuthErrorBox(message: widget.state.generalError!),
                 ],
 
                 // Spacer pushes buttons toward bottom
@@ -392,170 +368,24 @@ class _DivineAuthFormState extends State<_AuthForm> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    String? errorText,
-    required ValueChanged<String> onChanged,
-    bool enabled = true,
-    Widget? suffixIcon,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          enabled: enabled,
-          autocorrect: false,
-          style: const TextStyle(color: VineTheme.primaryText),
-          decoration: InputDecoration(
-            labelText: label,
-            labelStyle: const TextStyle(color: VineTheme.lightText),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: errorText != null
-                    ? VineTheme.error
-                    : VineTheme.outlineVariant,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: errorText != null
-                    ? VineTheme.error
-                    : VineTheme.vineGreen,
-                width: 2,
-              ),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: VineTheme.outlineVariant),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: VineTheme.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: VineTheme.error, width: 2),
-            ),
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: VineTheme.surfaceContainer,
-          ),
-          onChanged: onChanged,
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText,
-            style: const TextStyle(color: VineTheme.error, fontSize: 12),
-          ),
-        ],
-      ],
-    );
-  }
-
   void _showForgotPasswordDialog(BuildContext context) {
-    final resetEmailController = TextEditingController(
-      text: _emailController.text,
-    );
-    final formKey = GlobalKey<FormState>();
-
-    showDialog(
+    showForgotPasswordDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: VineTheme.cardBackground,
-        title: const Text(
-          'Reset Password',
-          style: TextStyle(color: VineTheme.primaryText),
-        ),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Enter your email address and we'll send you a link to "
-                  'reset your password.',
-                  style: TextStyle(
-                    color: VineTheme.secondaryText,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: resetEmailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  style: const TextStyle(color: VineTheme.primaryText),
-                  decoration: InputDecoration(
-                    labelText: 'Email Address',
-                    labelStyle: const TextStyle(color: VineTheme.lightText),
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: VineTheme.outlineVariant,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: VineTheme.vineGreen,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  validator: Validators.validateEmail,
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => dialogContext.pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: VineTheme.onSurfaceMuted),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
+      initialEmail: _emailController.text,
+      onSendResetEmail: (email) async {
+        await context.read<DivineAuthCubit>().sendPasswordResetEmail(email);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'If an account exists with that email, '
+                'a password reset link has been sent.',
+              ),
               backgroundColor: VineTheme.vineGreen,
-              foregroundColor: VineTheme.whiteText,
             ),
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final email = resetEmailController.text.trim();
-                dialogContext.pop();
-                await context.read<DivineAuthCubit>().sendPasswordResetEmail(
-                  email,
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'If an account exists with that email, '
-                        'a password reset link has been sent.',
-                      ),
-                      backgroundColor: VineTheme.vineGreen,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Email Reset Link'),
-          ),
-        ],
-      ),
+          );
+        }
+      },
     );
   }
 

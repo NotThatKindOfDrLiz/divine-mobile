@@ -396,14 +396,42 @@ class _SecondaryButton extends StatelessWidget {
 }
 
 /// Passive terms notice text with clickable links.
-class _TermsNotice extends StatelessWidget {
+class _TermsNotice extends StatefulWidget {
   const _TermsNotice();
+
+  @override
+  State<_TermsNotice> createState() => _TermsNoticeState();
+}
+
+class _TermsNoticeState extends State<_TermsNotice> {
+  late final TapGestureRecognizer _termsRecognizer;
+  late final TapGestureRecognizer _privacyRecognizer;
+  late final TapGestureRecognizer _safetyRecognizer;
 
   Future<void> _openUrl(String urlString) async {
     final uri = Uri.parse(urlString);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _termsRecognizer = TapGestureRecognizer()
+      ..onTap = () => _openUrl('https://divine.video/terms');
+    _privacyRecognizer = TapGestureRecognizer()
+      ..onTap = () => _openUrl('https://divine.video/privacy');
+    _safetyRecognizer = TapGestureRecognizer()
+      ..onTap = () => _openUrl('https://divine.video/safety');
+  }
+
+  @override
+  void dispose() {
+    _termsRecognizer.dispose();
+    _privacyRecognizer.dispose();
+    _safetyRecognizer.dispose();
+    super.dispose();
   }
 
   @override
@@ -431,22 +459,19 @@ class _TermsNotice extends StatelessWidget {
           TextSpan(
             text: 'Terms of Service',
             style: linkStyle,
-            recognizer: TapGestureRecognizer()
-              ..onTap = () => _openUrl('https://divine.video/terms'),
+            recognizer: _termsRecognizer,
           ),
           const TextSpan(text: ', '),
           TextSpan(
             text: 'Privacy Policy',
             style: linkStyle,
-            recognizer: TapGestureRecognizer()
-              ..onTap = () => _openUrl('https://divine.video/privacy'),
+            recognizer: _privacyRecognizer,
           ),
           const TextSpan(text: ', and '),
           TextSpan(
             text: 'Safety Standards',
             style: linkStyle,
-            recognizer: TapGestureRecognizer()
-              ..onTap = () => _openUrl('https://divine.video/safety'),
+            recognizer: _safetyRecognizer,
           ),
           const TextSpan(text: '.'),
         ],

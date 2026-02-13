@@ -2,6 +2,7 @@
 // ABOUTME: Loads cached profile for last logged-in user from SQLite
 
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:db_client/db_client.dart';
 import 'package:equatable/equatable.dart';
 import 'package:models/models.dart';
@@ -30,13 +31,25 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
        _userProfilesDao = userProfilesDao,
        _authService = authService,
        super(const WelcomeState()) {
-    on<WelcomeStarted>(_onStarted);
-    on<WelcomeLastUserDismissed>(_onLastUserDismissed);
-    on<WelcomeLogBackInRequested>(_onLogBackIn);
-    on<WelcomeCreateNewAccountRequested>(_onCreateNewAccount);
-    on<WelcomeCreateAccountRequested>(_onCreateAccountRequested);
+    on<WelcomeStarted>(_onStarted, transformer: droppable());
+    on<WelcomeLastUserDismissed>(
+      _onLastUserDismissed,
+      transformer: droppable(),
+    );
+    on<WelcomeLogBackInRequested>(_onLogBackIn, transformer: droppable());
+    on<WelcomeCreateNewAccountRequested>(
+      _onCreateNewAccount,
+      transformer: droppable(),
+    );
+    on<WelcomeCreateAccountRequested>(
+      _onCreateAccountRequested,
+      transformer: droppable(),
+    );
     on<WelcomeNavigationConsumed>(_onNavigationConsumed);
-    on<WelcomeLoginOptionsRequested>(_onLoginOptionsRequested);
+    on<WelcomeLoginOptionsRequested>(
+      _onLoginOptionsRequested,
+      transformer: droppable(),
+    );
   }
 
   final SharedPreferences _prefs;
