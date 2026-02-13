@@ -122,31 +122,31 @@ class InviteCodeService {
       category: LogCategory.auth,
     );
 
-    // final deviceId = await getDeviceId();
-    // final uri = Uri.parse('$_baseUrl/v1/consume-invite');
+    final deviceId = await getDeviceId();
+    final uri = Uri.parse('$_baseUrl/v1/consume-invite');
 
     try {
-      final response = (code.startsWith("GOOD"))
-          ? http.Response('{"valid":true}', 200)
-          : code.startsWith("BAD")
-          ? http.Response(
-              '{"valid": false,"message":"Invalid invite code"}',
-              200,
-            )
-          : http.Response(
-              '{"valid": false,"message":"Try a code starting with GOOD"}',
-              200,
-            );
-      // final response = await _client
-      //     .post(
-      //       uri,
-      //       headers: {
-      //         'Content-Type': 'application/json',
-      //         'Accept': 'application/json',
-      //       },
-      //       body: jsonEncode({'code': normalizedCode, 'deviceId': deviceId}),
-      //     )
-      //     .timeout(_timeout);
+      // final response = (code.startsWith("GOOD"))
+      //     ? http.Response('{"valid":true}', 200)
+      //     : code.startsWith("BAD")
+      //     ? http.Response(
+      //         '{"valid": false,"message":"Invalid invite code"}',
+      //         200,
+      //       )
+      //     : http.Response(
+      //         '{"valid": false,"message":"Try a code starting with GOOD"}',
+      //         200,
+      //       );
+      final response = await _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'code': normalizedCode, 'deviceId': deviceId}),
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

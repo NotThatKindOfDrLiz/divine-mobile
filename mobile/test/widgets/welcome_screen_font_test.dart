@@ -1,68 +1,40 @@
-// ABOUTME: Widget test for welcome screen layout and text rendering
-// ABOUTME: Verifies that the welcome screen displays correctly with legal checkboxes
+// ABOUTME: Widget test for AuthHeroSection text rendering
+// ABOUTME: Verifies that the hero tagline text renders correctly
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/providers/shared_preferences_provider.dart';
-import 'package:openvine/screens/auth/welcome_screen.dart';
-import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/widgets/legal_checkbox.dart';
-import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
-import 'package:openvine/services/auth_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-@GenerateMocks([AuthService])
-import 'welcome_screen_font_test.mocks.dart';
+import 'package:openvine/widgets/auth/auth_hero_section.dart';
 
 void main() {
-  group('WelcomeScreen Layout Tests', () {
-    late MockAuthService mockAuthService;
-    late SharedPreferences sharedPreferences;
-
-    setUp(() async {
-      SharedPreferences.setMockInitialValues({});
-      sharedPreferences = await SharedPreferences.getInstance();
-
-      mockAuthService = MockAuthService();
-      when(mockAuthService.authState).thenReturn(AuthState.unauthenticated);
-      when(mockAuthService.isAuthenticated).thenReturn(false);
-      when(mockAuthService.lastError).thenReturn(null);
-      // Stub for hasSavedKeys - called in WelcomeScreen.initState
-      when(mockAuthService.hasSavedKeys()).thenAnswer((_) async => false);
-    });
-
-    testWidgets('Welcome screen layout renders correctly', (tester) async {
-      // Set larger test size to prevent overflow
+  group('AuthHeroSection', () {
+    testWidgets('renders hero tagline text correctly', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-            authServiceProvider.overrideWithValue(mockAuthService),
-          ],
-          child: const MaterialApp(home: WelcomeScreen()),
-        ),
+        const MaterialApp(home: Scaffold(body: AuthHeroSection())),
       );
 
-      // Allow widget to build
-      await tester.pumpAndSettle();
+      // Verify hero tagline text
+      expect(find.text('Authentic moments.'), findsOneWidget);
+      expect(find.text('Human creativity.'), findsOneWidget);
+    });
 
-      // Verify key elements are present
-      expect(
-        find.text('Create and share short videos\non the decentralized web'),
-        findsOneWidget,
+    testWidgets('uses BricolageGrotesque font family', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: AuthHeroSection())),
       );
 
-      // Verify legal checkboxes are present (2 checkboxes: age and terms)
-      expect(find.text('I am 16 years or older'), findsOneWidget);
-      // Terms checkbox contains RichText, verify via LegalCheckbox count
-      expect(find.byType(LegalCheckbox), findsNWidgets(2));
+      final greenText = tester.widget<Text>(find.text('Authentic moments.'));
+      expect(greenText.style?.fontFamily, equals('BricolageGrotesque'));
+      expect(greenText.style?.fontWeight, equals(FontWeight.w800));
 
-      // Verify Accept button is present
-      expect(find.text('Accept & continue'), findsOneWidget);
+      final whiteText = tester.widget<Text>(find.text('Human creativity.'));
+      expect(whiteText.style?.fontFamily, equals('BricolageGrotesque'));
+      expect(whiteText.style?.fontWeight, equals(FontWeight.w800));
     });
   });
 }
