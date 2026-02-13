@@ -185,15 +185,64 @@ void main() {
         expect(find.text('Passwords do not match'), findsNothing);
       });
 
-      testWidgets('tapping skip calls signInAutomatically', (tester) async {
+      testWidgets('tapping skip shows confirmation bottom sheet', (
+        tester,
+      ) async {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
         await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Before you go...'), findsOneWidget);
+        expect(
+          find.widgetWithText(ElevatedButton, 'Add email & password'),
+          findsOneWidget,
+        );
+        expect(
+          find.widgetWithText(OutlinedButton, 'Use this device only'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('tapping Use this device only calls signInAutomatically', (
+        tester,
+      ) async {
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(OutlinedButton, 'Use this device only'),
+        );
+        // Use pump() instead of pumpAndSettle() because the loading
+        // spinner animates indefinitely after signInAutomatically is called.
         await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
         verify(() => mockAuthService.signInAutomatically()).called(1);
       });
+
+      testWidgets(
+        'tapping Add email & password dismisses sheet without skipping',
+        (tester) async {
+          await tester.pumpWidget(createTestWidget());
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
+          await tester.pumpAndSettle();
+
+          await tester.tap(
+            find.widgetWithText(ElevatedButton, 'Add email & password'),
+          );
+          await tester.pumpAndSettle();
+
+          expect(find.text('Before you go...'), findsNothing);
+          verifyNever(() => mockAuthService.signInAutomatically());
+        },
+      );
 
       testWidgets('calls submit when passwords match', (tester) async {
         // Stub headlessRegister so submit proceeds

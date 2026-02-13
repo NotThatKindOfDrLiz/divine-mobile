@@ -165,17 +165,18 @@ class _EmailVerificationScreenState
           name: 'EmailVerificationScreen',
           category: LogCategory.auth,
         );
-        if (mounted) {
-          setState(() {
-            // Show error in UI
-          });
-        }
+        _cubit.emitFailure(
+          result.error ?? 'This verification link is no longer valid.',
+        );
       }
     } catch (e) {
       Log.error(
         'Email verification error: $e',
         name: 'EmailVerificationScreen',
         category: LogCategory.auth,
+      );
+      _cubit.emitFailure(
+        'Unable to verify email. Please check your connection and try again.',
       );
     }
   }
@@ -214,7 +215,7 @@ class _EmailVerificationScreenState
       // Set tab by NAME (not index) because indices shift when Classics/ForYou
       // tabs become available asynchronously
       ref.read(forceExploreTabNameProvider.notifier).state = 'popular';
-      context.go(ExploreScreen.path);
+      //context.go(ExploreScreen.path);
     } else {
       // Token mode: redirect to login screen
       _handleTokenModeSuccess();

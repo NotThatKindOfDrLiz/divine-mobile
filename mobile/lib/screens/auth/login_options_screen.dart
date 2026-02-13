@@ -15,6 +15,8 @@ import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/utils/validators.dart';
+import 'package:openvine/widgets/auth/auth_password_field.dart';
+import 'package:openvine/widgets/auth/auth_text_field.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Sign-in screen — Page that provides [DivineAuthCubit].
@@ -310,7 +312,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 40),
 
                 // Email field
-                _AuthTextField(
+                AuthTextField(
                   controller: _emailController,
                   hintText: 'Email',
                   keyboardType: TextInputType.emailAddress,
@@ -323,10 +325,8 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 16),
 
                 // Password field
-                _AuthTextField(
+                AuthPasswordField(
                   controller: _passwordController,
-                  hintText: 'Password',
-                  obscureText: true,
                   errorText: widget.state.passwordError,
                   enabled: !isDisabled,
                   onChanged: (value) =>
@@ -428,83 +428,6 @@ class _InfoButton extends StatelessWidget {
           size: 22,
         ),
       ),
-    );
-  }
-}
-
-/// Styled text field for the sign-in form.
-class _AuthTextField extends StatelessWidget {
-  const _AuthTextField({
-    required this.controller,
-    required this.hintText,
-    this.keyboardType,
-    this.obscureText = false,
-    this.errorText,
-    this.enabled = true,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final String? errorText;
-  final bool enabled;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          enabled: enabled,
-          autocorrect: false,
-          style: const TextStyle(color: VineTheme.primaryText, fontSize: 16),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(color: VineTheme.lightText),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: errorText != null
-                    ? VineTheme.error
-                    : VineTheme.outlineVariant,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: errorText != null
-                    ? VineTheme.error
-                    : VineTheme.vineGreen,
-                width: 2,
-              ),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: VineTheme.outlineVariant),
-            ),
-            filled: true,
-            fillColor: VineTheme.surfaceContainer,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 18,
-            ),
-          ),
-          onChanged: onChanged,
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText!,
-            style: TextStyle(color: VineTheme.error, fontSize: 12),
-          ),
-        ],
-      ],
     );
   }
 }

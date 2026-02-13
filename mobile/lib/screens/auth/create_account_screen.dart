@@ -10,6 +10,8 @@ import 'package:openvine/blocs/divine_auth/divine_auth_cubit.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/services/auth_service.dart';
+import 'package:openvine/widgets/auth/auth_password_field.dart';
+import 'package:openvine/widgets/auth/auth_text_field.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Create account screen — Page that provides [DivineAuthCubit] in sign-up
@@ -66,6 +68,7 @@ class _CreateAccountView extends StatelessWidget {
       },
       child: Scaffold(
         backgroundColor: VineTheme.backgroundColor,
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
             builder: (context, state) {
@@ -147,6 +150,18 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
   }
 
   Future<void> _skip() async {
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: VineTheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _SkipConfirmationSheet(),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     setState(() => _isSkipping = true);
 
     try {
@@ -195,7 +210,7 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
                 const SizedBox(height: 32),
 
                 // Email field
-                _AccountTextField(
+                AuthTextField(
                   controller: _emailController,
                   hintText: 'Email',
                   keyboardType: TextInputType.emailAddress,
@@ -208,10 +223,8 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
                 const SizedBox(height: 16),
 
                 // Password field
-                _AccountTextField(
+                AuthPasswordField(
                   controller: _passwordController,
-                  hintText: 'Password',
-                  obscureText: true,
                   errorText: widget.state.passwordError,
                   enabled: !isDisabled,
                   onChanged: (value) =>
@@ -224,10 +237,9 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    _AccountTextField(
+                    AuthPasswordField(
                       controller: _confirmPasswordController,
                       hintText: 'Confirm password',
-                      obscureText: true,
                       errorText: _confirmPasswordError,
                       enabled: !isDisabled,
                       onChanged: (_) {
@@ -281,82 +293,6 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
             ),
           ),
         ),
-      ],
-    );
-  }
-}
-
-/// Styled text field for the create account form.
-class _AccountTextField extends StatelessWidget {
-  const _AccountTextField({
-    required this.controller,
-    required this.hintText,
-    this.keyboardType,
-    this.obscureText = false,
-    this.errorText,
-    this.enabled = true,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final String? errorText;
-  final bool enabled;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          enabled: enabled,
-          autocorrect: false,
-          style: const TextStyle(color: VineTheme.primaryText, fontSize: 16),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: const TextStyle(color: VineTheme.lightText),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: VineTheme.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: VineTheme.error, width: 2),
-            ),
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: VineTheme.surfaceContainer,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 18,
-            ),
-          ),
-          onChanged: onChanged,
-        ),
-        if (errorText != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            errorText!,
-            style: TextStyle(color: VineTheme.error, fontSize: 12),
-          ),
-        ],
       ],
     );
   }
@@ -471,6 +407,123 @@ class _ErrorBox extends StatelessWidget {
         message,
         style: TextStyle(color: VineTheme.error, fontSize: 14),
         textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+/// Bottom sheet asking the user to confirm skipping email/password setup.
+class _SkipConfirmationSheet extends StatelessWidget {
+  const _SkipConfirmationSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: VineTheme.outlineMuted,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          Image.asset(
+            'assets/stickers/pause.png',
+            width: 132,
+            height: 132,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(height: 24),
+
+          // Title
+          const Text(
+            'Before you go...',
+            style: TextStyle(
+              fontFamily: 'BricolageGrotesque',
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: VineTheme.whiteText,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Description
+          const Text(
+            "You're in! We'll create a secure key that powers "
+            'your Divine account.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: VineTheme.secondaryText,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "You can access your key in the app, but if you're not "
+            'technical, we recommend adding an email and password '
+            'now. With it you can easily login on other devices and '
+            'restore your account if you lose or reset this device.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: VineTheme.secondaryText,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Add email & password button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context, false),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: VineTheme.vineGreen,
+                foregroundColor: VineTheme.backgroundColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Add email & password',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Use this device only button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: VineTheme.vineGreen,
+                side: const BorderSide(color: VineTheme.vineGreen, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text(
+                'Use this device only',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

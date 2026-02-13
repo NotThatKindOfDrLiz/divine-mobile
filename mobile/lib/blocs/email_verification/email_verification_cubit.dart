@@ -76,6 +76,17 @@ class EmailVerificationCubit extends Cubit<EmailVerificationState> {
     _timeoutTimer = Timer(_pollingTimeout, _onTimeout);
   }
 
+  /// Emit a failure state from outside the cubit (e.g., token verification).
+  void emitFailure(String error) {
+    _cleanup();
+    emit(
+      EmailVerificationState(
+        status: EmailVerificationStatus.failure,
+        error: error,
+      ),
+    );
+  }
+
   /// Stop polling (e.g., user cancelled)
   void stopPolling() {
     Log.info(
@@ -228,28 +239,45 @@ class EmailVerificationCubit extends Cubit<EmailVerificationState> {
           verifier: verifier,
         );
 
-        // Get the session and sign in
         final session = KeycastSession.fromTokenResponse(tokenResponse);
+
+        Log.info(
+          'Token exchange successful, showing verification confirmation',
+          name: 'EmailVerificationCubit',
+          category: LogCategory.auth,
+        );
+
+        // Emit success BEFORE signing in, because signInWithDivineOAuth
+        // triggers an auth state change that causes GoRouter to redirect
+        // to the home screen immediately. By emitting first, the UI can
+        // display "Email Verified!" before the redirect occurs.
+        _cleanup();
+        emit(
+          const EmailVerificationState(status: EmailVerificationStatus.success),
+        );
+
+        // Brief pause so the user sees the success confirmation
+        await Future<void>.delayed(const Duration(milliseconds: 5000));
+
+        // Now sign in — this triggers GoRouter redirect to home
         await _authService.signInWithDivineOAuth(session);
 
         // Verify sign-in actually succeeded (signInWithDivineOAuth catches
         // errors internally and sets state to unauthenticated without throwing)
         if (_authService.isAnonymous) {
-          // Sign-in failed silently - treat as network error and retry
-          throw Exception('Sign-in failed - auth service reports anonymous');
+          Log.error(
+            'Sign-in failed after email verification',
+            name: 'EmailVerificationCubit',
+            category: LogCategory.auth,
+          );
+          emit(
+            const EmailVerificationState(
+              status: EmailVerificationStatus.failure,
+              error: 'Sign-in failed. Please try logging in manually.',
+            ),
+          );
         }
 
-        Log.info(
-          'Successfully signed in after email verification',
-          name: 'EmailVerificationCubit',
-          category: LogCategory.auth,
-        );
-
-        // Clear state and emit success
-        _cleanup();
-        emit(
-          const EmailVerificationState(status: EmailVerificationStatus.success),
-        );
         return; // Success - exit the retry loop
       } on OAuthException catch (e) {
         // OAuth errors are not retryable (e.g., invalid code, expired code)

@@ -409,7 +409,7 @@ class _TermsNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const linkStyle = TextStyle(
-      color: VineTheme.vineGreen,
+      color: VineTheme.whiteText,
       decoration: TextDecoration.underline,
       decorationColor: VineTheme.vineGreen,
     );
