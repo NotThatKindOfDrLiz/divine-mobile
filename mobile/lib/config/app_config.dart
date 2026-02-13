@@ -64,19 +64,6 @@ class AppConfig {
   static bool get enableUIImprovements =>
       _getBoolFlag('ENABLE_UI_IMPROVEMENTS', false);
 
-  // Access control flags
-
-  /// Whether invite code is required for app access.
-  /// Defaults to false. Override with environment
-  /// variable INVITE_REQUIRED=true at build time.
-  static bool get inviteRequired {
-    const envValue = String.fromEnvironment('INVITE_REQUIRED');
-    if (envValue.isNotEmpty) {
-      return envValue.toLowerCase() == 'true';
-    }
-    return false;
-  }
-
   // Helper for environment-based feature flags
   static bool _getBoolFlag(String envKey, bool defaultValue) {
     final value = const String.fromEnvironment('').isEmpty
@@ -94,7 +81,6 @@ class AppConfig {
     'backendUrl': backendBaseUrl,
     'isDevelopment': isDevelopment,
     'isProduction': isProduction,
-    'inviteRequired': inviteRequired,
     'enableStreamCDN': enableStreamCDN,
     'enableCloudinaryUpload': enableCloudinaryUpload,
     'enableNIP96Upload': enableNIP96Upload,

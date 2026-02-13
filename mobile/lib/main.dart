@@ -17,14 +17,12 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/camera_permission/camera_permission_bloc.dart';
 import 'package:openvine/blocs/email_verification/email_verification_cubit.dart';
-import 'package:openvine/blocs/waitlist/waitlist_bloc.dart';
 import 'package:openvine/config/zendesk_config.dart';
 import 'package:openvine/network/vine_cdn_http_overrides.dart'
     if (dart.library.html) 'package:openvine/utils/platform_io_web.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/deep_link_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
-import 'package:openvine/providers/invite_code_provider.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 
@@ -580,37 +578,6 @@ Future<void> _initializeCoreServices(ProviderContainer container) async {
     name: 'Main',
     category: LogCategory.system,
   );
-
-  // Verify stored invite code on startup (if any)
-  // final inviteService = container.read(inviteCodeServiceProvider);
-  // if (inviteService.hasVerifiedCode) {
-  //   Log.info(
-  //     '[INIT] Found stored invite code, verifying...',
-  //     name: 'Main',
-  //     category: LogCategory.auth,
-  //   );
-  //   final result = await inviteService.verifyStoredCode();
-  //   if (result.valid) {
-  //     Log.info(
-  //       '[INIT] ✅ Invite code verified successfully',
-  //       name: 'Main',
-  //       category: LogCategory.auth,
-  //     );
-  //   } else {
-  //     Log.warning(
-  //       '[INIT] Invite code no longer valid: ${result.message}',
-  //       name: 'Main',
-  //       category: LogCategory.auth,
-  //     );
-  //     // Code was cleared by the service - router will redirect to invite screen
-  //   }
-  // } else {
-  //   Log.info(
-  //     '[INIT] No stored invite code - user will need to enter one',
-  //     name: 'Main',
-  //     category: LogCategory.auth,
-  //   );
-  // }
 
   // Initialize bandwidth tracker for adaptive quality selection
   await bandwidthTracker.initialize();
@@ -1179,12 +1146,6 @@ class _DivineAppState extends ConsumerState<DivineApp> {
             authService: ref.read(authServiceProvider),
           ),
         ),
-        // Use BlocProvider.value to expose Riverpod-managed BLoCs to the widget tree.
-        // These BLoCs are created as Riverpod providers so they can be accessed in
-        // both the router (for AppStateListenable) and the widget tree.
-        BlocProvider.value(value: ref.read(inviteCodeBlocProvider)),
-        BlocProvider.value(value: ref.read(npubVerificationBlocProvider)),
-        BlocProvider(create: (_) => WaitlistBloc()),
       ],
       // Global listener for email verification failures - shows snackbar
       // when verification times out or fails while user is elsewhere in app
