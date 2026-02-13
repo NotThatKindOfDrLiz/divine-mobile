@@ -61,27 +61,17 @@ class NpubVerificationService {
 
     final deviceId = await _getDeviceId();
     final uri = Uri.parse('$_baseUrl/v1/verify-npub');
-    Log.info(
-      'Verifying npub is stubbed out to always fail '
-      'Ignoring $deviceId $uri $_timeout',
-      name: 'NpubVerificationService',
-      category: LogCategory.auth,
-    );
     try {
-      final response = http.Response(jsonEncode({'valid': false}), 500);
-      // final response = await _client
-      // .post(
-      //   uri,
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'Accept': 'application/json',
-      //   },
-      //   body: jsonEncode({
-      //     'npub': npub,
-      //     'deviceId': deviceId,
-      //   }),
-      // )
-      // .timeout(_timeout);
+      final response = await _client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'npub': npub, 'deviceId': deviceId}),
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
