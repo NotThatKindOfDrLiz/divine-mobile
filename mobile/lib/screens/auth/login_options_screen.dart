@@ -160,6 +160,8 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
             backgroundColor: VineTheme.error,
           ),
         );
+        // Clear the error so it doesn't show again on the welcome screen
+        authService.clearError();
       }
     } finally {
       if (mounted) {

@@ -1,5 +1,5 @@
 // ABOUTME: Create account screen with email/password registration form
-// ABOUTME: Provides DivineAuthCubit in sign-up mode with confirm password
+// ABOUTME: Provides DivineAuthCubit in sign-up mode
 
 import 'dart:math';
 
@@ -92,22 +92,20 @@ class _CreateAccountView extends StatelessWidget {
   }
 }
 
-/// Body of the create account form with email, password, and confirm password.
-class _CreateAccountBody extends ConsumerStatefulWidget {
+/// Body of the create account form with email and password.
+class _CreateAccountBody extends StatefulWidget {
   const _CreateAccountBody({required this.state, required this.authService});
 
   final DivineAuthFormState state;
   final AuthService authService;
 
   @override
-  ConsumerState<_CreateAccountBody> createState() => _CreateAccountBodyState();
+  State<_CreateAccountBody> createState() => _CreateAccountBodyState();
 }
 
-class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
+class _CreateAccountBodyState extends State<_CreateAccountBody> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
-  final _confirmPasswordController = TextEditingController();
-  String? _confirmPasswordError;
   bool _isSkipping = false;
 
   @override
@@ -132,23 +130,10 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   void _submit() {
-    // Validate confirm password matches
-    if (_confirmPasswordController.text != _passwordController.text) {
-      setState(() {
-        _confirmPasswordError = 'Passwords do not match';
-      });
-      return;
-    }
-
-    setState(() {
-      _confirmPasswordError = null;
-    });
-
     context.read<DivineAuthCubit>().submit();
   }
 
@@ -236,34 +221,20 @@ class _CreateAccountBodyState extends ConsumerState<_CreateAccountBody> {
 
                 const SizedBox(height: 16),
 
-                // Confirm password field with dog sticker
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    AuthPasswordField(
-                      controller: _confirmPasswordController,
-                      hintText: 'Confirm password',
-                      errorText: _confirmPasswordError,
-                      enabled: !isDisabled,
-                      onChanged: (_) {
-                        if (_confirmPasswordError != null) {
-                          setState(() => _confirmPasswordError = null);
-                        }
-                      },
-                    ),
-                    Positioned(
-                      right: -20,
-                      bottom: -160,
-                      child: Transform.rotate(
-                        angle: 12 * pi / 180,
-                        child: Image.asset(
-                          'assets/stickers/samoyed_dog.png',
-                          width: 140,
-                          height: 140,
-                        ),
+                // Dog sticker
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Transform.translate(
+                    offset: const Offset(20, 0),
+                    child: Transform.rotate(
+                      angle: 12 * pi / 180,
+                      child: Image.asset(
+                        'assets/stickers/samoyed_dog.png',
+                        width: 140,
+                        height: 140,
                       ),
                     ),
-                  ],
+                  ),
                 ),
 
                 // Error display
@@ -424,7 +395,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
 
           // Title
           const Text(
-            'Before you go...',
+            'One last thing...',
             style: TextStyle(
               fontFamily: 'BricolageGrotesque',
               fontSize: 24,
@@ -438,7 +409,6 @@ class _SkipConfirmationSheet extends StatelessWidget {
           const Text(
             "You're in! We'll create a secure key that powers "
             'your Divine account.',
-            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               color: VineTheme.secondaryText,
@@ -447,11 +417,21 @@ class _SkipConfirmationSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            "You can access your key in the app, but if you're not "
-            'technical, we recommend adding an email and password '
-            'now. With it you can easily login on other devices and '
-            'restore your account if you lose or reset this device.',
-            textAlign: TextAlign.center,
+            'Without an email, your key is the only way '
+            'Divine knows this account is yours.',
+            style: TextStyle(
+              fontSize: 16,
+              color: VineTheme.secondaryText,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "You can access your key in the app, but, if "
+            "you're not technical we recommend adding an "
+            'email and password now. It makes it easier to '
+            'login and restore your account if you lose or '
+            'reset this device.',
             style: TextStyle(
               fontSize: 16,
               color: VineTheme.secondaryText,
@@ -486,18 +466,17 @@ class _SkipConfirmationSheet extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             height: 56,
-            child: OutlinedButton(
+            child: TextButton(
               onPressed: () => Navigator.pop(context, true),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: VineTheme.vineGreen,
-                side: const BorderSide(color: VineTheme.vineGreen, width: 1.5),
+              style: TextButton.styleFrom(
+                foregroundColor: VineTheme.secondaryText,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
               child: const Text(
                 'Use this device only',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
             ),
           ),

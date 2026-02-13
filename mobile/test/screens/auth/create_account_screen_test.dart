@@ -1,6 +1,6 @@
 // ABOUTME: Tests for CreateAccountScreen
-// ABOUTME: Verifies form rendering, confirm password validation,
-// ABOUTME: submit interaction, and skip button behavior
+// ABOUTME: Verifies form rendering, submit interaction,
+// ABOUTME: and skip button behavior
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -90,16 +90,6 @@ void main() {
         expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
       });
 
-      testWidgets('displays confirm password field', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        expect(
-          find.widgetWithText(TextField, 'Confirm password'),
-          findsOneWidget,
-        );
-      });
-
       testWidgets('displays create account button', (tester) async {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
@@ -134,57 +124,6 @@ void main() {
     });
 
     group('interactions', () {
-      testWidgets('shows error when passwords do not match', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        // Enter password
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
-          'password123',
-        );
-
-        // Enter different confirm password
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Confirm password'),
-          'different456',
-        );
-
-        // Tap create account
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create account'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Passwords do not match'), findsOneWidget);
-      });
-
-      testWidgets('clears confirm password error on typing', (tester) async {
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        // Trigger mismatch error
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
-          'password123',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Confirm password'),
-          'different456',
-        );
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create account'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Passwords do not match'), findsOneWidget);
-
-        // Type in confirm password field to clear error
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Confirm password'),
-          'a',
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Passwords do not match'), findsNothing);
-      });
-
       testWidgets('tapping skip shows confirmation bottom sheet', (
         tester,
       ) async {
@@ -194,13 +133,13 @@ void main() {
         await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Before you go...'), findsOneWidget);
+        expect(find.text('One last thing...'), findsOneWidget);
         expect(
           find.widgetWithText(ElevatedButton, 'Add email & password'),
           findsOneWidget,
         );
         expect(
-          find.widgetWithText(OutlinedButton, 'Use this device only'),
+          find.widgetWithText(TextButton, 'Use this device only'),
           findsOneWidget,
         );
       });
@@ -215,7 +154,7 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.tap(
-          find.widgetWithText(OutlinedButton, 'Use this device only'),
+          find.widgetWithText(TextButton, 'Use this device only'),
         );
         // Use pump() instead of pumpAndSettle() because the loading
         // spinner animates indefinitely after signInAutomatically is called.
@@ -239,12 +178,12 @@ void main() {
           );
           await tester.pumpAndSettle();
 
-          expect(find.text('Before you go...'), findsNothing);
+          expect(find.text('One last thing...'), findsNothing);
           verifyNever(() => mockAuthService.signInAutomatically());
         },
       );
 
-      testWidgets('calls submit when passwords match', (tester) async {
+      testWidgets('calls submit on create account tap', (tester) async {
         // Stub headlessRegister so submit proceeds
         when(
           () => mockOAuth.headlessRegister(
@@ -273,13 +212,9 @@ void main() {
           'test@example.com',
         );
 
-        // Enter matching passwords
+        // Enter password
         await tester.enterText(
           find.widgetWithText(TextField, 'Password'),
-          'SecurePass123!',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Confirm password'),
           'SecurePass123!',
         );
 
@@ -296,42 +231,6 @@ void main() {
             scope: 'policy:full',
           ),
         ).called(1);
-      });
-
-      testWidgets('does not submit when passwords do not match', (
-        tester,
-      ) async {
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        // Enter email
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Email'),
-          'test@example.com',
-        );
-
-        // Enter mismatched passwords
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
-          'SecurePass123!',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Confirm password'),
-          'DifferentPass456!',
-        );
-
-        // Tap create account
-        await tester.tap(find.widgetWithText(ElevatedButton, 'Create account'));
-        await tester.pump();
-
-        // Verify headlessRegister was NOT called
-        verifyNever(
-          () => mockOAuth.headlessRegister(
-            email: any(named: 'email'),
-            password: any(named: 'password'),
-            scope: any(named: 'scope'),
-          ),
-        );
       });
     });
   });
