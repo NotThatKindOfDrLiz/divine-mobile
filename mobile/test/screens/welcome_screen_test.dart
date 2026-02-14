@@ -122,7 +122,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Create new diVine account'), findsOneWidget);
+        expect(find.text('Create a new Divine account'), findsOneWidget);
       });
 
       testWidgets('displays login button', (tester) async {
@@ -154,7 +154,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Create new diVine account'));
+        await tester.tap(find.text('Create a new Divine account'));
         await tester.pumpAndSettle();
 
         verify(() => mockAuthService.acceptTerms()).called(1);
@@ -292,13 +292,13 @@ void main() {
         expect(find.text('Log back in'), findsOneWidget);
       });
 
-      testWidgets('shows "Create a new diVine account" button', (tester) async {
+      testWidgets('shows "Create a new Divine account" button', (tester) async {
         await tester.binding.setSurfaceSize(const Size(800, 1200));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Create a new diVine account'), findsOneWidget);
+        expect(find.text('Create a new Divine account'), findsOneWidget);
       });
 
       testWidgets('tapping "Log back in" calls signInAutomatically', (
@@ -316,14 +316,14 @@ void main() {
       });
 
       testWidgets(
-        'tapping "Create a new diVine account" shows confirmation bottom sheet',
+        'tapping "Create a new Divine account" shows confirmation bottom sheet',
         (tester) async {
           await tester.binding.setSurfaceSize(const Size(800, 1200));
           addTearDown(() => tester.binding.setSurfaceSize(null));
           await tester.pumpWidget(createTestWidget());
           await tester.pumpAndSettle();
 
-          await tester.tap(find.text('Create a new diVine account'));
+          await tester.tap(find.text('Create a new Divine account'));
           await tester.pumpAndSettle();
 
           expect(find.text('Create a new Divine account?'), findsOneWidget);
@@ -340,7 +340,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Create a new diVine account'));
+        await tester.tap(find.text('Create a new Divine account'));
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Start fresh'));

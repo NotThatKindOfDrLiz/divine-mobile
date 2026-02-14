@@ -154,7 +154,7 @@ class _NostrConnectScreenState extends ConsumerState<NostrConnectScreen> {
     if (_connectUrl == null) return;
 
     await SharePlus.instance.share(
-      ShareParams(text: _connectUrl!, title: 'Connect to diVine'),
+      ShareParams(text: _connectUrl!, title: 'Connect to Divine'),
     );
   }
 

@@ -165,7 +165,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
 
                 // Title
                 Text(
-                  isSignIn ? 'Sign in' : 'Welcome to diVine!',
+                  isSignIn ? 'Sign in' : 'Welcome to Divine!',
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -177,7 +177,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
                 if (!isSignIn) ...[
                   const SizedBox(height: 12),
                   const Text(
-                    'Unlike other social apps, you can use diVine '
+                    'Unlike other social apps, you can use Divine '
                     'without an email or password. Add them now or '
                     'later to recover your account on any device.',
                     style: TextStyle(
@@ -337,7 +337,7 @@ class _DivineAuthFormState extends State<_AuthForm> {
                     Text(
                       isSignIn
                           ? "Don't have an account? "
-                          : 'Already on diVine or Nostr? ',
+                          : 'Already on Divine or Nostr? ',
                       style: const TextStyle(
                         color: VineTheme.lightText,
                         fontSize: 14,

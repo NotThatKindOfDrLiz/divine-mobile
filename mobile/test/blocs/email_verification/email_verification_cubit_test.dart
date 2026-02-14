@@ -103,6 +103,19 @@ void main() {
           expect(cubit.state.error, isNull);
         },
       );
+
+      blocTest<EmailVerificationCubit, EmailVerificationState>(
+        'preserves success state to avoid UI flash',
+        build: buildCubit,
+        seed: () => const EmailVerificationState(
+          status: EmailVerificationStatus.success,
+        ),
+        act: (cubit) => cubit.stopPolling(),
+        expect: () => <EmailVerificationState>[],
+        verify: (cubit) {
+          expect(cubit.state.status, EmailVerificationStatus.success);
+        },
+      );
     });
 
     group('zombie cubit detection', () {

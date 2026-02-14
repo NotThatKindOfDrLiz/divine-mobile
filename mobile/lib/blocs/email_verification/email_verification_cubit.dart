@@ -112,7 +112,12 @@ class EmailVerificationCubit extends Cubit<EmailVerificationState> {
       category: LogCategory.auth,
     );
     _cleanup();
-    emit(const EmailVerificationState());
+    // Don't reset to initial state if verification already succeeded —
+    // cleanup was already performed by the cubit and resetting would cause
+    // a brief UI flash of the pre-verification content before navigation.
+    if (state.status != EmailVerificationStatus.success) {
+      emit(const EmailVerificationState());
+    }
   }
 
   void _onTimeout() {

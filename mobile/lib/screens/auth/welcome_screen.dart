@@ -142,7 +142,7 @@ class _NewUserLayout extends StatelessWidget {
         ],
 
         _PrimaryButton(
-          label: 'Create new diVine account',
+          label: 'Create a new Divine account',
           isLoading: isLoading,
           onPressed: () => context.read<WelcomeBloc>().add(
             const WelcomeCreateAccountRequested(),
@@ -241,7 +241,7 @@ class _ReturningUserLayout extends StatelessWidget {
 
         // Create new account (tertiary) — shows confirmation bottom sheet
         _SecondaryButton(
-          label: 'Create a new diVine account',
+          label: 'Create a new Divine account',
           isLoading: isLoading,
           onPressed: () =>
               showModalBottomSheet<bool>(

@@ -502,7 +502,7 @@ class _InfoSheet extends StatelessWidget {
           const _InfoItem(
             title: 'Email & Password',
             description:
-                'Sign in with your diVine account. If you registered '
+                'Sign in with your Divine account. If you registered '
                 'with an email and password, use them here.',
           ),
           const SizedBox(height: 16),
