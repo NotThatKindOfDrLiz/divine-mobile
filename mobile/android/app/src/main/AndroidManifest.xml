@@ -147,5 +147,11 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="nostrsigner" />
         </intent>
+
+        <!-- Email app launch (email verification flow) -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_EMAIL" />
+        </intent>
     </queries>
 </manifest>
