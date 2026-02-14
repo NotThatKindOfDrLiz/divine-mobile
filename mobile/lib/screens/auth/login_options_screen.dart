@@ -19,6 +19,7 @@ import 'package:openvine/widgets/auth/auth_password_field.dart';
 import 'package:openvine/widgets/auth/auth_text_field.dart';
 import 'package:openvine/widgets/auth/forgot_password_dialog.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
+import 'package:openvine/widgets/circular_icon_button.dart';
 
 /// Sign-in screen — Page that provides [DivineAuthCubit].
 class LoginOptionsScreen extends ConsumerWidget {
@@ -339,20 +340,15 @@ class _InfoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: VineTheme.vineGreen, width: 1.5),
-        ),
-        child: const Icon(
-          Icons.info_outline,
-          color: VineTheme.vineGreen,
-          size: 22,
-        ),
+    return CircularIconButton(
+      onPressed: onPressed ?? () {},
+      backgroundColor: VineTheme.surfaceContainer,
+      backgroundOpacity: 1.0,
+      size: 44,
+      icon: const Icon(
+        Icons.info_outline,
+        color: VineTheme.vineGreenLight,
+        size: 22,
       ),
     );
   }

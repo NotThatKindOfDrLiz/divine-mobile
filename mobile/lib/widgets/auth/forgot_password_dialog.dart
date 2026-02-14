@@ -114,7 +114,7 @@ class _ForgotPasswordDialogState extends State<_ForgotPasswordDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: VineTheme.vineGreen,
-            foregroundColor: VineTheme.whiteText,
+            foregroundColor: VineTheme.backgroundColor,
           ),
           onPressed: () async {
             if (_formKey.currentState!.validate()) {
