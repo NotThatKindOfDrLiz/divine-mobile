@@ -357,7 +357,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Create a new diVine account'));
+        await tester.tap(find.text('Create a new Divine account'));
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Cancel'));
