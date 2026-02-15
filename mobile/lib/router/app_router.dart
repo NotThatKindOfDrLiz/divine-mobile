@@ -119,6 +119,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location.startsWith(KeyImportScreen.path) ||
           location.startsWith(NostrConnectScreen.path) ||
           location.startsWith(WelcomeScreen.resetPasswordPath) ||
+          location.startsWith(ResetPasswordScreen.path) ||
           location.startsWith(EmailVerificationScreen.path);
 
       // Unauthenticated users on non-auth routes → redirect to welcome

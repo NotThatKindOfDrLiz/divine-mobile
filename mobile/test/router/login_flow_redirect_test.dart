@@ -4,16 +4,22 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/auth/divine_auth_screen.dart';
+import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/login_options_screen.dart';
+import 'package:openvine/screens/auth/reset_password.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/screens/key_import_screen.dart';
-import 'package:openvine/screens/auth/welcome_screen.dart';
+import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 
 /// Isolated test of the redirect logic that mirrors app_router.dart redirect
 /// function. This helps us understand what SHOULD happen without Firebase
 /// dependencies.
+///
+/// IMPORTANT: This must stay in sync with the `redirect` callback in
+/// `app_router.dart`. When you add a new auth route there, add it here too.
 ///
 /// The actual redirect logic is:
 /// 1. If authenticated AND on auth route -> redirect to /home/0
@@ -23,10 +29,15 @@ String? testRedirectLogic({
   required String location,
   required AuthState authState,
 }) {
-  // Auth routes that should be accessible without authentication
+  // Auth routes that should be accessible without authentication.
+  // Mirrors the isAuthRoute check in app_router.dart.
   final isAuthRoute =
       location.startsWith(WelcomeScreen.path) ||
-      location.startsWith(KeyImportScreen.path);
+      location.startsWith(KeyImportScreen.path) ||
+      location.startsWith(NostrConnectScreen.path) ||
+      location.startsWith(WelcomeScreen.resetPasswordPath) ||
+      location.startsWith(ResetPasswordScreen.path) ||
+      location.startsWith(EmailVerificationScreen.path);
 
   // Rule 1: Authenticated users on auth routes go to home
   if (authState == AuthState.authenticated && isAuthRoute) {
@@ -100,6 +111,57 @@ void main() {
               '${KeyImportScreen.path} is an auth route, should not redirect',
         );
       });
+
+      test(
+        'unauthenticated user can access ${ResetPasswordScreen.path} deep link',
+        () {
+          final redirect = testRedirectLogic(
+            location: ResetPasswordScreen.path,
+            authState: AuthState.unauthenticated,
+          );
+          expect(
+            redirect,
+            isNull,
+            reason:
+                '${ResetPasswordScreen.path} is a deep link auth route, '
+                'should not redirect to /welcome',
+          );
+        },
+      );
+
+      test(
+        'unauthenticated user can access ${WelcomeScreen.resetPasswordPath}',
+        () {
+          final redirect = testRedirectLogic(
+            location: WelcomeScreen.resetPasswordPath,
+            authState: AuthState.unauthenticated,
+          );
+          expect(
+            redirect,
+            isNull,
+            reason:
+                '${WelcomeScreen.resetPasswordPath} is an auth route, '
+                'should not redirect',
+          );
+        },
+      );
+
+      test(
+        'unauthenticated user can access ${EmailVerificationScreen.path}',
+        () {
+          final redirect = testRedirectLogic(
+            location: EmailVerificationScreen.path,
+            authState: AuthState.unauthenticated,
+          );
+          expect(
+            redirect,
+            isNull,
+            reason:
+                '${EmailVerificationScreen.path} is an auth route, '
+                'should not redirect',
+          );
+        },
+      );
 
       test(
         'unauthenticated user on ${HomeScreenRouter.pathForIndex(0)} redirects to /welcome',
@@ -210,6 +272,23 @@ void main() {
           );
         },
       );
+
+      test('${ResetPasswordScreen.path} deep link should NEVER redirect to '
+          '${WelcomeScreen.path} for unauthenticated users', () {
+        final redirect = testRedirectLogic(
+          location: ResetPasswordScreen.path,
+          authState: AuthState.unauthenticated,
+        );
+
+        expect(
+          redirect,
+          isNot(equals(WelcomeScreen.path)),
+          reason:
+              'BUG: ${ResetPasswordScreen.path} is a deep link auth route '
+              'and must be accessible to unauthenticated users resetting '
+              'their password!',
+        );
+      });
 
       test('${DivineAuthScreen.path}?mode=register should be accessible', () {
         final redirect = testRedirectLogic(

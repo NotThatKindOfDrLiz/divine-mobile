@@ -640,6 +640,15 @@ class AuthService implements BackgroundAwareService {
         );
       }
 
+      // Log what's already in _keyStorage for debugging identity issues
+      final existingContainer = await _keyStorage.getKeyContainer();
+      Log.debug(
+        'connectWithAmber: amberPubkey=$pubkey, '
+        'existingStoredPubkey=${existingContainer?.publicKeyHex ?? "null"}',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+
       // Save connection info for session restoration
       await _saveAmberInfo(pubkey, _amberSigner!.getPackage());
 
@@ -1335,13 +1344,66 @@ class AuthService implements BackgroundAwareService {
     }
   }
 
+  /// Attempts to reconnect to a previously used external signer
+  /// (Amber/Bunker).
+  ///
+  /// Connection info is preserved during non-destructive sign-out (switch
+  /// account) so that "Log back in" can reconnect without creating a new
+  /// identity.
+  ///
+  /// Returns `true` if reconnection succeeded and user is authenticated.
+  Future<bool> _tryReconnectExternalSigner() async {
+    // Try Amber first (NIP-55)
+    final amberInfo = await _loadAmberInfo();
+    if (amberInfo != null) {
+      Log.info(
+        'signInAutomatically: found preserved Amber info, '
+        'attempting reconnection',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      await _reconnectAmber(amberInfo.pubkey, amberInfo.package);
+      if (_authState == AuthState.authenticated) {
+        return true;
+      }
+    }
+
+    // Try Bunker (NIP-46)
+    final bunkerInfo = await _loadBunkerInfo();
+    if (bunkerInfo != null) {
+      Log.info(
+        'signInAutomatically: found preserved Bunker info, '
+        'attempting reconnection',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      await _reconnectBunker(bunkerInfo);
+      if (_authState == AuthState.authenticated) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// transitions to authenticated state creating keys if needed
   Future<void> signInAutomatically() async {
     try {
-      // If not authenticated (e.g., after logout), re-initialize to load
-      // existing keys
+      Log.debug(
+        'signInAutomatically: authState=$_authState, '
+        'authSource=${_authSource.name}, '
+        'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"}',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      // If not authenticated (e.g., after logout), try to restore session.
+      // First attempt to reconnect to a preserved external signer
+      // (Amber/Bunker) from a non-destructive sign-out. If that fails or no
+      // connection info exists, fall back to local key storage.
       if (_authState != AuthState.authenticated) {
-        await _checkExistingAuth();
+        if (!await _tryReconnectExternalSigner()) {
+          await _checkExistingAuth();
+        }
       }
 
       // Run discovery for resumed sessions that haven't discovered relays yet
@@ -1510,7 +1572,10 @@ class AuthService implements BackgroundAwareService {
   /// Sign out the current user
   Future<void> signOut({bool deleteKeys = false}) async {
     Log.debug(
-      '📱 Signing out user',
+      '📱 Signing out user '
+      '(authSource=${_authSource.name}, '
+      'deleteKeys=$deleteKeys, '
+      'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"})',
       name: 'AuthService',
       category: LogCategory.auth,
     );
@@ -1519,7 +1584,13 @@ class AuthService implements BackgroundAwareService {
       // Clear TOS acceptance on any logout - user must re-accept when logging
       // back in
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_kAuthSourceKey);
+      // Only clear the auth source on destructive sign-out. Non-destructive
+      // sign-out (switch account) preserves it so that initialize() and
+      // signInAutomatically() can reconnect to the same external signer
+      // (Amber/Bunker) when the user returns.
+      if (deleteKeys) {
+        await prefs.remove(_kAuthSourceKey);
+      }
       await prefs.remove('age_verified_16_plus');
       await prefs.remove('terms_accepted_at');
 
@@ -1550,7 +1621,48 @@ class AuthService implements BackgroundAwareService {
             _currentKeyContainer!.publicKeyHex,
           );
         }
-        _keyStorage.clearCache();
+
+        // When the current session used an external signer (Amber/Bunker),
+        // local key storage may contain stale keys from a previous identity
+        // (e.g., auto-created keys before the user connected Amber).
+        // Delete these stale keys to prevent _checkExistingAuth() from
+        // auto-signing in with the wrong identity.
+        if (_authSource == AuthenticationSource.amber ||
+            _authSource == AuthenticationSource.bunker) {
+          final storedContainer = await _keyStorage.getKeyContainer();
+          Log.debug(
+            'signOut: external signer check — '
+            'storedKeyPubkey=${storedContainer?.publicKeyHex ?? "null"}, '
+            'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"}, '
+            'match=${storedContainer?.publicKeyHex == _currentKeyContainer?.publicKeyHex}',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
+          if (storedContainer != null &&
+              storedContainer.publicKeyHex !=
+                  _currentKeyContainer?.publicKeyHex) {
+            Log.debug(
+              'signOut: deleting stale local keys from previous identity',
+              name: 'AuthService',
+              category: LogCategory.auth,
+            );
+            await _keyStorage.deleteKeys();
+          } else {
+            Log.debug(
+              'signOut: no stale keys detected, clearing cache only',
+              name: 'AuthService',
+              category: LogCategory.auth,
+            );
+            _keyStorage.clearCache();
+          }
+        } else {
+          Log.debug(
+            'signOut: authSource=${_authSource.name}, clearing cache only',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
+          _keyStorage.clearCache();
+        }
       }
 
       // Clear session
@@ -1563,14 +1675,24 @@ class AuthService implements BackgroundAwareService {
       if (_bunkerSigner != null) {
         _bunkerSigner!.close();
         _bunkerSigner = null;
-        await _clearBunkerInfo();
+        // Only clear persisted connection info on destructive sign-out.
+        // Non-destructive sign-out (switch account) preserves it so
+        // "Log back in" can reconnect.
+        if (deleteKeys) {
+          await _clearBunkerInfo();
+        }
       }
 
       // Clean up Amber signer if active
       if (_amberSigner != null) {
         _amberSigner!.close();
         _amberSigner = null;
-        await _clearAmberInfo();
+        // Only clear persisted connection info on destructive sign-out.
+        // Non-destructive sign-out (switch account) preserves it so
+        // "Log back in" can reconnect.
+        if (deleteKeys) {
+          await _clearAmberInfo();
+        }
       }
 
       try {
@@ -1587,11 +1709,23 @@ class AuthService implements BackgroundAwareService {
 
       _setAuthState(AuthState.unauthenticated);
 
-      Log.info(
-        'User signed out',
-        name: 'AuthService',
-        category: LogCategory.auth,
-      );
+      // Post-signout verification: confirm key storage state
+      try {
+        final postSignOutHasKeys = await _keyStorage.hasKeys();
+        Log.info(
+          'signOut complete — '
+          'keyStorageHasKeys=$postSignOutHasKeys, '
+          'authSource=${_authSource.name}',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
+      } catch (_) {
+        Log.info(
+          'signOut complete',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
+      }
     } catch (e) {
       Log.error(
         'Error during sign out: $e',
@@ -1768,6 +1902,11 @@ class AuthService implements BackgroundAwareService {
   Future<void> _checkExistingAuth() async {
     try {
       final hasKeys = await _keyStorage.hasKeys();
+      Log.debug(
+        '_checkExistingAuth: hasKeys=$hasKeys',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
 
       if (hasKeys) {
         Log.info(
@@ -1779,8 +1918,8 @@ class AuthService implements BackgroundAwareService {
         final keyContainer = await _keyStorage.getKeyContainer();
         if (keyContainer != null) {
           Log.info(
-            'Loaded existing secure identity: '
-            '${NostrKeyUtils.maskKey(keyContainer.npub)}',
+            '_checkExistingAuth: loading identity '
+            'pubkey=${keyContainer.publicKeyHex}',
             name: 'AuthService',
             category: LogCategory.auth,
           );
