@@ -1,6 +1,10 @@
 // ABOUTME: Service for audio playback during recording with headphone detection
 // ABOUTME: Manages audio session configuration and exposes playback streams
 
+// AudioDeviceType is marked experimental in audio_session but is stable enough
+// for headphone detection. Suppress until the API is promoted.
+// ignore_for_file: experimental_member_use
+
 import 'dart:async';
 import 'dart:io';
 
