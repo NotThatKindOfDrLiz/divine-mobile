@@ -1,5 +1,5 @@
-// ABOUTME: Native email/password authentication screen for diVine
-// ABOUTME: Handles both login and registration with email verification flow
+// ABOUTME: Secure account screen for existing anonymous users
+// ABOUTME: Allows adding email/password to an existing anonymous account
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +12,10 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/validators.dart';
-import 'package:openvine/widgets/error_message.dart';
+import 'package:openvine/widgets/auth/auth_error_box.dart';
+import 'package:openvine/widgets/auth/auth_form_scaffold.dart';
+import 'package:openvine/widgets/auth/auth_password_field.dart';
+import 'package:openvine/widgets/auth/auth_text_field.dart';
 
 class SecureAccountScreen extends ConsumerStatefulWidget {
   /// Route name for this screen.
@@ -29,24 +32,16 @@ class SecureAccountScreen extends ConsumerStatefulWidget {
 }
 
 class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
   bool _isLoading = false;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  String? _errorMessage;
+  String? _emailError;
+  String? _passwordError;
+  String? _generalError;
 
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  void _setErrorMessage(String? message) {
+  void _setGeneralError(String? message) {
     if (mounted) {
-      setState(() => _errorMessage = message);
+      setState(() => _generalError = message);
     }
   }
 
@@ -54,18 +49,26 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    // Note: Polling is managed by emailVerificationNotifierProvider
-    // which survives navigation, so we don't cancel it here
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+    final emailError = Validators.validateEmail(_emailController.text.trim());
+    final passwordError = Validators.validatePassword(_passwordController.text);
+
+    if (emailError != null || passwordError != null) {
+      setState(() {
+        _emailError = emailError;
+        _passwordError = passwordError;
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
-      _errorMessage = null;
+      _emailError = null;
+      _passwordError = null;
+      _generalError = null;
     });
 
     try {
@@ -79,9 +82,7 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
       final nsec = await authService.exportNsec();
 
       if (nsec == null) {
-        setState(() {
-          _errorMessage = 'Unable to access your keys. Please try again.';
-        });
+        _setGeneralError('Unable to access your keys. Please try again.');
         return;
       }
 
@@ -97,19 +98,12 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
         name: 'SecureAccountScreen',
         category: LogCategory.auth,
       );
-      _setErrorMessage('An unexpected error occurred. Please try again.');
+      _setGeneralError('An unexpected error occurred. Please try again.');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value != _passwordController.text) {
-      return 'Passwords do not match';
-    }
-    return null;
   }
 
   Future<void> _handleRegister({
@@ -126,7 +120,7 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
     );
 
     if (!result.success) {
-      _setErrorMessage(result.errorDescription ?? 'Registration failed');
+      _setGeneralError(result.errorDescription ?? 'Registration failed');
       return;
     }
 
@@ -143,7 +137,7 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
         _showVerificationDialog(email);
       }
     } else {
-      _setErrorMessage('Registration complete. Please check your email.');
+      _setGeneralError('Registration complete. Please check your email.');
     }
   }
 
@@ -168,179 +162,80 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
   }
 
   void _continueToApp() {
-    // User can use the app while waiting for verification
-    // The polling continues in the background
-    // Navigate to explore screen
     if (mounted) {
       context.go(ExploreScreen.path);
     }
   }
 
-  InputDecoration _buildInputDecoration({
-    required String label,
-    required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      suffixIcon: suffixIcon,
+  @override
+  Widget build(BuildContext context) {
+    return AuthFormScaffold(
+      title: 'Secure account',
+      emailField: AuthTextField(
+        controller: _emailController,
+        hintText: 'Email',
+        keyboardType: TextInputType.emailAddress,
+        errorText: _emailError,
+        enabled: !_isLoading,
+        onChanged: (_) {
+          if (_emailError != null) setState(() => _emailError = null);
+        },
+      ),
+      passwordField: AuthPasswordField(
+        controller: _passwordController,
+        errorText: _passwordError,
+        enabled: !_isLoading,
+        onChanged: (_) {
+          if (_passwordError != null) setState(() => _passwordError = null);
+        },
+      ),
+      errorWidget: _generalError != null
+          ? AuthErrorBox(message: _generalError!)
+          : null,
+      primaryButton: _SubmitButton(
+        isLoading: _isLoading,
+        onPressed: _handleSubmit,
+      ),
     );
   }
+}
+
+/// Green filled submit button matching the create account screen style.
+class _SubmitButton extends StatelessWidget {
+  const _SubmitButton({required this.isLoading, required this.onPressed});
+
+  final bool isLoading;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [VineTheme.vineGreen, Color(0xFF2D8B6F)],
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: VineTheme.vineGreen,
+          foregroundColor: VineTheme.backgroundColor,
+          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
+          elevation: 0,
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header with back button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
-                    ),
-                    const Spacer(),
-                  ],
+        child: isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: VineTheme.backgroundColor,
+                  strokeWidth: 2,
                 ),
+              )
+            : const Text(
+                'Secure account',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-
-              // Form
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 32),
-
-                        // Email field
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
-                          decoration: _buildInputDecoration(
-                            label: 'Email',
-                            icon: Icons.email_outlined,
-                          ),
-                          validator: Validators.validateEmail,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Password field
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          decoration: _buildInputDecoration(
-                            label: 'Password',
-                            icon: Icons.lock_outlined,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: Colors.white60,
-                              ),
-                              onPressed: () => setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              ),
-                            ),
-                          ),
-                          validator: Validators.validatePassword,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Confirm password
-                        AnimatedSize(
-                          duration: const Duration(milliseconds: 200),
-                          child: Column(
-                            children: [
-                              TextFormField(
-                                controller: _confirmPasswordController,
-                                obscureText: _obscureConfirmPassword,
-                                decoration: _buildInputDecoration(
-                                  label: 'Confirm Password',
-                                  icon: Icons.lock_outlined,
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscureConfirmPassword
-                                          ? Icons.visibility_off
-                                          : Icons.visibility,
-                                      color: Colors.white60,
-                                    ),
-                                    onPressed: () => setState(
-                                      () => _obscureConfirmPassword =
-                                          !_obscureConfirmPassword,
-                                    ),
-                                  ),
-                                ),
-                                validator: _validateConfirmPassword,
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                          ),
-                        ),
-
-                        // Error message
-                        if (_errorMessage != null) ...[
-                          ErrorMessage(message: _errorMessage),
-                          const SizedBox(height: 16),
-                        ],
-
-                        // Submit button
-                        SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleSubmit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: VineTheme.vineGreen,
-                              disabledBackgroundColor: Colors.white60,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: VineTheme.vineGreen,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Create Account',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

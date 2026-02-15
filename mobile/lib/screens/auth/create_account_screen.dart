@@ -1,8 +1,6 @@
 // ABOUTME: Create account screen with email/password registration form
 // ABOUTME: Provides DivineAuthCubit in sign-up mode
 
-import 'dart:math';
-
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,10 +10,10 @@ import 'package:openvine/blocs/divine_auth/divine_auth_cubit.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/services/auth_service.dart';
-import 'package:openvine/widgets/auth/auth_password_field.dart';
 import 'package:openvine/widgets/auth/auth_error_box.dart';
+import 'package:openvine/widgets/auth/auth_form_scaffold.dart';
+import 'package:openvine/widgets/auth/auth_password_field.dart';
 import 'package:openvine/widgets/auth/auth_text_field.dart';
-import 'package:openvine/widgets/auth_back_button.dart';
 
 /// Create account screen — Page that provides [DivineAuthCubit] in sign-up
 /// mode.
@@ -69,24 +67,18 @@ class _CreateAccountView extends StatelessWidget {
           );
         }
       },
-      child: Scaffold(
-        backgroundColor: VineTheme.backgroundColor,
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
-            builder: (context, state) {
-              if (state is DivineAuthFormState) {
-                return _CreateAccountBody(
-                  state: state,
-                  authService: authService,
-                );
-              }
-              return const Center(
-                child: CircularProgressIndicator(color: VineTheme.vineGreen),
-              );
-            },
-          ),
-        ),
+      child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
+        builder: (context, state) {
+          if (state is DivineAuthFormState) {
+            return _CreateAccountBody(state: state, authService: authService);
+          }
+          return const Scaffold(
+            backgroundColor: VineTheme.backgroundColor,
+            body: Center(
+              child: CircularProgressIndicator(color: VineTheme.vineGreen),
+            ),
+          );
+        },
       ),
     );
   }
@@ -166,108 +158,38 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
     final isSubmitting = widget.state.isSubmitting;
     final isDisabled = isSubmitting || _isSkipping;
 
-    return CustomScrollView(
-      slivers: [
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-
-                // Back button
-                AuthBackButton(
-                  onPressed: isDisabled ? null : () => context.pop(),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Title
-                const Text(
-                  'Create account',
-                  style: TextStyle(
-                    fontFamily: 'BricolageGrotesque',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: VineTheme.whiteText,
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                // Email field
-                AuthTextField(
-                  controller: _emailController,
-                  hintText: 'Email',
-                  keyboardType: TextInputType.emailAddress,
-                  errorText: widget.state.emailError,
-                  enabled: !isDisabled,
-                  onChanged: (value) =>
-                      context.read<DivineAuthCubit>().updateEmail(value),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Password field
-                AuthPasswordField(
-                  controller: _passwordController,
-                  errorText: widget.state.passwordError,
-                  enabled: !isDisabled,
-                  onChanged: (value) =>
-                      context.read<DivineAuthCubit>().updatePassword(value),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Dog sticker
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Transform.translate(
-                    offset: const Offset(20, 0),
-                    child: Transform.rotate(
-                      angle: 12 * pi / 180,
-                      child: Image.asset(
-                        'assets/stickers/samoyed_dog.png',
-                        width: 140,
-                        height: 140,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Error display
-                if (widget.state.generalError != null) ...[
-                  const SizedBox(height: 16),
-                  AuthErrorBox(message: widget.state.generalError!),
-                ],
-
-                // Push buttons to bottom
-                const Spacer(),
-
-                // Create account button
-                _CreateAccountButton(
-                  isSubmitting: isSubmitting,
-                  isDisabled: isDisabled,
-                  onPressed: _submit,
-                ),
-
-                const SizedBox(height: 12),
-
-                // Skip button
-                _SkipButton(
-                  isSkipping: _isSkipping,
-                  isDisabled: isDisabled,
-                  onPressed: _skip,
-                ),
-
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return AuthFormScaffold(
+      title: 'Create account',
+      onBack: isDisabled ? null : () => context.pop(),
+      emailField: AuthTextField(
+        controller: _emailController,
+        hintText: 'Email',
+        keyboardType: TextInputType.emailAddress,
+        errorText: widget.state.emailError,
+        enabled: !isDisabled,
+        onChanged: (value) =>
+            context.read<DivineAuthCubit>().updateEmail(value),
+      ),
+      passwordField: AuthPasswordField(
+        controller: _passwordController,
+        errorText: widget.state.passwordError,
+        enabled: !isDisabled,
+        onChanged: (value) =>
+            context.read<DivineAuthCubit>().updatePassword(value),
+      ),
+      errorWidget: widget.state.generalError != null
+          ? AuthErrorBox(message: widget.state.generalError!)
+          : null,
+      primaryButton: _CreateAccountButton(
+        isSubmitting: isSubmitting,
+        isDisabled: isDisabled,
+        onPressed: _submit,
+      ),
+      secondaryButton: _SkipButton(
+        isSkipping: _isSkipping,
+        isDisabled: isDisabled,
+        onPressed: _skip,
+      ),
     );
   }
 }
