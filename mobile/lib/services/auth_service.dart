@@ -430,6 +430,29 @@ class AuthService implements BackgroundAwareService {
     }
   }
 
+  /// Create a new anonymous account with a fresh identity.
+  ///
+  /// Always generates a brand-new keypair. Used by the "Skip for now" flow
+  /// on the create-account screen so that each skip produces a distinct
+  /// anonymous identity.
+  ///
+  /// The previous identity (if any) remains archived in per-account storage
+  /// and in the known-accounts registry, so the user can switch back to it.
+  ///
+  /// Throws if identity creation fails.
+  Future<void> createAnonymousAccount() async {
+    // Clear the primary key slot so createNewIdentity() writes fresh keys
+    // instead of _checkExistingAuth() finding and reusing old ones.
+    await _keyStorage.deleteKeys();
+
+    final result = await createNewIdentity();
+    if (!result.success) {
+      throw Exception(result.errorMessage ?? 'Failed to create identity');
+    }
+
+    await acceptTerms();
+  }
+
   Future<AuthenticationSource> _loadAuthSource() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1685,97 +1708,6 @@ class AuthService implements BackgroundAwareService {
     }
   }
 
-  /// Attempts to reconnect to a previously used external signer
-  /// (Amber/Bunker).
-  ///
-  /// Connection info is preserved during non-destructive sign-out (switch
-  /// account) so that "Log back in" can reconnect without creating a new
-  /// identity.
-  ///
-  /// Returns `true` if reconnection succeeded and user is authenticated.
-  Future<bool> _tryReconnectExternalSigner() async {
-    // Try Amber first (NIP-55)
-    final amberInfo = await _loadAmberInfo();
-    if (amberInfo != null) {
-      Log.info(
-        'signInAutomatically: found preserved Amber info, '
-        'attempting reconnection',
-        name: 'AuthService',
-        category: LogCategory.auth,
-      );
-      await _reconnectAmber(amberInfo.pubkey, amberInfo.package);
-      if (_authState == AuthState.authenticated) {
-        return true;
-      }
-    }
-
-    // Try Bunker (NIP-46)
-    final bunkerInfo = await _loadBunkerInfo();
-    if (bunkerInfo != null) {
-      Log.info(
-        'signInAutomatically: found preserved Bunker info, '
-        'attempting reconnection',
-        name: 'AuthService',
-        category: LogCategory.auth,
-      );
-      await _reconnectBunker(bunkerInfo);
-      if (_authState == AuthState.authenticated) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /// transitions to authenticated state creating keys if needed
-  Future<void> signInAutomatically() async {
-    try {
-      Log.debug(
-        'signInAutomatically: authState=$_authState, '
-        'authSource=${_authSource.name}, '
-        'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"}',
-        name: 'AuthService',
-        category: LogCategory.auth,
-      );
-      // If not authenticated (e.g., after logout), try to restore session.
-      // First attempt to reconnect to a preserved external signer
-      // (Amber/Bunker) from a non-destructive sign-out. If that fails or no
-      // connection info exists, fall back to local key storage.
-      if (_authState != AuthState.authenticated) {
-        if (!await _tryReconnectExternalSigner()) {
-          await _checkExistingAuth();
-        }
-      }
-
-      // Run discovery for resumed sessions that haven't discovered relays yet
-      // This handles the case where user logs in, closes app, and reopens
-      // Run in background - don't block returning user from accessing the app
-      if (isAuthenticated && currentNpub != null && _userRelays.isEmpty) {
-        Log.info(
-          '🔄 Running discovery in background for resumed session',
-          name: 'AuthService',
-          category: LogCategory.auth,
-        );
-        unawaited(_performDiscovery());
-      }
-
-      await acceptTerms();
-
-      Log.info(
-        'Terms of Service accepted, user is now fully authenticated',
-        name: 'AuthService',
-        category: LogCategory.auth,
-      );
-    } catch (e) {
-      Log.error(
-        'Failed to save TOS acceptance: $e',
-        name: 'AuthService',
-        category: LogCategory.auth,
-      );
-      _lastError = 'Failed to accept terms: $e';
-    }
-  }
-
   /// Sign in using OAuth 2.0 flow
   Future<void> signInWithDivineOAuth(KeycastSession session) async {
     Log.debug(
@@ -1926,9 +1858,9 @@ class AuthService implements BackgroundAwareService {
       // back in
       final prefs = await SharedPreferences.getInstance();
       // Only clear the auth source on destructive sign-out. Non-destructive
-      // sign-out (switch account) preserves it so that initialize() and
-      // signInAutomatically() can reconnect to the same external signer
-      // (Amber/Bunker) when the user returns.
+      // sign-out (switch account) preserves it so that initialize() can
+      // reconnect to the same external signer (Amber/Bunker) when the user
+      // returns.
       if (deleteKeys) {
         await prefs.remove(_kAuthSourceKey);
       }

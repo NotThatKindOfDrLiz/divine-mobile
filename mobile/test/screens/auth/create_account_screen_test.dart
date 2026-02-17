@@ -33,7 +33,9 @@ void main() {
     mockAuthService = _MockAuthService();
     mockPendingVerification = _MockPendingVerificationService();
 
-    when(() => mockAuthService.signInAutomatically()).thenAnswer((_) async {});
+    when(
+      () => mockAuthService.createAnonymousAccount(),
+    ).thenAnswer((_) async {});
   });
 
   Widget createTestWidget() {
@@ -144,7 +146,7 @@ void main() {
         );
       });
 
-      testWidgets('tapping Use this device only calls signInAutomatically', (
+      testWidgets('tapping Use this device only calls createAnonymousAccount', (
         tester,
       ) async {
         await tester.pumpWidget(createTestWidget());
@@ -157,11 +159,11 @@ void main() {
           find.widgetWithText(TextButton, 'Use this device only'),
         );
         // Use pump() instead of pumpAndSettle() because the loading
-        // spinner animates indefinitely after signInAutomatically is called.
+        // spinner animates indefinitely after createAnonymousAccount is called.
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
-        verify(() => mockAuthService.signInAutomatically()).called(1);
+        verify(() => mockAuthService.createAnonymousAccount()).called(1);
       });
 
       testWidgets(
@@ -179,7 +181,7 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(find.text('One last thing...'), findsNothing);
-          verifyNever(() => mockAuthService.signInAutomatically());
+          verifyNever(() => mockAuthService.createAnonymousAccount());
         },
       );
 

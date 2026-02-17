@@ -145,7 +145,7 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
     setState(() => _isSkipping = true);
 
     try {
-      await widget.authService.signInAutomatically();
+      await widget.authService.createAnonymousAccount();
     } catch (_) {
       if (mounted) {
         setState(() => _isSkipping = false);
