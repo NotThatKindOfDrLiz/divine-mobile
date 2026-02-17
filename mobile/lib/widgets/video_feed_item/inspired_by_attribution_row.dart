@@ -101,7 +101,7 @@ class _InspiredByContent extends ConsumerWidget {
 
     final creatorName =
         creatorProfile?.bestDisplayName ??
-        UserProfile.generatedNameFor(creatorPubkey);
+        UserProfile.defaultDisplayNameFor(creatorPubkey);
 
     return GestureDetector(
       onTap: () => _navigateToCreatorProfile(context),

@@ -63,7 +63,8 @@ class UserProfileTile extends ConsumerWidget {
         // Get display name or truncated npub (fallback for users without Kind 0)
         final truncatedNpub = NostrKeyUtils.truncateNpub(pubkey);
         final displayName =
-            profile?.bestDisplayName ?? UserProfile.generatedNameFor(pubkey);
+            profile?.bestDisplayName ??
+            UserProfile.defaultDisplayNameFor(pubkey);
 
         // Get unique identifier: NIP-05 if available, otherwise truncated npub
         final uniqueIdentifier = profile?.displayNip05?.isNotEmpty == true

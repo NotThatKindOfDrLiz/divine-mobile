@@ -131,7 +131,7 @@ class _ProfileSetupScreenViewState
 
       if (pubkey != null) {
         if (_nameController.text.isEmpty) {
-          _nameController.text = UserProfile.generatedNameFor(pubkey);
+          _nameController.text = UserProfile.defaultDisplayNameFor(pubkey);
         }
         final profileRepo = ref.read(profileRepositoryProvider);
         // Return early if NostrClient doesn't have keys yet

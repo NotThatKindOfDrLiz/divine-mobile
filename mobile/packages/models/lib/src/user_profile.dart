@@ -145,7 +145,7 @@ class UserProfile {
     if (displayName?.isNotEmpty ?? false) return displayName!;
     if (name?.isNotEmpty ?? false) return name!;
     if (anonymousPlaceholder != null) return anonymousPlaceholder;
-    return generatedName;
+    return defaultDisplayName;
   }
 
   /// NIP-05 formatted for display (strips leading underscore).
@@ -170,18 +170,30 @@ class UserProfile {
 
   /// Get the best available display name.
   ///
-  /// Falls back to a deterministic generated name (e.g. "Brave Panda")
-  /// derived from the pubkey when no display name or name is set.
+  /// Falls back to [defaultDisplayName] when no display name or name is set.
   String get bestDisplayName {
     if (displayName?.isNotEmpty ?? false) return displayName!;
     if (name?.isNotEmpty ?? false) return name!;
-    return generatedName;
+    return defaultDisplayName;
   }
 
-  /// A deterministic "Adjective Animal" name derived from the full pubkey.
+  /// A deterministic "Adjective Animal Number" name derived from the pubkey.
   String get generatedName => generatedNameFor(pubkey);
 
-  /// Generate a deterministic "Adjective Animal" name for a given [pubkey].
+  /// The default display name to show when no profile name is set.
+  ///
+  /// Delegates to [defaultDisplayNameFor]. Change that single method to
+  /// switch the fallback strategy app-wide (e.g. back to truncated npubs).
+  String get defaultDisplayName => defaultDisplayNameFor(pubkey);
+
+  /// The default display name for a pubkey that has no profile name set.
+  ///
+  /// Currently returns a deterministic generated name. To switch the
+  /// fallback strategy app-wide, change only this method.
+  static String defaultDisplayNameFor(String pubkey) =>
+      generatedNameFor(pubkey);
+
+  /// Generate a deterministic "Adjective Animal Number" name for a [pubkey].
   static String generatedNameFor(String pubkey) {
     final seed = pubkey.codeUnits.fold<int>(0, (prev, c) => prev * 31 + c);
     final random = Random(seed);

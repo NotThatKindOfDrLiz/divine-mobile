@@ -408,7 +408,7 @@ class _PeopleCarousel extends ConsumerWidget {
 
                 final displayName =
                     profile?.bestDisplayName ??
-                    UserProfile.generatedNameFor(pubkey);
+                    UserProfile.defaultDisplayNameFor(pubkey);
 
                 return Semantics(
                   label: 'View profile for $displayName',

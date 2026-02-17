@@ -1390,7 +1390,7 @@ class VideoOverlayActions extends ConsumerWidget {
                     final displayName =
                         profile?.bestDisplayName ??
                         video.authorName ??
-                        UserProfile.generatedNameFor(video.pubkey);
+                        UserProfile.defaultDisplayNameFor(video.pubkey);
                     final archivedLoops = video.originalLoops ?? 0;
                     final liveViews =
                         int.tryParse(video.rawTags['views'] ?? '') ?? 0;
@@ -2080,7 +2080,7 @@ class VideoRepostHeader extends ConsumerWidget {
 
     final displayName =
         reposterProfile?.bestDisplayName ??
-        UserProfile.generatedNameFor(reposterPubkey);
+        UserProfile.defaultDisplayNameFor(reposterPubkey);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

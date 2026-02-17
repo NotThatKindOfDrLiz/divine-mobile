@@ -1017,7 +1017,7 @@ class UserProfileService extends ChangeNotifier {
       return profile!.name!;
     }
     // Immediate fallback to generated name
-    return UserProfile.generatedNameFor(pubkey);
+    return UserProfile.defaultDisplayNameFor(pubkey);
   }
 
   /// Remove specific profile from cache

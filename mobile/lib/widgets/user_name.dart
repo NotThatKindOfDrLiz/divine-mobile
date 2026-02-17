@@ -88,7 +88,7 @@ class UserName extends ConsumerWidget {
 
       // Use embedded name from REST API as fallback, then generated name.
       final fallbackName =
-          embeddedName ?? UserProfile.generatedNameFor(pubkey!);
+          embeddedName ?? UserProfile.defaultDisplayNameFor(pubkey!);
 
       displayName = switch (profileAsync) {
         AsyncData(:final value) when value != null => value.betterDisplayName(

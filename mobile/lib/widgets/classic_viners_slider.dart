@@ -133,7 +133,7 @@ class _VinerAvatar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Use authorName from classic Vine data, clean up social media prefixes
     final rawName =
-        viner.authorName ?? UserProfile.generatedNameFor(viner.pubkey);
+        viner.authorName ?? UserProfile.defaultDisplayNameFor(viner.pubkey);
     final displayName = _cleanDisplayName(rawName);
 
     // Get avatar URL: try REST API first, then fallback to Nostr profile

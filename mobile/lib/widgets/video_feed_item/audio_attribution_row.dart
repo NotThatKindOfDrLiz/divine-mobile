@@ -89,7 +89,7 @@ class _AudioAttributionContent extends ConsumerWidget {
 
     final creatorName =
         creatorProfile?.bestDisplayName ??
-        UserProfile.generatedNameFor(audio.pubkey);
+        UserProfile.defaultDisplayNameFor(audio.pubkey);
     final soundName = audio.title ?? 'Original sound';
 
     return GestureDetector(

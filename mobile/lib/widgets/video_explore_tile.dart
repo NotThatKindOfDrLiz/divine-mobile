@@ -146,7 +146,7 @@ class _CreatorInfo extends ConsumerWidget {
 
     final displayName = switch (profileAsync) {
       AsyncData(:final value) when value != null => value.bestDisplayName,
-      AsyncData() || AsyncError() => UserProfile.generatedNameFor(pubkey),
+      AsyncData() || AsyncError() => UserProfile.defaultDisplayNameFor(pubkey),
       AsyncLoading() => 'Loading...',
     };
 

@@ -145,7 +145,7 @@ class _CollaboratorLabel extends ConsumerWidget {
 
     final firstName =
         firstProfile.value?.bestDisplayName ??
-        UserProfile.generatedNameFor(pubkeys.first);
+        UserProfile.defaultDisplayNameFor(pubkeys.first);
 
     final label = pubkeys.length == 1
         ? 'with @$firstName'
