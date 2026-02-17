@@ -7,9 +7,11 @@
 // ignore_for_file: avoid_dynamic_calls
 
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:meta/meta.dart';
 import 'package:nostr_sdk/event.dart';
+import 'package:unique_names_generator/unique_names_generator.dart';
 
 /// Model representing a Nostr user profile from kind 0 events
 @immutable
@@ -136,11 +138,14 @@ class UserProfile {
   }
 
   /// Like [bestDisplayName] but with a custom fallback placeholder.
+  ///
+  /// If [anonymousPlaceholder] is provided, it takes priority over the
+  /// generated name when no display name or name is set.
   String betterDisplayName(String? anonymousPlaceholder) {
     if (displayName?.isNotEmpty ?? false) return displayName!;
     if (name?.isNotEmpty ?? false) return name!;
     if (anonymousPlaceholder != null) return anonymousPlaceholder;
-    return bestDisplayName;
+    return generatedName;
   }
 
   /// NIP-05 formatted for display (strips leading underscore).
@@ -163,13 +168,28 @@ class UserProfile {
     return b != null && b.startsWith('http');
   }
 
-  /// Get the best available display name
+  /// Get the best available display name.
+  ///
+  /// Falls back to a deterministic generated name (e.g. "Brave Panda")
+  /// derived from the pubkey when no display name or name is set.
   String get bestDisplayName {
     if (displayName?.isNotEmpty ?? false) return displayName!;
     if (name?.isNotEmpty ?? false) return name!;
-    // Fallback to truncated pubkey
-    if (pubkey.length <= 16) return pubkey;
-    return '${pubkey.substring(0, 8)}...${pubkey.substring(pubkey.length - 6)}';
+    return generatedName;
+  }
+
+  /// A deterministic "Adjective Animal" name derived from the full pubkey.
+  String get generatedName => generatedNameFor(pubkey);
+
+  /// Generate a deterministic "Adjective Animal" name for a given [pubkey].
+  static String generatedNameFor(String pubkey) {
+    final seed = pubkey.codeUnits.fold<int>(0, (prev, c) => prev * 31 + c);
+    final random = Random(seed);
+    final adj = adjectives[random.nextInt(adjectives.length)];
+    final animal = animals[random.nextInt(animals.length)];
+    final number = random.nextInt(99) + 1;
+    return '${adj[0].toUpperCase()}${adj.substring(1)} '
+        '${animal[0].toUpperCase()}${animal.substring(1)} $number';
   }
 
   /// Check if profile has basic information

@@ -124,112 +124,114 @@ class _ProfileSetupScreenViewState
   }
 
   Future<void> _loadExistingProfile() async {
-    if (!widget.isNewUser) {
-      // For imported users, try to load their existing profile
-      try {
-        final authService = ref.read(authServiceProvider);
+    // For existing users, try to load their existing profile
+    try {
+      final authService = ref.read(authServiceProvider);
+      final pubkey = authService.currentPublicKeyHex;
 
-        if (authService.currentPublicKeyHex != null) {
-          final profileRepo = ref.read(profileRepositoryProvider);
-          // Return early if NostrClient doesn't have keys yet
-          if (profileRepo == null) return;
-          final repoProfile = await profileRepo.getCachedProfile(
-            pubkey: authService.currentPublicKeyHex!,
-          );
-          final profile = repoProfile != null
-              ? UserProfile.fromJson(repoProfile.toJson())
-              : null;
-          if (profile != null && mounted) {
-            setState(() {
-              // Use bestDisplayName which handles name/displayName fallback properly
-              _nameController.text = profile.displayName ?? profile.name ?? '';
-              _bioController.text = profile.about ?? '';
-              _pictureController.text = profile.picture ?? '';
+      if (pubkey != null) {
+        if (_nameController.text.isEmpty) {
+          _nameController.text = UserProfile.generatedNameFor(pubkey);
+        }
+        final profileRepo = ref.read(profileRepositoryProvider);
+        // Return early if NostrClient doesn't have keys yet
+        if (profileRepo == null) return;
+        final repoProfile = await profileRepo.getCachedProfile(
+          pubkey: authService.currentPublicKeyHex!,
+        );
+        final profile = repoProfile != null
+            ? UserProfile.fromJson(repoProfile.toJson())
+            : null;
+        if (profile != null && mounted) {
+          setState(() {
+            _nameController.text =
+                profile.displayName ?? profile.name ?? profile.generatedName;
+            _bioController.text = profile.about ?? '';
+            _pictureController.text = profile.picture ?? '';
 
-              // Extract username from NIP-05 if present
-              // Support both new subdomain format and legacy formats
-              if (profile.nip05 != null) {
-                String? username;
-                // New subdomain format: _@username.divine.video
-                final subdomainMatch = RegExp(
-                  r'^_@([a-z0-9\-_.]+)\.divine\.video$',
-                ).firstMatch(profile.nip05!);
-                if (subdomainMatch != null) {
-                  username = subdomainMatch.group(1);
-                }
-                // Old format: username@divine.video or username@openvine.co
-                else if (profile.nip05!.endsWith('@divine.video') ||
-                    profile.nip05!.endsWith('@openvine.co')) {
-                  username = profile.nip05!.split('@')[0];
-                }
-                if (username != null) {
-                  _nip05Controller.text = username;
-                  if (mounted) {
-                    context.read<ProfileEditorBloc>().add(
-                      InitialUsernameSet(username),
-                    );
-                  }
+            // Extract username from NIP-05 if present
+            // Support both new subdomain format and legacy formats
+            if (profile.nip05 != null) {
+              String? username;
+              // New subdomain format: _@username.divine.video
+              final subdomainMatch = RegExp(
+                r'^_@([a-z0-9\-_.]+)\.divine\.video$',
+              ).firstMatch(profile.nip05!);
+              if (subdomainMatch != null) {
+                username = subdomainMatch.group(1);
+              }
+              // Old format: username@divine.video or username@openvine.co
+              else if (profile.nip05!.endsWith('@divine.video') ||
+                  profile.nip05!.endsWith('@openvine.co')) {
+                username = profile.nip05!.split('@')[0];
+              }
+              if (username != null) {
+                _nip05Controller.text = username;
+                if (mounted) {
+                  context.read<ProfileEditorBloc>().add(
+                    InitialUsernameSet(username),
+                  );
                 }
               }
+            }
 
-              // Load profile color from banner field
-              _selectedProfileColor = profile.profileBackgroundColor;
-            });
+            // Load profile color from banner field
+            _selectedProfileColor = profile.profileBackgroundColor;
+          });
 
-            Log.info(
-              '✅ Pre-filled profile setup form with existing data:',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - name: ${profile.name}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - displayName: ${profile.displayName}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - about: ${profile.about}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - picture: ${profile.picture}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - banner: ${profile.banner}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - website: ${profile.website}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - nip05: ${profile.nip05}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-            Log.info(
-              '  - lud16: ${profile.lud16}',
-              name: 'ProfileSetupScreen',
-              category: LogCategory.ui,
-            );
-          }
+          Log.info(
+            '✅ Pre-filled profile setup form with existing data:',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - name: ${profile.name}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - displayName: ${profile.displayName}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - about: ${profile.about}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - picture: ${profile.picture}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - banner: ${profile.banner}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - website: ${profile.website}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - nip05: ${profile.nip05}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
+          Log.info(
+            '  - lud16: ${profile.lud16}',
+            name: 'ProfileSetupScreen',
+            category: LogCategory.ui,
+          );
         }
-      } catch (e) {
-        Log.error(
-          'Failed to load existing profile: $e',
-          name: 'ProfileSetupScreen',
-          category: LogCategory.ui,
-        );
       }
+    } catch (e) {
+      Log.error(
+        'Failed to load existing profile: $e',
+        name: 'ProfileSetupScreen',
+        category: LogCategory.ui,
+      );
     }
   }
 
