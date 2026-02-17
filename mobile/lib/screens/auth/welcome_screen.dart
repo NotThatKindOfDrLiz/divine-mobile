@@ -1,5 +1,6 @@
 // ABOUTME: Welcome screen with returning-user variant and new-user variant
 // ABOUTME: Page/View pattern with WelcomeBloc for state management
+// DESIGN: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=6562-57240
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/gestures.dart';
@@ -174,51 +175,60 @@ class _ReturningUserLayout extends StatelessWidget {
   final bool isLoading;
   final String? lastError;
 
+  void _showAccountPicker(
+    BuildContext context, {
+    required List<PreviousAccount> accounts,
+    required String selectedPubkeyHex,
+  }) {
+    final bloc = context.read<WelcomeBloc>();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VineTheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _AccountPickerSheet(
+        accounts: accounts,
+        selectedPubkeyHex: selectedPubkeyHex,
+        bloc: bloc,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final account = state.selectedAccount;
     if (account == null) return const SizedBox.shrink();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
 
         // "Welcome back!" title
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Text(
-            'Welcome back!',
-            style: TextStyle(
-              fontFamily: 'BricolageGrotesque',
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: VineTheme.whiteText,
-            ),
+        Text(
+          'Welcome back!',
+          style: TextStyle(
+            fontFamily: 'BricolageGrotesque',
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            color: VineTheme.whiteText,
           ),
+          textAlign: TextAlign.center,
         ),
 
         // Profile section
         Expanded(
           child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ReturningUserProfile(
-                  pubkeyHex: account.pubkeyHex,
-                  profile: account.profile,
-                  authSource: account.authSource,
-                ),
-
-                // Account picker — only shown when multiple accounts exist
-                if (state.previousAccounts.length > 1) ...[
-                  const SizedBox(height: 16),
-                  _AccountPickerChip(
-                    accounts: state.previousAccounts,
-                    selectedPubkeyHex: account.pubkeyHex,
-                  ),
-                ],
-              ],
+            child: _ReturningUserProfile(
+              pubkeyHex: account.pubkeyHex,
+              profile: account.profile,
+              onSwitchAccount: state.previousAccounts.length > 1
+                  ? () => _showAccountPicker(
+                      context,
+                      accounts: state.previousAccounts,
+                      selectedPubkeyHex: account.pubkeyHex,
+                    )
+                  : null,
             ),
           ),
         ),
@@ -228,9 +238,9 @@ class _ReturningUserLayout extends StatelessWidget {
           const SizedBox(height: 16),
         ],
 
-        // Log back in button (primary)
+        // Sign back in button (primary)
         _PrimaryButton(
-          label: 'Log back in',
+          label: 'Sign back in',
           isLoading: isLoading,
           onPressed: () => context.read<WelcomeBloc>().add(
             const WelcomeLogBackInRequested(),
@@ -275,12 +285,14 @@ class _ReturningUserProfile extends StatelessWidget {
   const _ReturningUserProfile({
     required this.pubkeyHex,
     required this.profile,
-    required this.authSource,
+    this.onSwitchAccount,
   });
 
   final String pubkeyHex;
   final UserProfile? profile;
-  final AuthenticationSource authSource;
+
+  /// When non-null, a switch-account icon button is overlaid on the avatar.
+  final VoidCallback? onSwitchAccount;
 
   @override
   Widget build(BuildContext context) {
@@ -292,7 +304,11 @@ class _ReturningUserProfile extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        UserAvatar(imageUrl: profile?.picture, name: displayName, size: 150),
+        _AvatarWithSwitchButton(
+          imageUrl: profile?.picture,
+          displayName: displayName,
+          onSwitchAccount: onSwitchAccount,
+        ),
         const SizedBox(height: 16),
         Text(
           displayName,
@@ -309,9 +325,84 @@ class _ReturningUserProfile extends StatelessWidget {
           style: const TextStyle(fontSize: 14, color: VineTheme.vineGreen),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
-        _AuthSourceBadge(source: authSource),
       ],
+    );
+  }
+}
+
+/// Avatar with an optional switch-account icon button at the bottom center.
+class _AvatarWithSwitchButton extends StatelessWidget {
+  const _AvatarWithSwitchButton({
+    required this.imageUrl,
+    required this.displayName,
+    this.onSwitchAccount,
+  });
+
+  final String? imageUrl;
+  final String displayName;
+  final VoidCallback? onSwitchAccount;
+
+  static const double _avatarSize = 144;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatar = UserAvatar(
+      imageUrl: imageUrl,
+      name: displayName,
+      size: _avatarSize,
+    );
+
+    if (onSwitchAccount == null) return avatar;
+
+    return SizedBox(
+      width: _avatarSize,
+      height: _avatarSize + 20,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          avatar,
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Center(child: _SwitchAccountButton(onTap: onSwitchAccount!)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Small icon button for switching accounts, overlaid on the avatar.
+class _SwitchAccountButton extends StatelessWidget {
+  const _SwitchAccountButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: VineTheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: VineTheme.outlineMuted, width: 2),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: const Icon(
+          Icons.swap_horiz,
+          size: 24,
+          color: VineTheme.vineGreen,
+        ),
+      ),
     );
   }
 }
@@ -362,69 +453,6 @@ class _AuthSourceBadge extends StatelessWidget {
       AuthenticationSource.amber => (Icons.phonelink_lock_outlined, 'Amber'),
       AuthenticationSource.none => (Icons.help_outline, 'Unknown'),
     };
-  }
-}
-
-/// Tappable chip that opens the account picker bottom sheet.
-class _AccountPickerChip extends StatelessWidget {
-  const _AccountPickerChip({
-    required this.accounts,
-    required this.selectedPubkeyHex,
-  });
-
-  final List<PreviousAccount> accounts;
-  final String selectedPubkeyHex;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showAccountPicker(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: VineTheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: VineTheme.outlineMuted),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.swap_horiz, size: 16, color: VineTheme.vineGreen),
-            const SizedBox(width: 6),
-            Text(
-              'Switch account (${accounts.length})',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: VineTheme.vineGreen,
-              ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 16,
-              color: VineTheme.vineGreen,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAccountPicker(BuildContext context) {
-    final bloc = context.read<WelcomeBloc>();
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: VineTheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (_) => _AccountPickerSheet(
-        accounts: accounts,
-        selectedPubkeyHex: selectedPubkeyHex,
-        bloc: bloc,
-      ),
-    );
   }
 }
 

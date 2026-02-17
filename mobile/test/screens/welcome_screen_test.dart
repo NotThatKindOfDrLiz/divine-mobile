@@ -289,13 +289,13 @@ void main() {
         expect(find.byType(AuthHeroSection), findsNothing);
       });
 
-      testWidgets('shows "Log back in" button', (tester) async {
+      testWidgets('shows "Sign back in" button', (tester) async {
         await tester.binding.setSurfaceSize(const Size(800, 1200));
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Log back in'), findsOneWidget);
+        expect(find.text('Sign back in'), findsOneWidget);
       });
 
       testWidgets('shows "Create a new Divine account" button', (tester) async {
@@ -307,7 +307,7 @@ void main() {
         expect(find.text('Create a new Divine account'), findsOneWidget);
       });
 
-      testWidgets('tapping "Log back in" calls signInForAccount', (
+      testWidgets('tapping "Sign back in" calls signInForAccount', (
         tester,
       ) async {
         await tester.binding.setSurfaceSize(const Size(800, 1200));
@@ -315,7 +315,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Log back in'));
+        await tester.tap(find.text('Sign back in'));
         await tester.pump();
 
         verify(
