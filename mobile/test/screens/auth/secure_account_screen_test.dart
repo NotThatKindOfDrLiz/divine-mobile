@@ -19,7 +19,7 @@ import '../../helpers/test_provider_overrides.dart';
 import 'secure_account_screen_test.mocks.dart';
 
 void main() {
-  group('SecureAccountScreen', () {
+  group(SecureAccountScreen, () {
     late MockKeycastOAuth mockOAuth;
     late MockAuthService mockAuthService;
 
@@ -62,35 +62,31 @@ void main() {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Email'), findsOneWidget);
+        expect(find.widgetWithText(TextField, 'Email'), findsOneWidget);
       });
 
       testWidgets('displays password field', (tester) async {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Password'), findsOneWidget);
+        expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
       });
 
-      testWidgets('displays confirm password field', (tester) async {
+      testWidgets('displays Secure account button', (tester) async {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Confirm Password'), findsOneWidget);
-      });
-
-      testWidgets('displays Create Account button', (tester) async {
-        await tester.pumpWidget(buildTestWidget());
-        await tester.pumpAndSettle();
-
-        expect(find.text('Create Account'), findsOneWidget);
+        expect(
+          find.widgetWithText(ElevatedButton, 'Secure account'),
+          findsOneWidget,
+        );
       });
 
       testWidgets('displays back button', (tester) async {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+        expect(find.byIcon(Icons.chevron_left), findsOneWidget);
       });
     });
 
@@ -101,47 +97,20 @@ void main() {
 
         // Enter invalid email
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Email'),
+          find.widgetWithText(TextField, 'Email'),
           'invalid-email',
         );
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'),
-          'password123',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Confirm Password'),
+          find.widgetWithText(TextField, 'Password'),
           'password123',
         );
 
         // Tap submit
-        await tester.tap(find.text('Create Account'));
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Secure account'));
         await tester.pumpAndSettle();
 
         // Should show validation error
         expect(find.textContaining('valid email'), findsOneWidget);
-      });
-
-      testWidgets('shows error for mismatched passwords', (tester) async {
-        await tester.pumpWidget(buildTestWidget());
-        await tester.pumpAndSettle();
-
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Email'),
-          'test@example.com',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'),
-          'password123',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Confirm Password'),
-          'different456',
-        );
-
-        await tester.tap(find.text('Create Account'));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Passwords do not match'), findsOneWidget);
       });
     });
 
@@ -150,12 +119,12 @@ void main() {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        // Find password visibility toggle buttons (there are 2: one for each password field)
-        final visibilityButtons = find.byIcon(Icons.visibility_off);
-        expect(visibilityButtons, findsNWidgets(2));
+        // Find password visibility toggle button
+        final visibilityButton = find.byIcon(Icons.visibility_off);
+        expect(visibilityButton, findsOneWidget);
 
-        // Tap the first visibility toggle
-        await tester.tap(visibilityButtons.first);
+        // Tap the visibility toggle
+        await tester.tap(visibilityButton);
         await tester.pumpAndSettle();
 
         // Should now show visibility icon (password visible)
@@ -191,19 +160,15 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Email'),
+          find.widgetWithText(TextField, 'Email'),
           'test@example.com',
         );
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'),
-          'SecurePass123!',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Confirm Password'),
+          find.widgetWithText(TextField, 'Password'),
           'SecurePass123!',
         );
 
-        await tester.tap(find.text('Create Account'));
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Secure account'));
         // Use pump() instead of pumpAndSettle() to avoid timer issues
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
@@ -239,19 +204,15 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Email'),
+          find.widgetWithText(TextField, 'Email'),
           'existing@example.com',
         );
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'),
-          'SecurePass123!',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Confirm Password'),
+          find.widgetWithText(TextField, 'Password'),
           'SecurePass123!',
         );
 
-        await tester.tap(find.text('Create Account'));
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Secure account'));
         await tester.pumpAndSettle();
 
         expect(find.text('Email already registered'), findsOneWidget);
@@ -264,19 +225,15 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Email'),
+          find.widgetWithText(TextField, 'Email'),
           'test@example.com',
         );
         await tester.enterText(
-          find.widgetWithText(TextFormField, 'Password'),
-          'SecurePass123!',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextFormField, 'Confirm Password'),
+          find.widgetWithText(TextField, 'Password'),
           'SecurePass123!',
         );
 
-        await tester.tap(find.text('Create Account'));
+        await tester.tap(find.widgetWithText(ElevatedButton, 'Secure account'));
         await tester.pumpAndSettle();
 
         expect(
