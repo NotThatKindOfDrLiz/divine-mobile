@@ -37,28 +37,6 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
     emit(DivineAuthFormState(isSignIn: isSignIn, email: initialEmail ?? ''));
   }
 
-  /// Switch between sign in and sign up modes
-  void toggleMode() {
-    final current = state;
-    if (current is! DivineAuthFormState) return;
-
-    Log.info(
-      'Toggling auth mode from ${current.isSignIn ? "sign in" : "sign up"} '
-      'to ${!current.isSignIn ? "sign in" : "sign up"}',
-      name: 'DivineAuthCubit',
-      category: LogCategory.auth,
-    );
-
-    emit(
-      current.copyWith(
-        isSignIn: !current.isSignIn,
-        clearEmailError: true,
-        clearPasswordError: true,
-        clearGeneralError: true,
-      ),
-    );
-  }
-
   /// Update email field
   void updateEmail(String email) {
     final current = state;
@@ -331,35 +309,6 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
       emit(DivineAuthFormState(email: current.email, isSignIn: false));
     } else {
       emit(const DivineAuthFormState());
-    }
-  }
-
-  /// Skip sign up and sign in automatically with generated keys
-  Future<void> skipSignUp() async {
-    Log.info(
-      'Skipping sign up, signing in automatically',
-      name: 'DivineAuthCubit',
-      category: LogCategory.auth,
-    );
-
-    try {
-      await _authService.signInAutomatically();
-      emit(const DivineAuthSuccess());
-    } catch (e) {
-      Log.error(
-        'Failed to sign in automatically: $e',
-        name: 'DivineAuthCubit',
-        category: LogCategory.auth,
-      );
-
-      final current = state;
-      if (current is DivineAuthFormState) {
-        emit(
-          current.copyWith(
-            generalError: 'Failed to create account. Please try again.',
-          ),
-        );
-      }
     }
   }
 

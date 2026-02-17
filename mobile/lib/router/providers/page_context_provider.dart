@@ -63,7 +63,6 @@ enum RouteType {
   welcome, // Welcome/onboarding screen
   developerOptions, // Developer options (hidden, unlock by tapping version 7x)
   loginOptions, // Login options screen (choose login method)
-  authNative, // Native email/password auth screen
   following, // Following list screen
   followers, // Followers list screen
   videoFeed, // Fullscreen video feed (pushed from grids)
@@ -259,11 +258,7 @@ RouteContext parseRoute(String path) {
 
     case 'welcome':
       // /welcome/login-options → loginOptions
-      // /welcome/login-options/auth-native → authNative
       if (segments.length > 1 && segments[1] == 'login-options') {
-        if (segments.length > 2 && segments[2] == 'auth-native') {
-          return const RouteContext(type: RouteType.authNative);
-        }
         return const RouteContext(type: RouteType.loginOptions);
       }
       return const RouteContext(type: RouteType.welcome);
@@ -448,9 +443,6 @@ String buildRoute(RouteContext context) {
 
     case RouteType.loginOptions:
       return WelcomeScreen.loginOptionsPath;
-
-    case RouteType.authNative:
-      return WelcomeScreen.authNativePath;
 
     case RouteType.following:
       return FollowingScreenRouter.pathForPubkey(context.npub ?? '');

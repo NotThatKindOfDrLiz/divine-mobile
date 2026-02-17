@@ -12,7 +12,6 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/services/page_load_observer.dart';
 import 'package:openvine/screens/auth/create_account_screen.dart';
-import 'package:openvine/screens/auth/divine_auth_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/auth/reset_password.dart';
@@ -97,7 +96,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               location == NostrConnectScreen.path ||
               location == WelcomeScreen.createAccountPath ||
               location == WelcomeScreen.loginOptionsPath ||
-              location == WelcomeScreen.authNativePath ||
               location == WelcomeScreen.resetPasswordPath ||
               location == EmailVerificationScreen.path)) {
         debugPrint('[Router] Authenticated. moving to /home/0');
@@ -439,42 +437,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             name: LoginOptionsScreen.routeName,
             builder: (_, __) => const LoginOptionsScreen(),
             routes: [
+              // Route for deep link when resetting password
               GoRoute(
-                path: 'auth-native',
-                name: DivineAuthScreen.routeName,
-                pageBuilder: (ctx, st) {
-                  // Read query parameters
-                  final signInParam = st.uri.queryParameters['signIn'];
-                  final signIn = signInParam == 'true';
-                  final email = st.uri.queryParameters['email'];
-                  Log.info(
-                    'DivineAuthScreen route: uri=${st.uri}, '
-                    'signInParam=$signInParam, signIn=$signIn',
-                    name: 'AppRouter',
-                    category: LogCategory.auth,
-                  );
-                  // Use signIn value in key so toggling mode creates a new
-                  // page with fresh state, but returning to same mode
-                  // reuses page
-                  return MaterialPage(
-                    key: ValueKey('auth-native-signIn=$signIn'),
-                    child: DivineAuthScreen(
-                      initialSignIn: signIn,
-                      initialEmail: email,
-                    ),
-                  );
+                path: 'reset-password',
+                name: ResetPasswordScreen.routeName,
+                builder: (ctx, st) {
+                  final token = st.uri.queryParameters['token'];
+                  return ResetPasswordScreen(token: token ?? '');
                 },
-                routes: [
-                  // route for deep link when resetting password
-                  GoRoute(
-                    path: 'reset-password',
-                    name: ResetPasswordScreen.routeName,
-                    builder: (ctx, st) {
-                      final token = st.uri.queryParameters['token'];
-                      return ResetPasswordScreen(token: token ?? '');
-                    },
-                  ),
-                ],
               ),
             ],
           ),

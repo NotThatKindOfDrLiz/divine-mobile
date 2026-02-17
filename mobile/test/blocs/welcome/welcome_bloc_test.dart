@@ -1,5 +1,5 @@
 // ABOUTME: Tests for WelcomeBloc
-// ABOUTME: Verifies returning-user loading, dismissal, and auth action events
+// ABOUTME: Verifies multi-account loading, selection, and auth actions
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:db_client/db_client.dart';
@@ -7,8 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
 import 'package:openvine/blocs/welcome/welcome_bloc.dart';
+import 'package:openvine/models/known_account.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
-import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockUserProfilesDao extends Mock implements UserProfilesDao {}
 
@@ -16,6 +16,9 @@ class _MockAuthService extends Mock implements AuthService {}
 
 const _testPubkeyHex =
     'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
+
+const _testPubkeyHex2 =
+    'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3';
 
 final _testProfile = UserProfile(
   pubkey: _testPubkeyHex,
@@ -27,26 +30,60 @@ final _testProfile = UserProfile(
   eventId: 'e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8',
 );
 
+final _testProfile2 = UserProfile(
+  pubkey: _testPubkeyHex2,
+  displayName: 'Second User',
+  picture: 'https://example.com/avatar2.png',
+  nip05: 'second@example.com',
+  rawData: const {},
+  createdAt: DateTime(2024),
+  eventId: 'f1f2f3f4f5f6f7f8f1f2f3f4f5f6f7f8f1f2f3f4f5f6f7f8f1f2f3f4f5f6f7f8',
+);
+
+final _testKnownAccount = KnownAccount(
+  pubkeyHex: _testPubkeyHex,
+  authSource: AuthenticationSource.automatic,
+  addedAt: DateTime(2024),
+  lastUsedAt: DateTime(2024, 6),
+);
+
+final _testKnownAccount2 = KnownAccount(
+  pubkeyHex: _testPubkeyHex2,
+  authSource: AuthenticationSource.amber,
+  addedAt: DateTime(2024),
+  lastUsedAt: DateTime(2024, 3),
+);
+
+const _testPreviousAccount = PreviousAccount(
+  pubkeyHex: _testPubkeyHex,
+  authSource: AuthenticationSource.automatic,
+);
+
+const _testPreviousAccount2 = PreviousAccount(
+  pubkeyHex: _testPubkeyHex2,
+  authSource: AuthenticationSource.amber,
+);
+
 void main() {
-  late SharedPreferences prefs;
   late _MockUserProfilesDao mockUserProfilesDao;
   late _MockAuthService mockAuthService;
 
-  setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    prefs = await SharedPreferences.getInstance();
+  setUpAll(() {
+    registerFallbackValue(AuthenticationSource.none);
+  });
+
+  setUp(() {
     mockUserProfilesDao = _MockUserProfilesDao();
     mockAuthService = _MockAuthService();
 
-    when(() => mockAuthService.signInAutomatically()).thenAnswer((_) async {});
-    when(
-      () => mockAuthService.signOut(deleteKeys: true),
-    ).thenAnswer((_) async {});
+    when(() => mockAuthService.getKnownAccounts()).thenAnswer((_) async => []);
     when(() => mockAuthService.acceptTerms()).thenAnswer((_) async {});
+    when(
+      () => mockAuthService.signInForAccount(any(), any()),
+    ).thenAnswer((_) async {});
   });
 
   WelcomeBloc buildBloc() => WelcomeBloc(
-    sharedPreferences: prefs,
     userProfilesDao: mockUserProfilesDao,
     authService: mockAuthService,
   );
@@ -61,16 +98,18 @@ void main() {
 
     group('$WelcomeStarted', () {
       blocTest<WelcomeBloc, WelcomeState>(
-        'emits loaded with no returning user when no key in prefs',
+        'emits loaded with no returning users when no known accounts',
         build: buildBloc,
         act: (bloc) => bloc.add(const WelcomeStarted()),
         expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
       );
 
       blocTest<WelcomeBloc, WelcomeState>(
-        'emits loaded with returning user when key and profile exist',
-        setUp: () async {
-          await prefs.setString(kLastUserPubkeyHexKey, _testPubkeyHex);
+        'emits loaded with single returning user and profile',
+        setUp: () {
+          when(
+            () => mockAuthService.getKnownAccounts(),
+          ).thenAnswer((_) async => [_testKnownAccount]);
           when(
             () => mockUserProfilesDao.getProfile(_testPubkeyHex),
           ).thenAnswer((_) async => _testProfile);
@@ -80,16 +119,23 @@ void main() {
         expect: () => [
           WelcomeState(
             status: WelcomeStatus.loaded,
-            lastUserPubkeyHex: _testPubkeyHex,
-            lastUserProfile: _testProfile,
+            previousAccounts: [
+              PreviousAccount(
+                pubkeyHex: _testPubkeyHex,
+                authSource: AuthenticationSource.automatic,
+                profile: _testProfile,
+              ),
+            ],
           ),
         ],
       );
 
       blocTest<WelcomeBloc, WelcomeState>(
-        'emits loaded with pubkey but null profile when profile not cached',
-        setUp: () async {
-          await prefs.setString(kLastUserPubkeyHexKey, _testPubkeyHex);
+        'emits loaded with account but null profile when not cached',
+        setUp: () {
+          when(
+            () => mockAuthService.getKnownAccounts(),
+          ).thenAnswer((_) async => [_testKnownAccount]);
           when(
             () => mockUserProfilesDao.getProfile(_testPubkeyHex),
           ).thenAnswer((_) async => null);
@@ -99,15 +145,17 @@ void main() {
         expect: () => [
           const WelcomeState(
             status: WelcomeStatus.loaded,
-            lastUserPubkeyHex: _testPubkeyHex,
+            previousAccounts: [_testPreviousAccount],
           ),
         ],
       );
 
       blocTest<WelcomeBloc, WelcomeState>(
-        'emits loaded with pubkey when profile lookup throws',
-        setUp: () async {
-          await prefs.setString(kLastUserPubkeyHexKey, _testPubkeyHex);
+        'emits loaded with account when profile lookup throws',
+        setUp: () {
+          when(
+            () => mockAuthService.getKnownAccounts(),
+          ).thenAnswer((_) async => [_testKnownAccount]);
           when(
             () => mockUserProfilesDao.getProfile(_testPubkeyHex),
           ).thenThrow(Exception('DB error'));
@@ -117,7 +165,41 @@ void main() {
         expect: () => [
           const WelcomeState(
             status: WelcomeStatus.loaded,
-            lastUserPubkeyHex: _testPubkeyHex,
+            previousAccounts: [_testPreviousAccount],
+          ),
+        ],
+      );
+
+      blocTest<WelcomeBloc, WelcomeState>(
+        'emits loaded with multiple accounts in order',
+        setUp: () {
+          when(
+            () => mockAuthService.getKnownAccounts(),
+          ).thenAnswer((_) async => [_testKnownAccount, _testKnownAccount2]);
+          when(
+            () => mockUserProfilesDao.getProfile(_testPubkeyHex),
+          ).thenAnswer((_) async => _testProfile);
+          when(
+            () => mockUserProfilesDao.getProfile(_testPubkeyHex2),
+          ).thenAnswer((_) async => _testProfile2);
+        },
+        build: buildBloc,
+        act: (bloc) => bloc.add(const WelcomeStarted()),
+        expect: () => [
+          WelcomeState(
+            status: WelcomeStatus.loaded,
+            previousAccounts: [
+              PreviousAccount(
+                pubkeyHex: _testPubkeyHex,
+                authSource: AuthenticationSource.automatic,
+                profile: _testProfile,
+              ),
+              PreviousAccount(
+                pubkeyHex: _testPubkeyHex2,
+                authSource: AuthenticationSource.amber,
+                profile: _testProfile2,
+              ),
+            ],
           ),
         ],
       );
@@ -125,50 +207,103 @@ void main() {
 
     group('$WelcomeLastUserDismissed', () {
       blocTest<WelcomeBloc, WelcomeState>(
-        'clears returning user data and removes pref key',
-        setUp: () async {
-          await prefs.setString(kLastUserPubkeyHexKey, _testPubkeyHex);
-        },
-        seed: () => WelcomeState(
+        'clears returning user data',
+        seed: () => const WelcomeState(
           status: WelcomeStatus.loaded,
-          lastUserPubkeyHex: _testPubkeyHex,
-          lastUserProfile: _testProfile,
+          previousAccounts: [_testPreviousAccount],
         ),
         build: buildBloc,
         act: (bloc) => bloc.add(const WelcomeLastUserDismissed()),
         expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
-        verify: (_) {
-          expect(prefs.getString(kLastUserPubkeyHexKey), isNull);
-        },
       );
     });
 
     group('$WelcomeLogBackInRequested', () {
       blocTest<WelcomeBloc, WelcomeState>(
-        'emits accepting and calls signInAutomatically',
+        'emits accepting and calls signInForAccount with selected account',
         build: buildBloc,
-        seed: () => const WelcomeState(status: WelcomeStatus.loaded),
+        seed: () => const WelcomeState(
+          status: WelcomeStatus.loaded,
+          previousAccounts: [_testPreviousAccount],
+        ),
         act: (bloc) => bloc.add(const WelcomeLogBackInRequested()),
-        expect: () => [const WelcomeState(status: WelcomeStatus.accepting)],
+        expect: () => [
+          const WelcomeState(
+            status: WelcomeStatus.accepting,
+            previousAccounts: [_testPreviousAccount],
+            signingInPubkeyHex: _testPubkeyHex,
+          ),
+        ],
         verify: (_) {
-          verify(() => mockAuthService.signInAutomatically()).called(1);
+          verify(
+            () => mockAuthService.signInForAccount(
+              _testPubkeyHex,
+              AuthenticationSource.automatic,
+            ),
+          ).called(1);
         },
       );
 
       blocTest<WelcomeBloc, WelcomeState>(
-        'emits error on signInAutomatically failure',
-        setUp: () {
-          when(
-            () => mockAuthService.signInAutomatically(),
-          ).thenThrow(Exception('Network error'));
+        'signs in with explicitly selected account from multi-account list',
+        build: buildBloc,
+        seed: () => const WelcomeState(
+          status: WelcomeStatus.loaded,
+          previousAccounts: [_testPreviousAccount, _testPreviousAccount2],
+          selectedPubkeyHex: _testPubkeyHex2,
+        ),
+        act: (bloc) => bloc.add(const WelcomeLogBackInRequested()),
+        expect: () => [
+          const WelcomeState(
+            status: WelcomeStatus.accepting,
+            previousAccounts: [_testPreviousAccount, _testPreviousAccount2],
+            selectedPubkeyHex: _testPubkeyHex2,
+            signingInPubkeyHex: _testPubkeyHex2,
+          ),
+        ],
+        verify: (_) {
+          verify(
+            () => mockAuthService.signInForAccount(
+              _testPubkeyHex2,
+              AuthenticationSource.amber,
+            ),
+          ).called(1);
         },
+      );
+
+      blocTest<WelcomeBloc, WelcomeState>(
+        'does nothing when no accounts exist',
         build: buildBloc,
         seed: () => const WelcomeState(status: WelcomeStatus.loaded),
         act: (bloc) => bloc.add(const WelcomeLogBackInRequested()),
+        expect: () => <WelcomeState>[],
+        verify: (_) {
+          verifyNever(() => mockAuthService.signInForAccount(any(), any()));
+        },
+      );
+
+      blocTest<WelcomeBloc, WelcomeState>(
+        'emits error on signInForAccount failure',
+        setUp: () {
+          when(
+            () => mockAuthService.signInForAccount(any(), any()),
+          ).thenThrow(Exception('Network error'));
+        },
+        build: buildBloc,
+        seed: () => const WelcomeState(
+          status: WelcomeStatus.loaded,
+          previousAccounts: [_testPreviousAccount],
+        ),
+        act: (bloc) => bloc.add(const WelcomeLogBackInRequested()),
         expect: () => [
-          const WelcomeState(status: WelcomeStatus.accepting),
+          const WelcomeState(
+            status: WelcomeStatus.accepting,
+            previousAccounts: [_testPreviousAccount],
+            signingInPubkeyHex: _testPubkeyHex,
+          ),
           const WelcomeState(
             status: WelcomeStatus.error,
+            previousAccounts: [_testPreviousAccount],
             error: 'Failed to continue: Exception: Network error',
           ),
         ],
@@ -179,78 +314,36 @@ void main() {
         build: buildBloc,
         seed: () => const WelcomeState(
           status: WelcomeStatus.loaded,
+          previousAccounts: [_testPreviousAccount],
           shouldNavigateToLoginOptions: true,
           shouldNavigateToCreateAccount: true,
         ),
         act: (bloc) => bloc.add(const WelcomeLogBackInRequested()),
-        expect: () => [const WelcomeState(status: WelcomeStatus.accepting)],
+        expect: () => [
+          const WelcomeState(
+            status: WelcomeStatus.accepting,
+            previousAccounts: [_testPreviousAccount],
+            signingInPubkeyHex: _testPubkeyHex,
+          ),
+        ],
       );
     });
 
-    group('$WelcomeCreateNewAccountRequested', () {
+    group('$WelcomeAccountSelected', () {
       blocTest<WelcomeBloc, WelcomeState>(
-        'calls signOut with deleteKeys then acceptTerms and navigates '
-        'to create account',
-        build: buildBloc,
-        seed: () => WelcomeState(
-          status: WelcomeStatus.loaded,
-          lastUserPubkeyHex: _testPubkeyHex,
-          lastUserProfile: _testProfile,
-        ),
-        act: (bloc) => bloc.add(const WelcomeCreateNewAccountRequested()),
-        expect: () => [
-          WelcomeState(
-            status: WelcomeStatus.accepting,
-            lastUserPubkeyHex: _testPubkeyHex,
-            lastUserProfile: _testProfile,
-          ),
-          const WelcomeState(
-            status: WelcomeStatus.loaded,
-            shouldNavigateToCreateAccount: true,
-          ),
-        ],
-        verify: (_) {
-          verifyInOrder([
-            () => mockAuthService.signOut(deleteKeys: true),
-            () => mockAuthService.acceptTerms(),
-          ]);
-          verifyNever(() => mockAuthService.signInAutomatically());
-        },
-      );
-
-      blocTest<WelcomeBloc, WelcomeState>(
-        'emits error on failure',
-        setUp: () {
-          when(
-            () => mockAuthService.signOut(deleteKeys: true),
-          ).thenThrow(Exception('Sign out failed'));
-        },
-        build: buildBloc,
-        seed: () => const WelcomeState(status: WelcomeStatus.loaded),
-        act: (bloc) => bloc.add(const WelcomeCreateNewAccountRequested()),
-        expect: () => [
-          const WelcomeState(status: WelcomeStatus.accepting),
-          const WelcomeState(
-            status: WelcomeStatus.error,
-            error: 'Failed to continue: Exception: Sign out failed',
-          ),
-        ],
-      );
-
-      blocTest<WelcomeBloc, WelcomeState>(
-        'resets navigation flags when dispatched',
+        'emits updated selectedPubkeyHex',
         build: buildBloc,
         seed: () => const WelcomeState(
           status: WelcomeStatus.loaded,
-          shouldNavigateToLoginOptions: true,
-          shouldNavigateToCreateAccount: true,
+          previousAccounts: [_testPreviousAccount, _testPreviousAccount2],
         ),
-        act: (bloc) => bloc.add(const WelcomeCreateNewAccountRequested()),
+        act: (bloc) =>
+            bloc.add(const WelcomeAccountSelected(pubkeyHex: _testPubkeyHex2)),
         expect: () => [
-          const WelcomeState(status: WelcomeStatus.accepting),
           const WelcomeState(
             status: WelcomeStatus.loaded,
-            shouldNavigateToCreateAccount: true,
+            previousAccounts: [_testPreviousAccount, _testPreviousAccount2],
+            selectedPubkeyHex: _testPubkeyHex2,
           ),
         ],
       );
@@ -338,14 +431,14 @@ void main() {
   });
 
   group('$WelcomeState', () {
-    test('hasReturningUser is true when lastUserPubkeyHex is set', () {
-      const state = WelcomeState(lastUserPubkeyHex: _testPubkeyHex);
-      expect(state.hasReturningUser, isTrue);
+    test('hasReturningUsers is true when previousAccounts is not empty', () {
+      const state = WelcomeState(previousAccounts: [_testPreviousAccount]);
+      expect(state.hasReturningUsers, isTrue);
     });
 
-    test('hasReturningUser is false when lastUserPubkeyHex is null', () {
+    test('hasReturningUsers is false when previousAccounts is empty', () {
       const state = WelcomeState();
-      expect(state.hasReturningUser, isFalse);
+      expect(state.hasReturningUsers, isFalse);
     });
 
     test('isAccepting is true when status is accepting', () {
@@ -353,16 +446,54 @@ void main() {
       expect(state.isAccepting, isTrue);
     });
 
-    test('copyWith clearLastUser removes user data', () {
-      final state = WelcomeState(
-        status: WelcomeStatus.loaded,
-        lastUserPubkeyHex: _testPubkeyHex,
-        lastUserProfile: _testProfile,
+    test('selectedAccount returns first when no selection', () {
+      const state = WelcomeState(
+        previousAccounts: [_testPreviousAccount, _testPreviousAccount2],
       );
-      final cleared = state.copyWith(clearLastUser: true);
-      expect(cleared.lastUserPubkeyHex, isNull);
-      expect(cleared.lastUserProfile, isNull);
+      expect(state.selectedAccount, equals(_testPreviousAccount));
+    });
+
+    test('selectedAccount returns matching account', () {
+      const state = WelcomeState(
+        previousAccounts: [_testPreviousAccount, _testPreviousAccount2],
+        selectedPubkeyHex: _testPubkeyHex2,
+      );
+      expect(state.selectedAccount, equals(_testPreviousAccount2));
+    });
+
+    test('selectedAccount returns first when selection not found', () {
+      const state = WelcomeState(
+        previousAccounts: [_testPreviousAccount],
+        selectedPubkeyHex: _testPubkeyHex2,
+      );
+      expect(state.selectedAccount, equals(_testPreviousAccount));
+    });
+
+    test('selectedAccount returns null when no accounts', () {
+      const state = WelcomeState();
+      expect(state.selectedAccount, isNull);
+    });
+
+    test('copyWith clearAccounts removes accounts', () {
+      const state = WelcomeState(
+        status: WelcomeStatus.loaded,
+        previousAccounts: [_testPreviousAccount],
+      );
+      final cleared = state.copyWith(clearAccounts: true);
+      expect(cleared.previousAccounts, isEmpty);
       expect(cleared.status, WelcomeStatus.loaded);
+    });
+
+    test('copyWith clearSelectedPubkey removes selection', () {
+      const state = WelcomeState(selectedPubkeyHex: _testPubkeyHex);
+      final cleared = state.copyWith(clearSelectedPubkey: true);
+      expect(cleared.selectedPubkeyHex, isNull);
+    });
+
+    test('copyWith clearSigningIn removes signing in state', () {
+      const state = WelcomeState(signingInPubkeyHex: _testPubkeyHex);
+      final cleared = state.copyWith(clearSigningIn: true);
+      expect(cleared.signingInPubkeyHex, isNull);
     });
 
     test('copyWith shouldNavigateToCreateAccount', () {

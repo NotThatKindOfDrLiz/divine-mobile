@@ -4,6 +4,7 @@
 // with secure storage
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,6 +18,7 @@ import 'package:openvine/services/background_activity_manager.dart';
 import 'package:openvine/services/blossom_server_discovery_service.dart';
 import 'package:openvine/services/pending_verification_service.dart';
 import 'package:openvine/services/relay_discovery_service.dart';
+import 'package:openvine/models/known_account.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
 import 'package:openvine/services/user_profile_service.dart' as ups;
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -435,6 +437,328 @@ class AuthService implements BackgroundAwareService {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Known accounts registry
+  // ---------------------------------------------------------------------------
+
+  /// Reads the list of known accounts from SharedPreferences.
+  Future<List<KnownAccount>> getKnownAccounts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(kKnownAccountsKey);
+      if (raw == null || raw.isEmpty) return [];
+
+      final decoded = (jsonDecode(raw) as List<dynamic>)
+          .cast<Map<String, dynamic>>();
+      final accounts = decoded.map(KnownAccount.fromJson).toList()
+        ..sort((a, b) => b.lastUsedAt.compareTo(a.lastUsedAt));
+      return accounts;
+    } catch (e) {
+      Log.warning(
+        'Failed to load known accounts: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      return [];
+    }
+  }
+
+  /// Adds or updates an account in the known accounts registry.
+  ///
+  /// Called after successful authentication to record which pubkey was used
+  /// and which [AuthenticationSource] authenticated it.
+  Future<void> _addToKnownAccounts(
+    String pubkeyHex,
+    AuthenticationSource source,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final accounts = await getKnownAccounts();
+      final now = DateTime.now();
+
+      final index = accounts.indexWhere((a) => a.pubkeyHex == pubkeyHex);
+      if (index >= 0) {
+        accounts[index] = accounts[index].copyWith(
+          authSource: source,
+          lastUsedAt: now,
+        );
+      } else {
+        accounts.add(
+          KnownAccount(
+            pubkeyHex: pubkeyHex,
+            authSource: source,
+            addedAt: now,
+            lastUsedAt: now,
+          ),
+        );
+      }
+
+      final json = jsonEncode(accounts.map((a) => a.toJson()).toList());
+      await prefs.setString(kKnownAccountsKey, json);
+
+      Log.info(
+        'Updated known accounts registry '
+        '(total=${accounts.length}, pubkey=$pubkeyHex, source=${source.name})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    } catch (e) {
+      Log.warning(
+        'Failed to update known accounts: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+  }
+
+  /// Removes an account from the known accounts registry.
+  Future<void> _removeFromKnownAccounts(String pubkeyHex) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final accounts = await getKnownAccounts();
+      accounts.removeWhere((a) => a.pubkeyHex == pubkeyHex);
+
+      final json = jsonEncode(accounts.map((a) => a.toJson()).toList());
+      await prefs.setString(kKnownAccountsKey, json);
+
+      Log.info(
+        'Removed $pubkeyHex from known accounts '
+        '(remaining=${accounts.length})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    } catch (e) {
+      Log.warning(
+        'Failed to remove from known accounts: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+  }
+
+  /// Removes an account from the known accounts list and cleans up its
+  /// archived signer info. Called from the welcome screen when the user
+  /// long-presses to remove an account.
+  Future<void> removeKnownAccount(String pubkeyHex) async {
+    await _removeFromKnownAccounts(pubkeyHex);
+    await _clearArchivedSignerInfo(pubkeyHex);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Per-account signer info archival
+  // ---------------------------------------------------------------------------
+
+  /// Copies active-session signer keys to per-account archive keys.
+  ///
+  /// Called during non-destructive sign-out so the signer info can be
+  /// restored when the user picks this account from the welcome screen.
+  Future<void> _archiveSignerInfo(String pubkeyHex) async {
+    if (_flutterSecureStorage == null) return;
+    try {
+      // Archive Amber info
+      final amberInfo = await _loadAmberInfo();
+      if (amberInfo != null) {
+        await _flutterSecureStorage.write(
+          key: '${_kAmberPubkeyKey}_$pubkeyHex',
+          value: amberInfo.pubkey,
+        );
+        if (amberInfo.package != null) {
+          await _flutterSecureStorage.write(
+            key: '${_kAmberPackageKey}_$pubkeyHex',
+            value: amberInfo.package,
+          );
+        }
+      }
+
+      // Archive Bunker info
+      final bunkerUrl = await _flutterSecureStorage.read(key: _kBunkerInfoKey);
+      if (bunkerUrl != null && bunkerUrl.isNotEmpty) {
+        await _flutterSecureStorage.write(
+          key: '${_kBunkerInfoKey}_$pubkeyHex',
+          value: bunkerUrl,
+        );
+      }
+
+      // Archive OAuth session
+      final oauthSession = await KeycastSession.load(_flutterSecureStorage);
+      if (oauthSession != null) {
+        await _flutterSecureStorage.write(
+          key: 'keycast_session_$pubkeyHex',
+          value: jsonEncode(oauthSession.toJson()),
+        );
+      }
+
+      Log.info(
+        'Archived signer info for $pubkeyHex',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    } catch (e) {
+      Log.warning(
+        'Failed to archive signer info for $pubkeyHex: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+  }
+
+  /// Restores per-account signer keys to the active-session keys.
+  ///
+  /// Called before sign-in when switching to a previously used account.
+  Future<void> _restoreSignerInfo(
+    String pubkeyHex,
+    AuthenticationSource source,
+  ) async {
+    if (_flutterSecureStorage == null) return;
+    try {
+      switch (source) {
+        case AuthenticationSource.amber:
+          final pubkey = await _flutterSecureStorage.read(
+            key: '${_kAmberPubkeyKey}_$pubkeyHex',
+          );
+          if (pubkey != null) {
+            await _flutterSecureStorage.write(
+              key: _kAmberPubkeyKey,
+              value: pubkey,
+            );
+            final package = await _flutterSecureStorage.read(
+              key: '${_kAmberPackageKey}_$pubkeyHex',
+            );
+            if (package != null) {
+              await _flutterSecureStorage.write(
+                key: _kAmberPackageKey,
+                value: package,
+              );
+            }
+          }
+
+        case AuthenticationSource.bunker:
+          final bunkerUrl = await _flutterSecureStorage.read(
+            key: '${_kBunkerInfoKey}_$pubkeyHex',
+          );
+          if (bunkerUrl != null) {
+            await _flutterSecureStorage.write(
+              key: _kBunkerInfoKey,
+              value: bunkerUrl,
+            );
+          }
+
+        case AuthenticationSource.divineOAuth:
+          final sessionJson = await _flutterSecureStorage.read(
+            key: 'keycast_session_$pubkeyHex',
+          );
+          if (sessionJson != null) {
+            final sessionMap = jsonDecode(sessionJson) as Map<String, dynamic>;
+            final session = KeycastSession.fromJson(sessionMap);
+            await session.save(_flutterSecureStorage);
+          }
+
+        case AuthenticationSource.automatic:
+        case AuthenticationSource.importedKeys:
+        case AuthenticationSource.none:
+          // Local key-based auth — keys are managed by SecureKeyStorage
+          break;
+      }
+
+      // Set the auth source so initialize() picks the right path
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kAuthSourceKey, source.code);
+
+      Log.info(
+        'Restored signer info for $pubkeyHex (source=${source.name})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    } catch (e) {
+      Log.warning(
+        'Failed to restore signer info for $pubkeyHex: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+  }
+
+  /// Deletes all per-account archived signer keys for a given pubkey.
+  Future<void> _clearArchivedSignerInfo(String pubkeyHex) async {
+    if (_flutterSecureStorage == null) return;
+    try {
+      await _flutterSecureStorage.delete(key: '${_kAmberPubkeyKey}_$pubkeyHex');
+      await _flutterSecureStorage.delete(
+        key: '${_kAmberPackageKey}_$pubkeyHex',
+      );
+      await _flutterSecureStorage.delete(key: '${_kBunkerInfoKey}_$pubkeyHex');
+      await _flutterSecureStorage.delete(key: 'keycast_session_$pubkeyHex');
+    } catch (e) {
+      Log.warning(
+        'Failed to clear archived signer info for $pubkeyHex: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Multi-account sign-in
+  // ---------------------------------------------------------------------------
+
+  /// Signs in with a previously used account.
+  ///
+  /// Restores the signer info for the given [pubkeyHex] based on its
+  /// [authSource], then calls the appropriate sign-in path.
+  Future<void> signInForAccount(
+    String pubkeyHex,
+    AuthenticationSource authSource,
+  ) async {
+    Log.info(
+      'signInForAccount: pubkey=$pubkeyHex, source=${authSource.name}',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    await _restoreSignerInfo(pubkeyHex, authSource);
+
+    switch (authSource) {
+      case AuthenticationSource.amber:
+        final amberInfo = await _loadAmberInfo();
+        if (amberInfo != null) {
+          await _reconnectAmber(amberInfo.pubkey, amberInfo.package);
+        } else {
+          throw Exception('No archived Amber info found for $pubkeyHex');
+        }
+
+      case AuthenticationSource.bunker:
+        final bunkerInfo = await _loadBunkerInfo();
+        if (bunkerInfo != null) {
+          await _reconnectBunker(bunkerInfo);
+        } else {
+          throw Exception('No archived Bunker info found for $pubkeyHex');
+        }
+
+      case AuthenticationSource.divineOAuth:
+        final session = await KeycastSession.load(_flutterSecureStorage);
+        if (session != null && session.hasRpcAccess) {
+          await signInWithDivineOAuth(session);
+        } else {
+          throw Exception('No archived OAuth session found for $pubkeyHex');
+        }
+
+      case AuthenticationSource.importedKeys:
+      case AuthenticationSource.automatic:
+        // Try to switch to saved identity keys
+        final npub = NostrKeyUtils.encodePubKey(pubkeyHex);
+        final container = await _keyStorage.getIdentityKeyContainer(npub);
+        if (container != null) {
+          await _setupUserSession(container, authSource);
+        } else {
+          // Fall back to current primary keys
+          await _checkExistingAuth();
+        }
+
+      case AuthenticationSource.none:
+        throw Exception('Cannot sign in with auth source "none"');
+    }
+  }
+
   /// Save bunker connection info to secure storage
   Future<void> _saveBunkerInfo(NostrRemoteSignerInfo info) async {
     if (_flutterSecureStorage == null) return;
@@ -578,6 +902,9 @@ class AuthService implements BackgroundAwareService {
 
       _setAuthState(AuthState.authenticated);
       _profileController.add(_currentProfile);
+
+      // Register in known accounts
+      await _addToKnownAccounts(userPubkey, AuthenticationSource.bunker);
 
       Log.info(
         'Bunker reconnection successful for user: $userPubkey',
@@ -801,6 +1128,9 @@ class AuthService implements BackgroundAwareService {
 
       _setAuthState(AuthState.authenticated);
       _profileController.add(_currentProfile);
+
+      // Register in known accounts
+      await _addToKnownAccounts(pubkey, AuthenticationSource.amber);
 
       Log.info(
         'Amber reconnection successful for user: $pubkey',
@@ -1605,23 +1935,26 @@ class AuthService implements BackgroundAwareService {
       // Clear the stored pubkey tracking so next login is treated as new
       await prefs.remove('current_user_pubkey_hex');
 
+      // Multi-account: archive or remove this account's signer info
+      final currentPubkey = _currentKeyContainer?.publicKeyHex;
       if (deleteKeys) {
+        // Destructive sign-out: remove from known accounts and clean up
+        if (currentPubkey != null) {
+          await _removeFromKnownAccounts(currentPubkey);
+          await _clearArchivedSignerInfo(currentPubkey);
+        }
+
         Log.debug(
           '📱️ Deleting stored keys',
           name: 'AuthService',
           category: LogCategory.auth,
         );
-        await prefs.remove('last_user_pubkey_hex');
         await _keyStorage.deleteKeys();
       } else {
-        // Save last user's pubkey for "Welcome back" screen
-        if (_currentKeyContainer != null) {
-          await prefs.setString(
-            'last_user_pubkey_hex',
-            _currentKeyContainer!.publicKeyHex,
-          );
+        // Non-destructive sign-out: archive signer info for later restoration
+        if (currentPubkey != null) {
+          await _archiveSignerInfo(currentPubkey);
         }
-
         // When the current session used an external signer (Amber/Bunker),
         // local key storage may contain stale keys from a previous identity
         // (e.g., auto-created keys before the user connected Amber).
@@ -2028,6 +2361,19 @@ class AuthService implements BackgroundAwareService {
       await _performDiscovery();
 
       _setAuthState(AuthState.authenticated);
+
+      // Register this account in the known accounts list
+      await _addToKnownAccounts(keyContainer.publicKeyHex, source);
+
+      // Store identity keys for multi-account switching
+      try {
+        await _keyStorage.storeIdentityKeyContainer(
+          keyContainer.npub,
+          keyContainer,
+        );
+      } catch (_) {
+        // Best-effort — external signers may not have local keys to store
+      }
     } catch (e) {
       Log.warning(
         'error in _setupUserSession: $e',

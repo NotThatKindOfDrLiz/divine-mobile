@@ -276,7 +276,7 @@ class _EmailVerificationScreenState
       ),
     );
     // Redirect to login screen
-    context.go(WelcomeScreen.authNativePath);
+    context.go(WelcomeScreen.loginOptionsPath);
   }
 
   void _handleCancel() {

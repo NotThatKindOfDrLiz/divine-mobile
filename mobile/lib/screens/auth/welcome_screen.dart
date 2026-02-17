@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/welcome/welcome_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
-import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:models/models.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -33,12 +32,8 @@ class WelcomeScreen extends ConsumerWidget {
   /// Path for create account route.
   static const createAccountPath = '/welcome/create-account';
 
-  /// Path for auth native route.
-  static const authNativePath = '/welcome/login-options/auth-native';
-
   /// Path for reset password route.
-  static const resetPasswordPath =
-      '/welcome/login-options/auth-native/reset-password';
+  static const resetPasswordPath = '/welcome/login-options/reset-password';
 
   const WelcomeScreen({super.key});
 
@@ -46,7 +41,6 @@ class WelcomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(currentAuthStateProvider);
     final authService = ref.watch(authServiceProvider);
-    final prefs = ref.watch(sharedPreferencesProvider);
     final db = ref.watch(databaseProvider);
 
     final isAuthLoading =
@@ -55,7 +49,6 @@ class WelcomeScreen extends ConsumerWidget {
 
     return BlocProvider(
       create: (_) => WelcomeBloc(
-        sharedPreferences: prefs,
         userProfilesDao: db.userProfilesDao,
         authService: authService,
       )..add(const WelcomeStarted()),
@@ -108,7 +101,7 @@ class _WelcomeView extends StatelessWidget {
           body: SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: state.hasReturningUser
+              child: state.hasReturningUsers
                   ? _ReturningUserLayout(
                       state: state,
                       isLoading: isLoading,
@@ -183,6 +176,9 @@ class _ReturningUserLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final account = state.selectedAccount;
+    if (account == null) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -205,9 +201,24 @@ class _ReturningUserLayout extends StatelessWidget {
         // Profile section
         Expanded(
           child: Center(
-            child: _ReturningUserProfile(
-              pubkeyHex: state.lastUserPubkeyHex!,
-              profile: state.lastUserProfile,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ReturningUserProfile(
+                  pubkeyHex: account.pubkeyHex,
+                  profile: account.profile,
+                  authSource: account.authSource,
+                ),
+
+                // Account picker — only shown when multiple accounts exist
+                if (state.previousAccounts.length > 1) ...[
+                  const SizedBox(height: 16),
+                  _AccountPickerChip(
+                    accounts: state.previousAccounts,
+                    selectedPubkeyHex: account.pubkeyHex,
+                  ),
+                ],
+              ],
             ),
           ),
         ),
@@ -239,26 +250,13 @@ class _ReturningUserLayout extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Create new account (tertiary) — shows confirmation bottom sheet
+        // Create new account (tertiary)
         _SecondaryButton(
           label: 'Create a new Divine account',
           isLoading: isLoading,
-          onPressed: () =>
-              showModalBottomSheet<bool>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: VineTheme.surfaceContainer,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                builder: (_) => const _NewAccountConfirmationSheet(),
-              ).then((confirmed) {
-                if (confirmed == true && context.mounted) {
-                  context.read<WelcomeBloc>().add(
-                    const WelcomeCreateNewAccountRequested(),
-                  );
-                }
-              }),
+          onPressed: () => context.read<WelcomeBloc>().add(
+            const WelcomeCreateAccountRequested(),
+          ),
         ),
 
         const SizedBox(height: 20),
@@ -271,12 +269,18 @@ class _ReturningUserLayout extends StatelessWidget {
   }
 }
 
-/// Displays the returning user's avatar, display name, and identifier.
+/// Displays the returning user's avatar, display name, identifier, and auth
+/// source badge.
 class _ReturningUserProfile extends StatelessWidget {
-  const _ReturningUserProfile({required this.pubkeyHex, required this.profile});
+  const _ReturningUserProfile({
+    required this.pubkeyHex,
+    required this.profile,
+    required this.authSource,
+  });
 
   final String pubkeyHex;
   final UserProfile? profile;
+  final AuthenticationSource authSource;
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +309,246 @@ class _ReturningUserProfile extends StatelessWidget {
           style: const TextStyle(fontSize: 14, color: VineTheme.vineGreen),
           textAlign: TextAlign.center,
         ),
+        const SizedBox(height: 8),
+        _AuthSourceBadge(source: authSource),
       ],
+    );
+  }
+}
+
+/// Small badge showing the authentication method used for an identity.
+class _AuthSourceBadge extends StatelessWidget {
+  const _AuthSourceBadge({required this.source});
+
+  final AuthenticationSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label) = _iconAndLabel(source);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: VineTheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: VineTheme.outlineMuted),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: VineTheme.secondaryText),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: VineTheme.secondaryText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static (IconData, String) _iconAndLabel(AuthenticationSource source) {
+    return switch (source) {
+      AuthenticationSource.automatic => (Icons.vpn_key_outlined, 'Local keys'),
+      AuthenticationSource.importedKeys => (Icons.key, 'Imported keys'),
+      AuthenticationSource.divineOAuth => (
+        Icons.shield_outlined,
+        'Divine account',
+      ),
+      AuthenticationSource.bunker => (Icons.cloud_outlined, 'NIP-46 Bunker'),
+      AuthenticationSource.amber => (Icons.phonelink_lock_outlined, 'Amber'),
+      AuthenticationSource.none => (Icons.help_outline, 'Unknown'),
+    };
+  }
+}
+
+/// Tappable chip that opens the account picker bottom sheet.
+class _AccountPickerChip extends StatelessWidget {
+  const _AccountPickerChip({
+    required this.accounts,
+    required this.selectedPubkeyHex,
+  });
+
+  final List<PreviousAccount> accounts;
+  final String selectedPubkeyHex;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showAccountPicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: VineTheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: VineTheme.outlineMuted),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.swap_horiz, size: 16, color: VineTheme.vineGreen),
+            const SizedBox(width: 6),
+            Text(
+              'Switch account (${accounts.length})',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: VineTheme.vineGreen,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 16,
+              color: VineTheme.vineGreen,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAccountPicker(BuildContext context) {
+    final bloc = context.read<WelcomeBloc>();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: VineTheme.surfaceContainer,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _AccountPickerSheet(
+        accounts: accounts,
+        selectedPubkeyHex: selectedPubkeyHex,
+        bloc: bloc,
+      ),
+    );
+  }
+}
+
+/// Bottom sheet listing all known accounts for selection.
+class _AccountPickerSheet extends StatelessWidget {
+  const _AccountPickerSheet({
+    required this.accounts,
+    required this.selectedPubkeyHex,
+    required this.bloc,
+  });
+
+  final List<PreviousAccount> accounts;
+  final String selectedPubkeyHex;
+  final WelcomeBloc bloc;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + bottomPadding),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: VineTheme.outlineMuted,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          const Text(
+            'Select account',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: VineTheme.whiteText,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          ...accounts.map(
+            (account) => _AccountTile(
+              account: account,
+              isSelected: account.pubkeyHex == selectedPubkeyHex,
+              onTap: () {
+                bloc.add(WelcomeAccountSelected(pubkeyHex: account.pubkeyHex));
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Single account row in the picker sheet.
+class _AccountTile extends StatelessWidget {
+  const _AccountTile({
+    required this.account,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final PreviousAccount account;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName =
+        account.profile?.bestDisplayName ??
+        NostrKeyUtils.truncateNpub(account.pubkeyHex);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? VineTheme.vineGreen.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            UserAvatar(
+              imageUrl: account.profile?.picture,
+              name: displayName,
+              size: 40,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: VineTheme.whiteText,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  _AuthSourceBadge(source: account.authSource),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle,
+                size: 20,
+                color: VineTheme.vineGreen,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -476,195 +719,6 @@ class _TermsNoticeState extends State<_TermsNotice> {
           const TextSpan(text: '.'),
         ],
       ),
-    );
-  }
-}
-
-/// Confirmation bottom sheet shown before creating a new account.
-class _NewAccountConfirmationSheet extends StatelessWidget {
-  const _NewAccountConfirmationSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.viewInsetsOf(context).bottom;
-    return SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(24, 24, 24, 32 + bottomPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: VineTheme.outlineMuted,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Title
-            const Text(
-              'Create a new Divine account?',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: VineTheme.whiteText,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Description
-            const Text(
-              'Creating a new account will:',
-              style: TextStyle(fontSize: 15, color: VineTheme.secondaryText),
-            ),
-            const SizedBox(height: 12),
-
-            // Bullet points
-            const _BulletPoint('Delete your current keys from this device'),
-            const SizedBox(height: 8),
-            const _BulletPoint('Generate a completely new Nostr identity'),
-            const SizedBox(height: 20),
-
-            // Warning box
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: VineTheme.error),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.warning_amber_rounded,
-                        color: VineTheme.error,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'If you start fresh...',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: VineTheme.error,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'You will not be able to access your previous '
-                    'account unless you have a backup of your nsec',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: VineTheme.error,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Confirmation question
-            const Text(
-              'Are you sure you want to start fresh?',
-              style: TextStyle(fontSize: 15, color: VineTheme.secondaryText),
-            ),
-            const SizedBox(height: 24),
-
-            // Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: VineTheme.vineGreen,
-                      side: const BorderSide(
-                        color: VineTheme.outlineMuted,
-                        width: 1.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
-                      'Cancel',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: VineTheme.vineGreen,
-                      foregroundColor: VineTheme.backgroundColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Start fresh',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Bullet point text row for the confirmation sheet.
-class _BulletPoint extends StatelessWidget {
-  const _BulletPoint(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '\u2022  ',
-          style: TextStyle(fontSize: 15, color: VineTheme.whiteText),
-        ),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 15,
-              color: VineTheme.whiteText,
-              height: 1.3,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

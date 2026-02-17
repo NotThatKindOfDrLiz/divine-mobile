@@ -293,6 +293,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Drag handle
           Center(
@@ -307,22 +308,26 @@ class _SkipConfirmationSheet extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          Image.asset(
-            'assets/stickers/pause.png',
-            width: 132,
-            height: 132,
-            fit: BoxFit.contain,
+          Center(
+            child: Image.asset(
+              'assets/stickers/pause.png',
+              width: 132,
+              height: 132,
+              fit: BoxFit.contain,
+            ),
           ),
           const SizedBox(height: 24),
 
           // Title
-          const Text(
-            'One last thing...',
-            style: TextStyle(
-              fontFamily: 'BricolageGrotesque',
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: VineTheme.whiteText,
+          const Center(
+            child: Text(
+              'One last thing...',
+              style: TextStyle(
+                fontFamily: 'BricolageGrotesque',
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: VineTheme.whiteText,
+              ),
             ),
           ),
           const SizedBox(height: 16),

@@ -3,7 +3,6 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/router/router.dart';
-import 'package:openvine/screens/auth/divine_auth_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/login_options_screen.dart';
 import 'package:openvine/screens/auth/reset_password.dart';
@@ -85,19 +84,6 @@ void main() {
           );
         },
       );
-
-      test('unauthenticated user can access ${WelcomeScreen.authNativePath}', () {
-        final redirect = testRedirectLogic(
-          location: WelcomeScreen.authNativePath,
-          authState: AuthState.unauthenticated,
-        );
-        expect(
-          redirect,
-          isNull,
-          reason:
-              '${WelcomeScreen.authNativePath} is an auth route, should not redirect',
-        );
-      });
 
       test('unauthenticated user can access ${KeyImportScreen.path}', () {
         final redirect = testRedirectLogic(
@@ -289,20 +275,6 @@ void main() {
               'their password!',
         );
       });
-
-      test('${DivineAuthScreen.path}?mode=register should be accessible', () {
-        final redirect = testRedirectLogic(
-          location: WelcomeScreen.authNativePath,
-          authState: AuthState.unauthenticated,
-        );
-
-        expect(
-          redirect,
-          isNull,
-          reason:
-              '${DivineAuthScreen.path} should be accessible for registration',
-        );
-      });
     });
   });
 
@@ -324,27 +296,6 @@ void main() {
           equals(WelcomeScreen.loginOptionsPath),
           reason:
               'Rebuilding ${WelcomeScreen.loginOptionsPath} should NOT become /home/0',
-        );
-      },
-    );
-
-    test(
-      '${WelcomeScreen.authNativePath} should parse and rebuild correctly (not /home/0)',
-      () {
-        final parsed = parseRoute(WelcomeScreen.authNativePath);
-        final rebuilt = buildRoute(parsed);
-
-        expect(
-          parsed.type,
-          equals(RouteType.authNative),
-          reason:
-              '${WelcomeScreen.authNativePath} should parse to authNative type, not home',
-        );
-        expect(
-          rebuilt,
-          equals(WelcomeScreen.authNativePath),
-          reason:
-              'Rebuilding ${WelcomeScreen.authNativePath} should NOT become /home/0',
         );
       },
     );

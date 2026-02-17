@@ -17,8 +17,6 @@ final class WelcomeStarted extends WelcomeEvent {
 }
 
 /// Dismiss the returning-user variant and show the default welcome screen.
-///
-/// Clears the `last_user_pubkey_hex` from SharedPreferences.
 final class WelcomeLastUserDismissed extends WelcomeEvent {
   const WelcomeLastUserDismissed();
 
@@ -26,9 +24,11 @@ final class WelcomeLastUserDismissed extends WelcomeEvent {
   List<Object?> get props => [];
 }
 
-/// Request to log back in with the previous identity.
+/// Request to log back in with the currently selected account.
 ///
-/// Calls [AuthService.signInAutomatically] to reload existing keys.
+/// Uses [WelcomeState.selectedAccount] to determine which identity to
+/// restore, then calls [AuthService.signInForAccount] with its stored
+/// [AuthenticationSource].
 final class WelcomeLogBackInRequested extends WelcomeEvent {
   const WelcomeLogBackInRequested();
 
@@ -36,22 +36,21 @@ final class WelcomeLogBackInRequested extends WelcomeEvent {
   List<Object?> get props => [];
 }
 
+/// User picked a different account from the dropdown.
+final class WelcomeAccountSelected extends WelcomeEvent {
+  const WelcomeAccountSelected({required this.pubkeyHex});
+
+  final String pubkeyHex;
+
+  @override
+  List<Object?> get props => [pubkeyHex];
+}
+
 /// Request to navigate to the create account screen (email/password sign-up).
 ///
 /// Calls [AuthService.acceptTerms] and signals the UI to navigate.
 final class WelcomeCreateAccountRequested extends WelcomeEvent {
   const WelcomeCreateAccountRequested();
-
-  @override
-  List<Object?> get props => [];
-}
-
-/// Request to create a fresh account, discarding the previous identity.
-///
-/// Calls [AuthService.signOut] with `deleteKeys: true`, then navigates
-/// to the create account screen.
-final class WelcomeCreateNewAccountRequested extends WelcomeEvent {
-  const WelcomeCreateNewAccountRequested();
 
   @override
   List<Object?> get props => [];

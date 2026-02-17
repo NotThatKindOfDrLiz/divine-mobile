@@ -10,16 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
-import 'package:openvine/blocs/welcome/welcome_bloc.dart';
+import 'package:openvine/models/known_account.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
-import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
 import 'package:openvine/widgets/auth/auth_hero_section.dart';
 import 'package:openvine/widgets/error_message.dart';
 import 'package:openvine/widgets/user_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockAuthService extends Mock implements AuthService {}
 
@@ -40,16 +38,23 @@ final _testProfile = UserProfile(
   eventId: 'e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8e1e2e3e4e5e6e7e8',
 );
 
+final _testKnownAccount = KnownAccount(
+  pubkeyHex: _testPubkeyHex,
+  authSource: AuthenticationSource.automatic,
+  addedAt: DateTime(2024),
+  lastUsedAt: DateTime(2024, 6),
+);
+
 void main() {
   late _MockAuthService mockAuthService;
   late _MockAppDatabase mockDb;
   late _MockUserProfilesDao mockUserProfilesDao;
-  late SharedPreferences prefs;
 
-  setUp(() async {
-    SharedPreferences.setMockInitialValues({});
-    prefs = await SharedPreferences.getInstance();
+  setUpAll(() {
+    registerFallbackValue(AuthenticationSource.none);
+  });
 
+  setUp(() {
     mockAuthService = _MockAuthService();
     mockDb = _MockAppDatabase();
     mockUserProfilesDao = _MockUserProfilesDao();
@@ -65,10 +70,10 @@ void main() {
     when(
       () => mockAuthService.authStateStream,
     ).thenAnswer((_) => const Stream.empty());
-    when(() => mockAuthService.signInAutomatically()).thenAnswer((_) async {});
+    when(() => mockAuthService.getKnownAccounts()).thenAnswer((_) async => []);
     when(() => mockAuthService.acceptTerms()).thenAnswer((_) async {});
     when(
-      () => mockAuthService.signOut(deleteKeys: true),
+      () => mockAuthService.signInForAccount(any(), any()),
     ).thenAnswer((_) async {});
   });
 
@@ -77,7 +82,6 @@ void main() {
       overrides: [
         authServiceProvider.overrideWithValue(mockAuthService),
         currentAuthStateProvider.overrideWithValue(authState),
-        sharedPreferencesProvider.overrideWithValue(prefs),
         databaseProvider.overrideWithValue(mockDb),
       ],
       child: MaterialApp.router(
@@ -231,8 +235,10 @@ void main() {
     });
 
     group('returning user variant', () {
-      setUp(() async {
-        await prefs.setString(kLastUserPubkeyHexKey, _testPubkeyHex);
+      setUp(() {
+        when(
+          () => mockAuthService.getKnownAccounts(),
+        ).thenAnswer((_) async => [_testKnownAccount]);
         when(
           () => mockUserProfilesDao.getProfile(_testPubkeyHex),
         ).thenAnswer((_) async => _testProfile);
@@ -301,7 +307,7 @@ void main() {
         expect(find.text('Create a new Divine account'), findsOneWidget);
       });
 
-      testWidgets('tapping "Log back in" calls signInAutomatically', (
+      testWidgets('tapping "Log back in" calls signInForAccount', (
         tester,
       ) async {
         await tester.binding.setSurfaceSize(const Size(800, 1200));
@@ -312,11 +318,16 @@ void main() {
         await tester.tap(find.text('Log back in'));
         await tester.pump();
 
-        verify(() => mockAuthService.signInAutomatically()).called(1);
+        verify(
+          () => mockAuthService.signInForAccount(
+            _testPubkeyHex,
+            AuthenticationSource.automatic,
+          ),
+        ).called(1);
       });
 
       testWidgets(
-        'tapping "Create a new Divine account" shows confirmation bottom sheet',
+        'tapping "Create a new Divine account" calls acceptTerms and navigates',
         (tester) async {
           await tester.binding.setSurfaceSize(const Size(800, 1200));
           addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -326,45 +337,10 @@ void main() {
           await tester.tap(find.text('Create a new Divine account'));
           await tester.pumpAndSettle();
 
-          expect(find.text('Create a new Divine account?'), findsOneWidget);
-          expect(find.text('Start fresh'), findsOneWidget);
-          expect(find.text('Cancel'), findsOneWidget);
+          verify(() => mockAuthService.acceptTerms()).called(1);
+          expect(find.text('Create Account'), findsOneWidget);
         },
       );
-
-      testWidgets('confirming "Start fresh" calls signOut with deleteKeys', (
-        tester,
-      ) async {
-        await tester.binding.setSurfaceSize(const Size(800, 1200));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Create a new Divine account'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Start fresh'));
-        await tester.pump();
-
-        verify(() => mockAuthService.signOut(deleteKeys: true)).called(1);
-      });
-
-      testWidgets('tapping "Cancel" on bottom sheet does not call signOut', (
-        tester,
-      ) async {
-        await tester.binding.setSurfaceSize(const Size(800, 1200));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Create a new Divine account'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.text('Cancel'));
-        await tester.pumpAndSettle();
-
-        verifyNever(() => mockAuthService.signOut(deleteKeys: true));
-      });
 
       testWidgets('tapping login button calls acceptTerms and navigates', (
         tester,
