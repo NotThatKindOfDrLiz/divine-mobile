@@ -68,6 +68,8 @@ class VideoStats {
     } else {
       id = rawId?.toString() ?? '';
     }
+    // Normalize to lowercase per NIP-01 (Funnelcake may return uppercase hex)
+    id = id.toLowerCase();
 
     // Parse pubkey - same format as id
     String pubkey;
@@ -77,6 +79,8 @@ class VideoStats {
     } else {
       pubkey = rawPubkey?.toString() ?? '';
     }
+    // Normalize to lowercase per NIP-01 (Funnelcake may return uppercase hex)
+    pubkey = pubkey.toLowerCase();
 
     // Parse created_at - funnelcake returns Unix timestamp (int), not ISO string
     DateTime createdAt;
@@ -379,7 +383,15 @@ class PaginatedPubkeys {
   });
 
   factory PaginatedPubkeys.fromJson(Map<String, dynamic> json) {
-    final pubkeysData = json['pubkeys'] as List<dynamic>? ?? [];
+    // The funnelcake API uses context-specific keys:
+    // - /following returns {"following": [...]}
+    // - /followers returns {"followers": [...]}
+    // - Fall back to "pubkeys" for generic responses
+    final pubkeysData =
+        json['following'] as List<dynamic>? ??
+        json['followers'] as List<dynamic>? ??
+        json['pubkeys'] as List<dynamic>? ??
+        [];
     return PaginatedPubkeys(
       pubkeys: pubkeysData.map((e) => e.toString()).toList(),
       total: json['total'] as int? ?? pubkeysData.length,
@@ -724,7 +736,7 @@ class AnalyticsApiService {
 
   /// Search videos by hashtag
   ///
-  /// Uses funnelcake's /api/search?tag= endpoint for hashtag discovery.
+  /// Uses funnelcake's /api/videos?tag= endpoint for hashtag discovery.
   ///
   /// [before] - Unix timestamp cursor for pagination
   Future<List<VideoEvent>> getVideosByHashtag({
@@ -758,7 +770,7 @@ class AnalyticsApiService {
 
     try {
       var url =
-          '$_baseUrl/api/search?tag=$normalizedTag&sort=trending&limit=$limit';
+          '$_baseUrl/api/videos?tag=$normalizedTag&sort=trending&limit=$limit';
       if (before != null) {
         url += '&before=$before';
       }
@@ -813,6 +825,93 @@ class AnalyticsApiService {
     } catch (e) {
       Log.error(
         'Error searching by hashtag: $e',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+      return [];
+    }
+  }
+
+  /// Fetch classic/all-time-popular videos for a hashtag
+  ///
+  /// Uses /api/videos?tag={hashtag}&sort=loops to surface classic vines
+  /// and high-engagement content sorted by all-time loop count.
+  ///
+  /// Separate from [getVideosByHashtag] so both can run in parallel.
+  Future<List<VideoEvent>> getClassicVideosByHashtag({
+    required String hashtag,
+    int limit = 50,
+  }) async {
+    if (!isAvailable) return [];
+
+    final normalizedTag = hashtag.replaceFirst('#', '').toLowerCase();
+
+    // Check cache
+    final cacheKey = 'classics_$normalizedTag';
+    final cachedTime = _hashtagSearchCacheTime[cacheKey];
+    if (cachedTime != null &&
+        DateTime.now().difference(cachedTime) < cacheTimeout &&
+        _hashtagSearchCache.containsKey(cacheKey)) {
+      Log.debug(
+        'Using cached classic hashtag videos for #$normalizedTag',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+      return _hashtagSearchCache[cacheKey]!
+          .map((v) => v.toVideoEvent())
+          .toList();
+    }
+
+    try {
+      final url =
+          '$_baseUrl/api/videos?tag=$normalizedTag&sort=loops&limit=$limit';
+      Log.info(
+        'Fetching classic videos by hashtag from Funnelcake: $url',
+        name: 'AnalyticsApiService',
+        category: LogCategory.video,
+      );
+
+      final response = await _httpClient
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'OpenVine-Mobile/1.0',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        final videos = data
+            .map((v) => VideoStats.fromJson(v as Map<String, dynamic>))
+            .where((v) => v.id.isNotEmpty && v.videoUrl.isNotEmpty)
+            .toList();
+
+        // Cache results
+        _hashtagSearchCache[cacheKey] = videos;
+        _hashtagSearchCacheTime[cacheKey] = DateTime.now();
+
+        Log.info(
+          'Found ${videos.length} classic videos for #$normalizedTag',
+          name: 'AnalyticsApiService',
+          category: LogCategory.video,
+        );
+
+        return videos.map((v) => v.toVideoEvent()).toList();
+      } else {
+        Log.error(
+          'Classic hashtag search failed: ${response.statusCode}\n'
+          'URL: $url',
+          name: 'AnalyticsApiService',
+          category: LogCategory.video,
+        );
+        return [];
+      }
+    } catch (e) {
+      Log.error(
+        'Error fetching classic videos by hashtag: $e',
         name: 'AnalyticsApiService',
         category: LogCategory.video,
       );
@@ -1149,7 +1248,9 @@ class AnalyticsApiService {
     }
 
     try {
-      var url = '$_baseUrl/api/users/$pubkey/feed?limit=$limit&sort=$sort';
+      var url =
+          '$_baseUrl/api/users/$pubkey/feed'
+          '?limit=$limit&sort=$sort&include_collabs=true';
       if (before != null) {
         url += '&before=$before';
       }
