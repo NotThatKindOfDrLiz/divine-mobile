@@ -310,32 +310,76 @@ class AuthService implements BackgroundAwareService {
       switch (authSource) {
         case AuthenticationSource.none:
           // Explicit logout or fresh install — show welcome
+          Log.info(
+            'initialize: authSource=none — fresh install or explicit logout',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           _setAuthState(AuthState.unauthenticated);
           return;
 
         case AuthenticationSource.divineOAuth:
           // Try to load authorized session from secure storage
+          Log.info(
+            'initialize: restoring Divine OAuth session...',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           final session = await KeycastSession.load(_flutterSecureStorage);
           if (session != null && session.hasRpcAccess) {
+            Log.info(
+              'initialize: Divine OAuth session found with RPC access',
+              name: 'AuthService',
+              category: LogCategory.auth,
+            );
             await signInWithDivineOAuth(session);
             return;
           }
           // session not restored — fall back to unauthenticated
+          Log.warning(
+            'initialize: Divine OAuth session not restored '
+            '(session=${session != null}, '
+            'hasRpcAccess=${session?.hasRpcAccess})',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           _setAuthState(AuthState.unauthenticated);
           return;
 
         case AuthenticationSource.importedKeys:
           // Only restore if secure keys exist
+          Log.info(
+            'initialize: restoring imported keys...',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           final hasKeys = await _keyStorage.hasKeys();
           if (hasKeys) {
             final keyContainer = await _keyStorage.getKeyContainer();
             if (keyContainer != null) {
+              Log.info(
+                'initialize: imported keys found — '
+                'pubkey=${keyContainer.publicKeyHex}',
+                name: 'AuthService',
+                category: LogCategory.auth,
+              );
               await _setupUserSession(
                 keyContainer,
                 AuthenticationSource.importedKeys,
               );
               return;
             }
+            Log.warning(
+              'initialize: hasKeys=true but getKeyContainer returned null',
+              name: 'AuthService',
+              category: LogCategory.auth,
+            );
+          } else {
+            Log.warning(
+              'initialize: authSource=importedKeys but no keys in storage',
+              name: 'AuthService',
+              category: LogCategory.auth,
+            );
           }
           _setAuthState(AuthState.unauthenticated);
           return;
@@ -346,23 +390,48 @@ class AuthService implements BackgroundAwareService {
 
         case AuthenticationSource.bunker:
           // Try to restore bunker connection from secure storage
+          Log.info(
+            'initialize: restoring bunker connection...',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           final bunkerInfo = await _loadBunkerInfo();
           if (bunkerInfo != null) {
             await _reconnectBunker(bunkerInfo);
             return;
           }
           // Bunker info not found — fall back to unauthenticated
+          Log.warning(
+            'initialize: bunker info not found in secure storage',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           _setAuthState(AuthState.unauthenticated);
           return;
 
         case AuthenticationSource.amber:
           // Try to restore Amber (NIP-55) connection from secure storage
+          Log.info(
+            'initialize: restoring Amber connection...',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           final amberInfo = await _loadAmberInfo();
           if (amberInfo != null) {
+            Log.info(
+              'initialize: Amber info found — pubkey=${amberInfo.pubkey}',
+              name: 'AuthService',
+              category: LogCategory.auth,
+            );
             await _reconnectAmber(amberInfo.pubkey, amberInfo.package);
             return;
           }
           // Amber info not found — fall back to unauthenticated
+          Log.warning(
+            'initialize: Amber info not found in secure storage',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           _setAuthState(AuthState.unauthenticated);
           return;
       }
@@ -441,16 +510,41 @@ class AuthService implements BackgroundAwareService {
   ///
   /// Throws if identity creation fails.
   Future<void> createAnonymousAccount() async {
+    Log.info(
+      'createAnonymousAccount: starting — clearing primary key slot',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
     // Clear the primary key slot so createNewIdentity() writes fresh keys
     // instead of _checkExistingAuth() finding and reusing old ones.
     await _keyStorage.deleteKeys();
 
     final result = await createNewIdentity();
     if (!result.success) {
+      Log.error(
+        'createAnonymousAccount: identity creation failed — '
+        '${result.errorMessage}',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
       throw Exception(result.errorMessage ?? 'Failed to create identity');
     }
 
+    Log.info(
+      'createAnonymousAccount: identity created, accepting terms — '
+      'pubkey=${result.keyContainer?.publicKeyHex}',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
     await acceptTerms();
+
+    Log.info(
+      'createAnonymousAccount: complete',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
   }
 
   Future<AuthenticationSource> _loadAuthSource() async {
@@ -621,13 +715,16 @@ class AuthService implements BackgroundAwareService {
       }
 
       Log.info(
-        'Archived signer info for $pubkeyHex',
+        '_archiveSignerInfo: archived for $pubkeyHex — '
+        'amber=${amberInfo != null}, '
+        'bunker=${bunkerUrl != null && bunkerUrl.isNotEmpty}, '
+        'oauth=${oauthSession != null}',
         name: 'AuthService',
         category: LogCategory.auth,
       );
     } catch (e) {
       Log.warning(
-        'Failed to archive signer info for $pubkeyHex: $e',
+        '_archiveSignerInfo: failed for $pubkeyHex: $e',
         name: 'AuthService',
         category: LogCategory.auth,
       );
@@ -647,6 +744,12 @@ class AuthService implements BackgroundAwareService {
         case AuthenticationSource.amber:
           final pubkey = await _flutterSecureStorage.read(
             key: '${_kAmberPubkeyKey}_$pubkeyHex',
+          );
+          Log.debug(
+            '_restoreSignerInfo: amber archive lookup — '
+            'found=${pubkey != null}',
+            name: 'AuthService',
+            category: LogCategory.auth,
           );
           if (pubkey != null) {
             await _flutterSecureStorage.write(
@@ -668,6 +771,12 @@ class AuthService implements BackgroundAwareService {
           final bunkerUrl = await _flutterSecureStorage.read(
             key: '${_kBunkerInfoKey}_$pubkeyHex',
           );
+          Log.debug(
+            '_restoreSignerInfo: bunker archive lookup — '
+            'found=${bunkerUrl != null && bunkerUrl.isNotEmpty}',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           if (bunkerUrl != null) {
             await _flutterSecureStorage.write(
               key: _kBunkerInfoKey,
@@ -679,6 +788,12 @@ class AuthService implements BackgroundAwareService {
           final sessionJson = await _flutterSecureStorage.read(
             key: 'keycast_session_$pubkeyHex',
           );
+          Log.debug(
+            '_restoreSignerInfo: OAuth session archive lookup — '
+            'found=${sessionJson != null}',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           if (sessionJson != null) {
             final sessionMap = jsonDecode(sessionJson) as Map<String, dynamic>;
             final session = KeycastSession.fromJson(sessionMap);
@@ -688,7 +803,12 @@ class AuthService implements BackgroundAwareService {
         case AuthenticationSource.automatic:
         case AuthenticationSource.importedKeys:
         case AuthenticationSource.none:
-          // Local key-based auth — keys are managed by SecureKeyStorage
+          Log.debug(
+            '_restoreSignerInfo: local key-based auth — '
+            'no signer info to restore',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           break;
       }
 
@@ -713,6 +833,11 @@ class AuthService implements BackgroundAwareService {
   /// Deletes all per-account archived signer keys for a given pubkey.
   Future<void> _clearArchivedSignerInfo(String pubkeyHex) async {
     if (_flutterSecureStorage == null) return;
+    Log.info(
+      '_clearArchivedSignerInfo: removing all archives for $pubkeyHex',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
     try {
       await _flutterSecureStorage.delete(key: '${_kAmberPubkeyKey}_$pubkeyHex');
       await _flutterSecureStorage.delete(
@@ -722,7 +847,7 @@ class AuthService implements BackgroundAwareService {
       await _flutterSecureStorage.delete(key: 'keycast_session_$pubkeyHex');
     } catch (e) {
       Log.warning(
-        'Failed to clear archived signer info for $pubkeyHex: $e',
+        '_clearArchivedSignerInfo: failed for $pubkeyHex: $e',
         name: 'AuthService',
         category: LogCategory.auth,
       );
@@ -747,30 +872,67 @@ class AuthService implements BackgroundAwareService {
       category: LogCategory.auth,
     );
 
+    Log.info(
+      'signInForAccount: restoring signer info...',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
     await _restoreSignerInfo(pubkeyHex, authSource);
 
     switch (authSource) {
       case AuthenticationSource.amber:
+        Log.info(
+          'signInForAccount: loading Amber info for reconnect...',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         final amberInfo = await _loadAmberInfo();
         if (amberInfo != null) {
           await _reconnectAmber(amberInfo.pubkey, amberInfo.package);
         } else {
+          Log.error(
+            'signInForAccount: no archived Amber info for $pubkeyHex',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           throw Exception('No archived Amber info found for $pubkeyHex');
         }
 
       case AuthenticationSource.bunker:
+        Log.info(
+          'signInForAccount: loading bunker info for reconnect...',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         final bunkerInfo = await _loadBunkerInfo();
         if (bunkerInfo != null) {
           await _reconnectBunker(bunkerInfo);
         } else {
+          Log.error(
+            'signInForAccount: no archived bunker info for $pubkeyHex',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           throw Exception('No archived Bunker info found for $pubkeyHex');
         }
 
       case AuthenticationSource.divineOAuth:
+        Log.info(
+          'signInForAccount: loading OAuth session for reconnect...',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         final session = await KeycastSession.load(_flutterSecureStorage);
         if (session != null && session.hasRpcAccess) {
           await signInWithDivineOAuth(session);
         } else {
+          Log.error(
+            'signInForAccount: no archived OAuth session for $pubkeyHex '
+            '(session=${session != null}, '
+            'hasRpcAccess=${session?.hasRpcAccess})',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           throw Exception('No archived OAuth session found for $pubkeyHex');
         }
 
@@ -778,15 +940,37 @@ class AuthService implements BackgroundAwareService {
       case AuthenticationSource.automatic:
         // Try to switch to saved identity keys
         final npub = NostrKeyUtils.encodePubKey(pubkeyHex);
+        Log.info(
+          'signInForAccount: loading identity keys for npub=$npub...',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         final container = await _keyStorage.getIdentityKeyContainer(npub);
         if (container != null) {
+          Log.info(
+            'signInForAccount: identity keys found — '
+            'pubkey=${container.publicKeyHex}',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           await _setupUserSession(container, authSource);
         } else {
           // Fall back to current primary keys
+          Log.warning(
+            'signInForAccount: no saved identity keys for $npub — '
+            'falling back to _checkExistingAuth',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
           await _checkExistingAuth();
         }
 
       case AuthenticationSource.none:
+        Log.error(
+          'signInForAccount: cannot sign in with authSource=none',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         throw Exception('Cannot sign in with auth source "none"');
     }
   }
@@ -1844,11 +2028,11 @@ class AuthService implements BackgroundAwareService {
 
   /// Sign out the current user
   Future<void> signOut({bool deleteKeys = false}) async {
-    Log.debug(
-      '📱 Signing out user '
-      '(authSource=${_authSource.name}, '
+    Log.info(
+      'signOut: starting — '
+      'authSource=${_authSource.name}, '
       'deleteKeys=$deleteKeys, '
-      'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"})',
+      'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"}',
       name: 'AuthService',
       category: LogCategory.auth,
     );
@@ -1970,6 +2154,9 @@ class AuthService implements BackgroundAwareService {
           await _clearAmberInfo();
         }
       }
+
+      // Clean up Keycast RPC signer if active
+      _keycastSigner = null;
 
       try {
         if (_oauthClient != null) {
@@ -2109,10 +2296,22 @@ class AuthService implements BackgroundAwareService {
       Event? signedEvent;
 
       if (rpcSigner case final rpcSigner?) {
-        Log.info('🚀 Signing via Remote RPC', name: 'AuthService');
+        Log.info(
+          '🚀 Signing kind $kind via Remote RPC '
+          '(authSource=${_authSource.name}, '
+          'eventPubkey=${event.pubkey})',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         signedEvent = await rpcSigner.signEvent(event);
       } else {
-        Log.info('🔐 Signing via Local Secure Storage', name: 'AuthService');
+        Log.info(
+          '🔐 Signing kind $kind via Local Secure Storage '
+          '(authSource=${_authSource.name}, '
+          'eventPubkey=${event.pubkey})',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         signedEvent = await _keyStorage.withPrivateKey<Event?>((privateKey) {
           event.sign(privateKey);
           return event;
@@ -2131,12 +2330,10 @@ class AuthService implements BackgroundAwareService {
       // CRITICAL: Verify signature is actually valid
       if (!signedEvent.isSigned) {
         Log.error(
-          '❌ Event signature validation FAILED!',
-          name: 'AuthService',
-          category: LogCategory.auth,
-        );
-        Log.error(
-          '   This would cause relay to accept but not store the event',
+          '❌ Event signature validation FAILED! '
+          'kind=$kind, eventPubkey=${signedEvent.pubkey}, '
+          'authSource=${_authSource.name}, '
+          'currentPubkey=${_currentKeyContainer?.publicKeyHex}',
           name: 'AuthService',
           category: LogCategory.auth,
         );
@@ -2254,6 +2451,11 @@ class AuthService implements BackgroundAwareService {
   }
 
   Future<void> acceptTerms() async {
+    Log.debug(
+      'acceptTerms: marking terms accepted and age verified',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'terms_accepted_at',
@@ -2267,8 +2469,50 @@ class AuthService implements BackgroundAwareService {
     SecureKeyContainer keyContainer,
     AuthenticationSource source,
   ) async {
+    Log.info(
+      '_setupUserSession: starting — '
+      'pubkey=${keyContainer.publicKeyHex}, source=${source.name}',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
     _currentKeyContainer = keyContainer;
     _authSource = source;
+
+    // Clear any stale remote signers that don't match the new auth source.
+    // This prevents a Keycast RPC signer from a previous divine OAuth session
+    // from being used when signing events for an anonymous/imported-key account.
+    if (source != AuthenticationSource.divineOAuth) {
+      if (_keycastSigner != null) {
+        Log.info(
+          '_setupUserSession: clearing stale Keycast signer '
+          '(new source=${source.name})',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
+        _keycastSigner = null;
+      }
+    }
+    if (source != AuthenticationSource.bunker && _bunkerSigner != null) {
+      Log.info(
+        '_setupUserSession: clearing stale bunker signer '
+        '(new source=${source.name})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      _bunkerSigner!.close();
+      _bunkerSigner = null;
+    }
+    if (source != AuthenticationSource.amber && _amberSigner != null) {
+      Log.info(
+        '_setupUserSession: clearing stale amber signer '
+        '(new source=${source.name})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      _amberSigner!.close();
+      _amberSigner = null;
+    }
 
     // Create user profile
     _currentProfile = UserProfile(
@@ -2288,12 +2532,24 @@ class AuthService implements BackgroundAwareService {
       );
 
       if (shouldClean) {
+        Log.info(
+          '_setupUserSession: identity change detected — '
+          'clearing user-specific data',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         await _userDataCleanupService.clearUserSpecificData(
           reason: 'identity_change',
           isIdentityChange: true,
         );
         // restore the TOS acceptance since we wouldn't be here otherwise
         await acceptTerms();
+      } else {
+        Log.debug(
+          '_setupUserSession: same identity — no data cleanup needed',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
       }
       await prefs.setString(
         'current_user_pubkey_hex',
@@ -2309,8 +2565,18 @@ class AuthService implements BackgroundAwareService {
       // user to /explore instead of /home. By fetching here, we ensure the
       // cache is populated before the redirect fires.
       if (_preFetchFollowing != null) {
+        Log.debug(
+          '_setupUserSession: pre-fetching following list...',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
         try {
           await _preFetchFollowing(keyContainer.publicKeyHex);
+          Log.debug(
+            '_setupUserSession: following list pre-fetched',
+            name: 'AuthService',
+            category: LogCategory.auth,
+          );
         } catch (e) {
           Log.warning(
             'Pre-fetch following list failed (will rely on '
@@ -2321,6 +2587,11 @@ class AuthService implements BackgroundAwareService {
         }
       }
 
+      Log.info(
+        '_setupUserSession: setting auth state to authenticated',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
       _setAuthState(AuthState.authenticated);
 
       // Register this account in the known accounts list
@@ -2332,8 +2603,19 @@ class AuthService implements BackgroundAwareService {
           keyContainer.npub,
           keyContainer,
         );
-      } catch (_) {
+        Log.debug(
+          '_setupUserSession: identity keys stored for multi-account',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
+      } catch (e) {
         // Best-effort — external signers may not have local keys to store
+        Log.debug(
+          '_setupUserSession: could not store identity keys '
+          '(expected for external signers): $e',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
       }
 
       // Run discovery in background - it's not needed for the home feed to start
@@ -2632,11 +2914,12 @@ class AuthService implements BackgroundAwareService {
   /// Update authentication state and notify listeners
   void _setAuthState(AuthState newState) {
     if (_authState != newState) {
+      final previousState = _authState;
       _authState = newState;
       _authStateController.add(newState);
 
-      Log.debug(
-        'Auth state changed: ${newState.name}',
+      Log.info(
+        'Auth state: ${previousState.name} -> ${newState.name}',
         name: 'AuthService',
         category: LogCategory.auth,
       );

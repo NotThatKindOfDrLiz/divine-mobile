@@ -4,24 +4,25 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i8;
-import 'dart:io' as _i14;
+import 'dart:io' as _i15;
 
 import 'package:dio/dio.dart' as _i5;
-import 'package:keycast_flutter/keycast_flutter.dart' as _i13;
+import 'package:keycast_flutter/keycast_flutter.dart' as _i14;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i11;
 import 'package:models/models.dart' as _i7;
 import 'package:nostr_client/nostr_client.dart' as _i4;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i3;
+import 'package:openvine/models/known_account.dart' as _i12;
 import 'package:openvine/services/auth_service.dart' as _i2;
 import 'package:openvine/services/blossom_server_discovery_service.dart'
     as _i10;
 import 'package:openvine/services/blossom_upload_service.dart' as _i6;
-import 'package:openvine/services/bug_report_service.dart' as _i17;
-import 'package:openvine/services/notification_service_enhanced.dart' as _i15;
+import 'package:openvine/services/bug_report_service.dart' as _i18;
+import 'package:openvine/services/notification_service_enhanced.dart' as _i16;
 import 'package:openvine/services/relay_discovery_service.dart' as _i9;
-import 'package:openvine/services/user_profile_service.dart' as _i12;
-import 'package:openvine/services/video_event_service.dart' as _i16;
+import 'package:openvine/services/user_profile_service.dart' as _i13;
+import 'package:openvine/services/video_event_service.dart' as _i17;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -245,6 +246,46 @@ class MockAuthService extends _i1.Mock implements _i2.AuthService {
           as _i8.Future<_i2.AuthResult>);
 
   @override
+  _i8.Future<void> createAnonymousAccount() =>
+      (super.noSuchMethod(
+            Invocation.method(#createAnonymousAccount, []),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
+  _i8.Future<List<_i12.KnownAccount>> getKnownAccounts() =>
+      (super.noSuchMethod(
+            Invocation.method(#getKnownAccounts, []),
+            returnValue: _i8.Future<List<_i12.KnownAccount>>.value(
+              <_i12.KnownAccount>[],
+            ),
+          )
+          as _i8.Future<List<_i12.KnownAccount>>);
+
+  @override
+  _i8.Future<void> removeKnownAccount(String? pubkeyHex) =>
+      (super.noSuchMethod(
+            Invocation.method(#removeKnownAccount, [pubkeyHex]),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
+  _i8.Future<void> signInForAccount(
+    String? pubkeyHex,
+    _i2.AuthenticationSource? authSource,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInForAccount, [pubkeyHex, authSource]),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
   _i8.Future<_i2.AuthResult> connectWithAmber() =>
       (super.noSuchMethod(
             Invocation.method(#connectWithAmber, []),
@@ -361,7 +402,7 @@ class MockAuthService extends _i1.Mock implements _i2.AuthService {
 
   @override
   _i8.Future<void> refreshCurrentProfile(
-    _i12.UserProfileService? userProfileService,
+    _i13.UserProfileService? userProfileService,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#refreshCurrentProfile, [userProfileService]),
@@ -371,16 +412,7 @@ class MockAuthService extends _i1.Mock implements _i2.AuthService {
           as _i8.Future<void>);
 
   @override
-  _i8.Future<void> signInAutomatically() =>
-      (super.noSuchMethod(
-            Invocation.method(#signInAutomatically, []),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
-
-  @override
-  _i8.Future<void> signInWithDivineOAuth(_i13.KeycastSession? session) =>
+  _i8.Future<void> signInWithDivineOAuth(_i14.KeycastSession? session) =>
       (super.noSuchMethod(
             Invocation.method(#signInWithDivineOAuth, [session]),
             returnValue: _i8.Future<void>.value(),
@@ -1057,7 +1089,7 @@ class MockBlossomUploadService extends _i1.Mock
 
   @override
   _i8.Future<_i6.BlossomUploadResult> uploadVideo({
-    required _i14.File? videoFile,
+    required _i15.File? videoFile,
     required String? nostrPubkey,
     required String? title,
     required String? proofManifestJson,
@@ -1094,7 +1126,7 @@ class MockBlossomUploadService extends _i1.Mock
 
   @override
   _i8.Future<_i6.BlossomUploadResult> uploadImage({
-    required _i14.File? imageFile,
+    required _i15.File? imageFile,
     required String? nostrPubkey,
     String? mimeType = 'image/jpeg',
     void Function(double)? onProgress,
@@ -1122,7 +1154,7 @@ class MockBlossomUploadService extends _i1.Mock
 
   @override
   _i8.Future<String?> uploadBugReport({
-    required _i14.File? bugReportFile,
+    required _i15.File? bugReportFile,
     void Function(double)? onProgress,
   }) =>
       (super.noSuchMethod(
@@ -1136,7 +1168,7 @@ class MockBlossomUploadService extends _i1.Mock
 
   @override
   _i8.Future<_i6.BlossomUploadResult> uploadAudio({
-    required _i14.File? audioFile,
+    required _i15.File? audioFile,
     String? mimeType = 'audio/aac',
     void Function(double)? onProgress,
   }) =>
@@ -1179,7 +1211,7 @@ class MockBlossomUploadService extends _i1.Mock
 ///
 /// See the documentation for Mockito's code generation for more information.
 class MockNotificationServiceEnhanced extends _i1.Mock
-    implements _i15.NotificationServiceEnhanced {
+    implements _i16.NotificationServiceEnhanced {
   MockNotificationServiceEnhanced() {
     _i1.throwOnMissingStub(this);
   }
@@ -1221,8 +1253,8 @@ class MockNotificationServiceEnhanced extends _i1.Mock
   @override
   _i8.Future<void> initialize({
     required _i4.NostrClient? nostrService,
-    required _i12.UserProfileService? profileService,
-    required _i16.VideoEventService? videoService,
+    required _i13.UserProfileService? profileService,
+    required _i17.VideoEventService? videoService,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#initialize, [], {
@@ -1320,7 +1352,7 @@ class MockNotificationServiceEnhanced extends _i1.Mock
 /// A class which mocks [BugReportService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockBugReportService extends _i1.Mock implements _i17.BugReportService {
+class MockBugReportService extends _i1.Mock implements _i18.BugReportService {
   MockBugReportService() {
     _i1.throwOnMissingStub(this);
   }

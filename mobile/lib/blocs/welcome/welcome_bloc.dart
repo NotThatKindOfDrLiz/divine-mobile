@@ -51,12 +51,38 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
     WelcomeStarted event,
     Emitter<WelcomeState> emit,
   ) async {
+    Log.info(
+      'WelcomeBloc: loading known accounts...',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
+
     // Load known accounts from the registry
     final knownAccounts = await _authService.getKnownAccounts();
 
     if (knownAccounts.isEmpty) {
+      Log.info(
+        'WelcomeBloc: no known accounts — showing fresh welcome',
+        name: 'WelcomeBloc',
+        category: LogCategory.auth,
+      );
       emit(state.copyWith(status: WelcomeStatus.loaded));
       return;
+    }
+
+    Log.info(
+      'WelcomeBloc: found ${knownAccounts.length} known account(s)',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
+    for (final known in knownAccounts) {
+      Log.debug(
+        'WelcomeBloc: account pubkey=${known.pubkeyHex}, '
+        'source=${known.authSource.name}, '
+        'lastUsed=${known.lastUsedAt.toIso8601String()}',
+        name: 'WelcomeBloc',
+        category: LogCategory.auth,
+      );
     }
 
     // Load cached profiles for each known account
@@ -81,6 +107,14 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
       );
     }
 
+    Log.info(
+      'WelcomeBloc: loaded ${accounts.length} account(s) '
+      '(${accounts.where((a) => a.profile != null).length} with cached '
+      'profiles)',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
+
     emit(
       state.copyWith(status: WelcomeStatus.loaded, previousAccounts: accounts),
     );
@@ -104,7 +138,22 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
     Emitter<WelcomeState> emit,
   ) async {
     final account = state.selectedAccount;
-    if (account == null) return;
+    if (account == null) {
+      Log.warning(
+        'WelcomeBloc: log back in requested but no account selected',
+        name: 'WelcomeBloc',
+        category: LogCategory.auth,
+      );
+      return;
+    }
+
+    Log.info(
+      'WelcomeBloc: logging back in as '
+      'pubkey=${account.pubkeyHex}, '
+      'source=${account.authSource.name}',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
 
     emit(
       state.copyWith(
@@ -121,9 +170,14 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
         account.pubkeyHex,
         account.authSource,
       );
+      Log.info(
+        'WelcomeBloc: sign-in completed for ${account.pubkeyHex}',
+        name: 'WelcomeBloc',
+        category: LogCategory.auth,
+      );
     } catch (e) {
       Log.error(
-        'Failed to log back in as ${account.pubkeyHex}: $e',
+        'WelcomeBloc: failed to log back in as ${account.pubkeyHex}: $e',
         name: 'WelcomeBloc',
         category: LogCategory.auth,
       );
@@ -141,6 +195,11 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
     WelcomeAccountSelected event,
     Emitter<WelcomeState> emit,
   ) {
+    Log.debug(
+      'WelcomeBloc: account selected — pubkey=${event.pubkeyHex}',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
     emit(state.copyWith(selectedPubkeyHex: event.pubkeyHex));
   }
 
@@ -148,6 +207,12 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
     WelcomeCreateAccountRequested event,
     Emitter<WelcomeState> emit,
   ) async {
+    Log.info(
+      'WelcomeBloc: create account requested — accepting terms and '
+      'navigating',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
     await _authService.acceptTerms();
     emit(state.copyWith(shouldNavigateToCreateAccount: true));
   }
@@ -168,6 +233,12 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
     WelcomeLoginOptionsRequested event,
     Emitter<WelcomeState> emit,
   ) async {
+    Log.info(
+      'WelcomeBloc: login options requested — accepting terms and '
+      'navigating',
+      name: 'WelcomeBloc',
+      category: LogCategory.auth,
+    );
     await _authService.acceptTerms();
     emit(state.copyWith(shouldNavigateToLoginOptions: true));
   }

@@ -469,13 +469,22 @@ class _AccountPickerSheet extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          ...accounts.map(
-            (account) => _AccountTile(
-              account: account,
-              isSelected: account.pubkeyHex == selectedPubkeyHex,
-              onTap: () {
-                bloc.add(WelcomeAccountSelected(pubkeyHex: account.pubkeyHex));
-                Navigator.pop(context);
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: accounts.length,
+              itemBuilder: (context, index) {
+                final account = accounts[index];
+                return _AccountTile(
+                  account: account,
+                  isSelected: account.pubkeyHex == selectedPubkeyHex,
+                  onTap: () {
+                    bloc.add(
+                      WelcomeAccountSelected(pubkeyHex: account.pubkeyHex),
+                    );
+                    Navigator.pop(context);
+                  },
+                );
               },
             ),
           ),

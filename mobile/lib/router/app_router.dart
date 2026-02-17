@@ -82,14 +82,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: authListenable,
     redirect: (context, state) {
       final location = state.matchedLocation;
+      final authState = ref.read(authServiceProvider).authState;
+
       Log.debug(
-        'Redirect START for: $location',
+        'Router redirect: location=$location, '
+        'authState=${authState.name}',
         name: 'AppRouter',
-        category: LogCategory.ui,
+        category: LogCategory.auth,
       );
 
       // Handle authenticated users on auth routes
-      final authState = ref.read(authServiceProvider).authState;
       if (authState == AuthState.authenticated &&
           (location == WelcomeScreen.path ||
               location == KeyImportScreen.path ||
@@ -98,15 +100,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               location == WelcomeScreen.loginOptionsPath ||
               location == WelcomeScreen.resetPasswordPath ||
               location == EmailVerificationScreen.path)) {
-        debugPrint('[Router] Authenticated. moving to /home/0');
         // On first navigation, redirect to explore if user has no following
         if (!_hasNavigated) {
           _hasNavigated = true;
           final emptyFollowingRedirect = ref.read(
             checkEmptyFollowingRedirectProvider(location),
           );
-          if (emptyFollowingRedirect != null) return emptyFollowingRedirect;
+          if (emptyFollowingRedirect != null) {
+            Log.info(
+              'Router redirect: authenticated on auth route — '
+              'redirecting to $emptyFollowingRedirect (no following)',
+              name: 'AppRouter',
+              category: LogCategory.auth,
+            );
+            return emptyFollowingRedirect;
+          }
         }
+        Log.info(
+          'Router redirect: authenticated on auth route — '
+          'redirecting to /home/0',
+          name: 'AppRouter',
+          category: LogCategory.auth,
+        );
         return HomeScreenRouter.pathForIndex(0);
       }
 
@@ -123,19 +138,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Unauthenticated users on non-auth routes → redirect to welcome
       if (!isAuthRoute && authState == AuthState.unauthenticated) {
         _hasNavigated = false;
-        Log.debug(
-          'Not authenticated, redirecting to ${WelcomeScreen.path}',
+        Log.info(
+          'Router redirect: unauthenticated on $location — '
+          'redirecting to ${WelcomeScreen.path}',
           name: 'AppRouter',
-          category: LogCategory.ui,
+          category: LogCategory.auth,
         );
         return WelcomeScreen.path;
       }
 
-      Log.debug(
-        'Redirect END for: $location, returning null',
-        name: 'AppRouter',
-        category: LogCategory.ui,
-      );
       return null;
     },
     routes: [
