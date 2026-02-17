@@ -1,6 +1,7 @@
 // ABOUTME: Shared scaffold layout for auth form screens (create account,
 // ABOUTME: secure account). Provides dark background, back button, title,
 // ABOUTME: email/password field slots, dog sticker, error, and button slots.
+// Figma: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=6560-62187
 
 import 'dart:math';
 
@@ -65,7 +66,7 @@ class AuthFormScaffold extends StatelessWidget {
             SliverFillRemaining(
               hasScrollBody: false,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -81,7 +82,7 @@ class AuthFormScaffold extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontFamily: 'BricolageGrotesque',
-                        fontSize: 28,
+                        fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: VineTheme.whiteText,
                       ),
@@ -108,8 +109,8 @@ class AuthFormScaffold extends StatelessWidget {
                           angle: 12 * pi / 180,
                           child: Image.asset(
                             'assets/stickers/samoyed_dog.png',
-                            width: 140,
-                            height: 140,
+                            width: 174,
+                            height: 174,
                           ),
                         ),
                       ),
@@ -133,7 +134,7 @@ class AuthFormScaffold extends StatelessWidget {
                       secondaryButton!,
                     ],
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
                   ],
                 ),
               ),
