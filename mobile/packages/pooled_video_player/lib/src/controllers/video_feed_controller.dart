@@ -155,6 +155,7 @@ class VideoFeedController extends ChangeNotifier {
 
   /// Notifies the specific index's notifier of state changes.
   void _notifyIndex(int index) {
+    if (_isDisposed) return;
     final notifier = _indexNotifiers[index];
     if (notifier != null) {
       notifier.value = VideoIndexState(
@@ -200,6 +201,11 @@ class VideoFeedController extends ChangeNotifier {
   void setActive({required bool active}) {
     if (_isActive == active) return;
     _isActive = active;
+
+    debugPrint(
+      'VideoFeedController: setActive($active) '
+      '(${_loadedPlayers.length} loaded players)',
+    );
 
     if (!active) {
       // Pause and release all players to free memory
@@ -309,6 +315,12 @@ class VideoFeedController extends ChangeNotifier {
   Future<void> _loadPlayer(int index) async {
     if (_isDisposed || _loadingIndices.contains(index)) return;
     if (index < 0 || index >= _videos.length) return;
+
+    debugPrint(
+      'VideoFeedController: loading player at index $index '
+      '(${_loadedPlayers.length} loaded, '
+      '${_indexNotifiers.length} notifiers)',
+    );
 
     _loadingIndices.add(index);
     _loadStates[index] = LoadState.loading;
@@ -428,6 +440,11 @@ class VideoFeedController extends ChangeNotifier {
   }
 
   void _releasePlayer(int index) {
+    debugPrint(
+      'VideoFeedController: releasing player at index $index '
+      '(${_loadedPlayers.length} loaded, '
+      '${_indexNotifiers.length} notifiers)',
+    );
     _stopPositionTimer(index);
     unawaited(_bufferSubscriptions[index]?.cancel());
     _bufferSubscriptions.remove(index);
@@ -440,38 +457,64 @@ class VideoFeedController extends ChangeNotifier {
   @override
   void dispose() {
     if (_isDisposed) return;
-    _isDisposed = true;
 
-    // Release all players back to pool (stops playback and removes from pool)
-    // This ensures clean state when videos are reopened.
-    for (var i = 0; i < _videos.length; i++) {
-      if (_loadedPlayers.containsKey(i)) {
-        unawaited(pool.release(_videos[i].url));
-      }
-    }
+    debugPrint(
+      'VideoFeedController: dispose() called '
+      '(${_loadedPlayers.length} loaded players, '
+      '${_indexNotifiers.length} notifiers, '
+      '${_positionTimers.length} timers, '
+      '${_bufferSubscriptions.length} subscriptions)',
+    );
 
-    // Cancel all position timers
+    // Cancel all position timers first (they reference players).
     for (final timer in _positionTimers.values) {
       timer.cancel();
     }
     _positionTimers.clear();
 
-    // Cancel all subscriptions
+    // Cancel all buffer subscriptions.
     for (final subscription in _bufferSubscriptions.values) {
       unawaited(subscription.cancel());
     }
     _bufferSubscriptions.clear();
 
-    // Dispose index notifiers
+    // Collect player URLs to release BEFORE clearing state, but release
+    // AFTER notifiers are disposed so no widget can rebuild with a stale
+    // VideoController.
+    final urlsToRelease = <String>[];
+    for (var i = 0; i < _videos.length; i++) {
+      if (_loadedPlayers.containsKey(i)) {
+        urlsToRelease.add(_videos[i].url);
+      }
+    }
+
+    // Clear loaded players so _notifyIndex reports null controllers.
+    _loadedPlayers.clear();
+    _loadStates.clear();
+    _loadingIndices.clear();
+
+    // Notify all index listeners that their video is gone.  This causes
+    // ValueListenableBuilder to rebuild with videoController == null,
+    // removing media_kit Video widgets from the tree BEFORE we dispose
+    // the underlying native players (which would otherwise dispose the
+    // internal ValueNotifier<int?> out from under a mounted widget).
+    for (final entry in _indexNotifiers.entries) {
+      entry.value.value = const VideoIndexState();
+    }
+
+    // Mark as disposed so no further _notifyIndex calls can fire.
+    _isDisposed = true;
+
+    // Dispose index notifiers (no widget should be listening now).
     for (final notifier in _indexNotifiers.values) {
       notifier.dispose();
     }
     _indexNotifiers.clear();
 
-    // Clear state
-    _loadedPlayers.clear();
-    _loadStates.clear();
-    _loadingIndices.clear();
+    // Now release players from pool (disposes native resources safely).
+    for (final url in urlsToRelease) {
+      unawaited(pool.release(url));
+    }
 
     super.dispose();
   }
