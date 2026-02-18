@@ -1,5 +1,6 @@
 // ABOUTME: Sign-in screen with email/password form and alternative Nostr methods
 // ABOUTME: Options: Email sign-in, Import Nostr Key, Signer App, or Amber
+// DESIGN: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=5061-65986
 
 import 'dart:io' show Platform;
 
@@ -72,6 +73,7 @@ class _LoginOptionsView extends StatelessWidget {
       },
       child: Scaffold(
         backgroundColor: VineTheme.backgroundColor,
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
             builder: (context, state) {
@@ -284,10 +286,10 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                     child: const Text(
                       'Forgot password?',
                       style: TextStyle(
-                        color: VineTheme.vineGreen,
+                        color: VineTheme.whiteText,
                         fontSize: 14,
                         decoration: TextDecoration.underline,
-                        decorationColor: VineTheme.vineGreen,
+                        decorationColor: VineTheme.whiteText,
                       ),
                     ),
                   ),
@@ -307,7 +309,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 12),
 
                 _AlternativeMethodButton(
-                  label: 'Connect with Signer App',
+                  label: 'Connect with a signer app',
                   onPressed: isDisabled
                       ? null
                       : () => context.push(NostrConnectScreen.path),

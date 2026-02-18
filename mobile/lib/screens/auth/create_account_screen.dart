@@ -1,5 +1,6 @@
 // ABOUTME: Create account screen with email/password registration form
 // ABOUTME: Provides DivineAuthCubit in sign-up mode
+// DESIGN: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=7391-55983
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -275,7 +276,7 @@ class _SkipButton extends StatelessWidget {
                 ),
               )
             : const Text(
-                'Skip for now',
+                'Use Divine with no backup',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
       ),
@@ -284,6 +285,7 @@ class _SkipButton extends StatelessWidget {
 }
 
 /// Bottom sheet asking the user to confirm skipping email/password setup.
+// DESIGN: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=6872-22358
 class _SkipConfirmationSheet extends StatelessWidget {
   const _SkipConfirmationSheet();
 
@@ -293,41 +295,35 @@ class _SkipConfirmationSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Drag handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: VineTheme.outlineMuted,
-                borderRadius: BorderRadius.circular(2),
-              ),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: VineTheme.outlineMuted,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(height: 32),
 
-          Center(
-            child: Image.asset(
-              'assets/stickers/pause.png',
-              width: 132,
-              height: 132,
-              fit: BoxFit.contain,
-            ),
+          Image.asset(
+            'assets/stickers/pointing_finger.png',
+            width: 132,
+            height: 132,
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 24),
 
           // Title
-          const Center(
-            child: Text(
-              'One last thing...',
-              style: TextStyle(
-                fontFamily: 'BricolageGrotesque',
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: VineTheme.whiteText,
-              ),
+          const Text(
+            'One last thing...',
+            style: TextStyle(
+              fontFamily: 'BricolageGrotesque',
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: VineTheme.whiteText,
             ),
           ),
           const SizedBox(height: 16),
@@ -336,6 +332,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
           const Text(
             "You're in! We'll create a secure key that powers "
             'your Divine account.',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               color: VineTheme.secondaryText,
@@ -346,6 +343,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
           const Text(
             'Without an email, your key is the only way '
             'Divine knows this account is yours.',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               color: VineTheme.secondaryText,
@@ -359,6 +357,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
             'email and password now. It makes it easier to '
             'login and restore your account if you lose or '
             'reset this device.',
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 16,
               color: VineTheme.secondaryText,

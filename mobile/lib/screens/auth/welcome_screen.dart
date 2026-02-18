@@ -202,36 +202,36 @@ class _ReturningUserLayout extends StatelessWidget {
 
     return Column(
       children: [
-        const SizedBox(height: 16),
-
-        // "Welcome back!" title
-        Text(
-          'Welcome back!',
-          style: TextStyle(
-            fontFamily: 'BricolageGrotesque',
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-            color: VineTheme.whiteText,
-          ),
-          textAlign: TextAlign.center,
-        ),
-
-        // Profile section
+        // "Welcome back!" title — centered between top and profile
         Expanded(
           child: Center(
-            child: _ReturningUserProfile(
-              pubkeyHex: account.pubkeyHex,
-              profile: account.profile,
-              onSwitchAccount: state.previousAccounts.length > 1
-                  ? () => _showAccountPicker(
-                      context,
-                      accounts: state.previousAccounts,
-                      selectedPubkeyHex: account.pubkeyHex,
-                    )
-                  : null,
+            child: Text(
+              'Welcome back!',
+              style: TextStyle(
+                fontFamily: 'BricolageGrotesque',
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                color: VineTheme.whiteText,
+              ),
+              textAlign: TextAlign.center,
             ),
           ),
         ),
+
+        // Profile section
+        _ReturningUserProfile(
+          pubkeyHex: account.pubkeyHex,
+          profile: account.profile,
+          onSwitchAccount: state.previousAccounts.length > 1
+              ? () => _showAccountPicker(
+                  context,
+                  accounts: state.previousAccounts,
+                  selectedPubkeyHex: account.pubkeyHex,
+                )
+              : null,
+        ),
+
+        const Spacer(),
 
         if (lastError != null) ...[
           ErrorMessage(message: lastError!),
@@ -356,7 +356,7 @@ class _AvatarWithSwitchButton extends StatelessWidget {
 
     return SizedBox(
       width: _avatarSize,
-      height: _avatarSize + 20,
+      height: _avatarSize + 25,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
