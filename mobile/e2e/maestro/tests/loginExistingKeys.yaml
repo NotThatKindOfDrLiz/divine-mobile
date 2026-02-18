@@ -1,4 +1,6 @@
 appId: co.openvine.app
+env:
+  USER_KEYS: ""
 ---
 #TC to check that the user can login
 # given that the app is closed
@@ -7,15 +9,14 @@ appId: co.openvine.app
 # 1. Open the app in clear state
 # 2. Tap on "Login with a different account": User is directed to the Sign in screen
 # 3. Tap on "Import Nostr key": Import your Nostr identity screen is displayed
-# 3. Insert an invalid key for the user: Message invalid key is displayed
-# 4. Insert a valid key for the user, (optional) dismiss OS message, tap on Import identity:  User is redirected to the Explore screen
-# 5. Tap on profile: Validate user name and bio are displayed.
+# 4. Insert an invalid key for the user: Message invalid key is displayed
+# 5. Insert a valid key for the user, (optional) dismiss OS message, tap on Import identity:  User is redirected to the Explore screen
+# 6. Tap on profile: Validate user name and bio are displayed.
 
 # 1. Open the app in clear state
 - launchApp:
     clearState: true
 - runFlow: "../asserts/assertSplash.yaml"
-
 
 # 2. Tap on "Login with a different account": User is directed to the Sign in screen
 - tapOn: Login with a different account
@@ -23,22 +24,16 @@ appId: co.openvine.app
 
 # 3. Tap on "Import Nostr key": Import your Nostr identity screen is displayed
 - tapOn: Import Nostr key
-
-
-# 2. Open the import identity flow: the menu is displayed
-- tapOn: Already have keys? Import them here →
 - runFlow: "../asserts/assertImportNostrIdentity.yaml"
 
-# 3. Insert an invalid key for the user: Message invalid key is displayed
-- tapOn: Private Key
+# 4. Insert an invalid key for the user: Message invalid key is displayed
+- tapOn: Private key or bunker URL
 - inputText: "sec16fvy70pyfw7cjegt4wry24z4nwaleqanrkwputmy5na0wrdyak4sdkn8l2"
-- tapOn:
-    text: Import Identity
-    index: 1
-- assertVisible: Invalid key format. Use nsec... or 64-character hex
+- tapOn: Import Nostr key
+- assertVisible: Invalid format. Use nsec..., hex, or bunker://...
 - eraseText: 64
 
-# 4. Insert a valid key for the user, (optional) dismiss OS message, tap on Import identity: User is redirected to the home screen
+# 5. Insert a valid key for the user, (optional) dismiss OS message, tap on Import identity: User is redirected to the home screen
 - inputText: "${USER_KEYS}"
 #Dissmiss OS message Continue and Done on the displayed keypad
 - tapOn:
