@@ -5,7 +5,8 @@ appId: co.openvine.app
 # and user has existing keys.
 #Steps:
 # 1. Open the app in clear state
-# 2. Open the import identity flow: the menu is displayed
+# 2. Tap on "Login with a different account": User is directed to the Sign in screen
+# 3. Tap on "Import Nostr key": Import your Nostr identity screen is displayed
 # 3. Insert an invalid key for the user: Message invalid key is displayed
 # 4. Insert a valid key for the user, (optional) dismiss OS message, tap on Import identity:  User is redirected to the Explore screen
 # 5. Tap on profile: Validate user name and bio are displayed.
@@ -15,9 +16,18 @@ appId: co.openvine.app
     clearState: true
 - runFlow: "../asserts/assertSplash.yaml"
 
+
+# 2. Tap on "Login with a different account": User is directed to the Sign in screen
+- tapOn: Login with a different account
+- runFlow: ../asserts/assertSignIn.yaml
+
+# 3. Tap on "Import Nostr key": Import your Nostr identity screen is displayed
+- tapOn: Import Nostr key
+
+
 # 2. Open the import identity flow: the menu is displayed
 - tapOn: Already have keys? Import them here →
-- runFlow: "../asserts/assertImportIdentity.yaml"
+- runFlow: "../asserts/assertImportNostrIdentity.yaml"
 
 # 3. Insert an invalid key for the user: Message invalid key is displayed
 - tapOn: Private Key

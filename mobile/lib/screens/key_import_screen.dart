@@ -58,6 +58,15 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
       title: const Text('Import Identity'),
       backgroundColor: Colors.transparent,
       elevation: 0,
+      leading: Semantics(
+        label: 'Go back',
+        identifier: 'import_identity_back_button',
+        button: true,
+        child: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
     ),
     body: SafeArea(
       child: SingleChildScrollView(
