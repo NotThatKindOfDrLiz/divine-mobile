@@ -7,8 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:nostr_key_manager/nostr_key_manager.dart';
-import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/services/auth_service.dart';
 import 'package:divine_ui/divine_ui.dart';
 
 class KeyManagementScreen extends ConsumerStatefulWidget {
@@ -37,10 +36,6 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final keyManager = ref.watch(nostrKeyManagerProvider);
-    final nostrService = ref.watch(nostrServiceProvider);
-    final profileService = ref.watch(userProfileServiceProvider);
-
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
@@ -89,16 +84,11 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
               const SizedBox(height: 24),
 
               // Import existing key section
-              _buildImportSection(
-                context,
-                keyManager,
-                nostrService,
-                profileService,
-              ),
+              _buildImportSection(context),
               const SizedBox(height: 24),
 
               // Export/Backup section
-              _buildExportSection(context, keyManager),
+              _buildExportSection(context),
             ],
           ),
         ),
@@ -144,12 +134,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     );
   }
 
-  Widget _buildImportSection(
-    BuildContext context,
-    NostrKeyManager keyManager,
-    nostrService,
-    profileService,
-  ) {
+  Widget _buildImportSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -163,7 +148,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Already have a Nostr account? Paste your private key (nsec) to access it here.',
+          'Already have a Nostr account? Paste your private key (nsec or hex) to access it here.',
           style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.4),
         ),
         const SizedBox(height: 16),
@@ -181,7 +166,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
                 controller: _importController,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
-                  hintText: 'nsec1...',
+                  hintText: 'nsec1... or hex',
                   hintStyle: TextStyle(color: Colors.grey.shade600),
                   filled: true,
                   fillColor: Colors.black,
@@ -214,14 +199,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isProcessing
-                      ? null
-                      : () => _importKey(
-                          context,
-                          keyManager,
-                          nostrService,
-                          profileService,
-                        ),
+                  onPressed: _isProcessing ? null : () => _importKey(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: VineTheme.vineGreen,
                     foregroundColor: Colors.white,
@@ -282,7 +260,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     );
   }
 
-  Widget _buildExportSection(BuildContext context, NostrKeyManager keyManager) {
+  Widget _buildExportSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -362,15 +340,10 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     );
   }
 
-  Future<void> _importKey(
-    BuildContext context,
-    NostrKeyManager keyManager,
-    nostrService,
-    profileService,
-  ) async {
-    final nsec = _importController.text.trim();
+  Future<void> _importKey(BuildContext context) async {
+    final keyText = _importController.text.trim();
 
-    if (nsec.isEmpty) {
+    if (keyText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please paste your private key'),
@@ -380,10 +353,13 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
       return;
     }
 
-    if (!nsec.startsWith('nsec1')) {
+    final isNsec = keyText.startsWith('nsec1');
+    final isHex = keyText.length == 64 && _isHex(keyText);
+
+    if (!isNsec && !isHex) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Invalid key format. Must start with "nsec1"'),
+          content: Text('Invalid key format. Use nsec1... or 64-char hex'),
           backgroundColor: Colors.red,
         ),
       );
@@ -393,7 +369,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: VineTheme.cardBackground,
         title: const Text(
           'Import This Key?',
@@ -406,7 +382,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => context.pop(false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text(
               'Cancel',
               style: TextStyle(color: VineTheme.vineGreen),
@@ -416,7 +392,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: VineTheme.vineGreen,
             ),
-            onPressed: () => context.pop(true),
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Import'),
           ),
         ],
@@ -428,23 +404,12 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     setState(() => _isProcessing = true);
 
     try {
-      await keyManager.importFromNsec(nsec);
+      final authService = ref.read(authServiceProvider);
+      final AuthResult result = isNsec
+          ? await authService.importFromNsec(keyText)
+          : await authService.importFromHex(keyText);
 
-      // Optionally fetch profile after import if services are available
-      if (context.mounted &&
-          nostrService.isInitialized &&
-          keyManager.publicKey != null) {
-        try {
-          await profileService.fetchProfile(
-            keyManager.publicKey!,
-            forceRefresh: false,
-          );
-        } catch (e) {
-          // Non-fatal - profile fetch failure shouldn't block import
-        }
-      }
-
-      if (context.mounted) {
+      if (result.success && context.mounted) {
         _importController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -453,9 +418,15 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
             duration: Duration(seconds: 3),
           ),
         );
-
-        // Pop back to settings after successful import
         context.pop();
+      } else if (context.mounted && result.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.errorMessage!),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -472,6 +443,19 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
         setState(() => _isProcessing = false);
       }
     }
+  }
+
+  static bool _isHex(String s) {
+    if (s.isEmpty) return false;
+    for (int i = 0; i < s.length; i++) {
+      final c = s.codeUnitAt(i);
+      if (!((c >= 48 && c <= 57) || // 0-9
+          (c >= 97 && c <= 102) || // a-f
+          (c >= 65 && c <= 70))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   Future<void> _exportKey(BuildContext context) async {

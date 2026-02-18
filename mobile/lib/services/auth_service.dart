@@ -1903,6 +1903,8 @@ class AuthService implements BackgroundAwareService {
           reason: 'identity_change',
           isIdentityChange: true,
         );
+        // Clear configured relays so NIP-65 discovery runs for the new identity
+        await prefs.remove('configured_relays');
         // restore the TOS acceptance since we wouldn't be here otherwise
         await acceptTerms();
       }
