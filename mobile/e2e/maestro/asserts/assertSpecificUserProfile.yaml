@@ -1,4 +1,3 @@
 appId: co.openvine.app
 ---
-- assertVisible: ${SEARCH_USER}
-- assertVisible: Follow
+- assertVisible: ${USER_wKEYS_USERNAME}

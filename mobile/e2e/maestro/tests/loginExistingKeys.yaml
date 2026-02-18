@@ -1,6 +1,7 @@
 appId: co.openvine.app
 env:
-  USER_KEYS: ""
+  USER_KEYS: "nsec16fvy70pyfw7cjegt4wry24z4nwaleqanrkwputmy5na0wrdyak4sdkn8l2" #AutomatedTests user
+  USER_wKEYS_USERNAME: "AutomatedTests"
 ---
 #TC to check that the user can login
 # given that the app is closed
@@ -41,14 +42,11 @@ env:
     optional: true
 - runFlow: ../utils/hideKeyboard.yaml
 #Import keys
-- tapOn:
-    text: Import Identity
-    index: 1
+- tapOn: Import Nostr key
 #User is taken to the Explore screen, validate it:
-- runFlow: "../asserts/assertHome.yaml"
+- runFlow: ../asserts/assertExploreNew.yaml
 
 # 5. Tap on profile: Validate user name and bio are displayed.
-- doubleTapOn:
+- tapOn:
     id: profile_tab
-    delay: 100
 - runFlow: "../asserts/assertSpecificUserProfile.yaml"
