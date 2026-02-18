@@ -209,7 +209,7 @@ class _ReturningUserLayout extends StatelessWidget {
             child: Text(
               'Welcome back!',
               style: TextStyle(
-                fontFamily: 'BricolageGrotesque',
+                fontFamily: VineTheme.fontFamilyBricolage,
                 fontSize: 32,
                 fontWeight: FontWeight.w800,
                 color: VineTheme.whiteText,
@@ -477,7 +477,10 @@ class _AccountTile extends StatelessWidget {
     final displayName =
         account.profile?.bestDisplayName ??
         UserProfile.defaultDisplayNameFor(account.pubkeyHex);
-    final truncatedNpub = NostrKeyUtils.truncateNpub(account.pubkeyHex);
+
+    final identifier =
+        account.profile?.displayNip05 ??
+        NostrKeyUtils.truncateNpub(account.pubkeyHex);
 
     return GestureDetector(
       onTap: onTap,
@@ -513,7 +516,7 @@ class _AccountTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    truncatedNpub,
+                    identifier,
                     style: const TextStyle(
                       fontSize: 13,
                       color: VineTheme.secondaryText,

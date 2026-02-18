@@ -64,7 +64,7 @@ class DivineSecondaryButton extends StatelessWidget {
               : Text(
                   label,
                   style: const TextStyle(
-                    fontFamily: 'BricolageGrotesque',
+                    fontFamily: VineTheme.fontFamilyBricolage,
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.15,

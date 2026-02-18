@@ -33,7 +33,7 @@ class AuthHeroSection extends StatelessWidget {
                       'Authentic moments.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: 'BricolageGrotesque',
+                        fontFamily: VineTheme.fontFamilyBricolage,
                         fontSize: 48,
                         fontWeight: FontWeight.w800, // ExtraBold
                         color: VineTheme.vineGreen,
@@ -45,7 +45,7 @@ class AuthHeroSection extends StatelessWidget {
                       'Human creativity.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontFamily: 'BricolageGrotesque',
+                        fontFamily: VineTheme.fontFamilyBricolage,
                         fontSize: 48,
                         fontWeight: FontWeight.w800, // ExtraBold
                         color: VineTheme.whiteText,

@@ -297,7 +297,9 @@ class KeycastOAuth {
           json['message'] as String? ??
           errorCode;
 
-      // map any human readable errorCodes to machine friendly ones
+      // map any human readable errorCodes to machine friendly ones.
+      // I've asked Daniel to change this.
+      // https://verygoodventures.slack.com/archives/C09SZRQFWG3/p1771450260491629
       if (errorCode ==
           'This email is already registered. Please log in instead.') {
         errorCode = 'email_exists';

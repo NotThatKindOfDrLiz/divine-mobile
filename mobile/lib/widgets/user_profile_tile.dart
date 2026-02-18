@@ -8,7 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:divine_ui/divine_ui.dart';
-import 'package:models/src/user_profile.dart';
+import 'package:models/models.dart';
 import 'package:openvine/services/image_cache_manager.dart';
 import 'package:openvine/widgets/unfollow_confirmation_sheet.dart';
 

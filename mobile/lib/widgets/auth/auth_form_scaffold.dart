@@ -81,7 +81,7 @@ class AuthFormScaffold extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontFamily: 'BricolageGrotesque',
+                        fontFamily: VineTheme.fontFamilyBricolage,
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
                         color: VineTheme.whiteText,

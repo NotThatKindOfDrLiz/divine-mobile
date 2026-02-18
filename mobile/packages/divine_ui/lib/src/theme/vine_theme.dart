@@ -13,6 +13,13 @@ class VineTheme {
   // Typography - Google Fonts
   // ==========================================================================
 
+  /// Font family name for Bricolage Grotesque.
+  ///
+  /// Use this constant instead of hardcoding `'BricolageGrotesque'` in
+  /// `TextStyle(fontFamily: ...)` declarations. For full themed text styles,
+  /// prefer the static methods like [displayLargeFont] instead.
+  static const fontFamilyBricolage = 'BricolageGrotesque';
+
   // --------------------------------------------------------------------------
   // Display styles (Bricolage Grotesque, weight 700)
   // --------------------------------------------------------------------------

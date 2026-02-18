@@ -14,6 +14,7 @@ import 'package:openvine/screens/home_screen_router.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -391,7 +392,7 @@ class _QrContent extends StatelessWidget {
           const Text(
             'Scan with your\nsigner app to connect.',
             style: TextStyle(
-              fontFamily: 'BricolageGrotesque',
+              fontFamily: VineTheme.fontFamilyBricolage,
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: VineTheme.whiteText,
@@ -522,21 +523,33 @@ class _ActionBar extends StatelessWidget {
         children: [
           Expanded(
             child: _ActionButton(
-              icon: Icons.link,
+              icon: const Icon(
+                Icons.link,
+                color: VineTheme.vineGreen,
+                size: 24,
+              ),
               label: 'Copy URL',
               onTap: onCopyUrl,
             ),
           ),
           Expanded(
             child: _ActionButton(
-              icon: Icons.shortcut,
+              icon: SvgPicture.asset(
+                'assets/icon/share_fat.svg',
+                width: 24,
+                height: 24,
+                colorFilter: const ColorFilter.mode(
+                  VineTheme.vineGreen,
+                  BlendMode.srcIn,
+                ),
+              ),
               label: 'Share',
               onTap: onShareUrl,
             ),
           ),
           Expanded(
             child: _ActionButton(
-              icon: Icons.add,
+              icon: const Icon(Icons.add, color: VineTheme.vineGreen, size: 24),
               label: 'Add bunker',
               onTap: onAddBunker,
             ),
@@ -555,7 +568,7 @@ class _ActionButton extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final Widget icon;
   final String label;
   final VoidCallback onTap;
 
@@ -569,7 +582,7 @@ class _ActionButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: VineTheme.vineGreen, size: 24),
+            icon,
             const SizedBox(height: 6),
             Text(
               label,

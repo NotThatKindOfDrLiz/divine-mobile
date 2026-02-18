@@ -276,7 +276,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
           const Text(
             'One last thing...',
             style: TextStyle(
-              fontFamily: 'BricolageGrotesque',
+              fontFamily: VineTheme.fontFamilyBricolage,
               fontSize: 24,
               fontWeight: FontWeight.bold,
               color: VineTheme.whiteText,

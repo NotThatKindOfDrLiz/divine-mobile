@@ -119,7 +119,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const Text(
                 'Reset Password',
                 style: TextStyle(
-                  fontFamily: 'BricolageGrotesque',
+                  fontFamily: VineTheme.fontFamilyBricolage,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: VineTheme.whiteText,

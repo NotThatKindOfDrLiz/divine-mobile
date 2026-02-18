@@ -522,7 +522,7 @@ class _PollingContent extends StatelessWidget {
         Text(
           isPollingMode ? 'Complete your registration' : 'Verifying...',
           style: const TextStyle(
-            fontFamily: 'BricolageGrotesque',
+            fontFamily: VineTheme.fontFamilyBricolage,
             fontSize: 28,
             fontWeight: FontWeight.w700,
             color: VineTheme.whiteText,
@@ -621,7 +621,7 @@ class _SuccessContent extends StatelessWidget {
         const Text(
           'Welcome to Divine!',
           style: TextStyle(
-            fontFamily: 'BricolageGrotesque',
+            fontFamily: VineTheme.fontFamilyBricolage,
             fontSize: 28,
             fontWeight: FontWeight.w700,
             color: VineTheme.whiteText,
@@ -675,7 +675,7 @@ class _ErrorContent extends StatelessWidget {
         const Text(
           'Uh oh.',
           style: TextStyle(
-            fontFamily: 'BricolageGrotesque',
+            fontFamily: VineTheme.fontFamilyBricolage,
             fontSize: 28,
             fontWeight: FontWeight.w700,
             color: VineTheme.whiteText,

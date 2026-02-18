@@ -235,7 +235,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const Text(
                   'Sign in',
                   style: TextStyle(
-                    fontFamily: 'BricolageGrotesque',
+                    fontFamily: VineTheme.fontFamilyBricolage,
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
                     color: VineTheme.whiteText,
