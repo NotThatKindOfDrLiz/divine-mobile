@@ -16,6 +16,7 @@ void main() {
       ValueChanged<String>? onChanged,
       ValueChanged<String>? onSubmitted,
       VoidCallback? onTap,
+      String? errorText,
     }) {
       return MaterialApp(
         theme: VineTheme.theme,
@@ -32,6 +33,7 @@ void main() {
             onChanged: onChanged,
             onSubmitted: onSubmitted,
             onTap: onTap,
+            errorText: errorText,
           ),
         ),
       );
@@ -250,6 +252,62 @@ void main() {
 
       // Label should now be floating (visible in different position/style)
       expect(find.text('Test Label'), findsOneWidget);
+    });
+
+    group('errorText', () {
+      testWidgets('shows error border when errorText is set', (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(errorText: 'Required field'),
+        );
+
+        final container = tester.widget<Container>(
+          find.ancestor(
+            of: find.byType(TextField),
+            matching: find.byType(Container),
+          ),
+        );
+        final decoration = container.decoration as BoxDecoration?;
+        expect(decoration?.border, isNotNull);
+        expect(
+          decoration?.border,
+          equals(Border.all(color: VineTheme.error)),
+        );
+      });
+
+      testWidgets('displays error text below the field', (tester) async {
+        await tester.pumpWidget(
+          buildTestWidget(errorText: 'Invalid email address'),
+        );
+
+        expect(find.text('Invalid email address'), findsOneWidget);
+      });
+
+      testWidgets('error text uses error color and 12px font', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          buildTestWidget(errorText: 'Something went wrong'),
+        );
+
+        final errorWidget = tester.widget<Text>(
+          find.text('Something went wrong'),
+        );
+        expect(errorWidget.style?.color, equals(VineTheme.error));
+        expect(errorWidget.style?.fontSize, equals(12));
+      });
+
+      testWidgets('no error border when errorText is null', (tester) async {
+        await tester.pumpWidget(buildTestWidget());
+
+        final container = tester.widget<Container>(
+          find.ancestor(
+            of: find.byType(TextField),
+            matching: find.byType(Container),
+          ),
+        );
+        final decoration = container.decoration as BoxDecoration?;
+        expect(decoration?.border, isNull);
+      });
     });
   });
 }
