@@ -6,9 +6,8 @@ env:
 #TC to check that the user can login with a fresh app with email and pwd
 #Steps:
 # 1. Open the app in clear state: Login screen is displayed
-# 2. Tap on I am 16 and I agree, tap on "Have an account? Log in": User is directed to the Welcome back screen
-# 3. Tap "Continue with Email": The login screen is presented
-# 4. Input Email and Password, and tap on "Log In": User is redirected to the Explore screen, New tab
+# 2. Tap on "Login with a different account": The Sign in screen is presented
+# 3. Input Email and Password, and tap on "Sign In": User is redirected to the Explore screen, New tab
 
 # 1. Open the app in clear state: Login screen is displayed
 - launchApp:
@@ -16,23 +15,18 @@ env:
 - runFlow: "../asserts/assertSplash.yaml"
 - runFlow: "../asserts/assertLogin.yaml"
 
-# 2. Tap on I am 16 and I agree, tap on "Have an account? Log in": User is directed to the Welcome back screen
-- tapOn: I am 16 years or older
-- tapOn: "I agree to the "
-- assertVisible: Have an account? Log In
-- tapOn: Have an account? Log In
-- runFlow: ../asserts/assertWelcomeBack.yaml
+# 2. Tap on "Login with a different account": The Sign in screen is presented
+- tapOn: Login with a different account
+- runFlow: "../asserts/assertSignIn.yaml"
 
-# 3. Tap "Continue with Email": The login screen is presented
-- tapOn: Continue with Email
-- runFlow: ../asserts/assertLogInWithEmail.yaml
-
-# 4. Input Email and Password, and tap on "Log In": User is redirected to the Explore screen, New tab
+# 3. Input Email and Password, and tap on "Log In": User is redirected to the Explore screen, New tab
 - tapOn: Email
 - inputText: ${USER_EMAIL}
 - tapOn: Password
 - inputText: ${USER_PWD}
-- tapOn: Log In
+- tapOn:
+    text: Sign in
+    index: 1
 - waitForAnimationToEnd
 - runFlow:
     when:

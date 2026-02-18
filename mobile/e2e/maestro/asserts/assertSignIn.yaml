@@ -1,0 +1,11 @@
+appId: co.openvine.app
+---
+- assertVisible: Sign in
+- assertVisible: Email
+- assertVisible: Password
+- assertVisible:
+    text: Sign in
+    index: 1
+- assertVisible: Forgot password?
+- assertVisible: Import Nostr key
+- assertVisible: Connect with a signer app

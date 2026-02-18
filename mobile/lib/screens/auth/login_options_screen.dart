@@ -76,9 +76,14 @@ class _LoginOptionsScreenState extends ConsumerState<LoginOptionsScreen> {
               // Back button
               Align(
                 alignment: Alignment.topLeft,
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
+                child: Semantics(
+                  identifier: 'sign_in_back_button',
+                  button: true,
+                  label: 'Go back',
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => context.pop(),
+                  ),
                 ),
               ),
 

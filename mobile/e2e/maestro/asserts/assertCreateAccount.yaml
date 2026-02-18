@@ -1,0 +1,11 @@
+appId: co.openvine.app
+---
+# Assert Create account
+
+- assertVisible: Create account
+- assertVisible: Email
+- assertVisible: Password
+- assertVisible:
+    text: Create account
+    index: 1
+- assertVisible: Use Divine with no backup

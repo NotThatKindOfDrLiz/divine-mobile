@@ -242,9 +242,17 @@ class _DivineAuthScreenState extends ConsumerState<DivineAuthScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => context.pop(),
+                    Semantics(
+                      identifier: 'auth_back_button',
+                      button: true,
+                      label: 'Go back',
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Colors.white,
+                        ),
+                        onPressed: () => context.pop(),
+                      ),
                     ),
                     const Spacer(),
                   ],
