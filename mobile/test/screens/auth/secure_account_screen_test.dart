@@ -1,6 +1,7 @@
 // ABOUTME: Tests for SecureAccountScreen
 // ABOUTME: Verifies registration form, validation, and email verification flow
 
+import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,16 +120,25 @@ void main() {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        // Find password visibility toggle button
-        final visibilityButton = find.byIcon(Icons.visibility_off);
-        expect(visibilityButton, findsOneWidget);
+        // DivineTextField uses DivineIcon (SVG) for the toggle, not
+        // Material Icons. Find it by type — there's exactly one.
+        expect(find.byType(DivineIcon), findsOneWidget);
 
-        // Tap the visibility toggle
-        await tester.tap(visibilityButton);
+        // Password should be obscured initially
+        final textField = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Password'),
+        );
+        expect(textField.obscureText, isTrue);
+
+        // Tap the visibility toggle (GestureDetector wrapping DivineIcon)
+        await tester.tap(find.byType(DivineIcon));
         await tester.pumpAndSettle();
 
-        // Should now show visibility icon (password visible)
-        expect(find.byIcon(Icons.visibility), findsOneWidget);
+        // Password should now be visible
+        final textFieldAfter = tester.widget<TextField>(
+          find.widgetWithText(TextField, 'Password'),
+        );
+        expect(textFieldAfter.obscureText, isFalse);
       });
     });
 

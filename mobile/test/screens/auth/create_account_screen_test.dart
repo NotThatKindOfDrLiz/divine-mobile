@@ -135,9 +135,13 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(
-          find.widgetWithText(TextButton, 'Use Divine with no backup'),
+        final skipButton = find.widgetWithText(
+          TextButton,
+          'Use Divine with no backup',
         );
+        await tester.ensureVisible(skipButton);
+        await tester.pumpAndSettle();
+        await tester.tap(skipButton);
         await tester.pumpAndSettle();
 
         expect(find.text('One last thing...'), findsOneWidget);
@@ -157,9 +161,13 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(
-          find.widgetWithText(TextButton, 'Use Divine with no backup'),
+        final skipButton = find.widgetWithText(
+          TextButton,
+          'Use Divine with no backup',
         );
+        await tester.ensureVisible(skipButton);
+        await tester.pumpAndSettle();
+        await tester.tap(skipButton);
         await tester.pumpAndSettle();
 
         await tester.tap(
@@ -179,9 +187,13 @@ void main() {
           await tester.pumpWidget(createTestWidget());
           await tester.pumpAndSettle();
 
-          await tester.tap(
-            find.widgetWithText(TextButton, 'Use Divine with no backup'),
+          final skipButton = find.widgetWithText(
+            TextButton,
+            'Use Divine with no backup',
           );
+          await tester.ensureVisible(skipButton);
+          await tester.pumpAndSettle();
+          await tester.tap(skipButton);
           await tester.pumpAndSettle();
 
           await tester.tap(
