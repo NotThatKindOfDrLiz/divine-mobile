@@ -16,11 +16,11 @@ import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/widgets/auth/auth_error_box.dart';
-import 'package:openvine/widgets/auth/auth_password_field.dart';
-import 'package:openvine/widgets/auth/auth_text_field.dart';
 import 'package:openvine/widgets/auth/forgot_password_dialog.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
-import 'package:openvine/widgets/circular_icon_button.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
+import 'package:openvine/widgets/divine_secondary_button.dart';
+import 'package:openvine/widgets/rounded_icon_button.dart';
 
 /// Sign-in screen — Page that provides [DivineAuthCubit].
 class LoginOptionsScreen extends ConsumerWidget {
@@ -217,14 +217,18 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                       onPressed: isDisabled ? null : () => context.pop(),
                     ),
                     const Spacer(),
-                    _InfoButton(
+                    RoundedIconButton(
                       onPressed: isDisabled
                           ? null
                           : () => _showInfoSheet(context),
+                      icon: const Icon(
+                        Icons.info_outline,
+                        color: VineTheme.vineGreenLight,
+                        size: 24,
+                      ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 32),
 
                 // Title
@@ -241,12 +245,13 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 40),
 
                 // Email field
-                AuthTextField(
+                DivineTextField(
                   controller: _emailController,
-                  hintText: 'Email',
+                  label: 'Email',
                   keyboardType: TextInputType.emailAddress,
                   errorText: widget.state.emailError,
                   enabled: !isDisabled,
+                  autocorrect: false,
                   onChanged: (value) =>
                       context.read<DivineAuthCubit>().updateEmail(value),
                 ),
@@ -254,8 +259,10 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 16),
 
                 // Password field
-                AuthPasswordField(
+                DivineTextField(
                   controller: _passwordController,
+                  label: 'Password',
+                  obscureText: true,
                   errorText: widget.state.passwordError,
                   enabled: !isDisabled,
                   onChanged: (value) =>
@@ -271,10 +278,12 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 24),
 
                 // Sign in button
-                _SignInButton(
-                  isSubmitting: isSubmitting,
-                  isDisabled: isDisabled,
-                  onPressed: () => context.read<DivineAuthCubit>().submit(),
+                DivinePrimaryButton(
+                  label: 'Sign in',
+                  isLoading: isSubmitting,
+                  onPressed: isDisabled
+                      ? null
+                      : () => context.read<DivineAuthCubit>().submit(),
                 ),
 
                 const SizedBox(height: 16),
@@ -299,7 +308,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const Spacer(),
 
                 // Alternative login methods
-                _AlternativeMethodButton(
+                DivineSecondaryButton(
                   label: 'Import Nostr key',
                   onPressed: isDisabled
                       ? null
@@ -308,7 +317,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
 
                 const SizedBox(height: 12),
 
-                _AlternativeMethodButton(
+                DivineSecondaryButton(
                   label: 'Connect with a signer app',
                   onPressed: isDisabled
                       ? null
@@ -317,7 +326,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
 
                 if (Platform.isAndroid) ...[
                   const SizedBox(height: 12),
-                  _AlternativeMethodButton(
+                  DivineSecondaryButton(
                     label: 'Sign in with Amber',
                     isLoading: _isConnectingAmber,
                     onPressed: isDisabled ? null : _connectWithAmber,
@@ -330,122 +339,6 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Info button — circle with outlined border.
-class _InfoButton extends StatelessWidget {
-  const _InfoButton({required this.onPressed});
-
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return CircularIconButton(
-      onPressed: onPressed ?? () {},
-      backgroundColor: VineTheme.surfaceContainer,
-      backgroundOpacity: 1.0,
-      size: 44,
-      icon: const Icon(
-        Icons.info_outline,
-        color: VineTheme.vineGreenLight,
-        size: 22,
-      ),
-    );
-  }
-}
-
-/// Green filled sign-in button.
-class _SignInButton extends StatelessWidget {
-  const _SignInButton({
-    required this.isSubmitting,
-    required this.isDisabled,
-    required this.onPressed,
-  });
-
-  final bool isSubmitting;
-  final bool isDisabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isDisabled ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: isSubmitting
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.backgroundColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Sign in',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-      ),
-    );
-  }
-}
-
-/// Outlined button for alternative login methods.
-class _AlternativeMethodButton extends StatelessWidget {
-  const _AlternativeMethodButton({
-    required this.label,
-    this.isLoading = false,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool isLoading;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: VineTheme.vineGreen,
-          backgroundColor: VineTheme.surfaceContainer,
-          side: const BorderSide(color: VineTheme.outlineMuted, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.vineGreen,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      ),
     );
   }
 }

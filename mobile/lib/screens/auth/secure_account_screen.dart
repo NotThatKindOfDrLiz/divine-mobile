@@ -14,8 +14,7 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/validators.dart';
 import 'package:openvine/widgets/auth/auth_error_box.dart';
 import 'package:openvine/widgets/auth/auth_form_scaffold.dart';
-import 'package:openvine/widgets/auth/auth_password_field.dart';
-import 'package:openvine/widgets/auth/auth_text_field.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
 
 class SecureAccountScreen extends ConsumerStatefulWidget {
   /// Route name for this screen.
@@ -171,18 +170,21 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
   Widget build(BuildContext context) {
     return AuthFormScaffold(
       title: 'Secure account',
-      emailField: AuthTextField(
+      emailField: DivineTextField(
         controller: _emailController,
-        hintText: 'Email',
+        label: 'Email',
         keyboardType: TextInputType.emailAddress,
         errorText: _emailError,
         enabled: !_isLoading,
+        autocorrect: false,
         onChanged: (_) {
           if (_emailError != null) setState(() => _emailError = null);
         },
       ),
-      passwordField: AuthPasswordField(
+      passwordField: DivineTextField(
         controller: _passwordController,
+        label: 'Password',
+        obscureText: true,
         errorText: _passwordError,
         enabled: !_isLoading,
         onChanged: (_) {
@@ -192,50 +194,10 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
       errorWidget: _generalError != null
           ? AuthErrorBox(message: _generalError!)
           : null,
-      primaryButton: _SubmitButton(
+      primaryButton: DivinePrimaryButton(
+        label: 'Secure account',
         isLoading: _isLoading,
         onPressed: _handleSubmit,
-      ),
-    );
-  }
-}
-
-/// Green filled submit button matching the create account screen style.
-class _SubmitButton extends StatelessWidget {
-  const _SubmitButton({required this.isLoading, required this.onPressed});
-
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.backgroundColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Secure account',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
       ),
     );
   }

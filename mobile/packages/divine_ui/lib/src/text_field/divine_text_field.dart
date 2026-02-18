@@ -49,6 +49,7 @@ class DivineTextField extends StatefulWidget {
     this.maxLines,
     this.maxLength,
     this.contentPadding,
+    this.errorText,
   });
 
   /// Label text shown inside the field, floats above when focused/filled.
@@ -116,6 +117,10 @@ class DivineTextField extends StatefulWidget {
   /// Custom content padding for the input decoration.
   final EdgeInsetsGeometry? contentPadding;
 
+  /// Error text displayed below the field. When non-null, the container
+  /// border turns red and the error message is shown underneath.
+  final String? errorText;
+
   /// Resolved label text, preferring [label] over [labelText].
   String? get _resolvedLabel => label ?? labelText;
 
@@ -178,27 +183,44 @@ class _DivineTextFieldState extends State<DivineTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: VineTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: widget.obscureText ? 8 : 24,
-          top: 16,
-          bottom: 16,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _buildTextField(),
+    final hasError = widget.errorText != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: VineTheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(24),
+            border: hasError ? Border.all(color: VineTheme.error) : null,
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: widget.obscureText ? 8 : 24,
+              top: 16,
+              bottom: 16,
             ),
-            if (widget.obscureText) _buildVisibilityToggle(),
-          ],
+            child: Row(
+              children: [
+                Expanded(child: _buildTextField()),
+                if (widget.obscureText) _buildVisibilityToggle(),
+              ],
+            ),
+          ),
         ),
-      ),
+        if (hasError) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 24),
+            child: Text(
+              widget.errorText!,
+              style: const TextStyle(color: VineTheme.error, fontSize: 12),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

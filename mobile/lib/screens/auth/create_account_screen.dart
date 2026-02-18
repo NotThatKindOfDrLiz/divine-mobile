@@ -13,8 +13,7 @@ import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/widgets/auth/auth_error_box.dart';
 import 'package:openvine/widgets/auth/auth_form_scaffold.dart';
-import 'package:openvine/widgets/auth/auth_password_field.dart';
-import 'package:openvine/widgets/auth/auth_text_field.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
 
 /// Create account screen — Page that provides [DivineAuthCubit] in sign-up
 /// mode.
@@ -162,17 +161,20 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
     return AuthFormScaffold(
       title: 'Create account',
       onBack: isDisabled ? null : () => context.pop(),
-      emailField: AuthTextField(
+      emailField: DivineTextField(
         controller: _emailController,
-        hintText: 'Email',
+        label: 'Email',
         keyboardType: TextInputType.emailAddress,
         errorText: widget.state.emailError,
         enabled: !isDisabled,
+        autocorrect: false,
         onChanged: (value) =>
             context.read<DivineAuthCubit>().updateEmail(value),
       ),
-      passwordField: AuthPasswordField(
+      passwordField: DivineTextField(
         controller: _passwordController,
+        label: 'Password',
+        obscureText: true,
         errorText: widget.state.passwordError,
         enabled: !isDisabled,
         onChanged: (value) =>
@@ -181,61 +183,15 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
       errorWidget: widget.state.generalError != null
           ? AuthErrorBox(message: widget.state.generalError!)
           : null,
-      primaryButton: _CreateAccountButton(
-        isSubmitting: isSubmitting,
-        isDisabled: isDisabled,
-        onPressed: _submit,
+      primaryButton: DivinePrimaryButton(
+        label: 'Create account',
+        isLoading: isSubmitting,
+        onPressed: isDisabled ? null : _submit,
       ),
       secondaryButton: _SkipButton(
         isSkipping: _isSkipping,
         isDisabled: isDisabled,
         onPressed: _skip,
-      ),
-    );
-  }
-}
-
-/// Green filled create account button.
-class _CreateAccountButton extends StatelessWidget {
-  const _CreateAccountButton({
-    required this.isSubmitting,
-    required this.isDisabled,
-    required this.onPressed,
-  });
-
-  final bool isSubmitting;
-  final bool isDisabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isDisabled ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: isSubmitting
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.backgroundColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Create account',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
       ),
     );
   }
@@ -367,24 +323,9 @@ class _SkipConfirmationSheet extends StatelessWidget {
           const SizedBox(height: 32),
 
           // Add email & password button
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context, false),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: VineTheme.vineGreen,
-                foregroundColor: VineTheme.backgroundColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Add email & password',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
+          DivinePrimaryButton(
+            label: 'Add email & password',
+            onPressed: () => Navigator.pop(context, false),
           ),
           const SizedBox(height: 12),
 

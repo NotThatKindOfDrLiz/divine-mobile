@@ -15,7 +15,10 @@ import 'package:models/models.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/widgets/auth/auth_hero_section.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
+import 'package:openvine/widgets/divine_secondary_button.dart';
 import 'package:openvine/widgets/error_message.dart';
+import 'package:openvine/widgets/rounded_icon_button.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -83,14 +86,11 @@ class _WelcomeView extends StatelessWidget {
             ),
           );
         }
-        if (state.shouldNavigateToLoginOptions ||
-            state.shouldNavigateToCreateAccount) {
-          if (state.shouldNavigateToLoginOptions) {
-            context.push(WelcomeScreen.loginOptionsPath);
-          }
-          if (state.shouldNavigateToCreateAccount) {
-            context.push(WelcomeScreen.createAccountPath);
-          }
+        if (state.shouldNavigateToLoginOptions) {
+          context.push(WelcomeScreen.loginOptionsPath);
+          context.read<WelcomeBloc>().add(const WelcomeNavigationConsumed());
+        } else if (state.shouldNavigateToCreateAccount) {
+          context.push(WelcomeScreen.createAccountPath);
           context.read<WelcomeBloc>().add(const WelcomeNavigationConsumed());
         }
       },
@@ -135,7 +135,7 @@ class _NewUserLayout extends StatelessWidget {
           const SizedBox(height: 16),
         ],
 
-        _PrimaryButton(
+        DivinePrimaryButton(
           label: 'Create a new Divine account',
           isLoading: isLoading,
           onPressed: () => context.read<WelcomeBloc>().add(
@@ -145,12 +145,13 @@ class _NewUserLayout extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        _SecondaryButton(
+        DivineSecondaryButton(
           label: 'Login with a different account',
-          isLoading: isLoading,
-          onPressed: () => context.read<WelcomeBloc>().add(
-            const WelcomeLoginOptionsRequested(),
-          ),
+          onPressed: isLoading
+              ? null
+              : () => context.read<WelcomeBloc>().add(
+                  const WelcomeLoginOptionsRequested(),
+                ),
         ),
 
         const SizedBox(height: 20),
@@ -239,7 +240,7 @@ class _ReturningUserLayout extends StatelessWidget {
         ],
 
         // Sign back in button (primary)
-        _PrimaryButton(
+        DivinePrimaryButton(
           label: 'Sign back in',
           isLoading: isLoading,
           onPressed: () => context.read<WelcomeBloc>().add(
@@ -250,23 +251,25 @@ class _ReturningUserLayout extends StatelessWidget {
         const SizedBox(height: 12),
 
         // Login with different account (secondary)
-        _SecondaryButton(
+        DivineSecondaryButton(
           label: 'Login with a different account',
-          isLoading: isLoading,
-          onPressed: () => context.read<WelcomeBloc>().add(
-            const WelcomeLoginOptionsRequested(),
-          ),
+          onPressed: isLoading
+              ? null
+              : () => context.read<WelcomeBloc>().add(
+                  const WelcomeLoginOptionsRequested(),
+                ),
         ),
 
         const SizedBox(height: 12),
 
         // Create new account (tertiary)
-        _SecondaryButton(
+        DivineSecondaryButton(
           label: 'Create a new Divine account',
-          isLoading: isLoading,
-          onPressed: () => context.read<WelcomeBloc>().add(
-            const WelcomeCreateAccountRequested(),
-          ),
+          onPressed: isLoading
+              ? null
+              : () => context.read<WelcomeBloc>().add(
+                  const WelcomeCreateAccountRequested(),
+                ),
         ),
 
         const SizedBox(height: 20),
@@ -383,28 +386,9 @@ class _SwitchAccountButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: VineTheme.surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: VineTheme.outlineMuted, width: 2),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x40000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.swap_horiz,
-          size: 24,
-          color: VineTheme.vineGreen,
-        ),
-      ),
+    return RoundedIconButton(
+      onPressed: onTap,
+      icon: const Icon(Icons.swap_horiz, size: 24, color: VineTheme.vineGreen),
     );
   }
 }
@@ -542,91 +526,6 @@ class _AccountTile extends StatelessWidget {
             if (isSelected)
               const Icon(Icons.check, size: 20, color: VineTheme.vineGreen),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Primary action button (green filled).
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
-    required this.label,
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.backgroundColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-/// Secondary action button (outlined).
-class _SecondaryButton extends StatelessWidget {
-  const _SecondaryButton({
-    required this.label,
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: OutlinedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: VineTheme.vineGreen,
-          backgroundColor: VineTheme.surfaceContainer,
-          side: const BorderSide(color: VineTheme.outlineMuted, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
     );

@@ -120,7 +120,7 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
 
   Future<void> _handleSignIn(String email, String password) async {
     Log.info(
-      'Attempting sign in for $email',
+      'Attempting sign in using email and password',
       name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );
@@ -153,7 +153,7 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
 
   Future<void> _handleSignUp(String email, String password) async {
     Log.info(
-      'Attempting sign up for $email',
+      'Attempting sign up using email and password',
       name: 'DivineAuthCubit',
       category: LogCategory.auth,
     );

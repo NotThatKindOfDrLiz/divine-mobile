@@ -10,8 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/widgets/auth/auth_password_field.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   /// Route name for navigation
@@ -142,9 +142,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const SizedBox(height: 32),
 
               // Password field
-              AuthPasswordField(
+              DivineTextField(
                 controller: _passwordController,
-                hintText: 'New Password',
+                label: 'New Password',
+                obscureText: true,
                 errorText: _errorMessage,
                 enabled: !_isLoading,
                 onChanged: (_) {
@@ -172,7 +173,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const Spacer(),
 
               // Update password button
-              _UpdatePasswordButton(
+              DivinePrimaryButton(
+                label: 'Update password',
                 isLoading: _isLoading,
                 onPressed: _handleSubmit,
               ),
@@ -181,50 +183,6 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Green filled update password button.
-class _UpdatePasswordButton extends StatelessWidget {
-  const _UpdatePasswordButton({
-    required this.isLoading,
-    required this.onPressed,
-  });
-
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.backgroundColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Update password',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
       ),
     );
   }

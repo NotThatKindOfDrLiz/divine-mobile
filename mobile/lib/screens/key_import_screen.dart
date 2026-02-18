@@ -13,6 +13,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
 
 class KeyImportScreen extends ConsumerStatefulWidget {
   /// Route name for this screen.
@@ -29,8 +30,8 @@ class KeyImportScreen extends ConsumerStatefulWidget {
 
 class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
   final _keyController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
   bool _isImporting = false;
+  String? _keyError;
 
   /// Cached reference to auth service, since ref is invalid after unmount.
   late final AuthService _authService;
@@ -56,105 +57,111 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: VineTheme.backgroundColor,
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Padding(
+        child: Column(
+          children: [
+            // Scrollable form content
+            Expanded(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
 
-                      // Back button
-                      AuthBackButton(
-                        onPressed: _isImporting ? null : () => context.pop(),
+                    // Back button
+                    AuthBackButton(
+                      onPressed: _isImporting ? null : () => context.pop(),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Title
+                    const Text(
+                      'Import your\nNostr identity',
+                      style: TextStyle(
+                        fontFamily: 'BricolageGrotesque',
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: VineTheme.whiteText,
                       ),
+                    ),
 
-                      const SizedBox(height: 32),
+                    const SizedBox(height: 12),
 
-                      // Title
-                      const Text(
-                        'Import your\nNostr identity',
-                        style: TextStyle(
-                          fontFamily: 'BricolageGrotesque',
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: VineTheme.whiteText,
-                        ),
+                    // Subtitle
+                    const Text(
+                      'Import your existing Nostr identity using your '
+                      'private key or a bunker URL.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: VineTheme.secondaryText,
+                        height: 1.4,
                       ),
+                    ),
 
-                      const SizedBox(height: 12),
+                    const SizedBox(height: 32),
 
-                      // Subtitle
-                      const Text(
-                        'Import your existing Nostr identity using your '
-                        'private key or a bunker URL.',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: VineTheme.secondaryText,
-                          height: 1.4,
-                        ),
-                      ),
+                    // Key input field
+                    DivineTextField(
+                      controller: _keyController,
+                      label: 'Private key or bunker URL',
+                      enabled: !_isImporting,
+                      autocorrect: false,
+                      errorText: _keyError,
+                      onChanged: (_) {
+                        if (_keyError != null) {
+                          setState(() => _keyError = null);
+                        }
+                      },
+                    ),
 
-                      const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
-                      // Key input field
-                      _KeyInputField(
-                        controller: _keyController,
-                        enabled: !_isImporting,
-                        validator: _validateKey,
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // Import button
-                      _ImportButton(
-                        isImporting: _isImporting,
-                        onPressed: _importKey,
-                      ),
-
-                      // Push decoration and warning to bottom
-                      const Spacer(),
-
-                      // Security warning with key overlay
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          const _SecurityWarning(),
-                          Positioned(
-                            right: -60,
-                            top: -130,
-                            child: Transform.rotate(
-                              angle: 12 * 3.1415926535 / 180,
-                              child: Image.asset(
-                                'assets/stickers/key.png',
-                                width: 174,
-                                height: 174,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 32),
-                    ],
-                  ),
+                    // Import button
+                    DivinePrimaryButton(
+                      label: 'Import Nostr key',
+                      isLoading: _isImporting,
+                      onPressed: _importKey,
+                    ),
+                  ],
                 ),
               ),
             ),
+
+            // Pinned security warning with key overlay
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const _SecurityWarning(),
+                  Positioned(
+                    right: -60,
+                    top: -130,
+                    child: Transform.rotate(
+                      angle: 12 * 3.1415926535 / 180,
+                      child: Image.asset(
+                        'assets/stickers/key.png',
+                        width: 174,
+                        height: 174,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  String? _validateKey(String? value) {
-    if (value == null || value.trim().isEmpty) {
+  String? _validateKey(String value) {
+    if (value.trim().isEmpty) {
       return 'Please enter your private key or bunker URL';
     }
 
@@ -183,7 +190,9 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
   }
 
   Future<void> _importKey() async {
-    if (!_formKey.currentState!.validate()) {
+    final error = _validateKey(_keyController.text);
+    if (error != null) {
+      setState(() => _keyError = error);
       return;
     }
 
@@ -247,101 +256,6 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
         });
       }
     }
-  }
-}
-
-/// Input field for private key or bunker URL.
-class _KeyInputField extends StatelessWidget {
-  const _KeyInputField({
-    required this.controller,
-    required this.enabled,
-    required this.validator,
-  });
-
-  final TextEditingController controller;
-  final bool enabled;
-  final String? Function(String?) validator;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      enabled: enabled,
-      autocorrect: false,
-      style: const TextStyle(color: VineTheme.primaryText, fontSize: 16),
-      decoration: InputDecoration(
-        hintText: 'Enter nsec, hex format or bunker URL',
-        hintStyle: const TextStyle(color: VineTheme.lightText),
-        filled: true,
-        fillColor: VineTheme.surfaceContainer,
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: VineTheme.outlineVariant),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: VineTheme.vineGreen, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: VineTheme.error),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: VineTheme.error, width: 2),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: VineTheme.outlineVariant),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
-      ),
-      validator: validator,
-    );
-  }
-}
-
-/// Green filled import button.
-class _ImportButton extends StatelessWidget {
-  const _ImportButton({required this.isImporting, required this.onPressed});
-
-  final bool isImporting;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: isImporting ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          disabledBackgroundColor: VineTheme.vineGreen.withValues(alpha: 0.7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: isImporting
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: VineTheme.backgroundColor,
-                  strokeWidth: 2,
-                ),
-              )
-            : const Text(
-                'Import Nostr key',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-      ),
-    );
   }
 }
 

@@ -21,6 +21,7 @@ import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/divine_primary_button.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EmailVerificationScreen extends ConsumerStatefulWidget {
@@ -431,37 +432,6 @@ class _StatusButton extends StatelessWidget {
   }
 }
 
-/// Solid green action button.
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.label, required this.onPressed});
-
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: VineTheme.vineGreen,
-          foregroundColor: VineTheme.backgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ),
-    );
-  }
-}
-
 /// Polling/loading content shown while waiting for email verification.
 class _PollingContent extends StatelessWidget {
   const _PollingContent({required this.email, required this.isPollingMode});
@@ -614,7 +584,7 @@ class _PollingContent extends StatelessWidget {
               const _StatusButton(label: 'Waiting for verification'),
               if (isPollingMode) ...[
                 const SizedBox(height: 20),
-                _ActionButton(
+                DivinePrimaryButton(
                   label: 'Open email app',
                   onPressed: _openEmailApp,
                 ),
@@ -728,7 +698,10 @@ class _ErrorContent extends StatelessWidget {
         // Start over button
         Padding(
           padding: const EdgeInsets.only(bottom: 32),
-          child: _ActionButton(label: 'Start over', onPressed: onStartOver),
+          child: DivinePrimaryButton(
+            label: 'Start over',
+            onPressed: onStartOver,
+          ),
         ),
       ],
     );
