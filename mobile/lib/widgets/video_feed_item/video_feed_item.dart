@@ -35,7 +35,6 @@ import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/services/visibility_tracker.dart';
 import 'package:openvine/ui/overlay_policy.dart';
-import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/string_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -1391,7 +1390,7 @@ class VideoOverlayActions extends ConsumerWidget {
                     final displayName =
                         profile?.bestDisplayName ??
                         video.authorName ??
-                        NostrKeyUtils.truncateNpub(video.pubkey);
+                        UserProfile.defaultDisplayNameFor(video.pubkey);
                     final archivedLoops = video.originalLoops ?? 0;
                     final liveViews =
                         int.tryParse(video.rawTags['views'] ?? '') ?? 0;
@@ -2081,7 +2080,7 @@ class VideoRepostHeader extends ConsumerWidget {
 
     final displayName =
         reposterProfile?.bestDisplayName ??
-        NostrKeyUtils.truncateNpub(reposterPubkey);
+        UserProfile.defaultDisplayNameFor(reposterPubkey);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
