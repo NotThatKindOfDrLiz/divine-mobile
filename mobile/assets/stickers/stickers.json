@@ -50,6 +50,11 @@
     "tags": ["donut", "food", "sweet", "dessert", "yummy", "snack"]
   },
   {
+    "assetPath": "assets/stickers/email.png",
+    "description": "Email envelope",
+    "tags": ["email", "envelope", "letter", "mail", "message", "notification"]
+  },
+  {
     "assetPath": "assets/stickers/foam_finger.png",
     "description": "Foam finger",
     "tags": ["foam", "finger", "sports", "fan", "number one", "cheer"]
@@ -60,9 +65,24 @@
     "tags": ["grandfather", "grandpa", "old", "family", "elder", "man"]
   },
   {
+    "assetPath": "assets/stickers/key.png",
+    "description": "Golden key",
+    "tags": ["key", "gold", "lock", "unlock", "security", "secret"]
+  },
+  {
     "assetPath": "assets/stickers/maple_leaf.png",
     "description": "Maple leaf",
     "tags": ["maple", "leaf", "canada", "autumn", "fall", "nature", "red"]
+  },
+  {
+    "assetPath": "assets/stickers/pause.png",
+    "description": "Pause button",
+    "tags": ["pause", "button", "stop", "break", "wait", "hold"]
+  },
+  {
+    "assetPath": "assets/stickers/pointing_finger.png",
+    "description": "Pointing finger",
+    "tags": ["finger", "pointing", "hand", "up", "number one", "gesture"]
   },
   {
     "assetPath": "assets/stickers/poop_emoji.png",
@@ -73,6 +93,16 @@
     "assetPath": "assets/stickers/samoyed_dog.png",
     "description": "Samoyed dog",
     "tags": ["dog", "samoyed", "pet", "animal", "cute", "fluffy", "white"]
+  },
+  {
+    "assetPath": "assets/stickers/shaka_hang_loose.png",
+    "description": "Shaka hang loose",
+    "tags": ["shaka", "hang loose", "hand", "gesture", "surf", "chill", "aloha"]
+  },
+  {
+    "assetPath": "assets/stickers/siren.png",
+    "description": "Emergency siren",
+    "tags": ["siren", "alarm", "emergency", "alert", "warning", "police", "light"]
   },
   {
     "assetPath": "assets/stickers/sparkle.png",
