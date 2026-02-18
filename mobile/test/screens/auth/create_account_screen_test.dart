@@ -65,7 +65,7 @@ void main() {
             (widget) =>
                 widget is Text &&
                 widget.data == 'Create account' &&
-                widget.style?.fontSize == 28,
+                widget.style?.fontSize == 32,
           ),
           findsOneWidget,
         );
@@ -106,7 +106,10 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.widgetWithText(TextButton, 'Skip for now'), findsOneWidget);
+        expect(
+          find.widgetWithText(TextButton, 'Use Divine with no backup'),
+          findsOneWidget,
+        );
       });
 
       testWidgets('displays dog sticker', (tester) async {
@@ -132,7 +135,9 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
+        await tester.tap(
+          find.widgetWithText(TextButton, 'Use Divine with no backup'),
+        );
         await tester.pumpAndSettle();
 
         expect(find.text('One last thing...'), findsOneWidget);
@@ -152,7 +157,9 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
+        await tester.tap(
+          find.widgetWithText(TextButton, 'Use Divine with no backup'),
+        );
         await tester.pumpAndSettle();
 
         await tester.tap(
@@ -172,7 +179,9 @@ void main() {
           await tester.pumpWidget(createTestWidget());
           await tester.pumpAndSettle();
 
-          await tester.tap(find.widgetWithText(TextButton, 'Skip for now'));
+          await tester.tap(
+            find.widgetWithText(TextButton, 'Use Divine with no backup'),
+          );
           await tester.pumpAndSettle();
 
           await tester.tap(

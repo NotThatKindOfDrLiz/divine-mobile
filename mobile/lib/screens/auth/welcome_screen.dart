@@ -297,7 +297,9 @@ class _ReturningUserProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName =
-        profile?.bestDisplayName ?? NostrKeyUtils.truncateNpub(pubkeyHex);
+        profile?.bestDisplayName ??
+        UserProfile.defaultDisplayNameFor(pubkeyHex);
+
     final identifier =
         profile?.displayNip05 ?? NostrKeyUtils.truncateNpub(pubkeyHex);
 
@@ -407,56 +409,8 @@ class _SwitchAccountButton extends StatelessWidget {
   }
 }
 
-/// Small badge showing the authentication method used for an identity.
-class _AuthSourceBadge extends StatelessWidget {
-  const _AuthSourceBadge({required this.source});
-
-  final AuthenticationSource source;
-
-  @override
-  Widget build(BuildContext context) {
-    final (icon, label) = _iconAndLabel(source);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: VineTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: VineTheme.outlineMuted),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: VineTheme.secondaryText),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: VineTheme.secondaryText,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static (IconData, String) _iconAndLabel(AuthenticationSource source) {
-    return switch (source) {
-      AuthenticationSource.automatic => (Icons.vpn_key_outlined, 'Local keys'),
-      AuthenticationSource.importedKeys => (Icons.key, 'Imported keys'),
-      AuthenticationSource.divineOAuth => (
-        Icons.shield_outlined,
-        'Divine account',
-      ),
-      AuthenticationSource.bunker => (Icons.cloud_outlined, 'NIP-46 Bunker'),
-      AuthenticationSource.amber => (Icons.phonelink_lock_outlined, 'Amber'),
-      AuthenticationSource.none => (Icons.help_outline, 'Unknown'),
-    };
-  }
-}
-
 /// Bottom sheet listing all known accounts for selection.
+// DESIGN: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=7598-15054
 class _AccountPickerSheet extends StatelessWidget {
   const _AccountPickerSheet({
     required this.accounts,
@@ -488,7 +442,7 @@ class _AccountPickerSheet extends StatelessWidget {
           const SizedBox(height: 16),
 
           const Text(
-            'Select account',
+            'Sign in as...',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -538,7 +492,8 @@ class _AccountTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final displayName =
         account.profile?.bestDisplayName ??
-        NostrKeyUtils.truncateNpub(account.pubkeyHex);
+        UserProfile.defaultDisplayNameFor(account.pubkeyHex);
+    final truncatedNpub = NostrKeyUtils.truncateNpub(account.pubkeyHex);
 
     return GestureDetector(
       onTap: onTap,
@@ -573,16 +528,19 @@ class _AccountTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  _AuthSourceBadge(source: account.authSource),
+                  Text(
+                    truncatedNpub,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: VineTheme.secondaryText,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
             if (isSelected)
-              const Icon(
-                Icons.check_circle,
-                size: 20,
-                color: VineTheme.vineGreen,
-              ),
+              const Icon(Icons.check, size: 20, color: VineTheme.vineGreen),
           ],
         ),
       ),
