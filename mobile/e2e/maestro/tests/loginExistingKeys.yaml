@@ -44,6 +44,8 @@ env:
 #Import keys
 - tapOn: Import Nostr key
 #User is taken to the Explore screen, validate it:
+- tapOn:
+    id: explore_tab
 - runFlow: ../asserts/assertExploreNew.yaml
 
 # 5. Tap on profile: Validate user name and bio are displayed.
