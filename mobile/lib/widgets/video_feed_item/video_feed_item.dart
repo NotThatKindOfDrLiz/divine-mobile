@@ -878,18 +878,15 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
                           ),
                           Container(
                             color: Colors.black54,
-                            child: const Center(
+                            child: Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  BrandedLoadingIndicator(size: 60),
-                                  SizedBox(height: 16),
+                                  const BrandedLoadingIndicator(size: 60),
+                                  const SizedBox(height: 16),
                                   Text(
                                     'Loading video...',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                    ),
+                                    style: VineTheme.bodyMediumFont(),
                                   ),
                                 ],
                               ),
@@ -1531,11 +1528,8 @@ class VideoOverlayActions extends ConsumerWidget {
                                   hasLoopMetadata
                                       ? '${StringUtils.formatCompactNumber(loopCount)} loops'
                                       : video.relativeTime,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 14,
-                                    height: 20 / 14,
-                                    color: Colors.white70,
+                                  style: VineTheme.bodyMediumFont(
+                                    color: VineTheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -1600,19 +1594,9 @@ class VideoOverlayActions extends ConsumerWidget {
                                   ? video.content
                                   : video.title ?? '')
                               .trim(),
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        color: Colors.white,
-                        fontSize: 14,
-                        height: 20 / 14,
-                        letterSpacing: 0.25,
-                      ),
-                      hashtagStyle: TextStyle(
-                        fontFamily: 'Inter',
+                      style: VineTheme.bodyMediumFont(),
+                      hashtagStyle: VineTheme.bodyMediumFont(
                         color: VineTheme.vineGreen,
-                        fontSize: 14,
-                        height: 20 / 14,
-                        letterSpacing: 0.25,
                       ),
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
@@ -1804,7 +1788,7 @@ class VideoAuthorRow extends ConsumerWidget {
                 UserName.fromPubKey(
                   video.pubkey,
                   embeddedName: video.authorName,
-                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                  style: VineTheme.bodySmallFont(),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -1860,11 +1844,7 @@ class VideoRepostHeader extends ConsumerWidget {
           Flexible(
             child: Text(
               '$displayName reposted',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
+              style: VineTheme.labelMediumFont(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1988,15 +1968,12 @@ class _CommentActionButton extends StatelessWidget {
         if (totalComments > 0) ...[
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              StringUtils.formatCompactNumber(totalComments),
-              style: const TextStyle(
-                fontFamily: 'Bricolage Grotesque',
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                height: 1,
-                letterSpacing: 0.5,
+            child: SizedBox(
+              width: 48,
+              child: Text(
+                StringUtils.formatCompactNumber(totalComments),
+                style: VineTheme.labelMediumFont(color: VineTheme.onSurface),
+                textAlign: TextAlign.center,
               ),
             ),
           ),
