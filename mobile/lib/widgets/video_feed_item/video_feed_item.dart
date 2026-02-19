@@ -12,8 +12,6 @@ import 'package:models/models.dart' hide LogCategory, NIP71VideoKinds;
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
-import 'package:openvine/features/feature_flags/models/feature_flag.dart';
-import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/active_video_provider.dart'; // For isVideoActiveProvider (router-driven)
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/individual_video_providers.dart'; // For individualVideoControllerProvider only
@@ -44,7 +42,6 @@ import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/clickable_hashtag_text.dart';
 import 'package:openvine/widgets/proofmode_badge.dart';
 import 'package:openvine/widgets/proofmode_badge_row.dart';
-import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/user_name.dart';
 import 'package:openvine/widgets/video_feed_item/actions/actions.dart';
 import 'package:openvine/providers/subtitle_providers.dart';
@@ -1655,121 +1652,8 @@ class VideoOverlayActions extends ConsumerWidget {
               ignoring: false, // Action buttons SHOULD receive taps
               child: Column(
                 children: [
-                  // Edit button (only show for owned videos when feature is enabled)
-                  // Hide in fullscreen mode since it's shown in AppBar instead
-                  if (!isFullscreen && !isPreviewMode)
-                    _VideoEditButton(video: video),
-
-                  // Flag/Report button for content moderation
-                  Semantics(
-                    identifier: 'report_button',
-                    container: true,
-                    explicitChildNodes: true,
-                    button: true,
-                    label: 'Report video',
-                    child: IconButton(
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints.tightFor(
-                        width: 48,
-                        height: 48,
-                      ),
-                      style: IconButton.styleFrom(
-                        highlightColor: Colors.transparent,
-                        splashFactory: NoSplash.splashFactory,
-                      ),
-                      onPressed: () {
-                        Log.info(
-                          '🚩 Report button tapped for ${video.id}',
-                          name: 'VideoFeedItem',
-                          category: LogCategory.ui,
-                        );
-                        context.showVideoPausingDialog(
-                          builder: (context) =>
-                              ReportContentDialog(video: video),
-                        );
-                      },
-                      icon: DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 15,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: SvgPicture.asset(
-                          'assets/icon/content-controls/flag.svg',
-                          width: 32,
-                          height: 32,
-                          colorFilter: const ColorFilter.mode(
-                            Colors.white,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // CC (subtitles) button
-                  CcActionButton(video: video),
-
-                  const SizedBox(height: 4),
-
-                  // Share button
-                  Semantics(
-                    identifier: 'share_button',
-                    container: true,
-                    explicitChildNodes: true,
-                    button: true,
-                    label: 'Share video',
-                    child: IconButton(
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints.tightFor(
-                        width: 48,
-                        height: 48,
-                      ),
-                      style: IconButton.styleFrom(
-                        highlightColor: Colors.transparent,
-                        splashFactory: NoSplash.splashFactory,
-                      ),
-                      onPressed: () {
-                        Log.info(
-                          '📤 Share button tapped for ${video.id}',
-                          name: 'VideoFeedItem',
-                          category: LogCategory.ui,
-                        );
-                        _showShareMenu(context, ref, video, isActive);
-                      },
-                      icon: DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 15,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: SvgPicture.asset(
-                          'assets/icon/content-controls/share.svg',
-                          width: 32,
-                          height: 32,
-                          colorFilter: const ColorFilter.mode(
-                            Colors.white,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Repost button
-                  RepostActionButton(video: video),
+                  // Like button with count
+                  LikeActionButton(video: video),
 
                   const SizedBox(height: 4),
 
@@ -1778,8 +1662,18 @@ class VideoOverlayActions extends ConsumerWidget {
 
                   const SizedBox(height: 4),
 
-                  // Like button
-                  LikeActionButton(video: video),
+                  // Repost button with count
+                  RepostActionButton(video: video),
+
+                  const SizedBox(height: 4),
+
+                  // Share button
+                  ShareActionButton(video: video),
+
+                  const SizedBox(height: 12),
+
+                  // More menu (three dots)
+                  MoreActionButton(video: video),
                 ],
               ),
             ),
@@ -1787,53 +1681,6 @@ class VideoOverlayActions extends ConsumerWidget {
         ),
       ],
     );
-  }
-
-  Future<void> _showShareMenu(
-    BuildContext context,
-    WidgetRef ref,
-    VideoEvent video,
-    bool isActive,
-  ) async {
-    // Pause video before showing share menu
-    bool wasPaused = false;
-    try {
-      final controllerParams = VideoControllerParams(
-        videoId: video.id,
-        videoUrl: video.getOptimalVideoUrlForPlatform() ?? video.videoUrl!,
-        cacheUrl: video.videoUrl,
-        videoEvent: video,
-      );
-      final controller = ref.read(
-        individualVideoControllerProvider(controllerParams),
-      );
-      if (controller.value.isInitialized && controller.value.isPlaying) {
-        wasPaused = await safePause(controller, video.id);
-        if (wasPaused) {
-          Log.info(
-            '🎬 Paused video for share menu',
-            name: 'VideoFeedItem',
-            category: LogCategory.ui,
-          );
-        }
-      }
-    } catch (e) {
-      final errorStr = e.toString().toLowerCase();
-      if (!errorStr.contains('no active player') &&
-          !errorStr.contains('disposed')) {
-        Log.error(
-          'Failed to pause video for share menu: $e',
-          name: 'VideoFeedItem',
-          category: LogCategory.ui,
-        );
-      }
-    }
-
-    await context.showVideoPausingVineBottomSheet<void>(
-      builder: (context) => ShareVideoMenu(video: video),
-    );
-
-    // Video resumes when modal closes via overlay visibility provider
   }
 
   Future<void> _showBadgeExplanationModal(
@@ -1896,88 +1743,6 @@ class VideoOverlayActions extends ConsumerWidget {
 ///
 /// If both conditions are met, displays an edit button that opens the
 /// video edit dialog.
-class _VideoEditButton extends ConsumerWidget {
-  const _VideoEditButton({required this.video});
-
-  final VideoEvent video;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Check feature flag
-    final featureFlagService = ref.watch(featureFlagServiceProvider);
-    final isEditorEnabled = featureFlagService.isEnabled(
-      FeatureFlag.enableVideoEditorV1,
-    );
-
-    if (!isEditorEnabled) {
-      return const SizedBox.shrink();
-    }
-
-    // Check ownership
-    final authService = ref.watch(authServiceProvider);
-    final currentUserPubkey = authService.currentPublicKeyHex;
-    final isOwnVideo =
-        currentUserPubkey != null && currentUserPubkey == video.pubkey;
-
-    if (!isOwnVideo) {
-      return const SizedBox.shrink();
-    }
-
-    // Show edit button
-    return Column(
-      children: [
-        const SizedBox(height: 4),
-        Semantics(
-          identifier: 'edit_button',
-          container: true,
-          explicitChildNodes: true,
-          button: true,
-          label: 'Edit video',
-          child: IconButton(
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints.tightFor(width: 48, height: 48),
-            style: IconButton.styleFrom(
-              highlightColor: Colors.transparent,
-              splashFactory: NoSplash.splashFactory,
-            ),
-            onPressed: () {
-              Log.info(
-                '✏️ Edit button tapped for ${video.id}',
-                name: 'VideoFeedItem',
-                category: LogCategory.ui,
-              );
-
-              // Show edit dialog directly (works on all platforms)
-              showEditDialogForVideo(context, video);
-            },
-            tooltip: 'Edit video',
-            icon: DecoratedBox(
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 15,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
-              child: SvgPicture.asset(
-                'assets/icon/content-controls/pencil.svg',
-                width: 32,
-                height: 32,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// Username and follow button row for video overlay.
 ///
 /// Displays the video author's name (tappable to go to profile) and a follow button.
@@ -2212,14 +1977,10 @@ class _CommentActionButton extends StatelessWidget {
                   ),
                 ],
               ),
-              child: SvgPicture.asset(
-                'assets/icon/content-controls/comment.svg',
-                width: 32,
-                height: 32,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
+              child: const DivineIcon(
+                icon: DivineIconName.chat,
+                size: 32,
+                color: VineTheme.whiteText,
               ),
             ),
           ),
