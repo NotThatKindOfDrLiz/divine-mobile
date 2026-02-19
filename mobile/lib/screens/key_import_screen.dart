@@ -219,7 +219,8 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
         _keyController.clear();
 
         // Start fetching the user's profile from relays in background
-        // This ensures profile data is available when user navigates to profile
+        // This ensures profile data is available when user navigates
+        // to profile
         final pubkeyHex = authService.currentPublicKeyHex;
         if (pubkeyHex != null) {
           final userProfileService = ref.read(userProfileServiceProvider);

@@ -339,8 +339,15 @@ class _LoadingContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Space for close button overlay
+          const SizedBox(height: 72),
+          Text(
+            'Scan with your\nsigner app to connect.',
+            style: VineTheme.headlineLargeFont(),
+          ),
+          const Spacer(),
           const CircularProgressIndicator(color: VineTheme.vineGreen),
           const SizedBox(height: 24),
           Text(
