@@ -187,7 +187,9 @@ class PlayerPool {
       final existing = _players[url]!;
       // Reset audio state to prevent leaking audio from a previous session.
       // The caller (_loadPlayer) will set volume/play state as needed.
-      await existing.player.setVolume(0);
+      // Use unawaited to avoid introducing a yield point that could allow
+      // concurrent getPlayer calls to interleave and cause race conditions.
+      unawaited(existing.player.setVolume(0));
       debugPrint('PlayerPool: reusing player for $url (muted on return)');
       return existing;
     }
