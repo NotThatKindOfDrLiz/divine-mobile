@@ -264,7 +264,12 @@ class _SkipConfirmationSheet extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          const DivineSticker(sticker: DivineStickerName.fingerPointing),
+          Image.asset(
+            'assets/stickers/pointing_finger.png',
+            width: 132,
+            height: 132,
+            fit: BoxFit.contain,
+          ),
           const SizedBox(height: 24),
 
           // Title
