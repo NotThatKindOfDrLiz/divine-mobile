@@ -245,7 +245,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 40),
 
                 // Email field
-                DivineTextField(
+                DivineAuthTextField(
                   controller: _emailController,
                   label: 'Email',
                   keyboardType: TextInputType.emailAddress,
@@ -259,7 +259,7 @@ class _SignInContentState extends ConsumerState<_SignInContent> {
                 const SizedBox(height: 16),
 
                 // Password field
-                DivineTextField(
+                DivineAuthTextField(
                   controller: _passwordController,
                   label: 'Password',
                   obscureText: true,

@@ -509,11 +509,9 @@ class _PollingContent extends StatelessWidget {
         // Email sticker
         Transform.rotate(
           angle: -8 * pi / 180,
-          child: Image.asset(
-            'assets/stickers/email.png',
-            width: 120,
-            height: 120,
-            fit: BoxFit.contain,
+          child: const DivineSticker(
+            sticker: DivineStickerName.email,
+            size: 120,
           ),
         ),
         const SizedBox(height: 32),
@@ -610,12 +608,7 @@ class _SuccessContent extends StatelessWidget {
         const Spacer(),
 
         // Shaka sticker (celebration)
-        Image.asset(
-          'assets/stickers/shaka_hang_loose.png',
-          width: 120,
-          height: 120,
-          fit: BoxFit.contain,
-        ),
+        const DivineSticker(sticker: DivineStickerName.hangLoose, size: 120),
         const SizedBox(height: 32),
 
         const Text(
@@ -664,12 +657,7 @@ class _ErrorContent extends StatelessWidget {
         const Spacer(),
 
         // Siren sticker
-        Image.asset(
-          'assets/stickers/siren.png',
-          width: 120,
-          height: 120,
-          fit: BoxFit.contain,
-        ),
+        const DivineSticker(sticker: DivineStickerName.policeSiren, size: 120),
         const SizedBox(height: 32),
 
         const Text(

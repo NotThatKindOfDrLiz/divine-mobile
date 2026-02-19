@@ -82,14 +82,20 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.widgetWithText(TextField, 'Email'), findsOneWidget);
+        expect(
+          find.widgetWithText(DivineAuthTextField, 'Email'),
+          findsOneWidget,
+        );
       });
 
       testWidgets('displays password field', (tester) async {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
+        expect(
+          find.widgetWithText(DivineAuthTextField, 'Password'),
+          findsOneWidget,
+        );
       });
 
       testWidgets('displays create account button', (tester) async {
@@ -231,13 +237,19 @@ void main() {
 
         // Enter email
         await tester.enterText(
-          find.widgetWithText(TextField, 'Email'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Email'),
+            matching: find.byType(TextField),
+          ),
           'test@example.com',
         );
 
         // Enter password
         await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
           'SecurePass123!',
         );
 

@@ -142,7 +142,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const SizedBox(height: 32),
 
               // Password field
-              DivineTextField(
+              DivineAuthTextField(
                 controller: _passwordController,
                 label: 'New Password',
                 obscureText: true,
@@ -160,13 +160,11 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const SizedBox(height: 32),
 
               // Samoyed sticker
-              Align(
+              const Align(
                 alignment: Alignment.centerRight,
-                child: Image.asset(
-                  'assets/stickers/samoyed_dog.png',
-                  width: 160,
-                  height: 160,
-                  fit: BoxFit.contain,
+                child: DivineSticker(
+                  sticker: DivineStickerName.samoyedDog,
+                  size: 160,
                 ),
               ),
 

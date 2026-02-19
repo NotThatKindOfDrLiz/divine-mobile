@@ -63,14 +63,26 @@ void main() {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.widgetWithText(TextField, 'Email'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Email'),
+            matching: find.byType(TextField),
+          ),
+          findsOneWidget,
+        );
       });
 
       testWidgets('displays password field', (tester) async {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
+          findsOneWidget,
+        );
       });
 
       testWidgets('displays Secure account button', (tester) async {
@@ -98,11 +110,17 @@ void main() {
 
         // Enter invalid email
         await tester.enterText(
-          find.widgetWithText(TextField, 'Email'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Email'),
+            matching: find.byType(TextField),
+          ),
           'invalid-email',
         );
         await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
           'password123',
         );
 
@@ -120,13 +138,16 @@ void main() {
         await tester.pumpWidget(buildTestWidget());
         await tester.pumpAndSettle();
 
-        // DivineTextField uses DivineIcon (SVG) for the toggle, not
+        // DivineAuthTextField uses DivineIcon (SVG) for the toggle, not
         // Material Icons. Find it by type — there's exactly one.
         expect(find.byType(DivineIcon), findsOneWidget);
 
         // Password should be obscured initially
         final textField = tester.widget<TextField>(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
         );
         expect(textField.obscureText, isTrue);
 
@@ -136,7 +157,10 @@ void main() {
 
         // Password should now be visible
         final textFieldAfter = tester.widget<TextField>(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
         );
         expect(textFieldAfter.obscureText, isFalse);
       });
@@ -170,11 +194,17 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextField, 'Email'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Email'),
+            matching: find.byType(TextField),
+          ),
           'test@example.com',
         );
         await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
           'SecurePass123!',
         );
 
@@ -214,11 +244,17 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextField, 'Email'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Email'),
+            matching: find.byType(TextField),
+          ),
           'existing@example.com',
         );
         await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
           'SecurePass123!',
         );
 
@@ -235,11 +271,17 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(
-          find.widgetWithText(TextField, 'Email'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Email'),
+            matching: find.byType(TextField),
+          ),
           'test@example.com',
         );
         await tester.enterText(
-          find.widgetWithText(TextField, 'Password'),
+          find.descendant(
+            of: find.widgetWithText(DivineAuthTextField, 'Password'),
+            matching: find.byType(TextField),
+          ),
           'SecurePass123!',
         );
 

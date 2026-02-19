@@ -170,7 +170,7 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
   Widget build(BuildContext context) {
     return AuthFormScaffold(
       title: 'Secure account',
-      emailField: DivineTextField(
+      emailField: DivineAuthTextField(
         controller: _emailController,
         label: 'Email',
         keyboardType: TextInputType.emailAddress,
@@ -181,7 +181,7 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
           if (_emailError != null) setState(() => _emailError = null);
         },
       ),
-      passwordField: DivineTextField(
+      passwordField: DivineAuthTextField(
         controller: _passwordController,
         label: 'Password',
         obscureText: true,

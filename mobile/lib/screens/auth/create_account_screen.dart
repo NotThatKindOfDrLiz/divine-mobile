@@ -161,7 +161,7 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
     return AuthFormScaffold(
       title: 'Create account',
       onBack: isDisabled ? null : () => context.pop(),
-      emailField: DivineTextField(
+      emailField: DivineAuthTextField(
         controller: _emailController,
         label: 'Email',
         keyboardType: TextInputType.emailAddress,
@@ -171,7 +171,7 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
         onChanged: (value) =>
             context.read<DivineAuthCubit>().updateEmail(value),
       ),
-      passwordField: DivineTextField(
+      passwordField: DivineAuthTextField(
         controller: _passwordController,
         label: 'Password',
         obscureText: true,
@@ -264,12 +264,7 @@ class _SkipConfirmationSheet extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          Image.asset(
-            'assets/stickers/pointing_finger.png',
-            width: 132,
-            height: 132,
-            fit: BoxFit.contain,
-          ),
+          const DivineSticker(sticker: DivineStickerName.fingerPointing),
           const SizedBox(height: 24),
 
           // Title

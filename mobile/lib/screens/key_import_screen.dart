@@ -104,7 +104,7 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
                     const SizedBox(height: 32),
 
                     // Key input field
-                    DivineTextField(
+                    DivineAuthTextField(
                       controller: _keyController,
                       label: 'Private key or bunker URL',
                       enabled: !_isImporting,
