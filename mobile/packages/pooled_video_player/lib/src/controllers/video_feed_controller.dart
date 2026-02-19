@@ -201,6 +201,11 @@ class VideoFeedController extends ChangeNotifier {
     if (_isActive == active) return;
     _isActive = active;
 
+    debugPrint(
+      'VideoFeedController: setActive($active) '
+      '(${_loadedPlayers.length} loaded players)',
+    );
+
     if (!active) {
       // Pause and release all players to free memory
       _pauseVideo(_currentIndex);
@@ -309,6 +314,12 @@ class VideoFeedController extends ChangeNotifier {
   Future<void> _loadPlayer(int index) async {
     if (_isDisposed || _loadingIndices.contains(index)) return;
     if (index < 0 || index >= _videos.length) return;
+
+    debugPrint(
+      'VideoFeedController: loading player at index $index '
+      '(${_loadedPlayers.length} loaded, '
+      '${_indexNotifiers.length} notifiers)',
+    );
 
     _loadingIndices.add(index);
     _loadStates[index] = LoadState.loading;
@@ -428,6 +439,12 @@ class VideoFeedController extends ChangeNotifier {
   }
 
   void _releasePlayer(int index) {
+    debugPrint(
+      'VideoFeedController: releasing player at index $index '
+      '(${_loadedPlayers.length} loaded, '
+      '${_indexNotifiers.length} notifiers)',
+    );
+
     _stopPositionTimer(index);
     unawaited(_bufferSubscriptions[index]?.cancel());
     _bufferSubscriptions.remove(index);
@@ -440,6 +457,15 @@ class VideoFeedController extends ChangeNotifier {
   @override
   void dispose() {
     if (_isDisposed) return;
+
+    debugPrint(
+      'VideoFeedController: dispose() called '
+      '(${_loadedPlayers.length} loaded players, '
+      '${_indexNotifiers.length} notifiers, '
+      '${_positionTimers.length} timers, '
+      '${_bufferSubscriptions.length} subscriptions)',
+    );
+
     _isDisposed = true;
 
     // Release all players back to pool (stops playback and removes from pool)

@@ -184,6 +184,7 @@ class PlayerPool {
     // Check if player already exists
     if (_players.containsKey(url)) {
       _touch(url);
+      debugPrint('PlayerPool: reusing player for $url');
       return _players[url]!;
     }
 
@@ -196,6 +197,11 @@ class PlayerPool {
     final player = await _createPlayer();
     _players[url] = player;
     _lruOrder.add(url);
+
+    debugPrint(
+      'PlayerPool: created player for $url '
+      '(${_players.length}/$maxPlayers players)',
+    );
 
     return player;
   }
@@ -226,6 +232,10 @@ class PlayerPool {
     final url = _lruOrder.removeAt(0);
     final player = _players.remove(url);
     if (player != null && !player.isDisposed) {
+      debugPrint(
+        'PlayerPool: LRU evicting $url '
+        '(${_players.length}/$maxPlayers players remain)',
+      );
       await player.dispose();
     }
   }
@@ -235,6 +245,10 @@ class PlayerPool {
     final player = _players.remove(url);
     _lruOrder.remove(url);
     if (player != null && !player.isDisposed) {
+      debugPrint(
+        'PlayerPool: releasing $url '
+        '(${_players.length}/$maxPlayers players remain)',
+      );
       await player.dispose();
     }
   }
