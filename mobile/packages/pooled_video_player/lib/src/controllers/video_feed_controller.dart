@@ -385,15 +385,16 @@ class VideoFeedController extends ChangeNotifier {
     onVideoReady?.call(index, player);
 
     if (index == _currentIndex && _isActive && !_isPaused) {
-      // This is the current video - play it
+      // This is the current video - play it with audio
       unawaited(player.setVolume(100));
 
       // Start position callback timer for current video
       _startPositionTimer(index);
     } else {
-      // Preloaded video - pause it
+      // Preloaded video - pause it and keep muted to prevent audio leaks.
+      // Volume will be set to 100 when this video becomes current via
+      // _playVideo().
       unawaited(player.pause());
-      unawaited(player.setVolume(100));
     }
 
     unawaited(_bufferSubscriptions[index]?.cancel());
@@ -445,6 +446,15 @@ class VideoFeedController extends ChangeNotifier {
       '(${_loadedPlayers.length} loaded, '
       '${_indexNotifiers.length} notifiers)',
     );
+
+    // Stop audio before removing from tracking to prevent audio leaks.
+    // The player stays in the pool for reuse, but must be silent.
+    final player = _loadedPlayers[index]?.player;
+    if (player != null) {
+      unawaited(player.setVolume(0));
+      unawaited(player.pause());
+    }
+
     _stopPositionTimer(index);
     unawaited(_bufferSubscriptions[index]?.cancel());
     _bufferSubscriptions.remove(index);
@@ -477,6 +487,13 @@ class VideoFeedController extends ChangeNotifier {
       unawaited(subscription.cancel());
     }
     _bufferSubscriptions.clear();
+
+    // Stop audio on ALL loaded players immediately to prevent audio leaks
+    // during the async disposal that follows.
+    for (final pooledPlayer in _loadedPlayers.values) {
+      unawaited(pooledPlayer.player.setVolume(0));
+      unawaited(pooledPlayer.player.pause());
+    }
 
     // Collect player URLs to release BEFORE clearing state, but release
     // AFTER notifiers are disposed so no widget can rebuild with a stale
