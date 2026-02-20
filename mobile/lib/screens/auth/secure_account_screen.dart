@@ -170,27 +170,17 @@ class _SecureAccountScreenState extends ConsumerState<SecureAccountScreen> {
   Widget build(BuildContext context) {
     return AuthFormScaffold(
       title: 'Secure account',
-      emailField: DivineAuthTextField(
-        controller: _emailController,
-        label: 'Email',
-        keyboardType: TextInputType.emailAddress,
-        errorText: _emailError,
-        enabled: !_isLoading,
-        autocorrect: false,
-        onChanged: (_) {
-          if (_emailError != null) setState(() => _emailError = null);
-        },
-      ),
-      passwordField: DivineAuthTextField(
-        controller: _passwordController,
-        label: 'Password',
-        obscureText: true,
-        errorText: _passwordError,
-        enabled: !_isLoading,
-        onChanged: (_) {
-          if (_passwordError != null) setState(() => _passwordError = null);
-        },
-      ),
+      emailController: _emailController,
+      passwordController: _passwordController,
+      emailError: _emailError,
+      passwordError: _passwordError,
+      enabled: !_isLoading,
+      onEmailChanged: (_) {
+        if (_emailError != null) setState(() => _emailError = null);
+      },
+      onPasswordChanged: (_) {
+        if (_passwordError != null) setState(() => _passwordError = null);
+      },
       errorWidget: _generalError != null
           ? AuthErrorBox(message: _generalError!)
           : null,

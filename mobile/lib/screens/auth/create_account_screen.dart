@@ -161,25 +161,15 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
     return AuthFormScaffold(
       title: 'Create account',
       onBack: isDisabled ? null : () => context.pop(),
-      emailField: DivineAuthTextField(
-        controller: _emailController,
-        label: 'Email',
-        keyboardType: TextInputType.emailAddress,
-        errorText: widget.state.emailError,
-        enabled: !isDisabled,
-        autocorrect: false,
-        onChanged: (value) =>
-            context.read<DivineAuthCubit>().updateEmail(value),
-      ),
-      passwordField: DivineAuthTextField(
-        controller: _passwordController,
-        label: 'Password',
-        obscureText: true,
-        errorText: widget.state.passwordError,
-        enabled: !isDisabled,
-        onChanged: (value) =>
-            context.read<DivineAuthCubit>().updatePassword(value),
-      ),
+      emailController: _emailController,
+      passwordController: _passwordController,
+      emailError: widget.state.emailError,
+      passwordError: widget.state.passwordError,
+      enabled: !isDisabled,
+      onEmailChanged: (value) =>
+          context.read<DivineAuthCubit>().updateEmail(value),
+      onPasswordChanged: (value) =>
+          context.read<DivineAuthCubit>().updatePassword(value),
       errorWidget: widget.state.generalError != null
           ? AuthErrorBox(message: widget.state.generalError!)
           : null,

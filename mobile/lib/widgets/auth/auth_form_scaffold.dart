@@ -1,6 +1,6 @@
 // ABOUTME: Shared scaffold layout for auth form screens (create account,
-// ABOUTME: secure account). Provides dark background, back button, title,
-// ABOUTME: email/password field slots, dog sticker, error, and button slots.
+// ABOUTME: secure account). Owns the email/password DivineAuthTextFields
+// ABOUTME: internally to guarantee consistency between forms.
 // Figma: https://www.figma.com/design/rp1DsDEUuCaicW0lk6I2aZ/UI-Design?node-id=6560-62187
 
 import 'dart:math';
@@ -15,19 +15,27 @@ import 'package:openvine/widgets/auth_back_button.dart';
 /// Provides the standard dark-background layout with:
 /// - [AuthBackButton] at the top
 /// - Title text
-/// - Email and password field slots
+/// - Email and password [DivineAuthTextField] fields (built internally)
 /// - Dog sticker (right-aligned, rotated)
 /// - Optional error widget
 /// - Primary and optional secondary button slots pushed to bottom
 ///
-/// Each screen passes its own field widgets and buttons, keeping
-/// submit logic independent while sharing the visual structure.
+/// The email and password fields are constructed internally with shared
+/// configuration (labels, keyboard type, autofill hints) to prevent
+/// drift between CreateAccountScreen and SecureAccountScreen. Each screen
+/// passes controllers, error strings, and onChanged callbacks for the
+/// parts that differ.
 class AuthFormScaffold extends StatelessWidget {
   const AuthFormScaffold({
     super.key,
     required this.title,
-    required this.emailField,
-    required this.passwordField,
+    required this.emailController,
+    required this.passwordController,
+    this.emailError,
+    this.passwordError,
+    this.enabled = true,
+    this.onEmailChanged,
+    this.onPasswordChanged,
     this.errorWidget,
     required this.primaryButton,
     this.secondaryButton,
@@ -37,11 +45,26 @@ class AuthFormScaffold extends StatelessWidget {
   /// The title displayed below the back button.
   final String title;
 
-  /// The email input field widget.
-  final Widget emailField;
+  /// Controller for the email text field.
+  final TextEditingController emailController;
 
-  /// The password input field widget.
-  final Widget passwordField;
+  /// Controller for the password text field.
+  final TextEditingController passwordController;
+
+  /// Error message for the email field (null = no error).
+  final String? emailError;
+
+  /// Error message for the password field (null = no error).
+  final String? passwordError;
+
+  /// Whether the form fields are enabled.
+  final bool enabled;
+
+  /// Called when the email field text changes.
+  final ValueChanged<String>? onEmailChanged;
+
+  /// Called when the password field text changes.
+  final ValueChanged<String>? onPasswordChanged;
 
   /// Optional error widget displayed below the dog sticker.
   final Widget? errorWidget;
@@ -90,13 +113,40 @@ class AuthFormScaffold extends StatelessWidget {
 
                     const SizedBox(height: 32),
 
-                    // Email field
-                    emailField,
+                    // AutofillGroup + Form enables password manager
+                    // autofill for the email and password fields.
+                    AutofillGroup(
+                      child: Form(
+                        child: Column(
+                          children: [
+                            // Email field
+                            DivineAuthTextField(
+                              controller: emailController,
+                              label: 'Email',
+                              keyboardType: TextInputType.emailAddress,
+                              errorText: emailError,
+                              enabled: enabled,
+                              autocorrect: false,
+                              autofillHints: const [AutofillHints.email],
+                              onChanged: onEmailChanged,
+                            ),
 
-                    const SizedBox(height: 16),
+                            const SizedBox(height: 16),
 
-                    // Password field
-                    passwordField,
+                            // Password field
+                            DivineAuthTextField(
+                              controller: passwordController,
+                              label: 'Password',
+                              obscureText: true,
+                              autofillHints: const [AutofillHints.newPassword],
+                              errorText: passwordError,
+                              enabled: enabled,
+                              onChanged: onPasswordChanged,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
 
                     const SizedBox(height: 16),
 
