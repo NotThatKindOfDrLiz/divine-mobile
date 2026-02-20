@@ -66,7 +66,7 @@ void main() {
   });
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({kKnownAccountsKey: '[]'});
     mockKeyStorage = _MockSecureKeyStorage();
     mockCleanupService = _MockUserDataCleanupService();
     mockSecureStorage = _MockFlutterSecureStorage();
@@ -130,14 +130,18 @@ void main() {
   });
 
   group('getKnownAccounts', () {
-    test('returns empty list when no accounts stored', () async {
+    test('returns empty list when key exists but is empty string', () async {
+      SharedPreferences.setMockInitialValues({kKnownAccountsKey: ''});
+
       final accounts = await authService.getKnownAccounts();
 
       expect(accounts, isEmpty);
     });
 
-    test('returns empty list when stored value is empty string', () async {
-      SharedPreferences.setMockInitialValues({kKnownAccountsKey: ''});
+    test('returns empty list when key exists with empty JSON array', () async {
+      SharedPreferences.setMockInitialValues({
+        kKnownAccountsKey: jsonEncode([]),
+      });
 
       final accounts = await authService.getKnownAccounts();
 
@@ -195,6 +199,244 @@ void main() {
       expect(accounts[0].authSource, equals(AuthenticationSource.bunker));
       expect(accounts[0].addedAt, equals(DateTime(2024, 6, 15)));
       expect(accounts[0].lastUsedAt, equals(DateTime(2025, 1, 20)));
+    });
+  });
+
+  group('_migrateLegacyAccount', () {
+    test('migrates automatic account from legacy auth source', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'automatic',
+      });
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(1));
+      expect(accounts[0].pubkeyHex, equals(testKeyContainer.publicKeyHex));
+      expect(accounts[0].authSource, equals(AuthenticationSource.automatic));
+    });
+
+    test('migrates imported_keys account from legacy auth source', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'imported_keys',
+      });
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(1));
+      expect(accounts[0].authSource, equals(AuthenticationSource.importedKeys));
+    });
+
+    test('migrates amber account from legacy auth source', () async {
+      final pubkeyHex = 'd' * 64;
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'amber',
+      });
+      when(
+        () => mockSecureStorage.read(key: 'amber_pubkey'),
+      ).thenAnswer((_) async => pubkeyHex);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(1));
+      expect(accounts[0].pubkeyHex, equals(pubkeyHex));
+      expect(accounts[0].authSource, equals(AuthenticationSource.amber));
+    });
+
+    test('migrates bunker account from legacy auth source', () async {
+      final userPubkeyHex = 'e' * 64;
+      final bunkerPubkeyHex = 'a' * 64;
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'bunker',
+      });
+      when(() => mockSecureStorage.read(key: 'bunker_info')).thenAnswer(
+        (_) async =>
+            'bunker://$bunkerPubkeyHex?relay=wss://relay.example.com'
+            '&userPubkey=$userPubkeyHex',
+      );
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(1));
+      expect(accounts[0].pubkeyHex, equals(userPubkeyHex));
+      expect(accounts[0].authSource, equals(AuthenticationSource.bunker));
+    });
+
+    test('migrates divineOAuth account from legacy auth source', () async {
+      final pubkeyHex = 'f' * 64;
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'divineOAuth',
+      });
+      final sessionJson = jsonEncode({
+        'bunker_url': 'wss://keycast.example.com',
+        'access_token': 'test_token',
+        'scope': 'policy:full',
+        'user_pubkey': pubkeyHex,
+      });
+      when(
+        () => mockSecureStorage.read(key: 'keycast_session'),
+      ).thenAnswer((_) async => sessionJson);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(1));
+      expect(accounts[0].pubkeyHex, equals(pubkeyHex));
+      expect(accounts[0].authSource, equals(AuthenticationSource.divineOAuth));
+    });
+
+    test(
+      'returns empty list when legacy auth source is none and no keys',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'authentication_source': 'none',
+        });
+
+        final accounts = await authService.getKnownAccounts();
+
+        expect(accounts, isEmpty);
+      },
+    );
+
+    test('recovers automatic keys even when auth source is none', () async {
+      SharedPreferences.setMockInitialValues({'authentication_source': 'none'});
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(1));
+      expect(accounts[0].pubkeyHex, equals(testKeyContainer.publicKeyHex));
+      expect(accounts[0].authSource, equals(AuthenticationSource.automatic));
+    });
+
+    test('returns empty list when no legacy auth source and no keys', () async {
+      // No authentication_source key at all (fresh install)
+      SharedPreferences.setMockInitialValues({});
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, isEmpty);
+    });
+
+    test('returns empty list when legacy keys cannot be loaded', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'automatic',
+      });
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => null);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, isEmpty);
+    });
+
+    test('recovers both auth-source account and automatic keys', () async {
+      final oauthPubkeyHex = 'f' * 64;
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'divineOAuth',
+      });
+      final sessionJson = jsonEncode({
+        'bunker_url': 'wss://keycast.example.com',
+        'access_token': 'test_token',
+        'scope': 'policy:full',
+        'user_pubkey': oauthPubkeyHex,
+      });
+      when(
+        () => mockSecureStorage.read(key: 'keycast_session'),
+      ).thenAnswer((_) async => sessionJson);
+
+      // Automatic keys from a previous anonymous session
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      final accounts = await authService.getKnownAccounts();
+
+      expect(accounts, hasLength(2));
+      expect(accounts.any((a) => a.pubkeyHex == oauthPubkeyHex), isTrue);
+      expect(
+        accounts.any((a) => a.pubkeyHex == testKeyContainer.publicKeyHex),
+        isTrue,
+      );
+    });
+
+    test(
+      'does not duplicate when auth-source keys match automatic keys',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'authentication_source': 'automatic',
+        });
+        when(
+          () => mockKeyStorage.getKeyContainer(),
+        ).thenAnswer((_) async => testKeyContainer);
+
+        final accounts = await authService.getKnownAccounts();
+
+        // Same pubkey from both paths — should only appear once
+        expect(accounts, hasLength(1));
+      },
+    );
+
+    test('persists result so migration only runs once', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'automatic',
+      });
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      // First call triggers migration
+      await authService.getKnownAccounts();
+
+      // Verify the key was persisted
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(kKnownAccountsKey), isNotNull);
+      expect(prefs.getString(kKnownAccountsKey), isNotEmpty);
+    });
+
+    test('does not re-migrate after all accounts are removed', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'automatic',
+      });
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      // Migration runs and creates one account
+      final migrated = await authService.getKnownAccounts();
+      expect(migrated, hasLength(1));
+
+      // Simulate removing the account (sets key to "[]")
+      await authService.removeKnownAccount(testKeyContainer.publicKeyHex);
+
+      // Subsequent call should NOT re-migrate
+      final afterRemoval = await authService.getKnownAccounts();
+      expect(afterRemoval, isEmpty);
+    });
+
+    test('handles error during key loading gracefully', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': 'automatic',
+      });
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenThrow(Exception('storage corrupted'));
+
+      final accounts = await authService.getKnownAccounts();
+
+      // Should return empty list, not throw
+      expect(accounts, isEmpty);
+
+      // Should still persist the result to seal the migration
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString(kKnownAccountsKey), isNotNull);
     });
   });
 

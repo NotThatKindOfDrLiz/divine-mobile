@@ -587,11 +587,22 @@ class AuthService implements BackgroundAwareService {
   // ---------------------------------------------------------------------------
 
   /// Reads the list of known accounts from SharedPreferences.
+  ///
+  /// On the first call after upgrading from the old single-account system,
+  /// the `known_accounts` key will be absent (`null`). In that case we run a
+  /// one-time migration that checks for a legacy session and persists the
+  /// result so the migration never runs again.
   Future<List<KnownAccount>> getKnownAccounts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(kKnownAccountsKey);
-      if (raw == null || raw.isEmpty) return [];
+
+      // null  → key never written → run one-time migration
+      // empty → key was written but all accounts removed → no migration
+      if (raw == null) {
+        return _migrateLegacyAccount(prefs);
+      }
+      if (raw.isEmpty) return [];
 
       final decoded = (jsonDecode(raw) as List<dynamic>)
           .cast<Map<String, dynamic>>();
@@ -606,6 +617,159 @@ class AuthService implements BackgroundAwareService {
       );
       return [];
     }
+  }
+
+  /// One-time migration from the old single-account auth system.
+  ///
+  /// Checks for a legacy session stored under the old `authentication_source`
+  /// key and, if found, creates a [KnownAccount] entry for it.
+  ///
+  /// Additionally, always checks [SecureKeyStorage] for an automatic/anonymous
+  /// identity. A user may have started with an automatic account and later
+  /// switched to bunker/OAuth — the old automatic keys are still in storage
+  /// even though `authentication_source` was overwritten.
+  ///
+  /// The result is persisted to [kKnownAccountsKey] so this migration never
+  /// runs again.
+  Future<List<KnownAccount>> _migrateLegacyAccount(
+    SharedPreferences prefs,
+  ) async {
+    Log.info(
+      'known_accounts key absent — running one-time legacy migration',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    final source = AuthenticationSource.fromCode(
+      prefs.getString(_kAuthSourceKey),
+    );
+
+    if (source == AuthenticationSource.none) {
+      // Fresh install or explicit logout — still check for automatic keys.
+      final accounts = await _migrateAutomaticKeys([]);
+      await _persistMigrationResult(prefs, accounts);
+      return accounts;
+    }
+
+    final accounts = <KnownAccount>[];
+
+    // 1. Recover the account matching the persisted auth source.
+    String? pubkeyHex;
+    try {
+      switch (source) {
+        case AuthenticationSource.automatic:
+        case AuthenticationSource.importedKeys:
+          final keyContainer = await _keyStorage.getKeyContainer();
+          pubkeyHex = keyContainer?.publicKeyHex;
+
+        case AuthenticationSource.amber:
+          final amberInfo = await _loadAmberInfo();
+          pubkeyHex = amberInfo?.pubkey;
+
+        case AuthenticationSource.bunker:
+          final bunkerInfo = await _loadBunkerInfo();
+          pubkeyHex = bunkerInfo?.userPubkey;
+
+        case AuthenticationSource.divineOAuth:
+          final session = await KeycastSession.load(_flutterSecureStorage);
+          pubkeyHex = session?.userPubkey;
+
+        case AuthenticationSource.none:
+          break;
+      }
+    } catch (e) {
+      Log.warning(
+        'Legacy migration failed to read old session: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+
+    if (pubkeyHex != null && pubkeyHex.length == 64) {
+      final now = DateTime.now();
+      accounts.add(
+        KnownAccount(
+          pubkeyHex: pubkeyHex,
+          authSource: source,
+          addedAt: now,
+          lastUsedAt: now,
+        ),
+      );
+      Log.info(
+        'Legacy migration: created entry for '
+        'pubkey=$pubkeyHex, source=${source.name}',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+
+    // 2. Always check for automatic keys that may belong to a different
+    //    identity than the current auth source (e.g. user started with an
+    //    anonymous account, then later logged in via bunker/OAuth).
+    if (source != AuthenticationSource.automatic &&
+        source != AuthenticationSource.importedKeys) {
+      await _migrateAutomaticKeys(accounts);
+    }
+
+    if (accounts.isEmpty) {
+      Log.info(
+        'Legacy migration: no recoverable session found',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+
+    await _persistMigrationResult(prefs, accounts);
+    return accounts;
+  }
+
+  /// Checks [SecureKeyStorage] for automatic/anonymous keys and adds a
+  /// [KnownAccount] entry if found and not already in [accounts].
+  ///
+  /// Returns [accounts] for convenience (mutates in place).
+  Future<List<KnownAccount>> _migrateAutomaticKeys(
+    List<KnownAccount> accounts,
+  ) async {
+    try {
+      final keyContainer = await _keyStorage.getKeyContainer();
+      final hex = keyContainer?.publicKeyHex;
+      if (hex != null &&
+          hex.length == 64 &&
+          !accounts.any((a) => a.pubkeyHex == hex)) {
+        final now = DateTime.now();
+        accounts.add(
+          KnownAccount(
+            pubkeyHex: hex,
+            authSource: AuthenticationSource.automatic,
+            addedAt: now,
+            lastUsedAt: now,
+          ),
+        );
+        Log.info(
+          'Legacy migration: recovered automatic keys — pubkey=$hex',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
+      }
+    } catch (e) {
+      Log.warning(
+        'Legacy migration: failed to check automatic keys: $e',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+    }
+    return accounts;
+  }
+
+  /// Persists the migration result to seal it permanently.
+  Future<void> _persistMigrationResult(
+    SharedPreferences prefs,
+    List<KnownAccount> accounts,
+  ) async {
+    await prefs.setString(
+      kKnownAccountsKey,
+      jsonEncode(accounts.map((a) => a.toJson()).toList()),
+    );
   }
 
   /// Adds or updates an account in the known accounts registry.
