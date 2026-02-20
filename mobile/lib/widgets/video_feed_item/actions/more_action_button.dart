@@ -55,11 +55,12 @@ class MoreActionButton extends StatelessWidget {
               height: 40,
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: VineTheme.backgroundColor.withValues(alpha: 0.15),
+                color: VineTheme.scrim30,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: const DivineIcon(
-                icon: DivineIconName.dotsThreeVertical,
+                icon: DivineIconName.dotsThree,
+                size: 24,
                 color: VineTheme.whiteText,
               ),
             ),
@@ -97,127 +98,22 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildHeader(),
+            _MoreMenuHeader(
+              video: widget.video,
+              onClose: () => _safePop(context),
+            ),
             const Divider(color: VineTheme.cardBackground, height: 1),
-            _buildMenuItems(),
+            _MoreMenuItems(
+              video: widget.video,
+              onReport: _handleReport,
+              onMute: _handleMute,
+              onBlock: _handleBlock,
+              onViewSource: _handleViewSource,
+              onCopyEventId: _handleCopyEventId,
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    final profileAsync = ref.watch(
-      userProfileReactiveProvider(widget.video.pubkey),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          profileAsync.when(
-            data: (profile) => UserAvatar(
-              imageUrl: profile?.picture,
-              name: profile?.displayName,
-              size: 40,
-            ),
-            loading: () => const UserAvatar(size: 40),
-            error: (_, __) => const UserAvatar(size: 40),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                UserName.fromPubKey(
-                  widget.video.pubkey,
-                  style: const TextStyle(
-                    color: VineTheme.whiteText,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => _safePop(context),
-            icon: const Icon(Icons.close, color: VineTheme.secondaryText),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItems() {
-    final profileAsync = ref.watch(
-      userProfileReactiveProvider(widget.video.pubkey),
-    );
-    final displayName =
-        profileAsync.whenOrNull(data: (profile) => profile?.bestDisplayName) ??
-        '';
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Report content
-        _MoreMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.flag,
-            color: VineTheme.error,
-          ),
-          label: 'Report content',
-          labelColor: VineTheme.error,
-          onTap: _handleReport,
-        ),
-
-        // Mute user
-        _MoreMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.eyeSlash,
-            color: VineTheme.error,
-          ),
-          label: displayName.isNotEmpty ? 'Mute $displayName' : 'Mute user',
-          labelColor: VineTheme.error,
-          onTap: _handleMute,
-        ),
-
-        // Block user
-        _MoreMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.prohibit,
-            color: VineTheme.error,
-          ),
-          label: displayName.isNotEmpty ? 'Block $displayName' : 'Block user',
-          labelColor: VineTheme.error,
-          onTap: _handleBlock,
-        ),
-
-        const Divider(color: VineTheme.cardBackground, height: 1),
-
-        // View Nostr event JSON
-        _MoreMenuItem(
-          icon: const Icon(Icons.code, color: VineTheme.whiteText, size: 24),
-          label: 'View Nostr event JSON',
-          labelColor: VineTheme.whiteText,
-          onTap: _handleViewSource,
-        ),
-
-        // Copy Nostr event ID
-        _MoreMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.copySimple,
-            color: VineTheme.whiteText,
-          ),
-          label: 'Copy Nostr event ID',
-          labelColor: VineTheme.whiteText,
-          onTap: _handleCopyEventId,
-        ),
-
-        const SizedBox(height: 8),
-      ],
     );
   }
 
@@ -329,6 +225,147 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
         category: LogCategory.ui,
       );
     }
+  }
+}
+
+class _MoreMenuHeader extends ConsumerWidget {
+  const _MoreMenuHeader({required this.video, required this.onClose});
+
+  final VideoEvent video;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+
+    final videoTitle = video.title?.isNotEmpty == true
+        ? video.title!
+        : video.content;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          profileAsync.when(
+            data: (profile) => UserAvatar(
+              imageUrl: profile?.picture,
+              name: profile?.displayName,
+              size: 40,
+            ),
+            loading: () => const UserAvatar(size: 40),
+            error: (_, __) => const UserAvatar(size: 40),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (videoTitle.isNotEmpty)
+                  Text(
+                    videoTitle,
+                    style: const TextStyle(
+                      color: VineTheme.whiteText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                UserName.fromPubKey(
+                  video.pubkey,
+                  style: const TextStyle(
+                    color: VineTheme.secondaryText,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onClose,
+            icon: const Icon(Icons.close, color: VineTheme.secondaryText),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoreMenuItems extends ConsumerWidget {
+  const _MoreMenuItems({
+    required this.video,
+    required this.onReport,
+    required this.onMute,
+    required this.onBlock,
+    required this.onViewSource,
+    required this.onCopyEventId,
+  });
+
+  final VideoEvent video;
+  final VoidCallback onReport;
+  final VoidCallback onMute;
+  final VoidCallback onBlock;
+  final VoidCallback onViewSource;
+  final VoidCallback onCopyEventId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+    final displayName =
+        profileAsync.whenOrNull(data: (profile) => profile?.bestDisplayName) ??
+        '';
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _MoreMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.flag,
+            color: VineTheme.error,
+          ),
+          label: 'Report content',
+          labelColor: VineTheme.error,
+          onTap: onReport,
+        ),
+        _MoreMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.eyeSlash,
+            color: VineTheme.error,
+          ),
+          label: displayName.isNotEmpty ? 'Mute $displayName' : 'Mute user',
+          labelColor: VineTheme.error,
+          onTap: onMute,
+        ),
+        _MoreMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.prohibit,
+            color: VineTheme.error,
+          ),
+          label: displayName.isNotEmpty ? 'Block $displayName' : 'Block user',
+          labelColor: VineTheme.error,
+          onTap: onBlock,
+        ),
+        const Divider(color: VineTheme.cardBackground, height: 1),
+        _MoreMenuItem(
+          icon: const Icon(Icons.code, color: VineTheme.whiteText, size: 24),
+          label: 'View Nostr event JSON',
+          labelColor: VineTheme.whiteText,
+          onTap: onViewSource,
+        ),
+        _MoreMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.copySimple,
+            color: VineTheme.whiteText,
+          ),
+          label: 'Copy Nostr event ID',
+          labelColor: VineTheme.whiteText,
+          onTap: onCopyEventId,
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
   }
 }
 

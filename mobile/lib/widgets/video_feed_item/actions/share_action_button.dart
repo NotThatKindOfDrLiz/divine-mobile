@@ -102,106 +102,18 @@ class _SimpleShareMenuState extends ConsumerState<_SimpleShareMenu> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildHeader(),
+            const _DragIndicator(),
+            _ShareMenuHeader(video: widget.video),
             const Divider(color: VineTheme.cardBackground, height: 1),
-            _buildMenuItems(),
+            _ShareMenuItems(
+              onShareWithUser: _handleShareWithUser,
+              onAddToList: _handleAddToList,
+              onAddToBookmarks: _handleAddToBookmarks,
+              onMoreOptions: _handleMoreOptions,
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildHeader() {
-    final profileAsync = ref.watch(
-      userProfileReactiveProvider(widget.video.pubkey),
-    );
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          profileAsync.when(
-            data: (profile) => UserAvatar(
-              imageUrl: profile?.picture,
-              name: profile?.displayName,
-              size: 40,
-            ),
-            loading: () => const UserAvatar(size: 40),
-            error: (_, __) => const UserAvatar(size: 40),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                UserName.fromPubKey(
-                  widget.video.pubkey,
-                  style: const TextStyle(
-                    color: VineTheme.whiteText,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => _safePop(context),
-            icon: const Icon(Icons.close, color: VineTheme.secondaryText),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuItems() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Share with user
-        _ShareMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.chat,
-            color: VineTheme.whiteText,
-          ),
-          label: 'Share with user',
-          onTap: _handleShareWithUser,
-        ),
-
-        // Add to list
-        _ShareMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.listPlus,
-            color: VineTheme.whiteText,
-          ),
-          label: 'Add to list',
-          onTap: _handleAddToList,
-        ),
-
-        // Add to bookmarks
-        _ShareMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.bookmarkSimple,
-            color: VineTheme.whiteText,
-          ),
-          label: 'Add to bookmarks',
-          onTap: _handleAddToBookmarks,
-        ),
-
-        // More options (native share)
-        _ShareMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.shareFat,
-            color: VineTheme.whiteText,
-          ),
-          label: 'More options',
-          onTap: _handleMoreOptions,
-        ),
-
-        const SizedBox(height: 8),
-      ],
     );
   }
 
@@ -270,6 +182,141 @@ class _SimpleShareMenuState extends ConsumerState<_SimpleShareMenu> {
         category: LogCategory.ui,
       );
     }
+  }
+}
+
+class _DragIndicator extends StatelessWidget {
+  const _DragIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 12, bottom: 4),
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: VineTheme.secondaryText,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShareMenuHeader extends ConsumerWidget {
+  const _ShareMenuHeader({required this.video});
+
+  final VideoEvent video;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+
+    final videoTitle = video.title?.isNotEmpty == true
+        ? video.title!
+        : video.content;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          profileAsync.when(
+            data: (profile) => UserAvatar(
+              imageUrl: profile?.picture,
+              name: profile?.displayName,
+              size: 40,
+            ),
+            loading: () => const UserAvatar(size: 40),
+            error: (_, __) => const UserAvatar(size: 40),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (videoTitle.isNotEmpty)
+                  Text(
+                    videoTitle,
+                    style: const TextStyle(
+                      color: VineTheme.whiteText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                UserName.fromPubKey(
+                  video.pubkey,
+                  style: const TextStyle(
+                    color: VineTheme.secondaryText,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShareMenuItems extends StatelessWidget {
+  const _ShareMenuItems({
+    required this.onShareWithUser,
+    required this.onAddToList,
+    required this.onAddToBookmarks,
+    required this.onMoreOptions,
+  });
+
+  final VoidCallback onShareWithUser;
+  final VoidCallback onAddToList;
+  final VoidCallback onAddToBookmarks;
+  final VoidCallback onMoreOptions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _ShareMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.chats,
+            color: VineTheme.whiteText,
+          ),
+          label: 'Share with user',
+          onTap: onShareWithUser,
+        ),
+        _ShareMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.listPlus,
+            color: VineTheme.whiteText,
+          ),
+          label: 'Add to list',
+          onTap: onAddToList,
+        ),
+        _ShareMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.bookmarkSimple,
+            color: VineTheme.whiteText,
+          ),
+          label: 'Add to bookmarks',
+          onTap: onAddToBookmarks,
+        ),
+        _ShareMenuItem(
+          icon: const DivineIcon(
+            icon: DivineIconName.shareFat,
+            color: VineTheme.whiteText,
+          ),
+          label: 'More options',
+          onTap: onMoreOptions,
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
   }
 }
 
