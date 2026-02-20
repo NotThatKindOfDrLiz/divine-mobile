@@ -1705,7 +1705,7 @@ class VideoOverlayActions extends ConsumerWidget {
         ),
         // More button (bottom-right, near description)
         Positioned(
-          bottom: bottomOffset,
+          bottom: bottomOffset - 6,
           right: 16,
           child: SafeArea(
             child: AnimatedOpacity(
