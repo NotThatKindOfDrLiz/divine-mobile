@@ -2089,20 +2089,16 @@ class _CommentActionButton extends StatelessWidget {
               decoration: BoxDecoration(
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
+                    color: VineTheme.backgroundColor.withValues(alpha: 0.15),
                     blurRadius: 15,
                     spreadRadius: 1,
                   ),
                 ],
               ),
-              child: SvgPicture.asset(
-                'assets/icon/content-controls/comment.svg',
-                width: 32,
-                height: 32,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
+              child: const DivineIcon(
+                icon: DivineIconName.chat,
+                size: 32,
+                color: VineTheme.whiteText,
               ),
             ),
           ),
