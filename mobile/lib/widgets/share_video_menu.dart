@@ -4,10 +4,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nostr_sdk/nip19/nip19_tlv.dart';
 import 'package:models/models.dart' hide LogCategory, NIP71VideoKinds;
+import 'package:openvine/blocs/user_search/user_search_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/list_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
@@ -1450,14 +1452,18 @@ class _SendToUserDialog extends ConsumerStatefulWidget {
 class _SendToUserDialogState extends ConsumerState<_SendToUserDialog> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-  bool _isSearching = false;
-  List<ShareableUser> _searchResults = [];
+  late final UserSearchBloc _searchBloc;
   List<ShareableUser> _contacts = [];
   bool _contactsLoaded = false;
 
   @override
   void initState() {
     super.initState();
+    final profileRepo = ref.read(profileRepositoryProvider);
+    _searchBloc = UserSearchBloc(
+      profileRepository: profileRepo!,
+      hasVideos: false,
+    );
     _loadUserContacts();
   }
 
@@ -1483,12 +1489,12 @@ class _SendToUserDialogState extends ConsumerState<_SendToUserDialog> {
               prefixIcon: Icon(Icons.search, color: VineTheme.secondaryText),
             ),
             onChanged: (value) {
-              Log.info(
-                '🔍 TextField onChanged fired with value: "$value"',
-                name: 'ShareVideoMenu',
-                category: LogCategory.ui,
-              );
-              _searchUsers(value);
+              if (value.trim().isEmpty) {
+                _searchBloc.add(const UserSearchCleared());
+              } else {
+                _searchBloc.add(UserSearchQueryChanged(value));
+              }
+              setState(() {});
             },
           ),
           const SizedBox(height: 16),
@@ -1538,38 +1544,66 @@ class _SendToUserDialogState extends ConsumerState<_SendToUserDialog> {
               ),
             ),
           ] else if (_searchController.text.isNotEmpty) ...[
-            // Show search results
-            if (_isSearching) ...[
-              const Center(
-                child: CircularProgressIndicator(color: VineTheme.vineGreen),
-              ),
-            ] else if (_searchResults.isNotEmpty) ...[
-              const Text(
-                'Search Results',
-                style: TextStyle(
-                  color: VineTheme.whiteText,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  itemCount: _searchResults.length,
-                  itemBuilder: (context, index) =>
-                      _buildUserTile(_searchResults[index]),
-                ),
-              ),
-            ] else ...[
-              const Center(
-                child: Text(
-                  'No users found. Try searching by name or public key.',
-                  style: TextStyle(color: VineTheme.secondaryText),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
+            // Show search results from BLoC
+            BlocBuilder<UserSearchBloc, UserSearchState>(
+              bloc: _searchBloc,
+              builder: (context, state) {
+                return switch (state.status) {
+                  UserSearchStatus.loading => const Center(
+                    child: CircularProgressIndicator(
+                      color: VineTheme.vineGreen,
+                    ),
+                  ),
+                  UserSearchStatus.success when state.results.isNotEmpty =>
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Search Results',
+                          style: TextStyle(
+                            color: VineTheme.whiteText,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 200,
+                          child: ListView.builder(
+                            itemCount: state.results.length,
+                            itemBuilder: (context, index) {
+                              final profile = state.results[index];
+                              return _buildUserTile(
+                                ShareableUser(
+                                  pubkey: profile.pubkey,
+                                  displayName: profile.bestDisplayName,
+                                  picture: profile.picture,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  UserSearchStatus.success => const Center(
+                    child: Text(
+                      'No users found. Try searching by name or public key.',
+                      style: TextStyle(color: VineTheme.secondaryText),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  UserSearchStatus.failure => const Center(
+                    child: Text(
+                      'Search failed. Please try again.',
+                      style: TextStyle(color: VineTheme.secondaryText),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  UserSearchStatus.initial => const SizedBox.shrink(),
+                };
+              },
+            ),
           ],
         ],
       ),
@@ -1587,14 +1621,17 @@ class _SendToUserDialogState extends ConsumerState<_SendToUserDialog> {
       final followList = followRepository?.followingPubkeys ?? [];
       final contacts = <ShareableUser>[];
 
+      // Batch-fetch uncached profiles before building the list
+      final uncachedPubkeys = followList
+          .where((pk) => !userProfileService.hasProfile(pk))
+          .toList();
+      if (uncachedPubkeys.isNotEmpty) {
+        await Future.wait(uncachedPubkeys.map(userProfileService.fetchProfile));
+      }
+
       // Convert follows to ShareableUser objects with profile data
       for (final pubkey in followList) {
         try {
-          // Fetch profile if not cached
-          if (!userProfileService.hasProfile(pubkey)) {
-            userProfileService.fetchProfile(pubkey);
-          }
-
           final profile = userProfileService.getCachedProfile(pubkey);
           contacts.add(
             ShareableUser(
@@ -1665,100 +1702,6 @@ class _SendToUserDialogState extends ConsumerState<_SendToUserDialog> {
     );
   }
 
-  Future<void> _searchUsers(String query) async {
-    Log.info(
-      '🔍 Search users called with query: "$query"',
-      name: 'ShareVideoMenu',
-      category: LogCategory.ui,
-    );
-
-    if (query.trim().isEmpty) {
-      Log.debug(
-        'Search query empty, clearing results',
-        name: 'ShareVideoMenu',
-        category: LogCategory.ui,
-      );
-      setState(() => _searchResults = []);
-      return;
-    }
-
-    setState(() => _isSearching = true);
-
-    try {
-      final userProfileService = ref.read(userProfileServiceProvider);
-      final searchResults = <ShareableUser>[];
-
-      // Try to normalize the query as a public identifier (npub/nprofile/hex)
-      // If it's not a valid public identifier, use the query as is (it's likely
-      // a username or display name)
-      final pubKey = normalizeToHex(query);
-
-      Log.debug(
-        'Normalized query to pubkey: $pubKey',
-        name: 'ShareVideoMenu',
-        category: LogCategory.ui,
-      );
-
-      if (pubKey != null) {
-        if (!userProfileService.hasProfile(pubKey)) {
-          try {
-            await userProfileService.fetchProfile(pubKey);
-          } catch (e) {
-            Log.error(
-              'Error fetching profile $pubKey: $e',
-              name: 'ShareVideoMenu',
-              category: LogCategory.ui,
-            );
-          }
-        }
-
-        final profile = userProfileService.getCachedProfile(pubKey);
-        searchResults.add(
-          ShareableUser(
-            pubkey: pubKey,
-            displayName: profile?.bestDisplayName,
-            picture: profile?.picture,
-          ),
-        );
-      } else {
-        try {
-          final users = await userProfileService.searchUsers(query);
-          searchResults.addAll(
-            users.map(
-              (user) => ShareableUser(
-                pubkey: user.pubkey,
-                displayName: user.bestDisplayName,
-                picture: user.picture,
-              ),
-            ),
-          );
-        } catch (e) {
-          Log.error(
-            'Error searching users: $e',
-            name: 'ShareVideoMenu',
-            category: LogCategory.ui,
-          );
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _searchResults = searchResults;
-          _isSearching = false;
-        });
-      }
-    } catch (e) {
-      Log.error(
-        'Error searching users: $e',
-        name: 'ShareVideoMenu',
-        category: LogCategory.ui,
-      );
-      if (mounted) {
-        setState(() => _isSearching = false);
-      }
-    }
-  }
-
   Future<void> _sendToUser(ShareableUser user) async {
     try {
       final sharingService = ref.read(videoSharingServiceProvider);
@@ -1794,6 +1737,7 @@ class _SendToUserDialogState extends ConsumerState<_SendToUserDialog> {
 
   @override
   void dispose() {
+    _searchBloc.close();
     _searchController.dispose();
     _messageController.dispose();
     super.dispose();
