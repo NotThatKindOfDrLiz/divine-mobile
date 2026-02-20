@@ -38,6 +38,7 @@ class _NostrConnectScreenState extends ConsumerState<NostrConnectScreen> {
   String? _errorMessage;
   StreamSubscription<NostrConnectState>? _stateSubscription;
   bool _isWaiting = false;
+  bool _switchedToBunker = false;
   final Stopwatch _elapsedTimer = Stopwatch();
   Timer? _uiTimer;
 
@@ -122,6 +123,11 @@ class _NostrConnectScreenState extends ConsumerState<NostrConnectScreen> {
     _uiTimer?.cancel();
 
     if (!mounted) return;
+
+    // If the user switched to a bunker connection via the paste dialog,
+    // ignore the nostrconnect session result to avoid interfering with
+    // the bunker auth flow.
+    if (_switchedToBunker) return;
 
     if (result.success) {
       context.go(HomeScreenRouter.pathForIndex(0));
@@ -250,7 +256,9 @@ class _NostrConnectScreenState extends ConsumerState<NostrConnectScreen> {
       return;
     }
 
-    // Cancel the current nostrconnect session
+    // Cancel the current nostrconnect session and prevent its completion
+    // callback from interfering with the bunker auth flow.
+    _switchedToBunker = true;
     _authService.cancelNostrConnect();
     _stateSubscription?.cancel();
     _uiTimer?.cancel();
