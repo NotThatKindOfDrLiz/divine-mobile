@@ -1651,7 +1651,7 @@ class VideoOverlayActions extends ConsumerWidget {
                     const SizedBox(height: 4),
 
                     // Comment button with count
-                    _CommentActionButton(video: video, ref: ref),
+                    _CommentActionButton(video: video),
 
                     const SizedBox(height: 4),
 
@@ -1686,9 +1686,15 @@ class VideoOverlayActions extends ConsumerWidget {
     // Pause video before showing modal
     bool wasPaused = false;
     try {
+      // Check fallback URL cache to match the actual controller
+      // (quality variant may have failed)
+      final fallbackUrl = ref.read(fallbackUrlCacheProvider)[video.id];
       final controllerParams = VideoControllerParams(
         videoId: video.id,
-        videoUrl: video.getOptimalVideoUrlForPlatform() ?? video.videoUrl!,
+        videoUrl:
+            fallbackUrl ??
+            video.getOptimalVideoUrlForPlatform() ??
+            video.videoUrl!,
         cacheUrl: video.videoUrl,
         videoEvent: video,
       );
@@ -1869,14 +1875,13 @@ class VideoRepostHeader extends ConsumerWidget {
 ///
 /// Uses [VideoInteractionsBloc] for the comment count when available,
 /// falls back to showing original Vine comment count.
-class _CommentActionButton extends StatelessWidget {
-  const _CommentActionButton({required this.video, required this.ref});
+class _CommentActionButton extends ConsumerWidget {
+  const _CommentActionButton({required this.video});
 
   final VideoEvent video;
-  final WidgetRef ref;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Try to use VideoInteractionsBloc for comment count
     final interactionsBloc = context.read<VideoInteractionsBloc?>();
 
@@ -1889,16 +1894,16 @@ class _CommentActionButton extends StatelessWidget {
           // different sources.
           final totalComments =
               state.commentCount ?? video.originalComments ?? 0;
-          return _buildButton(context, totalComments);
+          return _buildButton(context, ref, totalComments);
         },
       );
     }
 
     // Fall back to original comment count
-    return _buildButton(context, video.originalComments ?? 0);
+    return _buildButton(context, ref, video.originalComments ?? 0);
   }
 
-  Widget _buildButton(BuildContext context, int totalComments) {
+  Widget _buildButton(BuildContext context, WidgetRef ref, int totalComments) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1924,9 +1929,15 @@ class _CommentActionButton extends StatelessWidget {
               // Pause video before navigating to comments
               if (video.videoUrl != null) {
                 try {
+                  // Check fallback URL cache to match the actual
+                  // controller (quality variant may have failed)
+                  final fallbackUrl = ref.read(
+                    fallbackUrlCacheProvider,
+                  )[video.id];
                   final controllerParams = VideoControllerParams(
                     videoId: video.id,
                     videoUrl:
+                        fallbackUrl ??
                         video.getOptimalVideoUrlForPlatform() ??
                         video.videoUrl!,
                     cacheUrl: video.videoUrl,
