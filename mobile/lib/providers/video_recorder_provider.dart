@@ -8,12 +8,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/constants/video_editor_constants.dart';
+import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/video_recorder/video_recorder_flash_mode.dart';
 import 'package:openvine/models/video_recorder/video_recorder_provider_state.dart';
 import 'package:openvine/models/video_recorder/video_recorder_timer_duration.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/screens/home_screen_router.dart';
+import 'package:divine_camera/divine_camera.dart'
+    show DivineCameraLens, DivineVideoQuality;
+import 'package:openvine/services/audio_playback_service.dart';
 import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
@@ -37,6 +42,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
 
   final CameraService? _cameraServiceOverride;
   late final CameraService _cameraService;
+  AudioPlaybackService? _audioPlaybackService;
   Timer? _focusPointTimer;
 
   double _baseZoomLevel = 1;
@@ -51,6 +57,12 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   // When stop is requested while start is in progress, defer the stop
   // until after the native start completes.
   bool _stopRequestedDuringStartup = false;
+
+  // Flag to track if remote record control is currently enabled
+  bool _remoteRecordControlEnabled = false;
+
+  // Flag to track if remote control is paused due to sound selection
+  bool _remoteRecordPausedForSound = false;
 
   @override
   VideoRecorderProviderState build() {
@@ -70,11 +82,26 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
           onAutoStopped: stopRecording,
         );
 
+    // Listen for sound selection changes to pause/resume remote control
+    ref.listen<AudioEvent?>(selectedSoundProvider, (previous, next) {
+      _handleSoundSelectionChanged(previous, next);
+    });
+
     // Setup cleanup when provider is disposed
     ref.onDispose(() async {
       if (!_isDestroyed) {
         _isDestroyed = true; // Set flag before cleanup
         _focusPointTimer?.cancel();
+        try {
+          await _audioPlaybackService?.dispose();
+          _audioPlaybackService = null;
+        } catch (e) {
+          Log.warning(
+            '🧹 Audio playback service disposal failed: $e',
+            name: 'VideoRecorderNotifier',
+            category: .system,
+          );
+        }
         try {
           await _cameraService.dispose();
         } catch (e) {
@@ -92,17 +119,22 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   }
 
   /// Initialize camera.
-  Future<void> initialize({BuildContext? context}) async {
+  ///
+  /// [videoQuality] specifies the video recording quality (default: FHD/1080p).
+  Future<void> initialize({
+    BuildContext? context,
+    DivineVideoQuality videoQuality = DivineVideoQuality.fhd,
+  }) async {
     _isDestroyed = false;
 
     Log.info(
-      '📹 Initializing video recorder',
+      '📹 Initializing video recorder with quality: ${videoQuality.value}',
       name: 'VideoRecorderNotifier',
       category: .video,
     );
 
     try {
-      await _cameraService.initialize();
+      await _cameraService.initialize(videoQuality: videoQuality);
     } catch (e) {
       Log.error(
         '📹 Camera service initialization threw exception: $e',
@@ -135,6 +167,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       aspectRatio: clips.isNotEmpty ? clips.first.targetAspectRatio : null,
     );
 
+    // Enable remote record control if user preference is enabled
+    await _setupRemoteRecordControl();
+
     Log.info(
       '✅ Video recorder initialized successfully',
       name: 'VideoRecorderNotifier',
@@ -160,6 +195,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     );
     _isDestroyed = true;
     _focusPointTimer?.cancel();
+    await _audioPlaybackService?.dispose();
+    _audioPlaybackService = null;
+    await _disableRemoteRecordControl();
     await _cameraService.dispose();
   }
 
@@ -226,6 +264,125 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         name: 'VideoRecorderNotifier',
         category: .video,
       );
+    }
+  }
+
+  /// Set up remote record control (volume buttons / Bluetooth accessories).
+  ///
+  /// Always enabled - allows triggering recording via volume buttons or
+  /// Bluetooth accessories.
+  Future<void> _setupRemoteRecordControl() async {
+    // Set up callback before enabling
+    _cameraService.onRemoteRecordTrigger = () {
+      Log.info(
+        '🎮 Remote record trigger received! Calling toggleRecording...',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+      toggleRecording();
+    };
+
+    final success = await _cameraService.setRemoteRecordControlEnabled(
+      enabled: true,
+    );
+    _remoteRecordControlEnabled = success;
+
+    if (success) {
+      Log.info(
+        '🎮 Remote record control enabled (volume buttons / Bluetooth)',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ Failed to enable remote record control',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  /// Disable remote record control.
+  Future<void> _disableRemoteRecordControl() async {
+    if (_remoteRecordControlEnabled) {
+      await _cameraService.setRemoteRecordControlEnabled(enabled: false);
+      _cameraService.onRemoteRecordTrigger = null;
+      _remoteRecordControlEnabled = false;
+      Log.debug(
+        '🎮 Remote record control disabled',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  /// Handle sound selection changes to enable/disable volume keys.
+  ///
+  /// When a sound is selected, volume buttons should adjust volume for preview.
+  /// Bluetooth media buttons continue to work for recording control.
+  /// When sound is cleared, re-enable volume key interception.
+  void _handleSoundSelectionChanged(AudioEvent? previous, AudioEvent? next) {
+    if (next != null && previous == null) {
+      // Sound was selected - disable volume key interception only
+      // Bluetooth media buttons still work for recording control
+      _remoteRecordPausedForSound = true;
+      _cameraService.setVolumeKeysEnabled(enabled: false);
+      Log.debug(
+        '🎵 Sound selected - volume keys disabled (Bluetooth still works)',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    } else if (next == null && previous != null) {
+      // Sound was cleared - re-enable volume key interception
+      _remoteRecordPausedForSound = false;
+      _cameraService.setVolumeKeysEnabled(enabled: true);
+      Log.debug(
+        '🎵 Sound cleared - volume keys re-enabled',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  /// Temporarily pause remote record control.
+  ///
+  /// Call this when opening screens that need audio playback (e.g., SoundsScreen).
+  /// The MediaSession used for Bluetooth remotes can interfere with audio playback.
+  /// Call [resumeRemoteRecordControl] when returning to the camera.
+  Future<void> pauseRemoteRecordControl() async {
+    if (_remoteRecordControlEnabled) {
+      await _cameraService.setRemoteRecordControlEnabled(enabled: false);
+      Log.debug(
+        '🎮 Remote record control paused (for audio playback)',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+    }
+  }
+
+  /// Resume remote record control after pausing.
+  ///
+  /// Call this when returning from screens that needed audio playback.
+  /// If a sound is currently selected, volume keys will remain disabled
+  /// but Bluetooth media buttons will work.
+  Future<void> resumeRemoteRecordControl() async {
+    if (_remoteRecordControlEnabled) {
+      await _cameraService.setRemoteRecordControlEnabled(enabled: true);
+      Log.debug(
+        '🎮 Remote record control resumed',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+
+      // If a sound is selected, keep volume keys disabled
+      if (_remoteRecordPausedForSound) {
+        await _cameraService.setVolumeKeysEnabled(enabled: false);
+        Log.debug(
+          '🎮 Volume keys re-disabled (sound is selected)',
+          name: 'VideoRecorderNotifier',
+          category: .video,
+        );
+      }
     }
   }
 
@@ -302,6 +459,36 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     state = state.copyWith(zoomLevel: 1);
     updateState();
   }
+
+  /// Switch to a specific camera lens.
+  Future<void> setLens(DivineCameraLens lens) async {
+    final success = await _cameraService.setLens(lens);
+
+    if (!success) {
+      Log.warning(
+        '⚠️ Failed to set lens to ${lens.displayName}',
+        name: 'VideoRecorderNotifier',
+        category: .video,
+      );
+      return;
+    }
+    _baseZoomLevel = 1;
+
+    Log.info(
+      '🔄 Lens switched to ${lens.displayName} - zoom reset to 1.0x',
+      name: 'VideoRecorderNotifier',
+      category: .video,
+    );
+
+    state = state.copyWith(zoomLevel: 1);
+    updateState();
+  }
+
+  /// The current active camera lens.
+  DivineCameraLens get currentLens => _cameraService.currentLens;
+
+  /// List of available camera lenses on this device.
+  List<DivineCameraLens> get availableLenses => _cameraService.availableLenses;
 
   /// Set camera zoom level (within min/max bounds).
   Future<void> setZoomLevel(double value) async {
@@ -425,6 +612,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         category: .video,
       );
 
+      // Disable volume key interception during countdown so users can
+      // adjust volume before recording starts
+      await _cameraService.setVolumeKeysEnabled(enabled: false);
+
       // Set recording state during countdown so UI shows countdown
       state = state.copyWith(recordingState: .recording);
 
@@ -435,9 +626,17 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       if (_isDestroyed) {
         _isStartingRecording = false;
         state = state.copyWith(recordingState: .idle);
+        // Re-enable volume keys on early exit
+        await _cameraService.setVolumeKeysEnabled(enabled: true);
         return;
       }
       state = state.copyWith(countdownValue: 0);
+
+      // Re-enable volume key interception after countdown
+      // (unless a sound is selected, then keep them disabled)
+      if (!_remoteRecordPausedForSound) {
+        await _cameraService.setVolumeKeysEnabled(enabled: true);
+      }
     }
 
     if (_isDestroyed) {
@@ -470,6 +669,9 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         category: .video,
       );
       clipProvider.startRecording();
+
+      // Start audio playback if a sound is selected
+      unawaited(_startSoundPlayback());
 
       // If stop was requested while we were waiting for the native start,
       // immediately stop now that recording is active.
@@ -541,6 +743,10 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       category: .video,
     );
     _isStoppingRecording = true;
+
+    // Stop audio playback if active
+    await _stopSoundPlayback();
+
     final videoResult = result ?? await _cameraService.stopRecording();
     Log.debug(
       '⏹️  Camera service stopped at ${sw.elapsedMilliseconds}ms '
@@ -570,6 +776,13 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       video: videoResult,
       originalAspectRatio: _cameraService.cameraAspectRatio,
       targetAspectRatio: state.aspectRatio,
+      lensMetadata: _cameraService.currentLensMetadata,
+    );
+
+    Log.debug(
+      '📷 Lens metadata: ${_cameraService.currentLensMetadata?.toMap()}',
+      name: 'VideoRecorderNotifier',
+      category: .video,
     );
 
     Log.info(
@@ -793,6 +1006,67 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       category: .video,
     );
     state = const VideoRecorderProviderState();
+  }
+
+  // === SOUND PLAYBACK DURING RECORDING ===
+
+  /// Starts audio playback for the selected sound during recording.
+  ///
+  /// Configures the audio session for simultaneous recording and playback,
+  /// loads the audio from the sound's URL, and starts playback.
+  /// Failures are logged but do not prevent recording from continuing.
+  Future<void> _startSoundPlayback() async {
+    final selectedSound = ref.read(selectedSoundProvider);
+    if (selectedSound == null || selectedSound.url == null) return;
+
+    try {
+      _audioPlaybackService ??= AudioPlaybackService();
+
+      // Configure audio session for recording + playback
+      await _audioPlaybackService!.configureForRecording();
+
+      // Load the audio from the sound's Blossom URL
+      await _audioPlaybackService!.loadAudio(selectedSound.url!);
+
+      // Start playback
+      await _audioPlaybackService!.play();
+
+      Log.info(
+        'Started sound playback during recording: '
+        '${selectedSound.title ?? selectedSound.id}',
+        name: 'VideoRecorderNotifier',
+        category: LogCategory.video,
+      );
+    } catch (e) {
+      Log.warning(
+        'Failed to start sound playback during recording: $e',
+        name: 'VideoRecorderNotifier',
+        category: LogCategory.video,
+      );
+      // Don't prevent recording - sound playback is best-effort
+    }
+  }
+
+  /// Stops audio playback and resets the audio session.
+  Future<void> _stopSoundPlayback() async {
+    if (_audioPlaybackService == null) return;
+
+    try {
+      await _audioPlaybackService!.stop();
+      await _audioPlaybackService!.resetAudioSession();
+
+      Log.info(
+        'Stopped sound playback',
+        name: 'VideoRecorderNotifier',
+        category: LogCategory.video,
+      );
+    } catch (e) {
+      Log.warning(
+        'Failed to stop sound playback: $e',
+        name: 'VideoRecorderNotifier',
+        category: LogCategory.video,
+      );
+    }
   }
 }
 

@@ -21,12 +21,8 @@ tags:
 - tapOn:
     id: like_button
 - runFlow: "../asserts/assertVideoLiked.yaml"
-# Extract the text from the video description
-- copyTextFrom:
-    id: video_description
-- evalScript: |
-    env.video_description = maestro.copiedText;  # Assign copied text to the variable
 - tapOn: Close video player
+
 # 3. Tap on the profile: Validate profile is loaded
 - tapOn:
     id: profile_tab
@@ -34,8 +30,8 @@ tags:
 
 # 4. Tap on the likes tab: Validate likes tab is loaded and video is listed
 - tapOn: |-
+    Tab 2 of 4
     liked_tab
-    Tab 2 of 3
 - tapOn: liked_video_thumbnail_0
 - runFlow: "../asserts/assertVideoLiked.yaml"
 - tapOn: Close video player

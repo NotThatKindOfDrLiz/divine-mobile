@@ -3,6 +3,8 @@
 
 import 'dart:io';
 
+import 'package:divine_camera/divine_camera.dart'
+    show CameraLensMetadata, DivineCameraLens, DivineVideoQuality;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/models/video_recorder/video_recorder_flash_mode.dart';
@@ -40,7 +42,11 @@ abstract class CameraService {
   final void Function(EditorVideo video) onAutoStopped;
 
   /// Initializes the camera and prepares it for use.
-  Future<void> initialize();
+  ///
+  /// [videoQuality] specifies the video recording quality (default: FHD/1080p).
+  Future<void> initialize({
+    DivineVideoQuality videoQuality = DivineVideoQuality.fhd,
+  });
 
   /// Releases camera resources and cleans up.
   Future<void> dispose();
@@ -59,6 +65,9 @@ abstract class CameraService {
 
   /// Switches between front and back camera. Returns true if successful.
   Future<bool> switchCamera();
+
+  /// Switches to a specific camera lens. Returns true if successful.
+  Future<bool> setLens(DivineCameraLens lens);
 
   /// Starts video recording.
   /// [enableAudio] whether to record audio (default: true).
@@ -99,6 +108,41 @@ abstract class CameraService {
   /// Whether the device can active the camera-flash.
   bool get hasFlash;
 
+  /// The current active camera lens.
+  DivineCameraLens get currentLens;
+
+  /// List of available camera lenses on this device.
+  List<DivineCameraLens> get availableLenses;
+
+  /// Metadata for the currently active camera lens.
+  /// Returns null if metadata is not available.
+  CameraLensMetadata? get currentLensMetadata;
+
   /// Error message if initialization failed, null if successful.
   String? get initializationError;
+
+  /// Enables or disables remote record control via volume buttons.
+  ///
+  /// When enabled, volume button presses will trigger the
+  /// [onRemoteRecordTrigger] callback instead of changing the system volume.
+  /// This allows users to start/stop recording using physical volume buttons
+  /// or Bluetooth accessories like clickers or earbuds.
+  ///
+  /// Returns `true` if successfully enabled/disabled.
+  Future<bool> setRemoteRecordControlEnabled({required bool enabled});
+
+  /// Enables or disables volume key interception.
+  ///
+  /// When disabled, volume buttons will change system volume instead of
+  /// triggering recording. Bluetooth media buttons are NOT affected.
+  /// Use this when a sound is selected and the user needs to adjust volume.
+  ///
+  /// Returns `true` if successfully set.
+  Future<bool> setVolumeKeysEnabled({required bool enabled});
+
+  /// Callback for when a remote record trigger is detected.
+  ///
+  /// This is called when the user presses a volume button or Bluetooth
+  /// remote while remote record control is enabled.
+  set onRemoteRecordTrigger(void Function()? callback);
 }

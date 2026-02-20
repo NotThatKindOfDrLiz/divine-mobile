@@ -3,71 +3,63 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// A styled text field following the Divine design system.
+///
+/// **Deprecated**: Use [DivineAuthTextField] for authentication screens.
+/// Other screens should use a context-appropriate text field component.
+@Deprecated('Use DivineAuthTextField for auth screens')
 class DivineTextField extends StatelessWidget {
   /// Creates a Divine styled text field.
+  @Deprecated('Use DivineAuthTextField for auth screens')
   const DivineTextField({
     super.key,
-    this.labelText,
+    this.label,
+    @Deprecated('Use label instead') this.labelText,
+    this.controller,
+    this.focusNode,
+    this.obscureText = false,
+    this.enabled = true,
+    this.readOnly = false,
+    this.autocorrect = true,
+    this.keyboardType,
+    this.textInputAction,
+    this.textCapitalization = TextCapitalization.none,
+    this.inputFormatters,
+    this.validator,
+    this.onTap,
+    this.onChanged,
+    this.onSubmitted,
+    this.onEditingComplete,
     this.minLines,
     this.maxLines,
     this.maxLength,
-    this.enabled,
-    this.autocorrect,
-    this.readOnly = false,
-    this.obscureText = false,
-    this.canRequestFocus = true,
-    this.expands = false,
-    this.contentPadding = const .all(16),
-    this.focusNode,
-    this.controller,
-    this.keyboardType = .text,
-    this.textInputAction,
-    this.textCapitalization = .sentences,
-    this.inputFormatters,
-    this.onTap,
-    this.onEditingComplete,
-    this.onSubmitted,
-    this.onChanged,
+    this.contentPadding,
+    this.errorText,
   });
 
-  /// Label text shown inside the field when empty, floats above when focused.
+  /// Label text shown inside the field, floats above when focused/filled.
+  final String? label;
+
+  /// Deprecated: Use [label] instead.
+  @Deprecated('Use label instead')
   final String? labelText;
 
-  /// Minimum number of lines to display.
-  final int? minLines;
-
-  /// Maximum number of lines to display.
-  final int? maxLines;
-
-  /// Maximum character length allowed.
-  final int? maxLength;
-
-  /// Whether the text field is enabled.
-  final bool? enabled;
-
-  /// Whether to enable autocorrect.
-  final bool? autocorrect;
-
-  /// Whether the text field is read-only.
-  final bool readOnly;
-
-  /// Whether to obscure text (for passwords).
-  final bool obscureText;
-
-  /// Whether the field can request focus.
-  final bool canRequestFocus;
-
-  /// Whether the field expands to fill available space.
-  final bool expands;
-
-  /// Padding around the input content.
-  final EdgeInsets contentPadding;
+  /// Controller for the text field.
+  final TextEditingController? controller;
 
   /// Focus node for managing focus state.
   final FocusNode? focusNode;
 
-  /// Controller for the text field.
-  final TextEditingController? controller;
+  /// Whether to obscure text (for passwords).
+  final bool obscureText;
+
+  /// Whether the text field is enabled.
+  final bool enabled;
+
+  /// Whether the text field is read-only.
+  final bool readOnly;
+
+  /// Whether to enable autocorrect.
+  final bool autocorrect;
 
   /// Type of keyboard to display.
   final TextInputType? keyboardType;
@@ -81,65 +73,59 @@ class DivineTextField extends StatelessWidget {
   /// Input formatters for text validation.
   final List<TextInputFormatter>? inputFormatters;
 
+  /// Validator function for form validation.
+  final FormFieldValidator<String>? validator;
+
   /// Called when the field is tapped.
   final VoidCallback? onTap;
-
-  /// Called when editing is complete.
-  final VoidCallback? onEditingComplete;
-
-  /// Called when the user submits the field.
-  final ValueChanged<String>? onSubmitted;
 
   /// Called when the text changes.
   final ValueChanged<String>? onChanged;
 
+  /// Called when the user submits the field.
+  final ValueChanged<String>? onSubmitted;
+
+  /// Called when editing is complete.
+  final VoidCallback? onEditingComplete;
+
+  /// Minimum number of lines to display.
+  final int? minLines;
+
+  /// Maximum number of lines to display.
+  final int? maxLines;
+
+  /// Maximum character length allowed.
+  final int? maxLength;
+
+  /// Custom content padding for the text field.
+  final EdgeInsetsGeometry? contentPadding;
+
+  /// Error message to display below the field.
+  final String? errorText;
+
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    final effectiveLabel = label ?? labelText;
+    return DivineAuthTextField(
+      label: effectiveLabel,
       controller: controller,
       focusNode: focusNode,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      textCapitalization: textCapitalization,
-      minLines: minLines,
-      maxLines: maxLines,
-      maxLength: maxLength,
-      onSubmitted: onSubmitted,
-      onChanged: onChanged,
-      inputFormatters: inputFormatters,
+      obscureText: obscureText,
       enabled: enabled,
       readOnly: readOnly,
       autocorrect: autocorrect,
-      obscureText: obscureText,
-      canRequestFocus: canRequestFocus,
-      expands: expands,
+      keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      textCapitalization: textCapitalization,
+      inputFormatters: inputFormatters,
+      validator: validator,
       onTap: onTap,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
       onEditingComplete: onEditingComplete,
-      decoration: InputDecoration(
-        labelText: labelText,
-        labelStyle: VineTheme.bodyFont(
-          color: VineTheme.onSurfaceVariant,
-          height: 1.50,
-          letterSpacing: 0.15,
-        ),
-        border: .none,
-        enabledBorder: .none,
-        focusedBorder: .none,
-        filled: false,
-        contentPadding: contentPadding,
-        floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
-          return VineTheme.bodyFont(
-            color: states.contains(WidgetState.focused)
-                ? VineTheme.primary
-                : VineTheme.onSurfaceVariant,
-            // The TextField scale the floating-label by a factor of 0.75.
-            fontSize: 11 / 0.75,
-            height: 1.45,
-            letterSpacing: 0.5,
-            fontWeight: .w600,
-          );
-        }),
-      ),
+      maxLength: maxLength,
+      contentPadding: contentPadding,
+      errorText: errorText,
     );
   }
 }

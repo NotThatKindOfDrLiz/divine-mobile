@@ -135,6 +135,34 @@ class UserProfile {
     return pubkey;
   }
 
+  /// Like [bestDisplayName] but with a custom fallback placeholder.
+  String betterDisplayName(String? anonymousPlaceholder) {
+    if (displayName?.isNotEmpty ?? false) return displayName!;
+    if (name?.isNotEmpty ?? false) return name!;
+    if (anonymousPlaceholder != null) return anonymousPlaceholder;
+    return bestDisplayName;
+  }
+
+  /// NIP-05 formatted for display (strips leading underscore).
+  String? get displayNip05 {
+    if (nip05 == null || nip05!.isEmpty) return null;
+    if (nip05!.startsWith('_@')) return nip05!.substring(1);
+    return nip05;
+  }
+
+  /// Whether the banner field contains a hex color (Vine import).
+  bool get hasProfileBackgroundColor {
+    final b = banner;
+    if (b == null || b.isEmpty) return false;
+    return b.startsWith('0x') || b.startsWith('#');
+  }
+
+  /// Whether the banner field is an image URL.
+  bool get hasBannerImage {
+    final b = banner;
+    return b != null && b.startsWith('http');
+  }
+
   /// Get the best available display name
   String get bestDisplayName {
     if (displayName?.isNotEmpty ?? false) return displayName!;
@@ -155,6 +183,30 @@ class UserProfile {
 
   /// Check if profile has bio
   bool get hasBio => about?.isNotEmpty ?? false;
+
+  /// Extracts a divine.video username from the NIP-05 identifier.
+  ///
+  /// Supports:
+  /// - New subdomain format: `_@username.divine.video`
+  /// - Legacy formats: `username@divine.video`, `username@openvine.co`
+  ///
+  /// Returns `null` if [nip05] is null, empty, or not a recognized domain.
+  String? get divineUsername {
+    if (nip05 == null || nip05!.isEmpty) return null;
+
+    // New subdomain format: _@username.divine.video
+    final subdomainMatch = RegExp(
+      r'^_@([a-z0-9\-_.]+)\.divine\.video$',
+    ).firstMatch(nip05!);
+    if (subdomainMatch != null) return subdomainMatch.group(1);
+
+    // Legacy format: username@divine.video or username@openvine.co
+    if (nip05!.endsWith('@divine.video') || nip05!.endsWith('@openvine.co')) {
+      return nip05!.split('@')[0];
+    }
+
+    return null;
+  }
 
   /// Check if profile has verified NIP-05 identifier
   bool get hasNip05 => nip05?.isNotEmpty ?? false;

@@ -1,7 +1,10 @@
 // ABOUTME: Camera preview widget for Flutter
 // ABOUTME: Provides a ready-to-use camera preview with gesture support
 
+import 'dart:io' show Platform;
+
 import 'package:divine_camera/divine_camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 /// A widget that displays the camera preview with built-in gesture support.
@@ -56,6 +59,22 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
   /// Stores the last valid texture ID to show during camera switch
   int? _lastTextureId;
 
+  /// Whether the preview is currently being mirrored in Flutter.
+  /// Used to adjust tap coordinates for focus.
+  bool get _isPreviewMirrored {
+    if (kIsWeb) return false;
+    final isFront = _camera.lens == DivineCameraLens.front;
+    if (!isFront) return false;
+
+    // On iOS, mirror preview only when native isn't mirroring
+    // coverage:ignore-start
+    if (Platform.isIOS) {
+      return !_camera.mirrorFrontCameraOutput;
+    }
+    // coverage:ignore-end
+    return false;
+  }
+
   @override
   void dispose() {
     _focusPoint.dispose();
@@ -66,8 +85,40 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
     final localPosition = details.localPosition;
 
     // Calculate normalized coordinates (0.0 - 1.0) based on actual preview size
-    final normalizedX = (localPosition.dx / previewSize.width).clamp(0.0, 1.0);
-    final normalizedY = (localPosition.dy / previewSize.height).clamp(0.0, 1.0);
+    var normalizedX = (localPosition.dx / previewSize.width).clamp(0.0, 1.0);
+    var normalizedY = (localPosition.dy / previewSize.height).clamp(0.0, 1.0);
+
+    // When using BoxFit.cover, the camera feed is cropped to fill the display.
+    // We need to transform display coordinates to camera sensor coordinates.
+    // coverage:ignore-start
+    if (widget.fit == BoxFit.cover) {
+      final displayAspectRatio = previewSize.width / previewSize.height;
+      final sensorAspectRatio = _camera.cameraAspectRatio;
+      final arRatio = displayAspectRatio / sensorAspectRatio;
+
+      if (arRatio > 1) {
+        // Display is wider than sensor - height is cropped from top/bottom
+        final visibleHeight = 1 / arRatio;
+        final cropY = (1 - visibleHeight) / 2;
+        normalizedY = normalizedY * visibleHeight + cropY;
+      } else if (arRatio < 1) {
+        // Display is taller than sensor - width is cropped from left/right
+        final visibleWidth = arRatio;
+        final cropX = (1 - visibleWidth) / 2;
+        normalizedX = normalizedX * visibleWidth + cropX;
+      }
+    }
+    // coverage:ignore-end
+
+    // If preview is mirrored in Flutter, flip the X coordinate for the camera
+    // The visual focus indicator stays where the user tapped,
+    // but the camera needs the un-mirrored coordinate
+    // coverage:ignore-start
+    if (_isPreviewMirrored) {
+      normalizedX = 1.0 - normalizedX;
+    }
+    // coverage:ignore-end
+
     final normalizedPosition = Offset(normalizedX, normalizedY);
 
     // Update focus point for indicator
@@ -154,6 +205,7 @@ class _CameraPreviewWidgetState extends State<CameraPreviewWidget> {
                 textureId: textureToShow,
                 aspectRatio: aspectRatio,
                 fit: widget.fit,
+                shouldMirror: _isPreviewMirrored,
               ),
             ),
             ValueListenableBuilder<Offset?>(
@@ -181,6 +233,7 @@ class _CameraPreview extends StatelessWidget {
     required this.textureId,
     required this.aspectRatio,
     required this.fit,
+    required this.shouldMirror,
   });
 
   final BoxConstraints constraints;
@@ -188,9 +241,25 @@ class _CameraPreview extends StatelessWidget {
   final double aspectRatio;
   final BoxFit fit;
 
+  /// Whether to apply a horizontal flip transform to the preview.
+  /// This is determined by the parent widget based on platform and settings.
+  final bool shouldMirror;
+
   @override
   Widget build(BuildContext context) {
     Widget preview = Texture(textureId: textureId);
+
+    // Mirror front camera preview (selfie mode)
+    // This is a visual-only transform, the actual pixels remain "real-world"
+    // coverage:ignore-start
+    if (shouldMirror) {
+      preview = Transform(
+        alignment: .center,
+        transform: .diagonal3Values(-1, 1, 1),
+        child: preview,
+      );
+    }
+    // coverage:ignore-end
 
     // Apply aspect ratio and fit
     if (fit == BoxFit.cover) {

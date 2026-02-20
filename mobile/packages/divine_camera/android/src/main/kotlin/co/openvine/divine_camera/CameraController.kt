@@ -21,7 +21,9 @@ import android.util.Log
 import android.view.Surface
 import android.view.WindowManager
 import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.CaptureRequestOptions
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.*
@@ -122,15 +124,26 @@ class CameraController(
     private var hasFlash: Boolean = false
     private var isFocusPointSupported: Boolean = false
     private var isExposurePointSupported: Boolean = false
+    
+    // Multi-lens support: camera IDs for each lens type
+    private var frontCameraId: String? = null
+    private var frontUltraWideCameraId: String? = null
+    private var backCameraId: String? = null
+    private var ultraWideCameraId: String? = null
+    private var telephotoCameraId: String? = null
+    private var macroCameraId: String? = null
+    
+    // Track current lens type (more granular than just front/back)
+    private var currentLensType: String = "back"
 
     private var recordingStartTime: Long = 0
     private var currentRecordingFile: File? = null
     private var videoQuality: Quality = Quality.FHD
     private var maxDurationRunnable: Runnable? = null
-    private var autoStopCallback: ((Map<String, Any>?, String?) -> Unit)? = null
+    private var autoStopCallback: ((Map<String, Any?>?, String?) -> Unit)? = null
 
     /** Listener for auto-stop events, set by the plugin. */
-    var onAutoStopListener: ((Map<String, Any>) -> Unit)? = null
+    var onAutoStopListener: ((Map<String, Any?>) -> Unit)? = null
 
     /**
      * Initializes the camera with the specified lens and video quality.
@@ -140,18 +153,16 @@ class CameraController(
         quality: String,
         enableScreenFlash: Boolean = true,
         mirrorFrontCameraOutput: Boolean = true,
-        callback: (Map<String, Any>?, String?) -> Unit
+        callback: (Map<String, Any?>?, String?) -> Unit
     ) {
         Log.d(TAG, "Initializing camera with lens: $lens, quality: $quality, enableScreenFlash: $enableScreenFlash, mirrorFrontCameraOutput: $mirrorFrontCameraOutput (portrait mode 1080x1920)")
 
         screenFlashFeatureEnabled = enableScreenFlash
         this.mirrorFrontCameraOutput = mirrorFrontCameraOutput
 
-        currentLens = if (lens == "front") {
-            CameraSelector.LENS_FACING_FRONT
-        } else {
-            CameraSelector.LENS_FACING_BACK
-        }
+        // Map lens string to lens type and facing
+        currentLensType = lens
+        currentLens = getLensFacingForType(lens)
 
         videoQuality = when (quality) {
             "sd" -> Quality.SD
@@ -166,12 +177,18 @@ class CameraController(
         checkCameraAvailability()
 
         // Fallback to available camera if requested camera is not available
-        if (currentLens == CameraSelector.LENS_FACING_FRONT && !hasFrontCamera && hasBackCamera) {
-            Log.w(TAG, "Front camera requested but not available, falling back to back camera")
-            currentLens = CameraSelector.LENS_FACING_BACK
-        } else if (currentLens == CameraSelector.LENS_FACING_BACK && !hasBackCamera && hasFrontCamera) {
-            Log.w(TAG, "Back camera requested but not available, falling back to front camera")
-            currentLens = CameraSelector.LENS_FACING_FRONT
+        val requestedCameraId = getCameraIdForLens(currentLensType)
+        if (requestedCameraId == null) {
+            // Fallback: try back camera first, then front
+            if (hasBackCamera) {
+                Log.w(TAG, "Requested lens $lens not available, falling back to back camera")
+                currentLensType = "back"
+                currentLens = CameraSelector.LENS_FACING_BACK
+            } else if (hasFrontCamera) {
+                Log.w(TAG, "Requested lens $lens not available, falling back to front camera")
+                currentLensType = "front"
+                currentLens = CameraSelector.LENS_FACING_FRONT
+            }
         }
 
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -191,22 +208,299 @@ class CameraController(
 
     /**
      * Checks which cameras are available on the device.
+     * Detects front, back, ultra-wide, telephoto, and macro cameras.
      */
     private fun checkCameraAvailability() {
         try {
             val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            
+            // Track focal lengths for cameras to determine lens types
+            val backCameraFocalLengths = mutableMapOf<String, Float>()
+            val frontCameraFocalLengths = mutableMapOf<String, Float>()
+            
             for (cameraId in cameraManager.cameraIdList) {
                 val characteristics = cameraManager.getCameraCharacteristics(cameraId)
                 val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
+                val focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+                val capabilities = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
+                
+                // Check if this is a logical camera (multi-camera on newer devices)
+                val isLogicalCamera = capabilities?.contains(
+                    CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA
+                ) == true
+                
                 when (facing) {
-                    CameraCharacteristics.LENS_FACING_FRONT -> hasFrontCamera = true
-                    CameraCharacteristics.LENS_FACING_BACK -> hasBackCamera = true
+                    CameraCharacteristics.LENS_FACING_FRONT -> {
+                        val primaryFocalLength = focalLengths?.firstOrNull() ?: 0f
+                        frontCameraFocalLengths[cameraId] = primaryFocalLength
+                        Log.d(TAG, "Front camera $cameraId: focalLength=$primaryFocalLength, logical=$isLogicalCamera")
+                    }
+                    CameraCharacteristics.LENS_FACING_BACK -> {
+                        // Get the primary focal length for this camera
+                        val primaryFocalLength = focalLengths?.firstOrNull() ?: 0f
+                        backCameraFocalLengths[cameraId] = primaryFocalLength
+                        Log.d(TAG, "Back camera $cameraId: focalLength=$primaryFocalLength, logical=$isLogicalCamera")
+                    }
                 }
             }
-            Log.d(TAG, "Camera availability: front=$hasFrontCamera, back=$hasBackCamera")
+            
+            // Analyze front cameras by focal length
+            if (frontCameraFocalLengths.isNotEmpty()) {
+                val sorted = frontCameraFocalLengths.entries.sortedByDescending { it.value }
+                
+                // The camera with the longer focal length is the "normal" front camera
+                // The camera with the shorter focal length is the ultra-wide front camera
+                hasFrontCamera = true
+                frontCameraId = sorted.first().key
+                
+                if (sorted.size > 1) {
+                    // Second camera (shorter focal length) is front ultra-wide
+                    val ultraWideCandidate = sorted.last()
+                    if (ultraWideCandidate.value < sorted.first().value - 0.3f) {
+                        frontUltraWideCameraId = ultraWideCandidate.key
+                        Log.d(TAG, "Front ultra-wide camera detected: ${ultraWideCandidate.key}")
+                    }
+                }
+            }
+            
+            // Analyze back cameras by focal length to determine type
+            if (backCameraFocalLengths.isNotEmpty()) {
+                // Sort by focal length
+                val sorted = backCameraFocalLengths.entries.sortedBy { it.value }
+                
+                // Find the "normal" lens (typically around 4-6mm on smartphones)
+                // This is usually the primary back camera
+                val normalRange = 3.0f..8.0f
+                val normalCamera = sorted.find { it.value in normalRange }
+                
+                if (normalCamera != null) {
+                    hasBackCamera = true
+                    backCameraId = normalCamera.key
+                    
+                    // Cameras with shorter focal length are ultra-wide
+                    sorted.filter { it.value < normalCamera.value - 0.5f && it.key != normalCamera.key }
+                        .maxByOrNull { it.value }?.let {
+                            ultraWideCameraId = it.key
+                            Log.d(TAG, "Ultra-wide camera detected: ${it.key}")
+                        }
+                    
+                    // Cameras with longer focal length are telephoto
+                    sorted.filter { it.value > normalCamera.value + 1.0f && it.key != normalCamera.key }
+                        .minByOrNull { it.value }?.let {
+                            telephotoCameraId = it.key
+                            Log.d(TAG, "Telephoto camera detected: ${it.key}")
+                        }
+                } else if (sorted.isNotEmpty()) {
+                    // Fallback: use the first back camera as main
+                    hasBackCamera = true
+                    backCameraId = sorted.first().key
+                }
+                
+                // Check for macro capability (often detected by very short minimum focus distance)
+                for ((cameraId, _) in sorted) {
+                    val chars = cameraManager.getCameraCharacteristics(cameraId)
+                    val minFocusDistance = chars.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)
+                    // Macro cameras typically have minimum focus distance > 10 diopters (< 10cm focus)
+                    if (minFocusDistance != null && minFocusDistance > 10.0f && cameraId != backCameraId) {
+                        macroCameraId = cameraId
+                        Log.d(TAG, "Macro camera detected: $cameraId (minFocusDist=$minFocusDistance)")
+                        break
+                    }
+                }
+            }
+            
+            Log.d(TAG, "Camera availability: front=$hasFrontCamera, " +
+                "frontUltraWide=${frontUltraWideCameraId != null}, back=$hasBackCamera, " +
+                "ultraWide=${ultraWideCameraId != null}, telephoto=${telephotoCameraId != null}, " +
+                "macro=${macroCameraId != null}")
         } catch (e: Exception) {
             Log.e(TAG, "Error checking camera availability", e)
         }
+    }
+    
+    /**
+     * Returns a list of available lens types on this device.
+     */
+    private fun getAvailableLenses(): List<String> {
+        val lenses = mutableListOf<String>()
+        if (hasFrontCamera) lenses.add("front")
+        if (frontUltraWideCameraId != null) lenses.add("frontUltraWide")
+        if (hasBackCamera) lenses.add("back")
+        if (ultraWideCameraId != null) lenses.add("ultraWide")
+        if (telephotoCameraId != null) lenses.add("telephoto")
+        if (macroCameraId != null) lenses.add("macro")
+        return lenses
+    }
+    
+    /**
+     * Gets metadata for the currently active camera lens.
+     */
+    private fun getCurrentLensMetadata(): Map<String, Any?>? {
+        val cameraId = getCameraIdForLens(currentLensType) ?: return null
+        return try {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+            val chars = cameraManager.getCameraCharacteristics(cameraId)
+            extractCameraMetadata(chars, currentLensType, cameraId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get metadata for current lens $currentLensType", e)
+            null
+        }
+    }
+
+    /**
+     * Extracts metadata from CameraCharacteristics for a specific camera.
+     */
+    private fun extractCameraMetadata(
+        chars: CameraCharacteristics,
+        lensType: String,
+        cameraId: String
+    ): Map<String, Any?> {
+        // Focal lengths (mm)
+        val focalLengths = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+        val focalLength = focalLengths?.firstOrNull()?.toDouble()
+        
+        // Apertures (f-number)
+        val apertures = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES)
+        val aperture = apertures?.firstOrNull()?.toDouble()
+        
+        // Sensor physical size (mm)
+        val sensorSize = chars.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
+        val sensorWidth = sensorSize?.width?.toDouble()
+        val sensorHeight = sensorSize?.height?.toDouble()
+        
+        // Sensor pixel dimensions
+        val pixelArraySize = chars.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)
+        val pixelArrayWidth = pixelArraySize?.width
+        val pixelArrayHeight = pixelArraySize?.height
+        
+        // Minimum focus distance (diopters: 1/distance in meters)
+        val minFocusDistance = chars.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE)?.toDouble()
+        
+        // Calculate 35mm equivalent focal length
+        // 35mm full frame diagonal = 43.27mm
+        // Smartphone sensor diagonal = sqrt(width^2 + height^2)
+        val focalLengthEquivalent35mm = if (focalLength != null && sensorWidth != null && sensorHeight != null) {
+            val sensorDiagonal = kotlin.math.sqrt(sensorWidth * sensorWidth + sensorHeight * sensorHeight)
+            val cropFactor = 43.27 / sensorDiagonal
+            focalLength * cropFactor
+        } else null
+        
+        // Calculate horizontal field of view (degrees)
+        // FOV = 2 * arctan(sensor_width / (2 * focal_length))
+        val fieldOfView = if (focalLength != null && sensorWidth != null && focalLength > 0) {
+            val fovRadians = 2 * kotlin.math.atan(sensorWidth / (2 * focalLength))
+            Math.toDegrees(fovRadians)
+        } else null
+        
+        // Optical stabilization
+        val oisModes = chars.get(CameraCharacteristics.LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION)
+        val hasOpticalStabilization = oisModes?.contains(
+            CameraCharacteristics.LENS_OPTICAL_STABILIZATION_MODE_ON
+        ) == true
+        
+        // Logical camera (multi-camera system)
+        val capabilities = chars.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)
+        val isLogicalCamera = capabilities?.contains(
+            CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA
+        ) == true
+        
+        // Physical camera IDs for logical cameras (Android 9+)
+        val physicalCameraIds = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && isLogicalCamera) {
+            chars.physicalCameraIds.toList()
+        } else {
+            emptyList()
+        }
+        
+        // Exposure time range (nanoseconds) - static capability, not live value
+        val exposureTimeRange = chars.get(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE)
+        val exposureTimeMin = exposureTimeRange?.lower?.toDouble()?.div(1_000_000_000.0)  // Convert ns to seconds
+        val exposureTimeMax = exposureTimeRange?.upper?.toDouble()?.div(1_000_000_000.0)  // Convert ns to seconds
+        
+        // ISO sensitivity range - static capability, not live value
+        val isoRange = chars.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)
+        val isoMin = isoRange?.lower
+        val isoMax = isoRange?.upper
+        
+        return mapOf(
+            "lensType" to lensType,
+            "cameraId" to cameraId,
+            "focalLength" to focalLength,
+            "focalLengthEquivalent35mm" to focalLengthEquivalent35mm,
+            "aperture" to aperture,
+            "sensorWidth" to sensorWidth,
+            "sensorHeight" to sensorHeight,
+            "pixelArrayWidth" to pixelArrayWidth,
+            "pixelArrayHeight" to pixelArrayHeight,
+            "minFocusDistance" to minFocusDistance,
+            "fieldOfView" to fieldOfView,
+            "hasOpticalStabilization" to hasOpticalStabilization,
+            "isLogicalCamera" to isLogicalCamera,
+            "physicalCameraIds" to physicalCameraIds,
+            "exposureTimeMin" to exposureTimeMin,
+            "exposureTimeMax" to exposureTimeMax,
+            "isoMin" to isoMin,
+            "isoMax" to isoMax
+        )
+    }
+
+    /**
+     * Gets the camera ID for a given lens type.
+     */
+    private fun getCameraIdForLens(lensType: String): String? {
+        return when (lensType) {
+            "front" -> frontCameraId
+            "frontUltraWide" -> frontUltraWideCameraId
+            "back" -> backCameraId
+            "ultraWide" -> ultraWideCameraId
+            "telephoto" -> telephotoCameraId
+            "macro" -> macroCameraId
+            else -> backCameraId
+        }
+    }
+    
+    /**
+     * Gets the lens facing value for CameraSelector based on lens type.
+     */
+    private fun getLensFacingForType(lensType: String): Int {
+        return when (lensType) {
+            "front", "frontUltraWide" -> CameraSelector.LENS_FACING_FRONT
+            else -> CameraSelector.LENS_FACING_BACK
+        }
+    }
+    
+    /**
+     * Builds a CameraSelector for the specified lens type.
+     * For specialized lenses (ultraWide, telephoto, macro, frontUltraWide), uses Camera2Interop
+     * to select a specific camera by ID.
+     */
+    @SuppressLint("UnsafeOptInUsageError")
+    private fun buildCameraSelectorForLens(
+        lensType: String,
+        provider: ProcessCameraProvider
+    ): CameraSelector {
+        val cameraId = getCameraIdForLens(lensType)
+        
+        // For standard front/back cameras or if no specific ID found, use simple lens facing
+        if (cameraId == null || (lensType == "front" && frontUltraWideCameraId == null) || lensType == "back") {
+            return CameraSelector.Builder()
+                .requireLensFacing(getLensFacingForType(lensType))
+                .build()
+        }
+        
+        // For specialized lenses (and front when multiple front cameras exist), filter by camera ID using Camera2Interop
+        return CameraSelector.Builder()
+            .addCameraFilter { cameras ->
+                cameras.filter { cameraInfo ->
+                    try {
+                        val camera2Info = Camera2CameraInfo.from(cameraInfo)
+                        camera2Info.cameraId == cameraId
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to get Camera2CameraInfo: ${e.message}")
+                        false
+                    }
+                }
+            }
+            .build()
     }
 
     /**
@@ -227,7 +521,7 @@ class CameraController(
     /**
      * Starts the camera with preview and video capture use cases.
      */
-    private fun startCamera(callback: (Map<String, Any>?, String?) -> Unit) {
+    private fun startCamera(callback: (Map<String, Any?>?, String?) -> Unit) {
         val provider = cameraProvider ?: run {
             Log.e(TAG, "Camera provider not available")
             callback(null, "Camera provider not available")
@@ -267,10 +561,8 @@ class CameraController(
 
             Log.d(TAG, "Created Flutter texture with id: $textureId")
 
-            // Build camera selector
-            val cameraSelector = CameraSelector.Builder()
-                .requireLensFacing(currentLens)
-                .build()
+            // Build camera selector for the current lens type
+            val cameraSelector = buildCameraSelectorForLens(currentLensType, provider)
 
             // Fixed 16:9 aspect ratio for portrait mode (9:16)
             val targetAspectRatio = AspectRatio.RATIO_16_9
@@ -391,17 +683,23 @@ class CameraController(
      */
     fun switchCamera(
         lens: String,
-        callback: (Map<String, Any>?, String?) -> Unit
+        callback: (Map<String, Any?>?, String?) -> Unit
     ) {
         Log.d(TAG, "Switching camera to: $lens")
         
         // Disable screen flash when switching cameras
         disableScreenFlash()
         
-        currentLens = if (lens == "front") {
-            CameraSelector.LENS_FACING_FRONT
-        } else {
-            CameraSelector.LENS_FACING_BACK
+        // Map lens string to lens type and facing
+        currentLensType = lens
+        currentLens = getLensFacingForType(lens)
+        
+        // Check if the requested lens is available
+        val requestedCameraId = getCameraIdForLens(currentLensType)
+        if (requestedCameraId == null) {
+            Log.e(TAG, "Requested lens $lens is not available")
+            callback(null, "Lens $lens is not available on this device")
+            return
         }
 
         val provider = cameraProvider ?: run {
@@ -420,10 +718,9 @@ class CameraController(
             // Unbind all use cases
             provider.unbindAll()
 
-            // Build new camera selector for the other lens
-            val cameraSelector = CameraSelector.Builder()
-                .requireLensFacing(currentLens)
-                .build()
+            // Build camera selector for the requested lens
+            // For specialized lenses (ultraWide, telephoto, macro), we need to use Camera2 interop
+            val cameraSelector = buildCameraSelectorForLens(currentLensType, provider)
 
             // Fixed 16:9 aspect ratio for portrait mode (9:16)
             val targetAspectRatio = AspectRatio.RATIO_16_9
@@ -727,18 +1024,43 @@ class CameraController(
 
     /**
      * Sets the focus point in normalized coordinates (0.0-1.0).
+     * Uses CameraX FocusMeteringAction with explicit AF+AE flags and spot metering.
+     * Focus is locked for 3 seconds, then returns to continuous auto-focus.
      */
     fun setFocusPoint(x: Float, y: Float): Boolean {
         val cam = camera ?: return false
 
         return try {
+            // SurfaceOrientedMeteringPointFactory with (1f, 1f) accepts normalized 0-1 coordinates
             val factory = SurfaceOrientedMeteringPointFactory(1f, 1f)
-            val point = factory.createPoint(x, y)
-            val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF)
+            
+            // Create a SMALL metering point (10% of frame) for spot-metering like native camera
+            // The third parameter is the size of the metering region (0.0 to 1.0)
+            // Smaller = more precise exposure adjustment at tap point
+            val point = factory.createPoint(x, y, 0.1f)
+            
+            // Use all three flags for complete metering adjustment:
+            // FLAG_AF = Autofocus (focus on tap point)
+            // FLAG_AE = Auto Exposure (adjust brightness/contrast based on tap point)
+            // FLAG_AWB = Auto White Balance (adjust color temperature)
+            val action = FocusMeteringAction.Builder(
+                point, 
+                FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE or FocusMeteringAction.FLAG_AWB
+            )
                 .setAutoCancelDuration(3, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
-            cam.cameraControl.startFocusAndMetering(action)
-            Log.d(TAG, "Focus point set: ($x, $y)")
+            
+            val future = cam.cameraControl.startFocusAndMetering(action)
+            future.addListener({
+                try {
+                    val result = future.get()
+                    Log.d(TAG, "Focus+AE ${if (result.isFocusSuccessful) "successful" else "adjusting"} at: ($x, $y)")
+                } catch (e: Exception) {
+                    Log.d(TAG, "Focus check: ${e.message}")
+                }
+            }, ContextCompat.getMainExecutor(context))
+            
+            Log.d(TAG, "Focus point set: ($x, $y) with FLAG_AF|FLAG_AE, 10% spot metering")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set focus point", e)
@@ -748,21 +1070,42 @@ class CameraController(
 
     /**
      * Sets the exposure point in normalized coordinates (0.0-1.0).
+     * For exposure-only adjustment without changing focus.
      */
     fun setExposurePoint(x: Float, y: Float): Boolean {
         val cam = camera ?: return false
 
         return try {
+            // SurfaceOrientedMeteringPointFactory with (1f, 1f) accepts normalized 0-1 coordinates
             val factory = SurfaceOrientedMeteringPointFactory(1f, 1f)
             val point = factory.createPoint(x, y)
+            
             val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AE)
-                .setAutoCancelDuration(3, java.util.concurrent.TimeUnit.SECONDS)
+                // Keep exposure locked for 5 seconds before returning to auto
+                .setAutoCancelDuration(5, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
             cam.cameraControl.startFocusAndMetering(action)
             Log.d(TAG, "Exposure point set: ($x, $y)")
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set exposure point", e)
+            false
+        }
+    }
+    
+    /**
+     * Cancels any active focus/metering lock and returns to continuous auto-focus.
+     * Call this when you want to reset focus behavior after a tap-to-focus.
+     */
+    fun cancelFocusAndMetering(): Boolean {
+        val cam = camera ?: return false
+        
+        return try {
+            cam.cameraControl.cancelFocusAndMetering()
+            Log.d(TAG, "Focus and metering cancelled - returning to continuous auto-focus")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cancel focus and metering", e)
             false
         }
     }
@@ -987,13 +1330,13 @@ class CameraController(
     }
 
     // Callback for manual stop recording - will be invoked when Finalize event fires
-    private var manualStopCallback: ((Map<String, Any>?, String?) -> Unit)? = null
+    private var manualStopCallback: ((Map<String, Any?>?, String?) -> Unit)? = null
 
     /**
      * Stops video recording and returns the result.
      * Waits for the Finalize event to ensure the file is fully written.
      */
-    fun stopRecording(callback: (Map<String, Any>?, String?) -> Unit) {
+    fun stopRecording(callback: (Map<String, Any?>?, String?) -> Unit) {
         val currentRecording = recording
 
         if (currentRecording == null || !isRecording) {
@@ -1038,7 +1381,7 @@ class CameraController(
     /**
      * Resumes the camera preview.
      */
-    fun resumePreview(callback: (Map<String, Any>?, String?) -> Unit) {
+    fun resumePreview(callback: (Map<String, Any?>?, String?) -> Unit) {
         Log.d(TAG, "Resuming preview")
         isPaused = false
         
@@ -1057,13 +1400,13 @@ class CameraController(
     /**
      * Gets the current camera state as a map.
      */
-    fun getCameraState(): MutableMap<String, Any> {
+    fun getCameraState(): MutableMap<String, Any?> {
         val textureId = textureEntry?.id() ?: -1L
         return mutableMapOf(
             "isInitialized" to (camera != null),
             "isRecording" to isRecording,
             "flashMode" to getFlashModeString(),
-            "lens" to if (currentLens == CameraSelector.LENS_FACING_FRONT) "front" else "back",
+            "lens" to currentLensType,
             "zoomLevel" to currentZoom.toDouble(),
             "minZoomLevel" to minZoom.toDouble(),
             "maxZoomLevel" to maxZoom.toDouble(),
@@ -1073,7 +1416,9 @@ class CameraController(
             "hasBackCamera" to hasBackCamera,
             "isFocusPointSupported" to isFocusPointSupported,
             "isExposurePointSupported" to isExposurePointSupported,
-            "textureId" to textureId
+            "textureId" to textureId,
+            "availableLenses" to getAvailableLenses(),
+            "currentLensMetadata" to getCurrentLensMetadata()
         )
     }
 

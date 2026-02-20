@@ -13,6 +13,7 @@ import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/router/app_router.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
@@ -127,21 +128,40 @@ class FullscreenFeedContent extends StatefulWidget {
   State<FullscreenFeedContent> createState() => _FullscreenFeedContentState();
 }
 
-class _FullscreenFeedContentState extends State<FullscreenFeedContent> {
+class _FullscreenFeedContentState extends State<FullscreenFeedContent>
+    with RouteAware {
   VideoFeedController? _controller;
   List<VideoItem>? _lastPooledVideos;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Subscribe to route changes so we pause when a route is pushed on top
+    // (e.g. profile page) and resume when the user pops back.
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
     // Initialize controller if BLoC already has videos on first build
     _initializeControllerIfNeeded();
   }
 
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _controller?.dispose();
     super.dispose();
+  }
+
+  // -- RouteAware callbacks --------------------------------------------------
+
+  @override
+  void didPushNext() {
+    // Another route was pushed on top (e.g. profile page) — pause playback.
+    _controller?.pause();
+  }
+
+  @override
+  void didPopNext() {
+    // A route was popped back to us — resume playback.
+    _controller?.play();
   }
 
   /// Initializes the controller if not already created and videos are available.
@@ -283,8 +303,16 @@ class _FullscreenFeedContentState extends State<FullscreenFeedContent> {
               controller: _controller,
               initialIndex: state.currentIndex,
               onActiveVideoChanged: (video, index) {
+                // Resolve the actual index in state.videos by ID,
+                // since pooledVideos filters out null-URL videos and
+                // indices may not match.
+                final actualIndex = state.videos.indexWhere(
+                  (v) => v.id == video.id,
+                );
                 context.read<FullscreenFeedBloc>().add(
-                  FullscreenFeedIndexChanged(index),
+                  FullscreenFeedIndexChanged(
+                    actualIndex >= 0 ? actualIndex : index,
+                  ),
                 );
               },
               onNearEnd: (_) {
@@ -294,7 +322,14 @@ class _FullscreenFeedContentState extends State<FullscreenFeedContent> {
               },
               nearEndThreshold: 2,
               itemBuilder: (context, video, index, {required isActive}) {
-                final originalEvent = state.videos[index];
+                // Look up by video ID instead of index, because
+                // pooledVideos filters out null-URL entries and indices
+                // may diverge from state.videos.
+                final originalEvent = state.videos.firstWhere(
+                  (v) => v.id == video.id,
+                  orElse: () =>
+                      state.videos[index.clamp(0, state.videos.length - 1)],
+                );
                 return _PooledFullscreenItem(
                   video: originalEvent,
                   index: index,
@@ -316,7 +351,7 @@ class _FullscreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final VideoEvent? currentVideo;
 
   static const _style = DiVineAppBarStyle(
-    iconButtonBackgroundColor: Color(0x4D000000), // black with 0.3 alpha
+    iconButtonBackgroundColor: VineTheme.scrim30,
   );
 
   @override
@@ -328,6 +363,7 @@ class _FullscreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
       titleWidget: const SizedBox.shrink(),
       showBackButton: true,
       onBackPressed: context.pop,
+      backButtonSemanticLabel: 'Close video player',
       backgroundMode: DiVineAppBarBackgroundMode.transparent,
       style: _style,
       actions: _buildEditAction(context, ref),
@@ -440,13 +476,18 @@ class _PooledFullscreenItemContent extends StatelessWidget {
           isPortrait: isPortrait,
         ),
         overlayBuilder: (context, videoController, player) =>
-            VideoOverlayActions(
-              video: video,
-              isVisible: isActive,
-              isActive: isActive,
-              hasBottomNavigation: false,
-              contextTitle: contextTitle,
-              isFullscreen: true,
+            // Restore original system view padding that may have been
+            // consumed by SafeArea or other widgets up the tree.
+            MediaQuery(
+              data: MediaQueryData.fromView(View.of(context)),
+              child: VideoOverlayActions(
+                video: video,
+                isVisible: isActive,
+                isActive: isActive,
+                hasBottomNavigation: false,
+                contextTitle: contextTitle,
+                isFullscreen: true,
+              ),
             ),
       ),
     );
@@ -469,6 +510,10 @@ class _FittedVideoPlayer extends StatelessWidget {
     return Video(
       controller: videoController,
       fit: boxFit,
+      // Transparent fill so the loading placeholder behind the Video widget
+      // stays visible until the first video frame renders, preventing a
+      // black flash during the loading → playing transition.
+      fill: Colors.transparent,
       filterQuality: FilterQuality.high,
       controls: NoVideoControls,
     );

@@ -9,10 +9,10 @@ import 'dart:ui' as _i14;
 import 'package:keycast_flutter/keycast_flutter.dart' as _i11;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
+import 'package:models/models.dart' as _i12;
 import 'package:nostr_client/nostr_client.dart' as _i5;
 import 'package:nostr_client/src/models/models.dart' as _i2;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i4;
-import 'package:openvine/models/user_profile.dart' as _i12;
 import 'package:openvine/services/auth_service.dart' as _i3;
 import 'package:openvine/services/blossom_server_discovery_service.dart' as _i9;
 import 'package:openvine/services/profile_cache_service.dart' as _i13;
@@ -663,6 +663,14 @@ class MockAuthService extends _i1.Mock implements _i3.AuthService {
             ),
           )
           as String);
+
+  @override
+  void registerUserRelaysDiscoveredCallback(
+    _i3.UserRelaysDiscoveredCallback? callback,
+  ) => super.noSuchMethod(
+    Invocation.method(#registerUserRelaysDiscoveredCallback, [callback]),
+    returnValueForMissingStub: null,
+  );
 
   @override
   void clearError() => super.noSuchMethod(

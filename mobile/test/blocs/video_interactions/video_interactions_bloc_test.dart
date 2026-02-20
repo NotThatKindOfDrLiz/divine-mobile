@@ -22,7 +22,7 @@ void main() {
     late _MockLikesRepository mockLikesRepository;
     late _MockCommentsRepository mockCommentsRepository;
     late _MockRepostsRepository mockRepostsRepository;
-    late StreamController<Set<String>> likedIdsController;
+    late StreamController<List<String>> likedIdsController;
     late StreamController<Set<String>> repostedIdsController;
 
     const testEventId = 'test-event-id';
@@ -33,7 +33,7 @@ void main() {
       mockLikesRepository = _MockLikesRepository();
       mockCommentsRepository = _MockCommentsRepository();
       mockRepostsRepository = _MockRepostsRepository();
-      likedIdsController = StreamController<Set<String>>.broadcast();
+      likedIdsController = StreamController<List<String>>.broadcast();
       repostedIdsController = StreamController<Set<String>>.broadcast();
 
       // Default stub for watchLikedEventIds
@@ -572,6 +572,7 @@ void main() {
               addressableId: testAddressableId,
               originalAuthorPubkey: testAuthorPubkey,
               eventId: testEventId,
+              currentCount: 5,
             ),
           ).thenAnswer((_) async => true);
         },
@@ -606,6 +607,7 @@ void main() {
               addressableId: testAddressableId,
               originalAuthorPubkey: testAuthorPubkey,
               eventId: testEventId,
+              currentCount: 5,
             ),
           ).thenAnswer((_) async => false);
         },
@@ -640,6 +642,7 @@ void main() {
               addressableId: testAddressableId,
               originalAuthorPubkey: testAuthorPubkey,
               eventId: testEventId,
+              currentCount: 0,
             ),
           ).thenAnswer((_) async => false);
         },
@@ -700,6 +703,7 @@ void main() {
               addressableId: testAddressableId,
               originalAuthorPubkey: testAuthorPubkey,
               eventId: testEventId,
+              currentCount: 0,
             ),
           ).thenThrow(const AlreadyRepostedException(testAddressableId));
         },
@@ -731,6 +735,7 @@ void main() {
               addressableId: testAddressableId,
               originalAuthorPubkey: testAuthorPubkey,
               eventId: testEventId,
+              currentCount: 0,
             ),
           ).thenThrow(const NotRepostedException(testAddressableId));
         },
@@ -762,6 +767,7 @@ void main() {
               addressableId: testAddressableId,
               originalAuthorPubkey: testAuthorPubkey,
               eventId: testEventId,
+              currentCount: 0,
             ),
           ).thenThrow(Exception('Network error'));
         },
@@ -796,7 +802,7 @@ void main() {
         act: (bloc) async {
           bloc.add(const VideoInteractionsSubscriptionRequested());
           await Future<void>.delayed(const Duration(milliseconds: 50));
-          likedIdsController.add({testEventId});
+          likedIdsController.add([testEventId]);
         },
         wait: const Duration(milliseconds: 100),
         expect: () => [
@@ -821,7 +827,7 @@ void main() {
         act: (bloc) async {
           bloc.add(const VideoInteractionsSubscriptionRequested());
           await Future<void>.delayed(const Duration(milliseconds: 50));
-          likedIdsController.add(<String>{});
+          likedIdsController.add(<String>[]);
         },
         wait: const Duration(milliseconds: 100),
         expect: () => [
@@ -845,7 +851,7 @@ void main() {
         act: (bloc) async {
           bloc.add(const VideoInteractionsSubscriptionRequested());
           await Future<void>.delayed(const Duration(milliseconds: 50));
-          likedIdsController.add({testEventId});
+          likedIdsController.add([testEventId]);
         },
         wait: const Duration(milliseconds: 100),
         expect: () => <VideoInteractionsState>[],
@@ -860,7 +866,7 @@ void main() {
 
         // After closing, stream events should not affect anything
         // This mainly tests that no errors occur
-        expect(() => likedIdsController.add({testEventId}), returnsNormally);
+        expect(() => likedIdsController.add([testEventId]), returnsNormally);
       });
     });
   });

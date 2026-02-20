@@ -1,13 +1,13 @@
 // ABOUTME: Mobile platform implementation of camera service using the camera package
 // ABOUTME: Handles camera initialization, switching, recording, and lifecycle management on mobile devices
 
+import 'package:divine_camera/divine_camera.dart';
 import 'package:flutter/widgets.dart';
 import 'package:openvine/models/video_recorder/video_recorder_flash_mode.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/utils/path_resolver.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
-import 'package:divine_camera/divine_camera.dart';
 
 /// Mobile implementation of [CameraService] using the camera package.
 ///
@@ -24,20 +24,39 @@ class CameraMobileService extends CameraService {
   final _camera = DivineCamera.instance;
 
   @override
-  Future<void> initialize() async {
+  Future<void> initialize({
+    DivineVideoQuality videoQuality = DivineVideoQuality.fhd,
+  }) async {
     // Clear any previous error
     _initializationError = null;
 
     Log.info(
-      '📷 Initializing mobile camera',
+      '📷 Initializing mobile camera with quality: ${videoQuality.value}',
       name: 'CameraMobileService',
       category: .video,
     );
     try {
-      await _camera.initialize(lens: .front);
+      await _camera.initialize(lens: .front, videoQuality: videoQuality);
       _camera.onRecordingAutoStopped = (result) {
         onAutoStopped(EditorVideo.file(result.filePath));
       };
+      // Re-apply remote record trigger callback (gets cleared on dispose)
+      if (_remoteRecordTriggerCallback != null) {
+        final callback = _remoteRecordTriggerCallback!;
+        _camera.onRemoteRecordTrigger = (trigger) {
+          Log.info(
+            '🎮 Native remote trigger received: $trigger',
+            name: 'CameraMobileService',
+            category: .video,
+          );
+          callback();
+        };
+        Log.debug(
+          '🎮 Remote record trigger callback re-applied after initialize',
+          name: 'CameraMobileService',
+          category: .video,
+        );
+      }
       _isInitialized = true;
     } catch (e) {
       _initializationError = 'Camera initialization failed: $e';
@@ -184,6 +203,36 @@ class CameraMobileService extends CameraService {
   }
 
   @override
+  Future<bool> setLens(DivineCameraLens lens) async {
+    if (!_isInitialized) return false;
+    try {
+      Log.info(
+        '📷 Switching to lens: ${lens.displayName}',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+
+      final success = await _camera.setLens(lens);
+      if (success) {
+        onUpdateState(forceCameraRebuild: true);
+        Log.info(
+          '📷 Switched to lens: ${lens.displayName}',
+          name: 'CameraMobileService',
+          category: .video,
+        );
+      }
+      return success;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to set lens: $e',
+        name: 'CameraMobileService',
+        category: .video,
+      );
+      return false;
+    }
+  }
+
+  @override
   Future<bool> startRecording({
     Duration? maxDuration,
     bool enableAudio = true,
@@ -298,5 +347,82 @@ class CameraMobileService extends CameraService {
   bool get canSwitchCamera => _camera.canSwitchCamera;
 
   @override
+  DivineCameraLens get currentLens => _camera.state.lens;
+
+  @override
+  List<DivineCameraLens> get availableLenses => _camera.state.availableLenses;
+
+  @override
+  CameraLensMetadata? get currentLensMetadata =>
+      _camera.state.currentLensMetadata;
+
+  @override
   String? get initializationError => _initializationError;
+
+  void Function()? _remoteRecordTriggerCallback;
+
+  @override
+  set onRemoteRecordTrigger(void Function()? callback) {
+    _remoteRecordTriggerCallback = callback;
+    // Connect to native callback with logging
+    _camera.onRemoteRecordTrigger = callback != null
+        ? (trigger) {
+            Log.info(
+              '🎮 Native remote trigger received: $trigger',
+              name: 'CameraMobileService',
+              category: .video,
+            );
+            callback();
+          }
+        : null;
+    Log.debug(
+      '🎮 Remote record trigger callback ${callback != null ? 'set' : 'cleared'}',
+      name: 'CameraMobileService',
+      category: .video,
+    );
+  }
+
+  @override
+  Future<bool> setRemoteRecordControlEnabled({required bool enabled}) async {
+    if (!_isInitialized) return false;
+    try {
+      Log.info(
+        '📷 Setting remote record control: ${enabled ? 'enabled' : 'disabled'}',
+        name: 'CameraMobileService',
+        category: LogCategory.video,
+      );
+      final success = await _camera.setRemoteRecordControlEnabled(
+        enabled: enabled,
+      );
+      return success;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to set remote record control: $e',
+        name: 'CameraMobileService',
+        category: LogCategory.video,
+      );
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> setVolumeKeysEnabled({required bool enabled}) async {
+    if (!_isInitialized) return false;
+    try {
+      Log.debug(
+        '📷 Setting volume keys: ${enabled ? 'enabled' : 'disabled'}',
+        name: 'CameraMobileService',
+        category: LogCategory.video,
+      );
+      final success = await _camera.setVolumeKeysEnabled(enabled: enabled);
+      return success;
+    } catch (e) {
+      Log.error(
+        '📷 Failed to set volume keys enabled: $e',
+        name: 'CameraMobileService',
+        category: LogCategory.video,
+      );
+      return false;
+    }
+  }
 }

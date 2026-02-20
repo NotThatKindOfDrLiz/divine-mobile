@@ -303,7 +303,11 @@ class TestablePlayerPool extends PlayerPool {
       _testLruOrder
         ..remove(url)
         ..add(url);
-      return _testPlayers[url]!;
+      // Mirror real PlayerPool: mute cached players to prevent audio leaks.
+      // The caller (_loadPlayer) will set volume/play state as needed.
+      final existing = _testPlayers[url]!;
+      unawaited(existing.player.setVolume(0));
+      return existing;
     }
 
     // Evict if at capacity
@@ -344,6 +348,19 @@ class TestablePlayerPool extends PlayerPool {
     _testLruOrder.remove(url);
     if (player != null && !player.isDisposed) {
       await player.dispose();
+    }
+  }
+
+  @override
+  void stopAll() {
+    for (final player in _testPlayers.values) {
+      if (!player.isDisposed) {
+        try {
+          unawaited(player.player.stop());
+        } on Exception {
+          // Ignore errors during emergency stop
+        }
+      }
     }
   }
 
