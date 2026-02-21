@@ -235,8 +235,11 @@ void main() {
       );
       expect(radios.length, equals(ContentFilterReason.values.length));
 
-      // Initially no reason is selected
-      expect(radios.every((r) => r.groupValue == null), isTrue);
+      // Initially no reason is selected (check RadioGroup ancestor)
+      final radioGroup = tester.widget<RadioGroup<ContentFilterReason>>(
+        find.byType(RadioGroup<ContentFilterReason>),
+      );
+      expect(radioGroup.groupValue, isNull);
     });
 
     testWidgets('renders Cancel button', (tester) async {
