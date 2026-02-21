@@ -73,16 +73,11 @@ class MoreActionButton extends StatelessWidget {
   }
 }
 
-class _VideoMoreMenu extends ConsumerStatefulWidget {
+class _VideoMoreMenu extends ConsumerWidget {
   const _VideoMoreMenu({required this.video});
 
   final VideoEvent video;
 
-  @override
-  ConsumerState<_VideoMoreMenu> createState() => _VideoMoreMenuState();
-}
-
-class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
   void _safePop(BuildContext ctx) {
     if (ctx.canPop()) {
       ctx.pop();
@@ -92,7 +87,7 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Material(
       color: VineTheme.surfaceBackground,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -100,18 +95,15 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _MoreMenuHeader(
-              video: widget.video,
-              onClose: () => _safePop(context),
-            ),
+            _MoreMenuHeader(video: video),
             const Divider(color: VineTheme.cardBackground, height: 1),
             _MoreMenuItems(
-              video: widget.video,
-              onReport: _handleReport,
-              onMute: _handleMute,
-              onBlock: _handleBlock,
-              onViewSource: _handleViewSource,
-              onCopyEventId: _handleCopyEventId,
+              video: video,
+              onReport: () => _handleReport(context),
+              onMute: () => _handleMute(context, ref),
+              onBlock: () => _handleBlock(context, ref),
+              onViewSource: () => _handleViewSource(context),
+              onCopyEventId: () => _handleCopyEventId(context),
             ),
           ],
         ),
@@ -119,19 +111,19 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
     );
   }
 
-  void _handleReport() {
+  void _handleReport(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (context) => ReportContentDialog(video: widget.video),
+      builder: (context) => ReportContentDialog(video: video),
     );
   }
 
-  Future<void> _handleMute() async {
+  Future<void> _handleMute(BuildContext context, WidgetRef ref) async {
     try {
       final muteService = await ref.read(muteServiceProvider.future);
-      await muteService.muteUser(widget.video.pubkey);
+      await muteService.muteUser(video.pubkey);
 
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('User muted')));
@@ -143,7 +135,7 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
         name: 'VideoMoreMenu',
         category: LogCategory.ui,
       );
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Failed to mute user')));
@@ -152,13 +144,13 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
     }
   }
 
-  void _handleBlock() {
+  void _handleBlock(BuildContext context, WidgetRef ref) {
     final blocklistService = ref.read(contentBlocklistServiceProvider);
     final nostrClient = ref.read(nostrServiceProvider);
 
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: VineTheme.cardBackground,
         title: const Text(
           'Block User?',
@@ -171,7 +163,7 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
         ),
         actions: [
           TextButton(
-            onPressed: context.pop,
+            onPressed: dialogContext.pop,
             child: const Text(
               'Cancel',
               style: TextStyle(color: VineTheme.secondaryText),
@@ -181,11 +173,11 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
             onPressed: () {
               try {
                 blocklistService.blockUser(
-                  widget.video.pubkey,
+                  video.pubkey,
                   ourPubkey: nostrClient.publicKey,
                 );
-                context.pop();
-                if (mounted) {
+                dialogContext.pop();
+                if (context.mounted) {
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('User blocked')));
@@ -197,8 +189,8 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
                   name: 'VideoMoreMenu',
                   category: LogCategory.ui,
                 );
-                if (context.mounted) context.pop();
-                if (mounted) {
+                if (dialogContext.mounted) dialogContext.pop();
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Failed to block user')),
                   );
@@ -213,25 +205,25 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
     );
   }
 
-  void _handleViewSource() {
+  void _handleViewSource(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (context) => _ViewSourceDialog(video: widget.video),
+      builder: (context) => _ViewSourceDialog(video: video),
     );
   }
 
-  Future<void> _handleCopyEventId() async {
+  Future<void> _handleCopyEventId(BuildContext context) async {
     try {
       final nevent = NIP19Tlv.encodeNevent(
         Nevent(
-          id: widget.video.id,
-          author: widget.video.pubkey,
+          id: video.id,
+          author: video.pubkey,
           relays: ['wss://relay.divine.video'],
         ),
       );
       await Clipboard.setData(ClipboardData(text: nevent));
 
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Event ID copied to clipboard'),
@@ -251,10 +243,11 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
 }
 
 class _MoreMenuHeader extends ConsumerWidget {
-  const _MoreMenuHeader({required this.video, required this.onClose});
+  const _MoreMenuHeader({required this.video});
+
+  static const double _avatarSize = 40;
 
   final VideoEvent video;
-  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -267,17 +260,17 @@ class _MoreMenuHeader extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
+        spacing: 12,
         children: [
           profileAsync.when(
             data: (profile) => UserAvatar(
               imageUrl: profile?.picture,
               name: profile?.displayName,
-              size: 40,
+              size: _avatarSize,
             ),
-            loading: () => const UserAvatar(size: 40),
-            error: (_, __) => const UserAvatar(size: 40),
+            loading: () => const UserAvatar(size: _avatarSize),
+            error: (_, __) => const UserAvatar(size: _avatarSize),
           ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,10 +297,6 @@ class _MoreMenuHeader extends ConsumerWidget {
                 ),
               ],
             ),
-          ),
-          IconButton(
-            onPressed: onClose,
-            icon: const Icon(Icons.close, color: VineTheme.secondaryText),
           ),
         ],
       ),
@@ -375,7 +364,10 @@ class _MoreMenuItems extends ConsumerWidget {
         if (showDebugTools) ...[
           const Divider(color: VineTheme.cardBackground, height: 1),
           _MoreMenuItem(
-            icon: const Icon(Icons.code, color: VineTheme.whiteText, size: 24),
+            icon: const DivineIcon(
+              icon: DivineIconName.bracketsAngle,
+              color: VineTheme.whiteText,
+            ),
             label: 'View Nostr event JSON',
             labelColor: VineTheme.whiteText,
             onTap: onViewSource,
@@ -416,9 +408,9 @@ class _MoreMenuItem extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         child: Row(
+          spacing: 16,
           children: [
             icon,
-            const SizedBox(width: 16),
             Text(
               label,
               style: TextStyle(
@@ -447,9 +439,12 @@ class _ViewSourceDialog extends StatelessWidget {
     return AlertDialog(
       backgroundColor: VineTheme.cardBackground,
       title: const Row(
+        spacing: 12,
         children: [
-          Icon(Icons.code, color: VineTheme.vineGreen),
-          SizedBox(width: 12),
+          DivineIcon(
+            icon: DivineIconName.bracketsAngle,
+            color: VineTheme.vineGreen,
+          ),
           Text('Event Source', style: TextStyle(color: VineTheme.whiteText)),
         ],
       ),
@@ -460,6 +455,7 @@ class _ViewSourceDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              spacing: 4,
               children: [
                 const Text(
                   'Event ID: ',

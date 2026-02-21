@@ -83,13 +83,11 @@ class FeedVideoOverlay extends ConsumerWidget {
             hasTextContent: hasTextContent,
           ),
         ),
-        // Action buttons column (bottom-right, above More button)
-        Positioned(bottom: 62, right: 16, child: _ActionButtons(video: video)),
-        // More button (bottom-right, near description)
+        // Action buttons column (bottom-right)
         Positioned(
           bottom: 14,
           right: 16,
-          child: SafeArea(child: MoreActionButton(video: video)),
+          child: SafeArea(child: _ActionButtons(video: video)),
         ),
       ],
     );
@@ -266,6 +264,7 @@ class _ActionButtons extends StatelessWidget {
         CommentActionButton(video: video),
         RepostActionButton(video: video),
         ShareActionButton(video: video),
+        MoreActionButton(video: video),
       ],
     );
   }

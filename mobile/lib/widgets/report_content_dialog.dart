@@ -253,9 +253,9 @@ class ReportConfirmationDialog extends StatelessWidget {
   Widget build(BuildContext context) => AlertDialog(
     backgroundColor: VineTheme.cardBackground,
     title: Row(
+      spacing: 12,
       children: [
         Icon(Icons.check_circle, color: VineTheme.vineGreen, size: 28),
-        const SizedBox(width: 12),
         const Text(
           'Report Received',
           style: TextStyle(color: VineTheme.whiteText),
@@ -291,9 +291,9 @@ class ReportConfirmationDialog extends StatelessWidget {
               border: Border.all(color: VineTheme.vineGreen),
             ),
             child: Row(
+              spacing: 8,
               children: [
                 Icon(Icons.info_outline, color: VineTheme.vineGreen, size: 20),
-                const SizedBox(width: 8),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

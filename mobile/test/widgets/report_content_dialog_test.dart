@@ -167,6 +167,7 @@ void main() {
         expect(
           find.text('Please select a reason for reporting this content'),
           findsOneWidget,
+          reason: 'Should show error when no reason selected',
         );
       },
     );
@@ -196,16 +197,28 @@ void main() {
       await tester.pumpAndSettle();
 
       final blockUserCheckbox = find.text('Block this user');
-      expect(blockUserCheckbox, findsOneWidget);
+      expect(
+        blockUserCheckbox,
+        findsOneWidget,
+        reason: 'Block user checkbox should be visible',
+      );
 
       final Checkbox checkbox = tester.widget(find.byType(Checkbox));
-      expect(checkbox.value, isFalse);
+      expect(
+        checkbox.value,
+        isFalse,
+        reason: 'Checkbox should be unchecked by default',
+      );
 
       await tester.tap(blockUserCheckbox);
       await tester.pumpAndSettle();
 
       final Checkbox checkedCheckbox = tester.widget(find.byType(Checkbox));
-      expect(checkedCheckbox.value, isTrue);
+      expect(
+        checkedCheckbox.value,
+        isTrue,
+        reason: 'Checkbox should be checked after tapping',
+      );
     });
 
     testWidgets('renders correct number of report reason options', (
