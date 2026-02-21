@@ -1,5 +1,5 @@
 // ABOUTME: Tests for the MVP simplified share menu (_SimpleShareMenu)
-// ABOUTME: Covers menu rendering, 4 share actions, header, and interactions
+// ABOUTME: Covers menu rendering, share actions, feature flags, and error handling
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:models/models.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/bookmark_service.dart';
 import 'package:openvine/services/curated_list_service.dart';
@@ -59,7 +61,7 @@ void main() {
   });
 
   group('ShareActionButton opens _SimpleShareMenu', () {
-    Widget buildSubject() => testProviderScope(
+    Widget buildSubject({bool curatedListsEnabled = true}) => testProviderScope(
       mockUserProfileService: createMockUserProfileService(),
       additionalOverrides: [
         bookmarkServiceProvider.overrideWith(
@@ -69,6 +71,9 @@ void main() {
           (ref) => mockVideoSharingService,
         ),
         curatedListsStateProvider.overrideWith(_FakeCuratedListsState.new),
+        isFeatureEnabledProvider(
+          FeatureFlag.curatedLists,
+        ).overrideWithValue(curatedListsEnabled),
       ],
       child: MaterialApp(
         home: Scaffold(body: ShareActionButton(video: testVideo)),
@@ -190,6 +195,50 @@ void main() {
       expect(find.text('Safety Actions'), findsNothing);
       expect(find.text('Public Lists'), findsNothing);
       expect(find.text('Report Content'), findsNothing);
+    });
+
+    testWidgets(
+      'hides Add to list when curatedLists feature flag is disabled',
+      (tester) async {
+        await tester.pumpWidget(buildSubject(curatedListsEnabled: false));
+        await tester.tap(find.byType(ShareActionButton));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Share with user'), findsOneWidget);
+        expect(find.text('Add to list'), findsNothing);
+        expect(find.text('Add to bookmarks'), findsOneWidget);
+        expect(find.text('More options'), findsOneWidget);
+      },
+    );
+
+    testWidgets('tapping More options calls generateShareText on service', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+      await tester.tap(find.byType(ShareActionButton));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('More options'));
+      await tester.pumpAndSettle();
+
+      verify(mockVideoSharingService.generateShareText(testVideo)).called(1);
+    });
+
+    testWidgets('tapping More options shows failure snackbar on exception', (
+      tester,
+    ) async {
+      when(
+        mockVideoSharingService.generateShareText(any),
+      ).thenThrow(Exception('Share failed'));
+
+      await tester.pumpWidget(buildSubject());
+      await tester.tap(find.byType(ShareActionButton));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('More options'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to share video'), findsOneWidget);
     });
   });
 }

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
@@ -96,6 +98,10 @@ class _SimpleShareMenuState extends ConsumerState<_SimpleShareMenu> {
 
   @override
   Widget build(BuildContext context) {
+    final showCuratedLists = ref.watch(
+      isFeatureEnabledProvider(FeatureFlag.curatedLists),
+    );
+
     return Material(
       color: VineTheme.surfaceBackground,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -108,7 +114,7 @@ class _SimpleShareMenuState extends ConsumerState<_SimpleShareMenu> {
             const Divider(color: VineTheme.cardBackground, height: 1),
             _ShareMenuItems(
               onShareWithUser: _handleShareWithUser,
-              onAddToList: _handleAddToList,
+              onAddToList: showCuratedLists ? _handleAddToList : null,
               onAddToBookmarks: _handleAddToBookmarks,
               onMoreOptions: _handleMoreOptions,
             ),
@@ -182,6 +188,15 @@ class _SimpleShareMenuState extends ConsumerState<_SimpleShareMenu> {
         name: 'SimpleShareMenu',
         category: LogCategory.ui,
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to share video'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 }
@@ -268,13 +283,13 @@ class _ShareMenuHeader extends ConsumerWidget {
 class _ShareMenuItems extends StatelessWidget {
   const _ShareMenuItems({
     required this.onShareWithUser,
-    required this.onAddToList,
     required this.onAddToBookmarks,
     required this.onMoreOptions,
+    this.onAddToList,
   });
 
   final VoidCallback onShareWithUser;
-  final VoidCallback onAddToList;
+  final VoidCallback? onAddToList;
   final VoidCallback onAddToBookmarks;
   final VoidCallback onMoreOptions;
 
@@ -291,14 +306,15 @@ class _ShareMenuItems extends StatelessWidget {
           label: 'Share with user',
           onTap: onShareWithUser,
         ),
-        _ShareMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.listPlus,
-            color: VineTheme.whiteText,
+        if (onAddToList != null)
+          _ShareMenuItem(
+            icon: const DivineIcon(
+              icon: DivineIconName.listPlus,
+              color: VineTheme.whiteText,
+            ),
+            label: 'Add to list',
+            onTap: onAddToList!,
           ),
-          label: 'Add to list',
-          onTap: onAddToList,
-        ),
         _ShareMenuItem(
           icon: const DivineIcon(
             icon: DivineIconName.bookmarkSimple,
