@@ -1,8 +1,10 @@
 // ABOUTME: Tests for SelectListDialog and CreateListDialog widgets
-// ABOUTME: Verifies list selection and list creation form rendering
+// ABOUTME: Verifies list selection, list item interactions, and list creation form
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/annotations.dart';
+import 'package:mockito/mockito.dart';
 import 'package:models/models.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/curated_list_service.dart';
@@ -10,13 +12,19 @@ import 'package:openvine/widgets/add_to_list_dialog.dart';
 
 import '../helpers/test_provider_overrides.dart';
 
+@GenerateMocks([CuratedListService])
+import 'add_to_list_dialog_test.mocks.dart';
+
 /// Test data for the fake notifier - set before each test
 List<CuratedList> _fakeLists = [];
+
+/// Mock service for the fake notifier - set before tests that need interactions
+MockCuratedListService? _fakeService;
 
 /// Fake notifier that provides test data for curatedListsStateProvider
 class _FakeCuratedListsState extends CuratedListsState {
   @override
-  CuratedListService? get service => null;
+  CuratedListService? get service => _fakeService;
 
   @override
   Future<List<CuratedList>> build() async => _fakeLists;
@@ -25,6 +33,7 @@ class _FakeCuratedListsState extends CuratedListsState {
 void main() {
   group(SelectListDialog, () {
     late VideoEvent testVideo;
+    late MockCuratedListService mockListService;
 
     setUp(() {
       testVideo = VideoEvent(
@@ -38,7 +47,18 @@ void main() {
         title: 'Test Video',
       );
       _fakeLists = [];
+      mockListService = MockCuratedListService();
+      _fakeService = mockListService;
     });
+
+    Widget buildSubject() => testProviderScope(
+      additionalOverrides: [
+        curatedListsStateProvider.overrideWith(_FakeCuratedListsState.new),
+      ],
+      child: MaterialApp(
+        home: Scaffold(body: SelectListDialog(video: testVideo)),
+      ),
+    );
 
     testWidgets('renders Add to List title', (tester) async {
       _fakeLists = [
@@ -55,17 +75,7 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(
-        testProviderScope(
-          additionalOverrides: [
-            curatedListsStateProvider.overrideWith(_FakeCuratedListsState.new),
-          ],
-          child: MaterialApp(
-            home: Scaffold(body: SelectListDialog(video: testVideo)),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
       expect(find.text('Add to List'), findsOneWidget);
@@ -90,25 +100,168 @@ void main() {
         ),
       ];
 
-      await tester.pumpWidget(
-        testProviderScope(
-          additionalOverrides: [
-            curatedListsStateProvider.overrideWith(_FakeCuratedListsState.new),
-          ],
-          child: MaterialApp(
-            home: Scaffold(body: SelectListDialog(video: testVideo)),
-          ),
-        ),
-      );
-
+      await tester.pumpWidget(buildSubject());
       await tester.pumpAndSettle();
 
       expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    });
+
+    testWidgets('shows playlist icon for video not in list', (tester) async {
+      _fakeLists = [
+        CuratedList(
+          id: 'list0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          pubkey:
+              'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          name: 'Empty List',
+          description: null,
+          isPublic: true,
+          videoEventIds: [],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.playlist_play), findsOneWidget);
+    });
+
+    testWidgets('displays video count for each list', (tester) async {
+      _fakeLists = [
+        CuratedList(
+          id: 'list0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          pubkey:
+              'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          name: 'Three Videos',
+          description: null,
+          isPublic: true,
+          videoEventIds: ['vid1', 'vid2', 'vid3'],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('3 videos'), findsOneWidget);
+    });
+
+    testWidgets('tapping list item adds video and shows snackbar', (
+      tester,
+    ) async {
+      final listId =
+          'list0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+      _fakeLists = [
+        CuratedList(
+          id: listId,
+          pubkey:
+              'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          name: 'My List',
+          description: null,
+          isPublic: true,
+          videoEventIds: [],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+
+      when(
+        mockListService.addVideoToList(any, any),
+      ).thenAnswer((_) async => true);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('My List'));
+      await tester.pumpAndSettle();
+
+      verify(mockListService.addVideoToList(listId, testVideo.id)).called(1);
+      expect(find.text('Added to My List'), findsOneWidget);
+    });
+
+    testWidgets('tapping list item with video removes it and shows snackbar', (
+      tester,
+    ) async {
+      final listId =
+          'list0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
+      _fakeLists = [
+        CuratedList(
+          id: listId,
+          pubkey:
+              'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          name: 'My List',
+          description: null,
+          isPublic: true,
+          videoEventIds: [testVideo.id],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+
+      when(
+        mockListService.removeVideoFromList(any, any),
+      ).thenAnswer((_) async => true);
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('My List'));
+      await tester.pumpAndSettle();
+
+      verify(
+        mockListService.removeVideoFromList(listId, testVideo.id),
+      ).called(1);
+      expect(find.text('Removed from My List'), findsOneWidget);
+    });
+
+    testWidgets('renders Done button', (tester) async {
+      _fakeLists = [];
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Done'), findsOneWidget);
+    });
+
+    testWidgets('renders multiple lists', (tester) async {
+      _fakeLists = [
+        CuratedList(
+          id: 'list_a_23456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          pubkey:
+              'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          name: 'Favorites',
+          description: null,
+          isPublic: true,
+          videoEventIds: [],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        CuratedList(
+          id: 'list_b_23456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          pubkey:
+              'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789',
+          name: 'Watch Later',
+          description: null,
+          isPublic: false,
+          videoEventIds: [],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ];
+
+      await tester.pumpWidget(buildSubject());
+      await tester.pumpAndSettle();
+
+      expect(find.text('Favorites'), findsOneWidget);
+      expect(find.text('Watch Later'), findsOneWidget);
     });
   });
 
   group(CreateListDialog, () {
     late VideoEvent testVideo;
+    late MockCuratedListService mockListService;
 
     setUp(() {
       testVideo = VideoEvent(
@@ -121,16 +274,21 @@ void main() {
         videoUrl: 'https://example.com/video.mp4',
         title: 'Test Video',
       );
+      mockListService = MockCuratedListService();
+      _fakeService = mockListService;
     });
 
+    Widget buildSubject() => testProviderScope(
+      additionalOverrides: [
+        curatedListsStateProvider.overrideWith(_FakeCuratedListsState.new),
+      ],
+      child: MaterialApp(
+        home: Scaffold(body: CreateListDialog(video: testVideo)),
+      ),
+    );
+
     testWidgets('renders Create New List form', (tester) async {
-      await tester.pumpWidget(
-        testProviderScope(
-          child: MaterialApp(
-            home: Scaffold(body: CreateListDialog(video: testVideo)),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildSubject());
 
       expect(find.text('Create New List'), findsOneWidget);
       expect(find.text('List Name'), findsOneWidget);
@@ -141,13 +299,7 @@ void main() {
     });
 
     testWidgets('public list switch toggles', (tester) async {
-      await tester.pumpWidget(
-        testProviderScope(
-          child: MaterialApp(
-            home: Scaffold(body: CreateListDialog(video: testVideo)),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildSubject());
 
       // Public switch should be on by default
       final switchWidget = tester.widget<SwitchListTile>(
@@ -163,6 +315,31 @@ void main() {
         find.byType(SwitchListTile),
       );
       expect(updatedSwitch.value, isFalse);
+    });
+
+    testWidgets('shows subtitle text for public list switch', (tester) async {
+      await tester.pumpWidget(buildSubject());
+
+      expect(find.text('Others can follow and see this list'), findsOneWidget);
+    });
+
+    testWidgets('Create button does nothing when name is empty', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildSubject());
+
+      // Tap Create with empty name
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      // Should not call createList
+      verifyNever(
+        mockListService.createList(
+          name: anyNamed('name'),
+          description: anyNamed('description'),
+          isPublic: anyNamed('isPublic'),
+        ),
+      );
     });
   });
 }

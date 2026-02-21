@@ -143,6 +143,12 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
         name: 'VideoMoreMenu',
         category: LogCategory.ui,
       );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to mute user')));
+        _safePop(context);
+      }
     }
   }
 
@@ -173,16 +179,30 @@ class _VideoMoreMenuState extends ConsumerState<_VideoMoreMenu> {
           ),
           TextButton(
             onPressed: () {
-              blocklistService.blockUser(
-                widget.video.pubkey,
-                ourPubkey: nostrClient.publicKey,
-              );
-              context.pop();
-              if (mounted) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('User blocked')));
-                _safePop(context);
+              try {
+                blocklistService.blockUser(
+                  widget.video.pubkey,
+                  ourPubkey: nostrClient.publicKey,
+                );
+                context.pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('User blocked')));
+                  _safePop(context);
+                }
+              } catch (e) {
+                Log.error(
+                  'Failed to block user: $e',
+                  name: 'VideoMoreMenu',
+                  category: LogCategory.ui,
+                );
+                if (context.mounted) context.pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to block user')),
+                  );
+                }
               }
             },
             style: TextButton.styleFrom(foregroundColor: VineTheme.error),
@@ -420,7 +440,7 @@ class _ViewSourceDialog extends StatelessWidget {
   final VideoEvent video;
 
   // Amber color for the explainer note
-  static const _amberColor = Color(0xFFFFC107);
+  static const _amberColor = VineTheme.accentOrange;
 
   @override
   Widget build(BuildContext context) {

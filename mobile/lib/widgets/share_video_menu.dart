@@ -2124,12 +2124,6 @@ class _EditInspiredByDisplay extends ConsumerWidget {
       avatarUrl = profileAsync.value?.picture;
     }
 
-    // For npub, show a truncated display
-    final npubDisplay = inspiredByNpub != null && inspiredByNpub!.length > 20
-        ? '${inspiredByNpub!.substring(0, 10)}...'
-              '${inspiredByNpub!.substring(inspiredByNpub!.length - 8)}'
-        : inspiredByNpub;
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -2140,13 +2134,13 @@ class _EditInspiredByDisplay extends ConsumerWidget {
         children: [
           UserAvatar(
             imageUrl: avatarUrl,
-            name: displayName ?? npubDisplay,
+            name: displayName ?? inspiredByNpub,
             size: 24,
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              displayName ?? npubDisplay ?? 'Unknown',
+              displayName ?? inspiredByNpub ?? 'Unknown',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: VineTheme.bodyFont(

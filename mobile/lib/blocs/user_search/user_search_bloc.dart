@@ -73,12 +73,6 @@ class UserSearchBloc extends Bloc<UserSearchEvent, UserSearchState> {
         '$withPic with picture',
         name: 'UserSearchBloc',
       );
-      for (final p in results) {
-        developer.log(
-          '  ${p.bestDisplayName}: picture=${p.picture ?? "null"}',
-          name: 'UserSearchBloc',
-        );
-      }
 
       emit(
         state.copyWith(

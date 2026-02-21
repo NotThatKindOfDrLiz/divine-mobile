@@ -25,10 +25,10 @@ class ReportContentDialog extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<ReportContentDialog> createState() =>
-      ReportContentDialogState();
+      _ReportContentDialogState();
 }
 
-class ReportContentDialogState extends ConsumerState<ReportContentDialog> {
+class _ReportContentDialogState extends ConsumerState<ReportContentDialog> {
   ContentFilterReason? _selectedReason;
   final TextEditingController _detailsController = TextEditingController();
   bool _blockUser = false;

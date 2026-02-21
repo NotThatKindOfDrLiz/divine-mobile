@@ -1,6 +1,7 @@
 // ABOUTME: Report action button for video feed overlay.
 // ABOUTME: Displays flag icon with label, shows report dialog.
 
+import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/utils/pause_aware_modals.dart';
@@ -40,9 +41,9 @@ class ReportActionButton extends StatelessWidget {
                 builder: (context) => ReportContentDialog(video: video),
               );
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.flag_outlined,
-              color: Colors.white,
+              color: VineTheme.whiteText,
               size: 32,
             ),
           ),
