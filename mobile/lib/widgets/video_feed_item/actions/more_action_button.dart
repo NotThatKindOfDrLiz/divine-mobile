@@ -453,6 +453,7 @@ class _ViewSourceDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 12,
           children: [
             Row(
               spacing: 4,
@@ -494,7 +495,6 @@ class _ViewSourceDialog extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -511,7 +511,6 @@ class _ViewSourceDialog extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
             Flexible(
               child: Container(
                 padding: const EdgeInsets.all(12),
