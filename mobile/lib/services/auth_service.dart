@@ -596,6 +596,11 @@ class AuthService implements BackgroundAwareService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(kKnownAccountsKey);
+      Log.info(
+        'getKnownAccounts: raw=${raw == null ? 'null' : '${raw.length} chars'}',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
 
       // null  → key never written → run one-time migration
       // empty → key was written but all accounts removed → no migration
@@ -640,13 +645,29 @@ class AuthService implements BackgroundAwareService {
       category: LogCategory.auth,
     );
 
-    final source = AuthenticationSource.fromCode(
-      prefs.getString(_kAuthSourceKey),
+    final rawAuthSource = prefs.getString(_kAuthSourceKey);
+    final source = AuthenticationSource.fromCode(rawAuthSource);
+    Log.info(
+      'Legacy migration: rawAuthSource=$rawAuthSource, '
+      'resolved=${source.name}',
+      name: 'AuthService',
+      category: LogCategory.auth,
     );
 
     if (source == AuthenticationSource.none) {
       // Fresh install or explicit logout — still check for automatic keys.
+      Log.info(
+        'Legacy migration: source=none, checking automatic keys...',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
       final accounts = await _migrateAutomaticKeys([]);
+      Log.info(
+        'Legacy migration: source=none, automatic keys check '
+        'returned ${accounts.length} account(s)',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
       await _persistMigrationResult(prefs, accounts);
       return accounts;
     }
@@ -731,8 +752,21 @@ class AuthService implements BackgroundAwareService {
     List<KnownAccount> accounts,
   ) async {
     try {
+      Log.info(
+        'Legacy migration: _migrateAutomaticKeys — '
+        'calling _keyStorage.getKeyContainer()...',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
       final keyContainer = await _keyStorage.getKeyContainer();
       final hex = keyContainer?.publicKeyHex;
+      Log.info(
+        'Legacy migration: _migrateAutomaticKeys — '
+        'keyContainer=${keyContainer != null}, '
+        'hex=${hex != null ? '${hex.length} chars' : 'null'}',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
       if (hex != null &&
           hex.length == 64 &&
           !accounts.any((a) => a.pubkeyHex == hex)) {
