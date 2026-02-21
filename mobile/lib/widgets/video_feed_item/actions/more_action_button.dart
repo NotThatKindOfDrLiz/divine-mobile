@@ -10,12 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:nostr_sdk/nip19/nip19_tlv.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/widgets/share_video_menu.dart';
+import 'package:openvine/widgets/report_content_dialog.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:openvine/widgets/user_name.dart';
 
@@ -316,6 +318,9 @@ class _MoreMenuItems extends ConsumerWidget {
     final displayName =
         profileAsync.whenOrNull(data: (profile) => profile?.bestDisplayName) ??
         '';
+    final showDebugTools = ref.watch(
+      isFeatureEnabledProvider(FeatureFlag.debugTools),
+    );
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -347,22 +352,24 @@ class _MoreMenuItems extends ConsumerWidget {
           labelColor: VineTheme.error,
           onTap: onBlock,
         ),
-        const Divider(color: VineTheme.cardBackground, height: 1),
-        _MoreMenuItem(
-          icon: const Icon(Icons.code, color: VineTheme.whiteText, size: 24),
-          label: 'View Nostr event JSON',
-          labelColor: VineTheme.whiteText,
-          onTap: onViewSource,
-        ),
-        _MoreMenuItem(
-          icon: const DivineIcon(
-            icon: DivineIconName.copySimple,
-            color: VineTheme.whiteText,
+        if (showDebugTools) ...[
+          const Divider(color: VineTheme.cardBackground, height: 1),
+          _MoreMenuItem(
+            icon: const Icon(Icons.code, color: VineTheme.whiteText, size: 24),
+            label: 'View Nostr event JSON',
+            labelColor: VineTheme.whiteText,
+            onTap: onViewSource,
           ),
-          label: 'Copy Nostr event ID',
-          labelColor: VineTheme.whiteText,
-          onTap: onCopyEventId,
-        ),
+          _MoreMenuItem(
+            icon: const DivineIcon(
+              icon: DivineIconName.copySimple,
+              color: VineTheme.whiteText,
+            ),
+            label: 'Copy Nostr event ID',
+            labelColor: VineTheme.whiteText,
+            onTap: onCopyEventId,
+          ),
+        ],
         const SizedBox(height: 8),
       ],
     );

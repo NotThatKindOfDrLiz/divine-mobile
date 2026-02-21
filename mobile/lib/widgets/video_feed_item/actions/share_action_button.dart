@@ -10,7 +10,8 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
-import 'package:openvine/widgets/share_video_menu.dart';
+import 'package:openvine/widgets/add_to_list_dialog.dart';
+import 'package:openvine/widgets/send_to_user_dialog.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:openvine/widgets/user_name.dart';
 import 'package:share_plus/share_plus.dart';
@@ -118,18 +119,18 @@ class _SimpleShareMenuState extends ConsumerState<_SimpleShareMenu> {
   }
 
   void _handleShareWithUser() {
-    // Open the full share menu which contains the Send to User dialog
     _safePop(context);
-    context.showVideoPausingVineBottomSheet<void>(
-      builder: (context) => ShareVideoMenu(video: widget.video),
+    showDialog<void>(
+      context: context,
+      builder: (context) => SendToUserDialog(video: widget.video),
     );
   }
 
   void _handleAddToList() {
-    // Open the full share menu which contains list management
     _safePop(context);
-    context.showVideoPausingVineBottomSheet<void>(
-      builder: (context) => ShareVideoMenu(video: widget.video),
+    showDialog<void>(
+      context: context,
+      builder: (context) => SelectListDialog(video: widget.video),
     );
   }
 

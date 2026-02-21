@@ -6,7 +6,7 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/circular_icon_button.dart';
-import 'package:openvine/widgets/share_video_menu.dart';
+import 'package:openvine/widgets/report_content_dialog.dart';
 
 /// Report action button with label for video overlay.
 ///
