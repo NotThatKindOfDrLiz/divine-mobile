@@ -101,13 +101,6 @@ void main() {
       await tester.tap(find.byType(ShareActionButton));
       await tester.pumpAndSettle();
 
-      // Drag indicator is a 40x4 rounded container
-      final indicators = find.byWidgetPredicate(
-        (widget) =>
-            widget is Container &&
-            widget.constraints?.maxWidth == 40 &&
-            widget.constraints?.maxHeight == 4,
-      );
       // Just verify the bottom sheet opened with content
       expect(find.text('Share with user'), findsOneWidget);
     });
