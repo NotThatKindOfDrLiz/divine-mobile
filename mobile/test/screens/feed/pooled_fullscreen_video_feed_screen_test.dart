@@ -12,6 +12,8 @@ import 'package:models/models.dart';
 import 'package:openvine/blocs/fullscreen_feed/fullscreen_feed_bloc.dart';
 import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
 import '../../helpers/test_provider_overrides.dart';
@@ -89,11 +91,15 @@ void main() {
       ];
     }
 
-    Widget buildSubject({FullscreenFeedState? state}) {
+    Widget buildSubject({
+      FullscreenFeedState? state,
+      List<dynamic>? additionalOverrides,
+    }) {
       final effectiveState = state ?? const FullscreenFeedState();
       when(() => mockBloc.state).thenReturn(effectiveState);
 
       return testMaterialApp(
+        additionalOverrides: additionalOverrides,
         home: BlocProvider<FullscreenFeedBloc>.value(
           value: mockBloc,
           child: const FullscreenFeedContent(),
@@ -217,10 +223,21 @@ void main() {
 
         await tester.pumpWidget(
           buildSubject(
+            // Disable feed break nudges so _onNearEnd triggers load more
+            // directly instead of deferring to the swipe-based nudge flow.
+            additionalOverrides: [
+              featureFlagStateProvider.overrideWith(
+                (ref) => {
+                  for (final flag in FeatureFlag.values)
+                    flag: flag == FeatureFlag.feedBreakNudges ? false : true,
+                },
+              ),
+            ],
             state: FullscreenFeedState(
               status: FullscreenFeedStatus.ready,
               videos: videos,
               currentIndex: 0,
+              canLoadMore: true,
             ),
           ),
         );
