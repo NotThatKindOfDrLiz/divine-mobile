@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/content_deletion_service.dart';
+import 'package:openvine/utils/quiet_hours.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/user_name.dart';
@@ -67,6 +70,8 @@ class ComposableVideoGrid extends ConsumerStatefulWidget {
 class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingTriggered = false;
+  bool _awaitingLoadMoreConfirmation = false;
+  int? _lastPromptedVideoCount;
 
   @override
   void initState() {
@@ -81,6 +86,32 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant ComposableVideoGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // New content arrived or pagination ended - clear pending prompt state.
+    if (widget.videos.length != oldWidget.videos.length ||
+        !widget.hasMoreContent) {
+      _awaitingLoadMoreConfirmation = false;
+      _lastPromptedVideoCount = null;
+    }
+  }
+
+  bool _getNudgesEnabled() =>
+      ref.read(isFeatureEnabledProvider(FeatureFlag.feedBreakNudges));
+
+  void _maybeShowLoadMoreNudge() {
+    if (_awaitingLoadMoreConfirmation) return;
+
+    final currentVideoCount = widget.videos.length;
+    if (_lastPromptedVideoCount == currentVideoCount) return;
+
+    setState(() {
+      _awaitingLoadMoreConfirmation = true;
+    });
+  }
+
   void _onScroll() {
     if (widget.onLoadMore == null) return;
     if (!widget.hasMoreContent) return;
@@ -93,12 +124,27 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
 
     // Trigger load more when within 200 pixels of the bottom
     if (currentScroll >= maxScroll - 200) {
+      if (_getNudgesEnabled()) {
+        if (!_awaitingLoadMoreConfirmation) {
+          _maybeShowLoadMoreNudge();
+          return;
+        }
+      }
       _triggerLoadMore();
     }
   }
 
   Future<void> _triggerLoadMore() async {
     if (_isLoadingTriggered) return;
+
+    final currentVideoCount = widget.videos.length;
+    if (_awaitingLoadMoreConfirmation) {
+      setState(() {
+        _awaitingLoadMoreConfirmation = false;
+        _lastPromptedVideoCount = currentVideoCount;
+      });
+    }
+
     _isLoadingTriggered = true;
 
     try {
@@ -142,6 +188,11 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
       return widget.emptyBuilder!();
     }
 
+    final nudgesEnabled = ref.watch(
+      isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+    );
+    final useSleepCopy = isQuietHoursNow();
+
     // Get subscribed list cache to check if videos are in lists
     final subscribedListCache = ref.watch(subscribedListVideoCacheProvider);
 
@@ -160,7 +211,16 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
     Widget buildItem(BuildContext context, int index) {
       // If this is the last item and we're loading more, show loading indicator
       if (index == videosToShow.length) {
-        return _LoadingMoreIndicator(isLoading: widget.isLoadingMore);
+        return _LoadingMoreIndicator(
+          isLoading: widget.isLoadingMore,
+          showBreakNudge:
+              nudgesEnabled &&
+              _awaitingLoadMoreConfirmation &&
+              widget.hasMoreContent &&
+              widget.onLoadMore != null,
+          useSleepCopy: useSleepCopy,
+          onShowMore: _triggerLoadMore,
+        );
       }
 
       final video = videosToShow[index];
@@ -620,12 +680,69 @@ class _VideoThumbnail extends StatelessWidget {
 
 /// Loading indicator shown at the bottom of the grid during pagination
 class _LoadingMoreIndicator extends StatelessWidget {
-  const _LoadingMoreIndicator({required this.isLoading});
+  const _LoadingMoreIndicator({
+    required this.isLoading,
+    required this.showBreakNudge,
+    required this.useSleepCopy,
+    required this.onShowMore,
+  });
 
   final bool isLoading;
+  final bool showBreakNudge;
+  final bool useSleepCopy;
+  final VoidCallback onShowMore;
 
   @override
   Widget build(BuildContext context) {
+    if (showBreakNudge) {
+      final title = useSleepCopy
+          ? "It's late. You caught up for now."
+          : "You're all caught up for now.";
+      final subtitle = useSleepCopy
+          ? 'Good stopping point. Scroll again or tap to keep going.'
+          : 'Take a quick break, then scroll again or tap to load more.';
+
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: VineTheme.cardBackground,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: VineTheme.vineGreen.withValues(alpha: 0.4)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: VineTheme.primaryText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(color: VineTheme.secondaryText, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton(
+                onPressed: onShowMore,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: VineTheme.vineGreen,
+                  side: const BorderSide(color: VineTheme.vineGreen),
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Show More'),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       height: 60,
       alignment: Alignment.center,

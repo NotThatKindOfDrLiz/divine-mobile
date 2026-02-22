@@ -95,13 +95,21 @@ class ViewEventPublisher {
       return false;
     }
 
-    try {
-      final dTag = (video.vineId != null && video.vineId!.isNotEmpty)
-          ? video.vineId!
-          : video.id;
+    // Skip self-views (relay would reject them anyway)
+    if (_authService.currentPublicKeyHex == video.pubkey) {
+      Log.debug(
+        'Skipping view event: self-view',
+        name: 'ViewEventPublisher',
+        category: LogCategory.video,
+      );
+      return false;
+    }
 
+    try {
       // Build the addressable coordinate (a tag)
       // Format: "34236:author_pubkey:d_tag"
+      // Use event ID as fallback if vineId (d-tag) is null
+      final dTag = video.vineId ?? video.id;
       final aTag = '34236:${video.pubkey}:$dTag';
 
       // Get relay hint
@@ -130,7 +138,7 @@ class ViewEventPublisher {
         category: LogCategory.video,
       );
       Log.verbose(
-        'View data: watched ${endSeconds - startSeconds}s, source=${_sourceToString(source)}, d=$dTag',
+        'View data: watched ${endSeconds - startSeconds}s, source=${_sourceToString(source)}',
         name: 'ViewEventPublisher',
         category: LogCategory.video,
       );
@@ -211,10 +219,18 @@ class ViewEventPublisher {
       return false;
     }
 
+    // Skip self-views (relay would reject them anyway)
+    if (_authService.currentPublicKeyHex == video.pubkey) {
+      Log.debug(
+        'Skipping view event: self-view (segments)',
+        name: 'ViewEventPublisher',
+        category: LogCategory.video,
+      );
+      return false;
+    }
+
     try {
-      final dTag = (video.vineId != null && video.vineId!.isNotEmpty)
-          ? video.vineId!
-          : video.id;
+      final dTag = video.vineId ?? video.id;
       final aTag = '34236:${video.pubkey}:$dTag';
 
       String relayHint = _defaultRelayHint;
