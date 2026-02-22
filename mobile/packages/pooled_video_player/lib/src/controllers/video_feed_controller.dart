@@ -234,7 +234,7 @@ class VideoFeedController extends ChangeNotifier {
 
   /// Play the current video.
   void play() {
-    if (!_isActive || !isVideoReady(_currentIndex)) return;
+    if (_isDisposed || !_isActive || !isVideoReady(_currentIndex)) return;
     _isPaused = false;
     _playVideo(_currentIndex);
     notifyListeners();
@@ -242,6 +242,7 @@ class VideoFeedController extends ChangeNotifier {
 
   /// Pause the current video.
   void pause() {
+    if (_isDisposed) return;
     _isPaused = true;
     _pauseVideo(_currentIndex);
     notifyListeners();
@@ -249,6 +250,7 @@ class VideoFeedController extends ChangeNotifier {
 
   /// Toggle play/pause.
   void togglePlayPause() {
+    if (_isDisposed) return;
     if (_isPaused) {
       play();
     } else {
@@ -258,25 +260,28 @@ class VideoFeedController extends ChangeNotifier {
 
   /// Seek to position in current video.
   Future<void> seek(Duration position) async {
-    final player = _loadedPlayers[_currentIndex]?.player;
-    if (player != null) {
-      await player.seek(position);
+    if (_isDisposed) return;
+    final pooledPlayer = _loadedPlayers[_currentIndex];
+    if (pooledPlayer != null && !pooledPlayer.isDisposed) {
+      await pooledPlayer.player.seek(position);
     }
   }
 
   /// Set volume (0.0 to 1.0) for current video.
   void setVolume(double volume) {
-    final player = _loadedPlayers[_currentIndex]?.player;
-    if (player != null) {
-      unawaited(player.setVolume((volume * 100).clamp(0, 100)));
+    if (_isDisposed) return;
+    final pooledPlayer = _loadedPlayers[_currentIndex];
+    if (pooledPlayer != null && !pooledPlayer.isDisposed) {
+      unawaited(pooledPlayer.player.setVolume((volume * 100).clamp(0, 100)));
     }
   }
 
   /// Set playback speed for current video.
   void setPlaybackSpeed(double speed) {
-    final player = _loadedPlayers[_currentIndex]?.player;
-    if (player != null) {
-      unawaited(player.setRate(speed));
+    if (_isDisposed) return;
+    final pooledPlayer = _loadedPlayers[_currentIndex];
+    if (pooledPlayer != null && !pooledPlayer.isDisposed) {
+      unawaited(pooledPlayer.player.setRate(speed));
     }
   }
 
@@ -379,8 +384,9 @@ class VideoFeedController extends ChangeNotifier {
     if (_isDisposed) return;
     if (_loadStates[index] == LoadState.ready) return;
 
-    final player = _loadedPlayers[index]?.player;
-    if (player == null) return;
+    final pooledPlayer = _loadedPlayers[index];
+    if (pooledPlayer == null || pooledPlayer.isDisposed) return;
+    final player = pooledPlayer.player;
 
     _loadStates[index] = LoadState.ready;
 
@@ -407,8 +413,11 @@ class VideoFeedController extends ChangeNotifier {
   }
 
   void _playVideo(int index) {
-    final player = _loadedPlayers[index]?.player;
-    if (player != null && !player.state.playing) {
+    if (_isDisposed) return;
+    final pooledPlayer = _loadedPlayers[index];
+    if (pooledPlayer == null || pooledPlayer.isDisposed) return;
+    final player = pooledPlayer.player;
+    if (!player.state.playing) {
       unawaited(player.setVolume(100));
       unawaited(player.play());
       _startPositionTimer(index);
@@ -416,9 +425,13 @@ class VideoFeedController extends ChangeNotifier {
   }
 
   void _pauseVideo(int index) {
-    final player = _loadedPlayers[index]?.player;
-    if (player != null && player.state.playing) {
-      unawaited(player.pause());
+    if (_isDisposed) return;
+    final pooledPlayer = _loadedPlayers[index];
+    if (pooledPlayer != null && !pooledPlayer.isDisposed) {
+      final player = pooledPlayer.player;
+      if (player.state.playing) {
+        unawaited(player.pause());
+      }
     }
     _stopPositionTimer(index);
   }
@@ -430,8 +443,11 @@ class VideoFeedController extends ChangeNotifier {
     _positionTimers[index] = Timer.periodic(
       positionCallbackInterval,
       (_) {
-        final player = _loadedPlayers[index]?.player;
-        if (player != null && player.state.playing) {
+        if (_isDisposed) return;
+        final pooledPlayer = _loadedPlayers[index];
+        if (pooledPlayer == null || pooledPlayer.isDisposed) return;
+        final player = pooledPlayer.player;
+        if (player.state.playing) {
           positionCallback?.call(index, player.state.position);
         }
       },
@@ -446,10 +462,10 @@ class VideoFeedController extends ChangeNotifier {
   void _releasePlayer(int index) {
     // Stop audio before removing from tracking to prevent audio leaks.
     // The player stays in the pool for reuse, but must be silent.
-    final player = _loadedPlayers[index]?.player;
-    if (player != null) {
-      unawaited(player.setVolume(0));
-      unawaited(player.pause());
+    final pooledPlayer = _loadedPlayers[index];
+    if (pooledPlayer != null && !pooledPlayer.isDisposed) {
+      unawaited(pooledPlayer.player.setVolume(0));
+      unawaited(pooledPlayer.player.pause());
     }
 
     _stopPositionTimer(index);
@@ -480,8 +496,10 @@ class VideoFeedController extends ChangeNotifier {
     // Stop audio on ALL loaded players immediately to prevent audio leaks
     // during the async disposal that follows.
     for (final pooledPlayer in _loadedPlayers.values) {
-      unawaited(pooledPlayer.player.setVolume(0));
-      unawaited(pooledPlayer.player.pause());
+      if (!pooledPlayer.isDisposed) {
+        unawaited(pooledPlayer.player.setVolume(0));
+        unawaited(pooledPlayer.player.pause());
+      }
     }
 
     // Collect player URLs to release BEFORE clearing state, but release
