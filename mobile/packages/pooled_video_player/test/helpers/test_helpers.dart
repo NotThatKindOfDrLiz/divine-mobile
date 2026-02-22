@@ -303,11 +303,7 @@ class TestablePlayerPool extends PlayerPool {
       _testLruOrder
         ..remove(url)
         ..add(url);
-      // Mirror real PlayerPool: mute cached players to prevent audio leaks.
-      // The caller (_loadPlayer) will set volume/play state as needed.
-      final existing = _testPlayers[url]!;
-      unawaited(existing.player.setVolume(0));
-      return existing;
+      return _testPlayers[url]!;
     }
 
     // Evict if at capacity

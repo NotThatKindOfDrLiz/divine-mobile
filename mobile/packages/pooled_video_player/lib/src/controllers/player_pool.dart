@@ -184,13 +184,7 @@ class PlayerPool {
     // Check if player already exists
     if (_players.containsKey(url)) {
       _touch(url);
-      final existing = _players[url]!;
-      // Reset audio state to prevent leaking audio from a previous session.
-      // The caller (_loadPlayer) will set volume/play state as needed.
-      // Use unawaited to avoid introducing a yield point that could allow
-      // concurrent getPlayer calls to interleave and cause race conditions.
-      unawaited(existing.player.setVolume(0));
-      return existing;
+      return _players[url]!;
     }
 
     // Evict if at capacity
