@@ -545,6 +545,79 @@ void main() {
         },
       );
 
+      testWidgets(
+        'shows Verifying Email banner with Cancel when cubit is polling',
+        (tester) async {
+          final testProfile = createTestProfile(displayName: 'Test User');
+          final authService = MockAuthService(isAnonymousValue: true);
+          final cubit = EmailVerificationCubit(
+            oauthClient: MockKeycastOAuth(),
+            authService: authService,
+          );
+
+          // Start polling so cubit enters polling state
+          cubit.startPolling(
+            deviceCode: 'test-device-code',
+            verifier: 'test-verifier',
+            email: 'test@example.com',
+          );
+
+          final mockUserProfileService = createMockUserProfileService();
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                ...getStandardTestOverrides(
+                  mockNostrService: mockNostrClient,
+                  mockUserProfileService: mockUserProfileService,
+                ),
+                fetchUserProfileProvider(
+                  testUserHex,
+                ).overrideWith((ref) async => testProfile),
+                followRepositoryProvider.overrideWithValue(
+                  mockFollowRepository,
+                ),
+                authServiceProvider.overrideWithValue(authService),
+                currentAuthStateProvider.overrideWith(
+                  (ref) => AuthState.authenticated,
+                ),
+              ],
+              child: BlocProvider<EmailVerificationCubit>.value(
+                value: cubit,
+                child: MaterialApp(
+                  home: Scaffold(
+                    body: SingleChildScrollView(
+                      child: ProfileHeaderWidget(
+                        userIdHex: testUserHex,
+                        isOwnProfile: true,
+                        videoCount: 10,
+                        profileStatsAsync: AsyncValue.data(createTestStats()),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          // Use pump() instead of pumpAndSettle() because the cubit's
+          // polling timer prevents settling
+          await tester.pump();
+          await tester.pump();
+
+          expect(find.text('Verifying Email...'), findsOneWidget);
+          expect(find.text('Cancel'), findsOneWidget);
+
+          // Tap Cancel to stop polling (this cancels the timer)
+          await tester.tap(find.text('Cancel'));
+          await tester.pumpAndSettle();
+
+          // After cancelling, banner should show "Secure Your Account"
+          expect(find.text('Secure Your Account'), findsOneWidget);
+          expect(find.text('Verifying Email...'), findsNothing);
+
+          await cubit.close();
+        },
+      );
+
       testWidgets('secure account banner Register button is tappable', (
         tester,
       ) async {

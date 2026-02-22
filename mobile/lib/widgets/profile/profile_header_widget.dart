@@ -359,8 +359,13 @@ class _IdentityNotRecoverableBanner extends StatelessWidget {
   Widget _buildAction(BuildContext context, EmailVerificationState state) {
     switch (state.status) {
       case EmailVerificationStatus.polling:
-        // No action button while polling - user should check email
-        return const SizedBox.shrink();
+        return TextButton(
+          onPressed: () => context.read<EmailVerificationCubit>().stopPolling(),
+          child: Text(
+            'Cancel',
+            style: VineTheme.labelMediumFont(color: VineTheme.onSurfaceMuted),
+          ),
+        );
       case EmailVerificationStatus.failure:
         return ElevatedButton(
           onPressed: () => context.push(SecureAccountScreen.path),

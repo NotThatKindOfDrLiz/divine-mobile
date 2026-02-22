@@ -56,6 +56,7 @@ class EmailVerificationScreen extends ConsumerStatefulWidget {
 class _EmailVerificationScreenState
     extends ConsumerState<EmailVerificationScreen> {
   bool _isTokenMode = false;
+  String? _tokenModeError;
 
   /// Get the app-level cubit provided in main.dart
   EmailVerificationCubit get _cubit => context.read<EmailVerificationCubit>();
@@ -167,7 +168,8 @@ class _EmailVerificationScreenState
         );
         if (mounted) {
           setState(() {
-            // Show error in UI
+            _tokenModeError =
+                result.error ?? 'Verification failed. Please try again.';
           });
         }
       }
@@ -177,6 +179,12 @@ class _EmailVerificationScreenState
         name: 'EmailVerificationScreen',
         category: LogCategory.auth,
       );
+      if (mounted) {
+        setState(() {
+          _tokenModeError =
+              'An error occurred during verification. Please try again.';
+        });
+      }
     }
   }
 
@@ -275,7 +283,9 @@ class _EmailVerificationScreenState
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: _buildContent(state),
+                  child: _tokenModeError != null
+                      ? _buildErrorContent(_tokenModeError!)
+                      : _buildContent(state),
                 ),
               );
             },
@@ -363,10 +373,10 @@ class _EmailVerificationScreenState
             ),
           ],
         ),
-        if (isPollingMode) ...[
+        ...[
           const SizedBox(height: 32),
           TextButton(
-            onPressed: _handleCancel,
+            onPressed: isPollingMode ? _handleCancel : _handleGoBack,
             child: const Text(
               'Cancel',
               style: TextStyle(color: Colors.white70, fontSize: 16),
