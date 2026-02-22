@@ -9,6 +9,8 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart';
 import 'package:openvine/blocs/fullscreen_feed/fullscreen_feed_bloc.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/mixins/async_value_ui_helpers_mixin.dart';
 import 'package:openvine/mixins/page_controller_sync_mixin.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -23,6 +25,7 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
+import 'package:openvine/widgets/end_of_feed_nudge_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
@@ -52,6 +55,8 @@ class _HomeScreenRouterState extends ConsumerState<HomeScreenRouter>
   int? _lastUrlIndex;
   int? _lastPrefetchIndex;
   int _currentPageIndex = 0;
+  bool _awaitingLoadMoreConfirmation = false;
+  int _lastPromptedVideoCount = 0;
 
   // -- Pooled video controller state --
   VideoFeedController? _feedController;
@@ -410,50 +415,83 @@ class _HomeScreenRouterState extends ConsumerState<HomeScreenRouter>
                 ref.read(homeFeedProvider).asData?.value.videos ?? [],
               );
             },
-            child: PageView.builder(
-              key: const Key('home-video-page-view'),
-              itemCount: itemCount,
-              controller: _controller,
-              scrollDirection: Axis.vertical,
-              onPageChanged: (newIndex) {
-                setState(() {
-                  _currentPageIndex = newIndex;
-                });
+            child: Stack(
+              children: [
+                PageView.builder(
+                  key: const Key('home-video-page-view'),
+                  itemCount: itemCount,
+                  controller: _controller,
+                  scrollDirection: Axis.vertical,
+                  onPageChanged: (newIndex) {
+                    setState(() {
+                      _currentPageIndex = newIndex;
+                    });
 
-                // Notify the pooled controller so it pauses old / plays
-                // new video and updates the preload window.
-                _feedController?.onPageChanged(newIndex);
+                    // Notify the pooled controller so it pauses old / plays
+                    // new video and updates the preload window.
+                    _feedController?.onPageChanged(newIndex);
 
-                // Update URL for back navigation and deep linking
-                if (newIndex != urlIndex) {
-                  context.go(HomeScreenRouter.pathForIndex(newIndex));
-                }
+                    // Update URL for back navigation and deep linking
+                    if (newIndex != urlIndex) {
+                      context.go(HomeScreenRouter.pathForIndex(newIndex));
+                    }
 
-                // Trigger pagination near end
-                if (newIndex >= itemCount - 2) {
-                  ref.read(homePaginationControllerProvider).maybeLoadMore();
-                }
+                    // Trigger pagination near end
+                    if (newIndex >= itemCount - 2) {
+                      final nudgesEnabled = ref.read(
+                        isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+                      );
+                      if (nudgesEnabled &&
+                          itemCount != _lastPromptedVideoCount) {
+                        setState(() {
+                          _awaitingLoadMoreConfirmation = true;
+                        });
+                      } else {
+                        ref
+                            .read(homePaginationControllerProvider)
+                            .maybeLoadMore();
+                      }
+                    }
 
-                Log.debug(
-                  'Page changed to index $newIndex '
-                  '(${videos[newIndex].id})',
-                  name: 'HomeScreenRouter',
-                  category: LogCategory.video,
-                );
-              },
-              itemBuilder: (context, index) {
-                final isActive = index == _currentPageIndex;
-                final video = videos[index];
+                    Log.debug(
+                      'Page changed to index $newIndex '
+                      '(${videos[newIndex].id})',
+                      name: 'HomeScreenRouter',
+                      category: LogCategory.video,
+                    );
+                  },
+                  itemBuilder: (context, index) {
+                    final isActive = index == _currentPageIndex;
+                    final video = videos[index];
 
-                return ClipRRect(
-                  child: _HomePooledVideoItem(
-                    key: ValueKey('home-video-${video.id}'),
-                    video: video,
-                    index: index,
-                    isActive: isActive,
+                    return ClipRRect(
+                      child: _HomePooledVideoItem(
+                        key: ValueKey('home-video-${video.id}'),
+                        video: video,
+                        index: index,
+                        isActive: isActive,
+                      ),
+                    );
+                  },
+                ),
+                if (_awaitingLoadMoreConfirmation)
+                  EndOfFeedNudgeOverlay(
+                    onShowMore: () {
+                      setState(() {
+                        _awaitingLoadMoreConfirmation = false;
+                        _lastPromptedVideoCount = itemCount;
+                      });
+                      ref
+                          .read(homePaginationControllerProvider)
+                          .maybeLoadMore();
+                    },
+                    onDismiss: () {
+                      setState(() {
+                        _awaitingLoadMoreConfirmation = false;
+                      });
+                    },
                   ),
-                );
-              },
+              ],
             ),
           ),
         );

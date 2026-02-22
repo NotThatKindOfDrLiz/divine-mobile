@@ -3,12 +3,15 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/mixins/page_controller_sync_mixin.dart';
 import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/end_of_feed_nudge_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 
 /// Fullscreen video feed view for profile screens.
@@ -53,6 +56,8 @@ class _ProfileVideoFeedViewState extends ConsumerState<ProfileVideoFeedView>
     with VideoPrefetchMixin, PageControllerSyncMixin {
   PageController? _pageController;
   int? _lastVideoUrlIndex;
+  bool _awaitingLoadMoreConfirmation = false;
+  int _lastPromptedVideoCount = 0;
 
   @override
   void initState() {
@@ -139,7 +144,16 @@ class _ProfileVideoFeedViewState extends ConsumerState<ProfileVideoFeedView>
 
     // Trigger pagination near end
     if (newIndex >= widget.videos.length - 2) {
-      ref.read(profileFeedProvider(widget.userIdHex).notifier).loadMore();
+      final nudgesEnabled = ref.read(
+        isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+      );
+      if (nudgesEnabled && widget.videos.length != _lastPromptedVideoCount) {
+        setState(() {
+          _awaitingLoadMoreConfirmation = true;
+        });
+      } else {
+        ref.read(profileFeedProvider(widget.userIdHex).notifier).loadMore();
+      }
     }
 
     // Prefetch videos around current index
@@ -168,35 +182,57 @@ class _ProfileVideoFeedViewState extends ConsumerState<ProfileVideoFeedView>
 
   @override
   Widget build(BuildContext context) {
-    return PageView.builder(
-      key: const Key('profile-video-page-view'),
-      controller: _pageController,
-      scrollDirection: Axis.vertical,
-      itemCount: widget.videos.length,
-      onPageChanged: _handlePageChanged,
-      itemBuilder: (context, index) {
-        if (index >= widget.videos.length) return const SizedBox.shrink();
+    return Stack(
+      children: [
+        PageView.builder(
+          key: const Key('profile-video-page-view'),
+          controller: _pageController,
+          scrollDirection: Axis.vertical,
+          itemCount: widget.videos.length,
+          onPageChanged: _handlePageChanged,
+          itemBuilder: (context, index) {
+            if (index >= widget.videos.length) return const SizedBox.shrink();
 
-        // Use PageController as source of truth for active video
-        final currentPage = _pageController?.page?.round() ?? widget.videoIndex;
-        final isActive = index == currentPage;
+            // Use PageController as source of truth for active video
+            final currentPage =
+                _pageController?.page?.round() ?? widget.videoIndex;
+            final isActive = index == currentPage;
 
-        final video = widget.videos[index];
-        return VideoFeedItem(
-          key: ValueKey('video-${video.stableId}'),
-          video: video,
-          index: index,
-          hasBottomNavigation: false,
-          forceShowOverlay: widget.isOwnProfile,
-          isActiveOverride: isActive,
-          contextTitle: ref
-              .read(fetchUserProfileProvider(widget.userIdHex))
-              .value
-              ?.betterDisplayName('Profile'),
-          hideFollowButtonIfFollowing:
-              true, // Hide if already following this profile's user
-        );
-      },
+            final video = widget.videos[index];
+            return VideoFeedItem(
+              key: ValueKey('video-${video.stableId}'),
+              video: video,
+              index: index,
+              hasBottomNavigation: false,
+              forceShowOverlay: widget.isOwnProfile,
+              isActiveOverride: isActive,
+              contextTitle: ref
+                  .read(fetchUserProfileProvider(widget.userIdHex))
+                  .value
+                  ?.betterDisplayName('Profile'),
+              hideFollowButtonIfFollowing:
+                  true, // Hide if already following this profile's user
+            );
+          },
+        ),
+        if (_awaitingLoadMoreConfirmation)
+          EndOfFeedNudgeOverlay(
+            onShowMore: () {
+              setState(() {
+                _awaitingLoadMoreConfirmation = false;
+                _lastPromptedVideoCount = widget.videos.length;
+              });
+              ref
+                  .read(profileFeedProvider(widget.userIdHex).notifier)
+                  .loadMore();
+            },
+            onDismiss: () {
+              setState(() {
+                _awaitingLoadMoreConfirmation = false;
+              });
+            },
+          ),
+      ],
     );
   }
 }

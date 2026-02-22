@@ -16,6 +16,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/router/app_router.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
+import 'package:openvine/widgets/end_of_feed_nudge_overlay.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
@@ -104,7 +105,7 @@ typedef VideoFeedControllerFactory =
 /// Manages the [VideoFeedController] lifecycle and wires hooks to dispatch
 /// BLoC events for caching and loop enforcement.
 @visibleForTesting
-class FullscreenFeedContent extends StatefulWidget {
+class FullscreenFeedContent extends ConsumerStatefulWidget {
   /// Creates fullscreen feed content.
   @visibleForTesting
   const FullscreenFeedContent({
@@ -125,13 +126,16 @@ class FullscreenFeedContent extends StatefulWidget {
   final VideoFeedControllerFactory? controllerFactory;
 
   @override
-  State<FullscreenFeedContent> createState() => _FullscreenFeedContentState();
+  ConsumerState<FullscreenFeedContent> createState() =>
+      _FullscreenFeedContentState();
 }
 
-class _FullscreenFeedContentState extends State<FullscreenFeedContent>
+class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
     with RouteAware {
   VideoFeedController? _controller;
   List<VideoItem>? _lastPooledVideos;
+  bool _awaitingLoadMoreConfirmation = false;
+  int _lastPromptedVideoCount = 0;
 
   @override
   void didChangeDependencies() {
@@ -298,45 +302,76 @@ class _FullscreenFeedContentState extends State<FullscreenFeedContent>
             backgroundColor: Colors.black,
             extendBodyBehindAppBar: true,
             appBar: _FullscreenAppBar(currentVideo: state.currentVideo),
-            body: PooledVideoFeed(
-              videos: state.pooledVideos,
-              controller: _controller,
-              initialIndex: state.currentIndex,
-              onActiveVideoChanged: (video, index) {
-                // Resolve the actual index in state.videos by ID,
-                // since pooledVideos filters out null-URL videos and
-                // indices may not match.
-                final actualIndex = state.videos.indexWhere(
-                  (v) => v.id == video.id,
-                );
-                context.read<FullscreenFeedBloc>().add(
-                  FullscreenFeedIndexChanged(
-                    actualIndex >= 0 ? actualIndex : index,
+            body: Stack(
+              children: [
+                PooledVideoFeed(
+                  videos: state.pooledVideos,
+                  controller: _controller,
+                  initialIndex: state.currentIndex,
+                  onActiveVideoChanged: (video, index) {
+                    // Resolve the actual index in state.videos by ID,
+                    // since pooledVideos filters out null-URL videos and
+                    // indices may not match.
+                    final actualIndex = state.videos.indexWhere(
+                      (v) => v.id == video.id,
+                    );
+                    context.read<FullscreenFeedBloc>().add(
+                      FullscreenFeedIndexChanged(
+                        actualIndex >= 0 ? actualIndex : index,
+                      ),
+                    );
+                  },
+                  onNearEnd: (_) {
+                    final nudgesEnabled = ref.read(
+                      isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+                    );
+                    if (nudgesEnabled &&
+                        state.videos.length != _lastPromptedVideoCount) {
+                      setState(() {
+                        _awaitingLoadMoreConfirmation = true;
+                      });
+                    } else {
+                      context.read<FullscreenFeedBloc>().add(
+                        const FullscreenFeedLoadMoreRequested(),
+                      );
+                    }
+                  },
+                  nearEndThreshold: 2,
+                  itemBuilder: (context, video, index, {required isActive}) {
+                    // Look up by video ID instead of index, because
+                    // pooledVideos filters out null-URL entries and indices
+                    // may diverge from state.videos.
+                    final originalEvent = state.videos.firstWhere(
+                      (v) => v.id == video.id,
+                      orElse: () =>
+                          state.videos[index.clamp(0, state.videos.length - 1)],
+                    );
+                    return _PooledFullscreenItem(
+                      video: originalEvent,
+                      index: index,
+                      isActive: isActive,
+                      contextTitle: widget.contextTitle,
+                    );
+                  },
+                ),
+                if (_awaitingLoadMoreConfirmation)
+                  EndOfFeedNudgeOverlay(
+                    onShowMore: () {
+                      setState(() {
+                        _awaitingLoadMoreConfirmation = false;
+                        _lastPromptedVideoCount = state.videos.length;
+                      });
+                      context.read<FullscreenFeedBloc>().add(
+                        const FullscreenFeedLoadMoreRequested(),
+                      );
+                    },
+                    onDismiss: () {
+                      setState(() {
+                        _awaitingLoadMoreConfirmation = false;
+                      });
+                    },
                   ),
-                );
-              },
-              onNearEnd: (_) {
-                context.read<FullscreenFeedBloc>().add(
-                  const FullscreenFeedLoadMoreRequested(),
-                );
-              },
-              nearEndThreshold: 2,
-              itemBuilder: (context, video, index, {required isActive}) {
-                // Look up by video ID instead of index, because
-                // pooledVideos filters out null-URL entries and indices
-                // may diverge from state.videos.
-                final originalEvent = state.videos.firstWhere(
-                  (v) => v.id == video.id,
-                  orElse: () =>
-                      state.videos[index.clamp(0, state.videos.length - 1)],
-                );
-                return _PooledFullscreenItem(
-                  video: originalEvent,
-                  index: index,
-                  isActive: isActive,
-                  contextTitle: widget.contextTitle,
-                );
-              },
+              ],
             ),
           );
         },

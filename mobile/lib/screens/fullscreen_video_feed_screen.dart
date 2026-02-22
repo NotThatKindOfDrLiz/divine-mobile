@@ -14,6 +14,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/individual_video_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
 import 'package:openvine/providers/profile_reposts_provider.dart';
+import 'package:openvine/widgets/end_of_feed_nudge_overlay.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:video_player/video_player.dart';
@@ -104,6 +105,8 @@ class _FullscreenVideoFeedScreenState
   late PageController _pageController;
   late int _currentIndex;
   bool _initializedPageController = false;
+  bool _awaitingLoadMoreConfirmation = false;
+  int _lastPromptedVideoCount = 0;
 
   @override
   void initState() {
@@ -215,7 +218,16 @@ class _FullscreenVideoFeedScreenState
 
     // Trigger pagination near end
     if (newIndex >= videos.length - 2) {
-      _loadMore();
+      final nudgesEnabled = ref.read(
+        isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+      );
+      if (nudgesEnabled && videos.length != _lastPromptedVideoCount) {
+        setState(() {
+          _awaitingLoadMoreConfirmation = true;
+        });
+      } else {
+        _loadMore();
+      }
     }
 
     // Prefetch videos around current index
@@ -393,29 +405,48 @@ class _FullscreenVideoFeedScreenState
         ),
         actions: editButton != null ? [editButton] : null,
       ),
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: videos.length,
-        onPageChanged: (index) => _onPageChanged(index, videos),
-        itemBuilder: (context, index) {
-          if (index >= videos.length) return const SizedBox.shrink();
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            itemCount: videos.length,
+            onPageChanged: (index) => _onPageChanged(index, videos),
+            itemBuilder: (context, index) {
+              if (index >= videos.length) return const SizedBox.shrink();
 
-          final video = videos[index];
-          return VideoFeedItem(
-            key: ValueKey('video-${video.stableId}'),
-            video: video,
-            index: index,
-            hasBottomNavigation: false,
-            contextTitle: widget.contextTitle,
-            // Use isActiveOverride since this screen manages its own active state
-            // (not using URL-based routing for video index)
-            isActiveOverride: index == _currentIndex,
-            disableTapNavigation: true,
-            // Fullscreen mode - add extra padding to avoid back button
-            isFullscreen: true,
-          );
-        },
+              final video = videos[index];
+              return VideoFeedItem(
+                key: ValueKey('video-${video.stableId}'),
+                video: video,
+                index: index,
+                hasBottomNavigation: false,
+                contextTitle: widget.contextTitle,
+                // Use isActiveOverride since this screen manages its own
+                // active state (not using URL-based routing for video index)
+                isActiveOverride: index == _currentIndex,
+                disableTapNavigation: true,
+                // Fullscreen mode - add extra padding to avoid back button
+                isFullscreen: true,
+              );
+            },
+          ),
+          if (_awaitingLoadMoreConfirmation)
+            EndOfFeedNudgeOverlay(
+              onShowMore: () {
+                setState(() {
+                  _awaitingLoadMoreConfirmation = false;
+                  _lastPromptedVideoCount = videos.length;
+                });
+                _loadMore();
+              },
+              onDismiss: () {
+                setState(() {
+                  _awaitingLoadMoreConfirmation = false;
+                });
+              },
+            ),
+        ],
       ),
     );
   }

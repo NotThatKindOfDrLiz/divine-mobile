@@ -6,10 +6,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/content_deletion_service.dart';
 import 'package:divine_ui/divine_ui.dart';
+import 'package:openvine/widgets/end_of_feed_nudge_overlay.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/user_name.dart';
 import 'package:openvine/widgets/video_thumbnail_widget.dart';
@@ -67,6 +70,8 @@ class ComposableVideoGrid extends ConsumerStatefulWidget {
 class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingTriggered = false;
+  bool _awaitingLoadMoreConfirmation = false;
+  int _lastPromptedVideoCount = 0;
 
   @override
   void initState() {
@@ -86,6 +91,7 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
     if (!widget.hasMoreContent) return;
     if (widget.isLoadingMore) return;
     if (_isLoadingTriggered) return;
+    if (_awaitingLoadMoreConfirmation) return;
 
     final position = _scrollController.position;
     final maxScroll = position.maxScrollExtent;
@@ -93,7 +99,16 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
 
     // Trigger load more when within 200 pixels of the bottom
     if (currentScroll >= maxScroll - 200) {
-      _triggerLoadMore();
+      final nudgesEnabled = ref.read(
+        isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+      );
+      if (nudgesEnabled && widget.videos.length != _lastPromptedVideoCount) {
+        setState(() {
+          _awaitingLoadMoreConfirmation = true;
+        });
+      } else {
+        _triggerLoadMore();
+      }
     }
   }
 
@@ -151,15 +166,32 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
         ? 3
         : widget.crossAxisCount;
 
-    // Calculate total item count (videos + optional loading indicator)
+    // Calculate total item count (videos + optional loading/nudge indicator)
     final showLoadingIndicator =
+        _awaitingLoadMoreConfirmation ||
         widget.isLoadingMore ||
         (widget.hasMoreContent && widget.onLoadMore != null);
     final totalItemCount = videosToShow.length + (showLoadingIndicator ? 1 : 0);
 
     Widget buildItem(BuildContext context, int index) {
-      // If this is the last item and we're loading more, show loading indicator
+      // If this is the last item, show nudge card or loading indicator
       if (index == videosToShow.length) {
+        if (_awaitingLoadMoreConfirmation) {
+          return EndOfFeedNudgeCard(
+            onShowMore: () {
+              setState(() {
+                _awaitingLoadMoreConfirmation = false;
+                _lastPromptedVideoCount = widget.videos.length;
+              });
+              _triggerLoadMore();
+            },
+            onDismiss: () {
+              setState(() {
+                _awaitingLoadMoreConfirmation = false;
+              });
+            },
+          );
+        }
         return _LoadingMoreIndicator(isLoading: widget.isLoadingMore);
       }
 

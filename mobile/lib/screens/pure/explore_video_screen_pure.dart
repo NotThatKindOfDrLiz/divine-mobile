@@ -4,12 +4,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/mixins/pagination_mixin.dart';
 import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/widgets/end_of_feed_nudge_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 
 /// Pure explore video screen using VideoFeedItem directly in PageView
@@ -47,6 +50,8 @@ class _ExploreVideoScreenPureState extends ConsumerState<ExploreVideoScreenPure>
   late int _initialIndex;
   late int _currentPage; // Track current page for local active state management
   late PageController _pageController;
+  bool _awaitingLoadMoreConfirmation = false;
+  int _lastPromptedVideoCount = 0;
 
   @override
   void initState() {
@@ -103,80 +108,110 @@ class _ExploreVideoScreenPureState extends ConsumerState<ExploreVideoScreenPure>
     // Use tab-specific video list from parent (preserves grid sort order)
     return Container(
       color: Colors.black,
-      child: PageView.builder(
-        itemCount: videos.length,
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        onPageChanged: (index) {
-          Log.debug(
-            '📄 Page changed to index $index (${videos[index].id}...)',
-            name: 'ExploreVideoScreen',
-            category: LogCategory.video,
-          );
+      child: Stack(
+        children: [
+          PageView.builder(
+            itemCount: videos.length,
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            onPageChanged: (index) {
+              Log.debug(
+                '📄 Page changed to index $index (${videos[index].id}...)',
+                name: 'ExploreVideoScreen',
+                category: LogCategory.video,
+              );
 
-          // Update current page for local state management
-          if (widget.useLocalActiveState) {
-            setState(() {
-              _currentPage = index;
-            });
-          }
+              // Update current page for local state management
+              if (widget.useLocalActiveState) {
+                setState(() {
+                  _currentPage = index;
+                });
+              }
 
-          // Update URL to trigger reactive video playback via router
-          // Use custom navigation callback if provided, otherwise default to explore
-          // Skip URL navigation when using local active state
-          if (widget.onNavigate != null) {
-            widget.onNavigate!(index);
-          } else if (!widget.useLocalActiveState) {
-            context.go(ExploreScreen.pathForIndex(index));
-          }
+              // Update URL to trigger reactive video playback via router
+              // Use custom navigation callback if provided, otherwise default to explore
+              // Skip URL navigation when using local active state
+              if (widget.onNavigate != null) {
+                widget.onNavigate!(index);
+              } else if (!widget.useLocalActiveState) {
+                context.go(ExploreScreen.pathForIndex(index));
+              }
 
-          // Trigger pagination when near the end if callback provided
-          if (widget.onLoadMore != null) {
-            checkForPagination(
-              currentIndex: index,
-              totalItems: videos.length,
-              onLoadMore: widget.onLoadMore!,
-            );
-          }
+              // Trigger pagination when near the end if callback provided
+              if (widget.onLoadMore != null) {
+                final nudgesEnabled = ref.read(
+                  isFeatureEnabledProvider(FeatureFlag.feedBreakNudges),
+                );
+                if (nudgesEnabled &&
+                    index >= videos.length - 2 &&
+                    videos.length != _lastPromptedVideoCount) {
+                  setState(() {
+                    _awaitingLoadMoreConfirmation = true;
+                  });
+                } else if (!nudgesEnabled) {
+                  checkForPagination(
+                    currentIndex: index,
+                    totalItems: videos.length,
+                    onLoadMore: widget.onLoadMore!,
+                  );
+                }
+              }
 
-          // Prefetch videos around current index
-          checkForPrefetch(currentIndex: index, videos: videos);
+              // Prefetch videos around current index
+              checkForPrefetch(currentIndex: index, videos: videos);
 
-          // Pre-initialize controller for next video only (minimize
-          // concurrent decoders to avoid OOM on Android)
-          preInitializeControllers(
-            ref: ref,
-            currentIndex: index,
-            videos: videos,
-            preInitBefore: 0,
-            preInitAfter: 1,
-          );
+              // Pre-initialize controller for next video only (minimize
+              // concurrent decoders to avoid OOM on Android)
+              preInitializeControllers(
+                ref: ref,
+                currentIndex: index,
+                videos: videos,
+                preInitBefore: 0,
+                preInitAfter: 1,
+              );
 
-          // Dispose controllers outside a tight range to free memory.
-          // Android devices have limited heap and each ExoPlayer
-          // instance consumes significant native memory.
-          disposeControllersOutsideRange(
-            ref: ref,
-            currentIndex: index,
-            videos: videos,
-            keepBefore: 2,
-            keepAfter: 3,
-          );
-        },
-        itemBuilder: (context, index) {
-          return VideoFeedItem(
-            key: ValueKey('video-${videos[index].id}'),
-            video: videos[index],
-            index: index,
-            hasBottomNavigation: false,
-            contextTitle: widget.contextTitle,
-            // When using local active state, override provider-based activation
-            isActiveOverride: widget.useLocalActiveState
-                ? (_currentPage == index)
-                : null,
-            disableTapNavigation: widget.useLocalActiveState,
-          );
-        },
+              // Dispose controllers outside a tight range to free memory.
+              // Android devices have limited heap and each ExoPlayer
+              // instance consumes significant native memory.
+              disposeControllersOutsideRange(
+                ref: ref,
+                currentIndex: index,
+                videos: videos,
+                keepBefore: 2,
+                keepAfter: 3,
+              );
+            },
+            itemBuilder: (context, index) {
+              return VideoFeedItem(
+                key: ValueKey('video-${videos[index].id}'),
+                video: videos[index],
+                index: index,
+                hasBottomNavigation: false,
+                contextTitle: widget.contextTitle,
+                // When using local active state, override provider-based activation
+                isActiveOverride: widget.useLocalActiveState
+                    ? (_currentPage == index)
+                    : null,
+                disableTapNavigation: widget.useLocalActiveState,
+              );
+            },
+          ),
+          if (_awaitingLoadMoreConfirmation)
+            EndOfFeedNudgeOverlay(
+              onShowMore: () {
+                setState(() {
+                  _awaitingLoadMoreConfirmation = false;
+                  _lastPromptedVideoCount = videos.length;
+                });
+                widget.onLoadMore?.call();
+              },
+              onDismiss: () {
+                setState(() {
+                  _awaitingLoadMoreConfirmation = false;
+                });
+              },
+            ),
+        ],
       ),
     );
   }
