@@ -309,11 +309,6 @@ class FullscreenFeedBloc
     Emitter<FullscreenFeedState> emit,
   ) {
     if (event.position >= maxPlaybackDuration) {
-      Log.debug(
-        'FullscreenFeedBloc: Loop enforcement at ${event.position.inMilliseconds}ms',
-        name: 'FullscreenFeedBloc',
-        category: LogCategory.video,
-      );
       emit(
         state.copyWith(
           seekCommand: SeekCommand(index: event.index, position: Duration.zero),
