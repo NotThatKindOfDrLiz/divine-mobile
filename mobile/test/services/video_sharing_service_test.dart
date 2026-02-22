@@ -1,51 +1,234 @@
 // ABOUTME: Tests for VideoSharingService social features integration
-// ABOUTME: Covers getShareableUsers and searchUsersToShareWith with TDD approach
+// ABOUTME: Covers NIP-17 video sharing, getShareableUsers,
+// ABOUTME: and searchUsersToShareWith
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:models/models.dart';
-import 'package:openvine/services/auth_service.dart' hide UserProfile;
-import 'package:nostr_client/nostr_client.dart';
+import 'package:openvine/services/nip17_message_service.dart';
 import 'package:openvine/services/user_profile_service.dart';
 import 'package:openvine/services/video_sharing_service.dart';
 
 import 'video_sharing_service_test.mocks.dart';
 
-// Note: SocialService mock removed - following list now handled by FollowRepository
-// These tests are mostly skipped and need updating to use FollowRepository
-@GenerateMocks([NostrClient, AuthService, UserProfileService])
+// Note: SocialService mock removed - following list now handled by
+// FollowRepository. These tests are mostly skipped and need updating
+// to use FollowRepository.
+@GenerateMocks([NIP17MessageService, UserProfileService])
 void main() {
   late VideoSharingService service;
-  late MockNostrClient mockNostrService;
-  late MockAuthService mockAuthService;
+  late MockNIP17MessageService mockNip17MessageService;
   late MockUserProfileService mockUserProfileService;
 
   setUp(() {
-    mockNostrService = MockNostrClient();
-    mockAuthService = MockAuthService();
+    mockNip17MessageService = MockNIP17MessageService();
     mockUserProfileService = MockUserProfileService();
 
     service = VideoSharingService(
-      nostrService: mockNostrService,
-      authService: mockAuthService,
+      nip17MessageService: mockNip17MessageService,
       userProfileService: mockUserProfileService,
     );
+  });
+
+  group('shareVideoWithUser', () {
+    late VideoEvent testVideo;
+    const recipientPubkey =
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+    const messageEventId =
+        'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+
+    setUp(() {
+      final now = DateTime.now();
+      testVideo = VideoEvent(
+        id: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        pubkey:
+            'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+        createdAt: now.millisecondsSinceEpoch ~/ 1000,
+        timestamp: now,
+        content: 'Test video',
+      );
+    });
+
+    test('calls sendPrivateMessage with correct recipient', () async {
+      when(
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: anyNamed('recipientPubkey'),
+          content: anyNamed('content'),
+          additionalTags: anyNamed('additionalTags'),
+        ),
+      ).thenAnswer(
+        (_) async => NIP17SendResult.success(
+          messageEventId: messageEventId,
+          recipientPubkey: recipientPubkey,
+        ),
+      );
+      when(
+        mockUserProfileService.fetchProfile(any),
+      ).thenAnswer((_) async => null);
+
+      await service.shareVideoWithUser(
+        video: testVideo,
+        recipientPubkey: recipientPubkey,
+      );
+
+      verify(
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: recipientPubkey,
+          content: anyNamed('content'),
+          additionalTags: anyNamed('additionalTags'),
+        ),
+      ).called(1);
+    });
+
+    test('includes e tag with video event ID in additionalTags', () async {
+      when(
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: anyNamed('recipientPubkey'),
+          content: anyNamed('content'),
+          additionalTags: anyNamed('additionalTags'),
+        ),
+      ).thenAnswer(
+        (_) async => NIP17SendResult.success(
+          messageEventId: messageEventId,
+          recipientPubkey: recipientPubkey,
+        ),
+      );
+      when(
+        mockUserProfileService.fetchProfile(any),
+      ).thenAnswer((_) async => null);
+
+      await service.shareVideoWithUser(
+        video: testVideo,
+        recipientPubkey: recipientPubkey,
+      );
+
+      final captured =
+          verify(
+                mockNip17MessageService.sendPrivateMessage(
+                  recipientPubkey: anyNamed('recipientPubkey'),
+                  content: anyNamed('content'),
+                  additionalTags: captureAnyNamed('additionalTags'),
+                ),
+              ).captured.single
+              as List<List<String>>;
+
+      expect(
+        captured,
+        containsAll([
+          ['e', testVideo.id],
+          ['client', 'diVine'],
+        ]),
+      );
+    });
+
+    test('includes a tag when addressableId is present', () async {
+      final now = DateTime.now();
+      final videoWithVineId = VideoEvent(
+        id: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        pubkey:
+            'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+        createdAt: now.millisecondsSinceEpoch ~/ 1000,
+        timestamp: now,
+        content: 'Test video with vine ID',
+        vineId: 'my-vine-id',
+      );
+
+      when(
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: anyNamed('recipientPubkey'),
+          content: anyNamed('content'),
+          additionalTags: anyNamed('additionalTags'),
+        ),
+      ).thenAnswer(
+        (_) async => NIP17SendResult.success(
+          messageEventId: messageEventId,
+          recipientPubkey: recipientPubkey,
+        ),
+      );
+      when(
+        mockUserProfileService.fetchProfile(any),
+      ).thenAnswer((_) async => null);
+
+      await service.shareVideoWithUser(
+        video: videoWithVineId,
+        recipientPubkey: recipientPubkey,
+      );
+
+      final captured =
+          verify(
+                mockNip17MessageService.sendPrivateMessage(
+                  recipientPubkey: anyNamed('recipientPubkey'),
+                  content: anyNamed('content'),
+                  additionalTags: captureAnyNamed('additionalTags'),
+                ),
+              ).captured.single
+              as List<List<String>>;
+
+      // Should contain an 'a' tag since vineId (d tag) is present
+      final aTag = captured.where((tag) => tag[0] == 'a');
+      expect(aTag, isNotEmpty);
+    });
+
+    test('returns failure when NIP-17 send fails', () async {
+      when(
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: anyNamed('recipientPubkey'),
+          content: anyNamed('content'),
+          additionalTags: anyNamed('additionalTags'),
+        ),
+      ).thenAnswer(
+        (_) async => NIP17SendResult.failure('No private key available'),
+      );
+
+      final result = await service.shareVideoWithUser(
+        video: testVideo,
+        recipientPubkey: recipientPubkey,
+      );
+
+      expect(result.success, isFalse);
+      expect(result.error, equals('No private key available'));
+    });
+
+    test('returns success and updates share history on success', () async {
+      when(
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: anyNamed('recipientPubkey'),
+          content: anyNamed('content'),
+          additionalTags: anyNamed('additionalTags'),
+        ),
+      ).thenAnswer(
+        (_) async => NIP17SendResult.success(
+          messageEventId: messageEventId,
+          recipientPubkey: recipientPubkey,
+        ),
+      );
+      when(
+        mockUserProfileService.fetchProfile(any),
+      ).thenAnswer((_) async => null);
+
+      final result = await service.shareVideoWithUser(
+        video: testVideo,
+        recipientPubkey: recipientPubkey,
+      );
+
+      expect(result.success, isTrue);
+      expect(result.messageEventId, equals(messageEventId));
+      expect(service.hasSharedWithRecently(recipientPubkey), isTrue);
+      expect(service.recentlySharedWith, hasLength(1));
+      expect(service.recentlySharedWith.first.pubkey, equals(recipientPubkey));
+    });
   });
 
   group('getShareableUsers', () {
     test(
       'returns recently shared users when no following list exists',
       () async {
-        // Arrange
-        // Note: Following list mock removed - tests need updating to use FollowRepository
-
         // Act
         final result = await service.getShareableUsers(limit: 20);
 
         // Assert
         expect(result, isEmpty);
-        // Note: Verification removed - tests need updating to use FollowRepository
       },
       // TODO(Any): Fix and re-enable these tests
       skip: true,
@@ -78,7 +261,6 @@ void main() {
         displayName: 'Bob Jones',
       );
 
-      // Note: Following list mocks removed - tests need updating to use FollowRepository
       when(
         mockUserProfileService.getCachedProfile(followingPubkeys[0]),
       ).thenReturn(profile1);
@@ -113,7 +295,6 @@ void main() {
       // Arrange
       final followingPubkeys = ['pubkey1' * 8, 'pubkey2' * 8];
 
-      // Note: Following list mocks removed - tests need updating to use FollowRepository
       when(mockUserProfileService.getCachedProfile(any)).thenReturn(null);
 
       // Share with one user to add to recent
@@ -126,14 +307,13 @@ void main() {
         content: 'Test video',
       );
 
-      when(mockAuthService.isAuthenticated).thenReturn(true);
       when(
-        mockAuthService.createAndSignEvent(
-          kind: anyNamed('kind'),
+        mockNip17MessageService.sendPrivateMessage(
+          recipientPubkey: anyNamed('recipientPubkey'),
           content: anyNamed('content'),
-          tags: anyNamed('tags'),
+          additionalTags: anyNamed('additionalTags'),
         ),
-      ).thenAnswer((_) async => null);
+      ).thenAnswer((_) async => NIP17SendResult.failure('test'));
 
       await service.shareVideoWithUser(
         video: testVideo,
@@ -159,7 +339,6 @@ void main() {
       // ignore: unused_local_variable - test is skipped, needs updating
       final followingPubkeys = List.generate(25, (i) => 'pubkey$i' * 8);
 
-      // Note: Following list mocks removed - tests need updating to use FollowRepository
       when(mockUserProfileService.getCachedProfile(any)).thenReturn(null);
 
       // Act
@@ -208,7 +387,6 @@ void main() {
         displayName: 'Alice Johnson',
       );
 
-      // Note: Following list mock removed - tests need updating to use FollowRepository
       when(
         mockUserProfileService.getCachedProfile(followingPubkeys[0]),
       ).thenReturn(profile1);
@@ -239,10 +417,8 @@ void main() {
         createdAt: DateTime.now(),
         eventId: 'event1',
         name: 'alice',
-        displayName: null,
       );
 
-      // Note: Following list mock removed - tests need updating to use FollowRepository
       when(
         mockUserProfileService.getCachedProfile(followingPubkeys[0]),
       ).thenReturn(profile);
@@ -252,7 +428,8 @@ void main() {
 
       // Assert
       expect(result.length, 1);
-      // Implementation falls back to name when displayName is null for better UX
+      // Implementation falls back to name when displayName is null
+      // for better UX
       expect(result[0].displayName, 'alice');
       // TODO(Any): Fix and re-enable these tests
     }, skip: true);
@@ -268,7 +445,6 @@ void main() {
         displayName: 'Charlie',
       );
 
-      // Note: Following list mock removed - tests need updating to use FollowRepository
       when(
         mockUserProfileService.fetchProfile(hexPubkey),
       ).thenAnswer((_) async => profile);
@@ -295,7 +471,6 @@ void main() {
         displayName: 'Alice Smith',
       );
 
-      // Note: Following list mock removed - tests need updating to use FollowRepository
       when(
         mockUserProfileService.getCachedProfile(followingPubkeys[0]),
       ).thenReturn(profile);
@@ -313,7 +488,6 @@ void main() {
       // Arrange
       final hexPubkey = 'a' * 64;
 
-      // Note: Following list mock removed - tests need updating to use FollowRepository
       when(
         mockUserProfileService.fetchProfile(hexPubkey),
       ).thenAnswer((_) async => null);

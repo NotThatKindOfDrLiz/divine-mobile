@@ -3374,7 +3374,7 @@ final class VideoSharingServiceProvider
 }
 
 String _$videoSharingServiceHash() =>
-    r'143e8562ab0f2c7df911141f5fcc53ec13a5b82a';
+    r'145ccdde1682e36e571853a8376a84de10808a94';
 
 /// Content deletion service for NIP-09 delete events
 

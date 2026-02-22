@@ -4,8 +4,7 @@
 import 'dart:async';
 
 import 'package:models/models.dart' hide LogCategory;
-import 'package:openvine/services/auth_service.dart';
-import 'package:nostr_client/nostr_client.dart';
+import 'package:openvine/services/nip17_message_service.dart';
 import 'package:openvine/services/user_profile_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -45,14 +44,11 @@ class ShareResult {
 /// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod
 class VideoSharingService {
   VideoSharingService({
-    required NostrClient nostrService,
-    required AuthService authService,
+    required NIP17MessageService nip17MessageService,
     required UserProfileService userProfileService,
-  }) : _nostrService = nostrService,
-       _authService = authService,
+  }) : _nip17MessageService = nip17MessageService,
        _userProfileService = userProfileService;
-  final NostrClient _nostrService;
-  final AuthService _authService;
+  final NIP17MessageService _nip17MessageService;
   final UserProfileService _userProfileService;
 
   final List<ShareableUser> _recentlySharedWith = [];
@@ -75,49 +71,34 @@ class VideoSharingService {
         category: LogCategory.video,
       );
 
-      if (!_authService.isAuthenticated) {
-        return ShareResult.failure('User not authenticated');
-      }
-
       // Create encrypted DM with video reference
       final dmContent = _createShareMessage(video, personalMessage);
 
-      // Create NIP-04 encrypted DM (kind 4)
-      final tags = <List<String>>[
-        ['p', recipientPubkey], // Recipient
-        ['client', 'diVine'],
-      ];
-
-      // Add video reference as tag
-      tags.add(['e', video.id]); // Reference to video event
-
-      final event = await _authService.createAndSignEvent(
-        kind: 4, // NIP-04 encrypted direct message
+      // Send via NIP-17 three-layer encryption
+      final result = await _nip17MessageService.sendPrivateMessage(
+        recipientPubkey: recipientPubkey,
         content: dmContent,
-        tags: tags,
+        additionalTags: [
+          ['e', video.id],
+          if (video.addressableId != null) ['a', video.addressableId!],
+          ['client', 'diVine'],
+        ],
       );
 
-      if (event == null) {
-        return ShareResult.failure('Failed to create share message');
-      }
-
-      // Publish the DM
-      final sentEvent = await _nostrService.publishEvent(event);
-
-      if (sentEvent != null) {
+      if (result.success && result.messageEventId != null) {
         // Update sharing history
         _shareHistory[recipientPubkey] = DateTime.now();
         await _updateRecentlySharedWith(recipientPubkey);
 
         Log.info(
-          'Video shared successfully: ${event.id}',
+          'Video shared successfully: ${result.messageEventId}',
           name: 'VideoSharingService',
           category: LogCategory.video,
         );
 
-        return ShareResult.createSuccess(event.id);
+        return ShareResult.createSuccess(result.messageEventId!);
       } else {
-        return ShareResult.failure('Failed to publish share message');
+        return ShareResult.failure(result.error ?? 'Failed to send message');
       }
     } catch (e) {
       Log.error(

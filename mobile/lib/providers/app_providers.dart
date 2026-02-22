@@ -1321,13 +1321,17 @@ Future<MuteService> muteService(Ref ref) async {
 /// Video sharing service
 @riverpod
 VideoSharingService videoSharingService(Ref ref) {
+  final keyManager = ref.watch(nostrKeyManagerProvider);
   final nostrService = ref.watch(nostrServiceProvider);
-  final authService = ref.watch(authServiceProvider);
   final userProfileService = ref.watch(userProfileServiceProvider);
 
-  return VideoSharingService(
+  final nip17Service = NIP17MessageService(
+    keyManager: keyManager,
     nostrService: nostrService,
-    authService: authService,
+  );
+
+  return VideoSharingService(
+    nip17MessageService: nip17Service,
     userProfileService: userProfileService,
   );
 }
