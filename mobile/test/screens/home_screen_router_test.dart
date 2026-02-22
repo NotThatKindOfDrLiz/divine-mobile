@@ -1,8 +1,26 @@
 // ABOUTME: Tests for router-driven HomeScreen implementation
 // ABOUTME: Verifies URL ↔ PageView synchronization using mock home feed data
 
-// TODO(any): Fix and re-enable these tests
-void main() {}
+import 'package:flutter_test/flutter_test.dart';
+import 'package:openvine/screens/home_screen_router.dart';
+
+// TODO(any): Fix and re-enable widget tests below
+
+void main() {
+  group(HomeScreenRouter, () {
+    test('has correct route constants', () {
+      expect(HomeScreenRouter.routeName, equals('home'));
+      expect(HomeScreenRouter.path, equals('/home'));
+      expect(HomeScreenRouter.pathWithIndex, equals('/home/:index'));
+    });
+
+    test('pathForIndex returns correct path', () {
+      expect(HomeScreenRouter.pathForIndex(0), equals('/home/0'));
+      expect(HomeScreenRouter.pathForIndex(5), equals('/home/5'));
+      expect(HomeScreenRouter.pathForIndex(42), equals('/home/42'));
+    });
+  });
+}
 
 //import 'package:flutter/material.dart';
 //import 'package:flutter_test/flutter_test.dart';
