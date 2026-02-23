@@ -18,8 +18,8 @@ import 'package:openvine/screens/auth/reset_password.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
 import 'package:openvine/screens/blossom_settings_screen.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
-import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/screens/creator_analytics_screen.dart';
+import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/screens/developer_options_screen.dart';
 import 'package:openvine/screens/discover_lists_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
@@ -769,6 +769,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             source: args.source,
             initialIndex: args.initialIndex,
             contextTitle: args.contextTitle,
+            trafficSource: args.trafficSource,
           );
         },
       ),
@@ -789,6 +790,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             initialIndex: args.initialIndex,
             onLoadMore: args.onLoadMore,
             contextTitle: args.contextTitle,
+            trafficSource: args.trafficSource,
+            sourceDetail: args.sourceDetail,
           );
         },
       ),

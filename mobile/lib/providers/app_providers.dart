@@ -346,10 +346,13 @@ bool _setsEqual<T>(Set<T> a, Set<T> b) {
   return a.containsAll(b);
 }
 
-/// Analytics service with opt-out support
+/// Analytics service with opt-out support.
+///
+/// Publishes Kind 22236 ephemeral Nostr view events via [ViewEventPublisher].
 @Riverpod(keepAlive: true) // Keep alive to maintain singleton behavior
 AnalyticsService analyticsService(Ref ref) {
-  final service = AnalyticsService();
+  final viewPublisher = ref.watch(viewEventPublisherProvider);
+  final service = AnalyticsService(viewEventPublisher: viewPublisher);
 
   // Ensure cleanup on disposal
   ref.onDispose(() {
@@ -357,7 +360,6 @@ AnalyticsService analyticsService(Ref ref) {
   });
 
   // Initialize asynchronously but don't block the provider
-  // Use a microtask to avoid blocking the provider creation
   Future.microtask(() => service.initialize());
 
   return service;
@@ -912,6 +914,11 @@ FollowRepository? followRepository(Ref ref) {
     fetchFollowersFromApi: (pubkey) async {
       final result = await analyticsService.getFollowers(pubkey, limit: 5000);
       return result.pubkeys;
+    },
+    fetchFollowerCount: (pubkey) async {
+      final socialService = ref.read(socialServiceProvider);
+      final stats = await socialService.getFollowerStats(pubkey);
+      return stats['followers'] ?? 0;
     },
   );
 

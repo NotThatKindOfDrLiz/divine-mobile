@@ -14,12 +14,10 @@ import 'package:keycast_flutter/src/oauth/token_response.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i10;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i6;
-import 'package:openvine/models/known_account.dart' as _i14;
+import 'package:openvine/models/known_account.dart' as _i13;
 import 'package:openvine/services/auth_service.dart' as _i5;
-import 'package:openvine/services/blossom_server_discovery_service.dart'
-    as _i13;
 import 'package:openvine/services/relay_discovery_service.dart' as _i12;
-import 'package:openvine/services/user_profile_service.dart' as _i15;
+import 'package:openvine/services/user_profile_service.dart' as _i14;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -448,22 +446,6 @@ class MockAuthService extends _i1.Mock implements _i5.AuthService {
           as bool);
 
   @override
-  List<_i13.DiscoveredBlossomServer> get userBlossomServers =>
-      (super.noSuchMethod(
-            Invocation.getter(#userBlossomServers),
-            returnValue: <_i13.DiscoveredBlossomServer>[],
-          )
-          as List<_i13.DiscoveredBlossomServer>);
-
-  @override
-  bool get hasUserBlossomServers =>
-      (super.noSuchMethod(
-            Invocation.getter(#hasUserBlossomServers),
-            returnValue: false,
-          )
-          as bool);
-
-  @override
   Map<String, dynamic> get userStats =>
       (super.noSuchMethod(
             Invocation.getter(#userStats),
@@ -548,14 +530,14 @@ class MockAuthService extends _i1.Mock implements _i5.AuthService {
           as _i8.Future<void>);
 
   @override
-  _i8.Future<List<_i14.KnownAccount>> getKnownAccounts() =>
+  _i8.Future<List<_i13.KnownAccount>> getKnownAccounts() =>
       (super.noSuchMethod(
             Invocation.method(#getKnownAccounts, []),
-            returnValue: _i8.Future<List<_i14.KnownAccount>>.value(
-              <_i14.KnownAccount>[],
+            returnValue: _i8.Future<List<_i13.KnownAccount>>.value(
+              <_i13.KnownAccount>[],
             ),
           )
-          as _i8.Future<List<_i14.KnownAccount>>);
+          as _i8.Future<List<_i13.KnownAccount>>);
 
   @override
   _i8.Future<void> removeKnownAccount(String? pubkeyHex) =>
@@ -694,8 +676,14 @@ class MockAuthService extends _i1.Mock implements _i5.AuthService {
   );
 
   @override
+  void onSignerCallbackReceived() => super.noSuchMethod(
+    Invocation.method(#onSignerCallbackReceived, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
   _i8.Future<void> refreshCurrentProfile(
-    _i15.UserProfileService? userProfileService,
+    _i14.UserProfileService? userProfileService,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#refreshCurrentProfile, [userProfileService]),

@@ -912,6 +912,14 @@ class _DivineAppState extends ConsumerState<DivineApp> {
                 );
               }
               break;
+            case DeepLinkType.signerCallback:
+              Log.info(
+                '📱 Signer callback - triggering relay reconnection',
+                name: 'DeepLinkHandler',
+                category: LogCategory.auth,
+              );
+              ref.read(authServiceProvider).onSignerCallbackReceived();
+              break;
             case DeepLinkType.unknown:
               Log.warning(
                 '📱 Unknown deep link type',
