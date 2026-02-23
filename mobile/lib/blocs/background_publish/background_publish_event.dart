@@ -48,3 +48,5 @@ class BackgroundPublishRetryRequested extends BackgroundPublishEvent {
   @override
   List<Object?> get props => [draftId];
 }
+
+class BackgroundPublishDismissAllFailed extends BackgroundPublishEvent {}

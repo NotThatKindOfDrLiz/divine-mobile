@@ -671,22 +671,48 @@ class _ProfileDataView extends ConsumerWidget {
       );
     }
 
-    return BlocListener<BackgroundPublishBloc, BackgroundPublishState>(
-      listenWhen: (previous, current) {
-        // Listen only for upload completions
-        final prevCompleted = previous.uploads
-            .where((upload) => upload.result != null)
-            .length;
-        final currCompleted = current.uploads
-            .where((upload) => upload.result != null)
-            .length;
-        return currCompleted > prevCompleted;
-      },
-      listener: (context, state) {
-        // We don't need the value here, we just want to refresh the feed
-        // when background uploads complete
-        final _ = ref.refresh(profileFeedProvider(userIdHex));
-      },
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<BackgroundPublishBloc, BackgroundPublishState>(
+          listenWhen: (previous, current) {
+            // Detect successful upload completion:
+            // in-progress count decreased AND total uploads decreased
+            // (failure only changes result, doesn't remove from list)
+            final prevInProgress = previous.uploads
+                .where((u) => u.result == null)
+                .length;
+            final currInProgress = current.uploads
+                .where((u) => u.result == null)
+                .length;
+            return currInProgress < prevInProgress &&
+                current.uploads.length < previous.uploads.length;
+          },
+          listener: (context, state) {
+            ref.invalidate(profileFeedProvider(userIdHex));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Video published!'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+        ),
+        BlocListener<BackgroundPublishBloc, BackgroundPublishState>(
+          listenWhen: (previous, current) {
+            // Detect new failures
+            final prevFailed = previous.uploads
+                .where((u) => u.result != null)
+                .length;
+            final currFailed = current.uploads
+                .where((u) => u.result != null)
+                .length;
+            return currFailed > prevFailed;
+          },
+          listener: (context, state) {
+            ref.invalidate(profileFeedProvider(userIdHex));
+          },
+        ),
+      ],
       child: switch (videosAsync) {
         AsyncLoading() => const ProfileLoadingView(),
         AsyncError(:final error) => Center(child: Text('Error: $error')),
@@ -781,12 +807,16 @@ class ProfileViewSwitcher extends StatelessWidget {
             refreshNotifier: refreshNotifier,
           );
 
-    final completedWithErrorUploads = backgroundPublishBloc.state.uploads
+    final failedUploads = backgroundPublishBloc.state.uploads
         .where((upload) => upload.result != null)
         .toList();
 
-    if (completedWithErrorUploads.isNotEmpty) {
-      final faultUpload = completedWithErrorUploads.first;
+    if (failedUploads.isNotEmpty) {
+      final failureCount = failedUploads.length;
+      final firstFailed = failedUploads.first;
+      final label = failureCount == 1
+          ? 'Video upload failed.'
+          : '$failureCount uploads failed.';
 
       return Stack(
         children: [
@@ -796,23 +826,40 @@ class ProfileViewSwitcher extends StatelessWidget {
             left: 16,
             right: 16,
             child: Dismissible(
-              key: ValueKey(faultUpload.draft.id),
+              key: ValueKey(firstFailed.draft.id),
               direction: DismissDirection.horizontal,
               onDismissed: (_) {
-                backgroundPublishBloc.add(
-                  BackgroundPublishVanished(draftId: faultUpload.draft.id),
-                );
+                if (failureCount == 1) {
+                  backgroundPublishBloc.add(
+                    BackgroundPublishVanished(draftId: firstFailed.draft.id),
+                  );
+                } else {
+                  backgroundPublishBloc.add(
+                    BackgroundPublishDismissAllFailed(),
+                  );
+                }
               },
               child: DivineSnackbarContainer(
-                label: 'Video upload failed.',
+                label: label,
                 error: true,
                 actionLabel: 'Retry',
                 onActionPressed: () {
                   backgroundPublishBloc.add(
                     BackgroundPublishRetryRequested(
-                      draftId: faultUpload.draft.id,
+                      draftId: firstFailed.draft.id,
                     ),
                   );
+                },
+                onDismissed: () {
+                  if (failureCount == 1) {
+                    backgroundPublishBloc.add(
+                      BackgroundPublishVanished(draftId: firstFailed.draft.id),
+                    );
+                  } else {
+                    backgroundPublishBloc.add(
+                      BackgroundPublishDismissAllFailed(),
+                    );
+                  }
                 },
               ),
             ),
