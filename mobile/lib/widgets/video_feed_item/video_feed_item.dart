@@ -1690,108 +1690,7 @@ class VideoOverlayActions extends ConsumerWidget {
             ),
           ),
         ),
-        // Action buttons at bottom right (above More button)
-        Positioned(
-          bottom: bottomOffset + 48,
-          right: 16,
-          child: AnimatedOpacity(
-            opacity: isActive ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: IgnorePointer(
-              ignoring: false, // Action buttons SHOULD receive taps
-              child: Column(
-                children: [
-                  // Edit button (only show for owned videos when feature is enabled)
-                  // Hide in fullscreen mode since it's shown in AppBar instead
-                  if (!isFullscreen && !isPreviewMode)
-                    _VideoEditButton(video: video),
-
-                  // Flag/Report button for content moderation
-                  Semantics(
-                    identifier: 'report_button',
-                    container: true,
-                    explicitChildNodes: true,
-                    button: true,
-                    label: 'Report video',
-                    child: IconButton(
-                      padding: const EdgeInsets.all(8),
-                      constraints: const BoxConstraints.tightFor(
-                        width: 48,
-                        height: 48,
-                      ),
-                      style: IconButton.styleFrom(
-                        highlightColor: Colors.transparent,
-                        splashFactory: NoSplash.splashFactory,
-                      ),
-                      onPressed: () {
-                        Log.info(
-                          '🚩 Report button tapped for ${video.id}',
-                          name: 'VideoFeedItem',
-                          category: LogCategory.ui,
-                        );
-                        context.showVideoPausingDialog(
-                          builder: (context) =>
-                              ReportContentDialog(video: video),
-                        );
-                      },
-                      icon: DecoratedBox(
-                        decoration: BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(
-                              color: VineTheme.backgroundColor.withValues(
-                                alpha: 0.15,
-                              ),
-                              blurRadius: 15,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: SvgPicture.asset(
-                          'assets/icon/content-controls/flag.svg',
-                          width: 32,
-                          height: 32,
-                          colorFilter: const ColorFilter.mode(
-                            VineTheme.whiteText,
-                            BlendMode.srcIn,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // CC (subtitles) button
-                  CcActionButton(video: video),
-
-                  const SizedBox(height: 4),
-
-                  // Like button
-                  LikeActionButton(video: video, isPreviewMode: isPreviewMode),
-
-                  const SizedBox(height: 4),
-
-                  // Comment button with count
-                  _CommentActionButton(video: video, ref: ref),
-
-                  const SizedBox(height: 4),
-
-                  // Repost button
-                  RepostActionButton(
-                    video: video,
-                    isPreviewMode: isPreviewMode,
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // Share button
-                  ShareActionButton(video: video),
-                ],
-              ),
-            ),
-          ),
-        ),
-        // More button (bottom-right, near description)
+        // Action buttons at bottom right
         Positioned(
           bottom: bottomOffset - 6,
           right: 16,
@@ -1799,7 +1698,52 @@ class VideoOverlayActions extends ConsumerWidget {
             child: AnimatedOpacity(
               opacity: isActive ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 200),
-              child: MoreActionButton(video: video),
+              child: IgnorePointer(
+                ignoring: false, // Action buttons SHOULD receive taps
+                child: Column(
+                  children: [
+                    // Edit button (only show for owned videos when feature
+                    // is enabled)
+                    // Hide in fullscreen mode since it's shown in AppBar
+                    if (!isFullscreen && !isPreviewMode)
+                      _VideoEditButton(video: video),
+
+                    // CC (subtitles) button
+                    CcActionButton(video: video),
+
+                    const SizedBox(height: 4),
+
+                    // Like button
+                    LikeActionButton(
+                      video: video,
+                      isPreviewMode: isPreviewMode,
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Comment button with count
+                    _CommentActionButton(video: video, ref: ref),
+
+                    const SizedBox(height: 4),
+
+                    // Repost button
+                    RepostActionButton(
+                      video: video,
+                      isPreviewMode: isPreviewMode,
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    // Share button
+                    ShareActionButton(video: video),
+
+                    const SizedBox(height: 4),
+
+                    // More button (report, mute, block, etc.)
+                    MoreActionButton(video: video),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
