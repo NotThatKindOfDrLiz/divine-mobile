@@ -325,6 +325,88 @@ void main() {
       );
     });
 
+    group('BackgroundPublishDismissAllFailed', () {
+      late _MockVineDraft draft1;
+      late _MockVineDraft draft2;
+      late _MockVineDraft draft3;
+
+      setUp(() {
+        draft1 = _MockVineDraft();
+        draft2 = _MockVineDraft();
+        draft3 = _MockVineDraft();
+        when(() => draft1.id).thenReturn('1');
+        when(() => draft2.id).thenReturn('2');
+        when(() => draft3.id).thenReturn('3');
+      });
+
+      blocTest<BackgroundPublishBloc, BackgroundPublishState>(
+        'removes all failed uploads but keeps in-progress ones',
+        build: () => BackgroundPublishBloc(
+          videoPublishServiceFactory: defaultVieoPublishServiceFactory,
+        ),
+        seed: () => BackgroundPublishState(
+          uploads: [
+            BackgroundUpload(
+              draft: draft1,
+              result: const PublishError('error 1'),
+              progress: 1.0,
+            ),
+            BackgroundUpload(draft: draft2, result: null, progress: 0.5),
+            BackgroundUpload(
+              draft: draft3,
+              result: const PublishError('error 2'),
+              progress: 1.0,
+            ),
+          ],
+        ),
+        act: (bloc) => bloc.add(BackgroundPublishDismissAllFailed()),
+        expect: () => [
+          BackgroundPublishState(
+            uploads: [
+              BackgroundUpload(draft: draft2, result: null, progress: 0.5),
+            ],
+          ),
+        ],
+      );
+
+      blocTest<BackgroundPublishBloc, BackgroundPublishState>(
+        'emits empty state when all uploads are failed',
+        build: () => BackgroundPublishBloc(
+          videoPublishServiceFactory: defaultVieoPublishServiceFactory,
+        ),
+        seed: () => BackgroundPublishState(
+          uploads: [
+            BackgroundUpload(
+              draft: draft1,
+              result: const PublishError('error 1'),
+              progress: 1.0,
+            ),
+            BackgroundUpload(
+              draft: draft2,
+              result: const PublishError('error 2'),
+              progress: 1.0,
+            ),
+          ],
+        ),
+        act: (bloc) => bloc.add(BackgroundPublishDismissAllFailed()),
+        expect: () => [BackgroundPublishState(uploads: [])],
+      );
+
+      blocTest<BackgroundPublishBloc, BackgroundPublishState>(
+        'emits no new state when no failed uploads exist',
+        build: () => BackgroundPublishBloc(
+          videoPublishServiceFactory: defaultVieoPublishServiceFactory,
+        ),
+        seed: () => BackgroundPublishState(
+          uploads: [
+            BackgroundUpload(draft: draft1, result: null, progress: 0.3),
+          ],
+        ),
+        act: (bloc) => bloc.add(BackgroundPublishDismissAllFailed()),
+        expect: () => <BackgroundPublishState>[],
+      );
+    });
+
     group('BackgroundPublishRetryRequested', () {
       late _MockVineDraft draft;
       late _MockVideoPublishService mockPublishService;

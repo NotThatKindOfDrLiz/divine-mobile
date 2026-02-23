@@ -11,6 +11,7 @@ class DivineSnackbarContainer extends StatelessWidget {
     this.error = false,
     this.actionLabel,
     this.onActionPressed,
+    this.onDismissed,
     super.key,
   });
 
@@ -44,6 +45,10 @@ class DivineSnackbarContainer extends StatelessWidget {
 
   /// Callback when the action button is pressed.
   final VoidCallback? onActionPressed;
+
+  /// Callback when the dismiss (X) button is pressed.
+  /// When provided, a close icon button is shown at the trailing edge.
+  final VoidCallback? onDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +91,17 @@ class DivineSnackbarContainer extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     color: error ? VineTheme.likeRed : VineTheme.vineGreen,
                   ),
+                ),
+              ),
+            if (onDismissed != null)
+              IconButton(
+                onPressed: onDismissed,
+                icon: const Icon(Icons.close, color: VineTheme.whiteText),
+                iconSize: 20,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
                 ),
               ),
           ],

@@ -128,6 +128,22 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
     final backgroundPublishBloc = context.read<BackgroundPublishBloc>();
 
     for (final draft in pendingDrafts) {
+      // Check if the video file still exists before re-queuing
+      final hasValidClip = draft.clips.any((clip) {
+        final videoPath = clip.video.file?.path;
+        return videoPath != null && File(videoPath).existsSync();
+      });
+
+      if (!hasValidClip) {
+        Log.warning(
+          '🗑️ Skipping draft ${draft.id}: video file no longer exists',
+          name: 'VideoPublishNotifier',
+          category: LogCategory.video,
+        );
+        await _draftService.deleteDraft(draft.id);
+        continue;
+      }
+
       Log.info(
         '📤 Resuming upload for draft: ${draft.id}',
         name: 'VideoPublishNotifier',

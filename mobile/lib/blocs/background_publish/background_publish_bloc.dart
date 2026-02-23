@@ -26,6 +26,7 @@ class BackgroundPublishBloc
     on<BackgroundPublishProgressChanged>(_onBackgroundPublishProgressChanged);
     on<BackgroundPublishVanished>(_onBackgroundPublishVanished);
     on<BackgroundPublishRetryRequested>(_onBackgroundPublishRetryRequested);
+    on<BackgroundPublishDismissAllFailed>(_onBackgroundPublishDismissAllFailed);
   }
 
   final Future<VideoPublishService> Function({
@@ -118,6 +119,16 @@ class BackgroundPublishBloc
   ) {
     final remainingUploads = state.uploads.where((upload) {
       return upload.draft.id != event.draftId;
+    }).toList();
+    emit(state.copyWith(uploads: remainingUploads));
+  }
+
+  void _onBackgroundPublishDismissAllFailed(
+    BackgroundPublishDismissAllFailed event,
+    Emitter<BackgroundPublishState> emit,
+  ) {
+    final remainingUploads = state.uploads.where((upload) {
+      return upload.result == null;
     }).toList();
     emit(state.copyWith(uploads: remainingUploads));
   }
