@@ -7,7 +7,9 @@ import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/auth/reset_password.dart';
+import 'package:openvine/screens/auth/invite_choice_screen.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
+import 'package:openvine/screens/npub_verification_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Watches router location changes and redirects to canonical URLs when needed.
@@ -23,6 +25,8 @@ final routeNormalizationProvider = Provider<void>((ref) {
     // Use contains() to handle both path-only and full URL formats (deep links include host)
     if (loc.startsWith(WelcomeScreen.path) ||
         loc.startsWith(NostrConnectScreen.path) ||
+        loc.startsWith(InviteChoiceScreen.path) ||
+        loc.startsWith(NpubVerificationScreen.path) ||
         loc.contains('${ResetPasswordScreen.path}?token=') ||
         loc.contains('${EmailVerificationScreen.path}?')) {
       Log.info(
