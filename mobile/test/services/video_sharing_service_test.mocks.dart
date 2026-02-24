@@ -84,7 +84,166 @@ class MockNIP17MessageService extends _i1.Mock
               ),
             ),
           )
-          as _i5.Future<_i3.NIP17SendResult>);
+          as _i7.Future<_i4.NostrConnectSession>);
+
+  @override
+  _i7.Future<_i3.AuthResult> waitForNostrConnectResponse({
+    Duration? timeout = const Duration(minutes: 2),
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#waitForNostrConnectResponse, [], {
+              #timeout: timeout,
+            }),
+            returnValue: _i7.Future<_i3.AuthResult>.value(
+              _FakeAuthResult_1(
+                this,
+                Invocation.method(#waitForNostrConnectResponse, [], {
+                  #timeout: timeout,
+                }),
+              ),
+            ),
+          )
+          as _i7.Future<_i3.AuthResult>);
+
+  @override
+  void cancelNostrConnect() => super.noSuchMethod(
+    Invocation.method(#cancelNostrConnect, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onSignerCallbackReceived() => super.noSuchMethod(
+    Invocation.method(#onSignerCallbackReceived, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  _i7.Future<void> refreshCurrentProfile(
+    _i9.UserProfileService? userProfileService,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#refreshCurrentProfile, [userProfileService]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> signInAutomatically() =>
+      (super.noSuchMethod(
+            Invocation.method(#signInAutomatically, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<void> signInWithDivineOAuth(_i10.KeycastSession? session) =>
+      (super.noSuchMethod(
+            Invocation.method(#signInWithDivineOAuth, [session]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<(bool, String?)> deleteKeycastAccount() =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteKeycastAccount, []),
+            returnValue: _i7.Future<(bool, String?)>.value((false, null)),
+          )
+          as _i7.Future<(bool, String?)>);
+
+  @override
+  _i7.Future<void> signOut({bool? deleteKeys = false}) =>
+      (super.noSuchMethod(
+            Invocation.method(#signOut, [], {#deleteKeys: deleteKeys}),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  _i7.Future<String?> getPrivateKeyForSigning({String? biometricPrompt}) =>
+      (super.noSuchMethod(
+            Invocation.method(#getPrivateKeyForSigning, [], {
+              #biometricPrompt: biometricPrompt,
+            }),
+            returnValue: _i7.Future<String?>.value(),
+          )
+          as _i7.Future<String?>);
+
+  @override
+  _i7.Future<String?> exportNsec({String? biometricPrompt}) =>
+      (super.noSuchMethod(
+            Invocation.method(#exportNsec, [], {
+              #biometricPrompt: biometricPrompt,
+            }),
+            returnValue: _i7.Future<String?>.value(),
+          )
+          as _i7.Future<String?>);
+
+  @override
+  _i7.Future<_i4.Event?> createAndSignEvent({
+    required int? kind,
+    required String? content,
+    List<List<String>>? tags,
+    String? biometricPrompt,
+    int? createdAt,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createAndSignEvent, [], {
+              #kind: kind,
+              #content: content,
+              #tags: tags,
+              #biometricPrompt: biometricPrompt,
+              #createdAt: createdAt,
+            }),
+            returnValue: _i7.Future<_i4.Event?>.value(),
+          )
+          as _i7.Future<_i4.Event?>);
+
+  @override
+  _i7.Future<void> acceptTerms() =>
+      (super.noSuchMethod(
+            Invocation.method(#acceptTerms, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
+
+  @override
+  void onAppBackgrounded() => super.noSuchMethod(
+    Invocation.method(#onAppBackgrounded, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onAppResumed() => super.noSuchMethod(
+    Invocation.method(#onAppResumed, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onExtendedBackground() => super.noSuchMethod(
+    Invocation.method(#onExtendedBackground, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  void onPeriodicCleanup() => super.noSuchMethod(
+    Invocation.method(#onPeriodicCleanup, []),
+    returnValueForMissingStub: null,
+  );
+
+  @override
+  _i7.Future<void> dispose() =>
+      (super.noSuchMethod(
+            Invocation.method(#dispose, []),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
 }
 
 /// A class which mocks [UserProfileService].
