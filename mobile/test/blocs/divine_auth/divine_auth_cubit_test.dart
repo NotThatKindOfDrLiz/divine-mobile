@@ -628,10 +628,7 @@ void main() {
                 ),
               ).thenAnswer(
                 (_) async => (
-                  HeadlessRegisterResult.error(
-                    'Email taken',
-                    code: 'email_exists',
-                  ),
+                  HeadlessRegisterResult.error('Email taken', code: 'CONFLICT'),
                   testVerifier,
                 ),
               );
