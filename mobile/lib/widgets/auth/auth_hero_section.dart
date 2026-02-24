@@ -101,7 +101,7 @@ class AuthHeroSection extends StatelessWidget {
           const SizedBox(height: 40),
 
           // Divine wordmark (green SVG logo)
-          SvgPicture.asset('assets/icon/divine_new.svg', width: 120),
+          SvgPicture.asset('assets/icon/logo.svg', width: 120),
         ],
       ),
     );
