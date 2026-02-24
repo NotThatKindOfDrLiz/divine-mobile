@@ -461,8 +461,8 @@ void main() {
         final mockClient = MockClient((request) async {
           return http.Response(
             jsonEncode({
-              'error': 'email_taken',
-              'error_description': 'Email already registered',
+              'code': 'CONFLICT',
+              'error': 'Email already registered',
             }),
             400,
           );
@@ -475,7 +475,7 @@ void main() {
         );
 
         expect(result.success, isFalse);
-        expect(result.errorCode, contains('email_taken'));
+        expect(result.errorCode, contains('CONFLICT'));
         expect(result.errorDescription, contains('Email already registered'));
       });
 
