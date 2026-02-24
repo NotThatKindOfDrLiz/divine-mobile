@@ -324,7 +324,7 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
     String? serverDescription,
   ) {
     switch (errorCode) {
-      case 'email_exists':
+      case 'CONFLICT':
         return 'This email is already registered. Please sign in instead.';
       case 'invalid_email':
         return 'Please enter a valid email address.';

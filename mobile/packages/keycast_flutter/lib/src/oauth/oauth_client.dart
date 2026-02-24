@@ -291,19 +291,10 @@ class KeycastOAuth {
       }
 
       // Handle error responses - preserve error code for client-side handling
-      String errorCode = json['error'] as String? ?? 'registration_failed';
+      String errorCode = json['code'] as String? ?? 'registration_failed';
       final description =
-          json['error_description'] as String? ??
-          json['message'] as String? ??
-          errorCode;
+          json['error'] as String? ?? json['message'] as String? ?? errorCode;
 
-      // map any human readable errorCodes to machine friendly ones.
-      // I've asked Daniel to change this.
-      // https://verygoodventures.slack.com/archives/C09SZRQFWG3/p1771450260491629
-      if (errorCode ==
-          'This email is already registered. Please log in instead.') {
-        errorCode = 'email_exists';
-      }
       return (
         HeadlessRegisterResult.error(description, code: errorCode),
         verifier,
