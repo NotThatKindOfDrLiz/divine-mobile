@@ -77,7 +77,7 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
   Future<void> submit() async {
     final current = state;
     if (current is! DivineAuthFormState) return;
-    if (current.isSubmitting) return;
+    if (current.isSubmitting || current.isSkipping) return;
 
     // Validate fields
     final emailError = Validators.validateEmail(current.email);
@@ -299,6 +299,45 @@ class DivineAuthCubit extends Cubit<DivineAuthState> {
         name: 'DivineAuthCubit',
         category: LogCategory.auth,
       );
+    }
+  }
+
+  /// Create an anonymous account (skip email/password registration).
+  ///
+  /// Throws if identity creation fails.
+  Future<void> skipWithAnonymousAccount() async {
+    final current = state;
+    if (current is! DivineAuthFormState) return;
+    if (current.isSubmitting || current.isSkipping) return;
+
+    emit(current.copyWith(isSkipping: true, clearGeneralError: true));
+
+    try {
+      await _authService.createAnonymousAccount();
+
+      Log.info(
+        'Anonymous account created successfully',
+        name: 'DivineAuthCubit',
+        category: LogCategory.auth,
+      );
+
+      emit(const DivineAuthSuccess());
+    } catch (e) {
+      Log.error(
+        'Anonymous account creation failed: $e',
+        name: 'DivineAuthCubit',
+        category: LogCategory.auth,
+      );
+
+      final currentState = state;
+      if (currentState is DivineAuthFormState) {
+        emit(
+          currentState.copyWith(
+            isSkipping: false,
+            generalError: 'Failed to create account. Please try again.',
+          ),
+        );
+      }
     }
   }
 

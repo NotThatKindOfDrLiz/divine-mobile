@@ -56,17 +56,6 @@ final class WelcomeCreateAccountRequested extends WelcomeEvent {
   List<Object?> get props => [];
 }
 
-/// Signals that a navigation flag has been consumed by the UI.
-///
-/// Resets [WelcomeState.shouldNavigateToLoginOptions] and
-/// [WelcomeState.shouldNavigateToCreateAccount] to `false`.
-final class WelcomeNavigationConsumed extends WelcomeEvent {
-  const WelcomeNavigationConsumed();
-
-  @override
-  List<Object?> get props => [];
-}
-
 /// Request to navigate to login options (email/bunker/etc).
 ///
 /// Calls [AuthService.acceptTerms] and signals the UI to navigate.

@@ -10,7 +10,6 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/divine_auth/divine_auth_cubit.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
-import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/widgets/auth/auth_error_box.dart';
 import 'package:openvine/widgets/auth/auth_form_scaffold.dart';
 import 'package:openvine/widgets/divine_primary_button.dart';
@@ -40,16 +39,14 @@ class CreateAccountScreen extends ConsumerWidget {
         authService: authService,
         pendingVerificationService: pendingVerificationService,
       )..initialize(isSignIn: false),
-      child: _CreateAccountView(authService: authService),
+      child: const _CreateAccountView(),
     );
   }
 }
 
 /// Create account screen — View that consumes [DivineAuthCubit] state.
 class _CreateAccountView extends StatelessWidget {
-  const _CreateAccountView({required this.authService});
-
-  final AuthService authService;
+  const _CreateAccountView();
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +67,7 @@ class _CreateAccountView extends StatelessWidget {
       child: BlocBuilder<DivineAuthCubit, DivineAuthState>(
         builder: (context, state) {
           if (state is DivineAuthFormState) {
-            return _CreateAccountBody(state: state, authService: authService);
+            return _CreateAccountBody(state: state);
           }
           return const Scaffold(
             backgroundColor: VineTheme.backgroundColor,
@@ -86,10 +83,9 @@ class _CreateAccountView extends StatelessWidget {
 
 /// Body of the create account form with email and password.
 class _CreateAccountBody extends StatefulWidget {
-  const _CreateAccountBody({required this.state, required this.authService});
+  const _CreateAccountBody({required this.state});
 
   final DivineAuthFormState state;
-  final AuthService authService;
 
   @override
   State<_CreateAccountBody> createState() => _CreateAccountBodyState();
@@ -98,7 +94,6 @@ class _CreateAccountBody extends StatefulWidget {
 class _CreateAccountBodyState extends State<_CreateAccountBody> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
-  bool _isSkipping = false;
 
   @override
   void initState() {
@@ -142,21 +137,14 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
 
     if (confirmed != true || !mounted) return;
 
-    setState(() => _isSkipping = true);
-
-    try {
-      await widget.authService.createAnonymousAccount();
-    } catch (_) {
-      if (mounted) {
-        setState(() => _isSkipping = false);
-      }
-    }
+    context.read<DivineAuthCubit>().skipWithAnonymousAccount();
   }
 
   @override
   Widget build(BuildContext context) {
     final isSubmitting = widget.state.isSubmitting;
-    final isDisabled = isSubmitting || _isSkipping;
+    final isSkipping = widget.state.isSkipping;
+    final isDisabled = isSubmitting || isSkipping;
 
     return AuthFormScaffold(
       title: 'Create account',
@@ -179,7 +167,7 @@ class _CreateAccountBodyState extends State<_CreateAccountBody> {
         onPressed: isDisabled ? null : _submit,
       ),
       secondaryButton: _SkipButton(
-        isSkipping: _isSkipping,
+        isSkipping: isSkipping,
         isDisabled: isDisabled,
         onPressed: _skip,
       ),

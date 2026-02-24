@@ -16,6 +16,12 @@ enum WelcomeStatus {
 
   /// An auth action failed.
   error,
+
+  /// Transient: navigate to login options, then auto-resets to [loaded].
+  navigatingToLoginOptions,
+
+  /// Transient: navigate to create account, then auto-resets to [loaded].
+  navigatingToCreateAccount,
 }
 
 /// A previously used account with its cached profile data.
@@ -47,8 +53,6 @@ final class WelcomeState extends Equatable {
     this.selectedPubkeyHex,
     this.signingInPubkeyHex,
     this.error,
-    this.shouldNavigateToLoginOptions = false,
-    this.shouldNavigateToCreateAccount = false,
   });
 
   /// Current status of welcome operations.
@@ -66,12 +70,6 @@ final class WelcomeState extends Equatable {
 
   /// Error message from the last failed operation.
   final String? error;
-
-  /// When true, the UI should navigate to the login options screen.
-  final bool shouldNavigateToLoginOptions;
-
-  /// When true, the UI should navigate to the create account screen.
-  final bool shouldNavigateToCreateAccount;
 
   /// Whether any returning users were detected.
   bool get hasReturningUsers => previousAccounts.isNotEmpty;
@@ -96,8 +94,6 @@ final class WelcomeState extends Equatable {
     String? selectedPubkeyHex,
     String? signingInPubkeyHex,
     String? error,
-    bool? shouldNavigateToLoginOptions,
-    bool? shouldNavigateToCreateAccount,
     bool clearAccounts = false,
     bool clearError = false,
     bool clearSigningIn = false,
@@ -115,10 +111,6 @@ final class WelcomeState extends Equatable {
           ? null
           : (signingInPubkeyHex ?? this.signingInPubkeyHex),
       error: clearError ? null : (error ?? this.error),
-      shouldNavigateToLoginOptions:
-          shouldNavigateToLoginOptions ?? this.shouldNavigateToLoginOptions,
-      shouldNavigateToCreateAccount:
-          shouldNavigateToCreateAccount ?? this.shouldNavigateToCreateAccount,
     );
   }
 
@@ -129,7 +121,5 @@ final class WelcomeState extends Equatable {
     selectedPubkeyHex,
     signingInPubkeyHex,
     error,
-    shouldNavigateToLoginOptions,
-    shouldNavigateToCreateAccount,
   ];
 }

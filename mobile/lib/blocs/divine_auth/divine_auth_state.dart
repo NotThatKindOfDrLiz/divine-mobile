@@ -27,6 +27,7 @@ class DivineAuthFormState extends DivineAuthState {
     this.generalError,
     this.obscurePassword = true,
     this.isSubmitting = false,
+    this.isSkipping = false,
   });
 
   /// User's email address
@@ -53,13 +54,17 @@ class DivineAuthFormState extends DivineAuthState {
   /// Whether form is currently being submitted
   final bool isSubmitting;
 
+  /// Whether anonymous account creation is in progress
+  final bool isSkipping;
+
   /// Returns true if form has no validation errors and fields are filled
   bool get canSubmit =>
       email.isNotEmpty &&
       password.isNotEmpty &&
       emailError == null &&
       passwordError == null &&
-      !isSubmitting;
+      !isSubmitting &&
+      !isSkipping;
 
   DivineAuthFormState copyWith({
     String? email,
@@ -70,6 +75,7 @@ class DivineAuthFormState extends DivineAuthState {
     String? generalError,
     bool? obscurePassword,
     bool? isSubmitting,
+    bool? isSkipping,
     bool clearEmailError = false,
     bool clearPasswordError = false,
     bool clearGeneralError = false,
@@ -87,6 +93,7 @@ class DivineAuthFormState extends DivineAuthState {
           : (generalError ?? this.generalError),
       obscurePassword: obscurePassword ?? this.obscurePassword,
       isSubmitting: isSubmitting ?? this.isSubmitting,
+      isSkipping: isSkipping ?? this.isSkipping,
     );
   }
 
@@ -100,6 +107,7 @@ class DivineAuthFormState extends DivineAuthState {
     generalError,
     obscurePassword,
     isSubmitting,
+    isSkipping,
   ];
 }
 

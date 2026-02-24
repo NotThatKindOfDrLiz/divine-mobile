@@ -197,7 +197,7 @@ void main() {
         expect(find.byType(ErrorMessage), findsNothing);
       });
 
-      testWidgets('shows loading indicator when auth state is checking', (
+      testWidgets('hides action buttons when auth state is checking', (
         tester,
       ) async {
         await tester.pumpWidget(
@@ -205,10 +205,11 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('Create a new Divine account'), findsNothing);
+        expect(find.text('Login with a different account'), findsNothing);
       });
 
-      testWidgets('shows loading indicator when auth state is authenticating', (
+      testWidgets('hides action buttons when auth state is authenticating', (
         tester,
       ) async {
         await tester.pumpWidget(
@@ -216,18 +217,16 @@ void main() {
         );
         await tester.pump();
 
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('Create a new Divine account'), findsNothing);
+        expect(find.text('Login with a different account'), findsNothing);
       });
 
-      testWidgets('login button disabled when auth state is checking', (
+      testWidgets('does not call acceptTerms when auth state is checking', (
         tester,
       ) async {
         await tester.pumpWidget(
           createTestWidget(authState: AuthState.checking),
         );
-        await tester.pump();
-
-        await tester.tap(find.text('Login with a different account'));
         await tester.pump();
 
         verifyNever(() => mockAuthService.acceptTerms());

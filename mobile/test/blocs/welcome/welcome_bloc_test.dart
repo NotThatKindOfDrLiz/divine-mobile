@@ -308,25 +308,6 @@ void main() {
           ),
         ],
       );
-
-      blocTest<WelcomeBloc, WelcomeState>(
-        'resets navigation flags when dispatched after navigation',
-        build: buildBloc,
-        seed: () => const WelcomeState(
-          status: WelcomeStatus.loaded,
-          previousAccounts: [_testPreviousAccount],
-          shouldNavigateToLoginOptions: true,
-          shouldNavigateToCreateAccount: true,
-        ),
-        act: (bloc) => bloc.add(const WelcomeLogBackInRequested()),
-        expect: () => [
-          const WelcomeState(
-            status: WelcomeStatus.accepting,
-            previousAccounts: [_testPreviousAccount],
-            signingInPubkeyHex: _testPubkeyHex,
-          ),
-        ],
-      );
     });
 
     group('$WelcomeAccountSelected', () {
@@ -351,15 +332,13 @@ void main() {
 
     group('$WelcomeCreateAccountRequested', () {
       blocTest<WelcomeBloc, WelcomeState>(
-        'calls acceptTerms and emits shouldNavigateToCreateAccount',
+        'calls acceptTerms and emits navigating then loaded',
         build: buildBloc,
         seed: () => const WelcomeState(status: WelcomeStatus.loaded),
         act: (bloc) => bloc.add(const WelcomeCreateAccountRequested()),
         expect: () => [
-          const WelcomeState(
-            status: WelcomeStatus.loaded,
-            shouldNavigateToCreateAccount: true,
-          ),
+          const WelcomeState(status: WelcomeStatus.navigatingToCreateAccount),
+          const WelcomeState(status: WelcomeStatus.loaded),
         ],
         verify: (_) {
           verify(() => mockAuthService.acceptTerms()).called(1);
@@ -369,63 +348,17 @@ void main() {
 
     group('$WelcomeLoginOptionsRequested', () {
       blocTest<WelcomeBloc, WelcomeState>(
-        'calls acceptTerms and emits shouldNavigateToLoginOptions',
+        'calls acceptTerms and emits navigating then loaded',
         build: buildBloc,
         seed: () => const WelcomeState(status: WelcomeStatus.loaded),
         act: (bloc) => bloc.add(const WelcomeLoginOptionsRequested()),
         expect: () => [
-          const WelcomeState(
-            status: WelcomeStatus.loaded,
-            shouldNavigateToLoginOptions: true,
-          ),
+          const WelcomeState(status: WelcomeStatus.navigatingToLoginOptions),
+          const WelcomeState(status: WelcomeStatus.loaded),
         ],
         verify: (_) {
           verify(() => mockAuthService.acceptTerms()).called(1);
         },
-      );
-    });
-
-    group('$WelcomeNavigationConsumed', () {
-      blocTest<WelcomeBloc, WelcomeState>(
-        'clears shouldNavigateToLoginOptions flag',
-        build: buildBloc,
-        seed: () => const WelcomeState(
-          status: WelcomeStatus.loaded,
-          shouldNavigateToLoginOptions: true,
-        ),
-        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
-        expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
-      );
-
-      blocTest<WelcomeBloc, WelcomeState>(
-        'clears shouldNavigateToCreateAccount flag',
-        build: buildBloc,
-        seed: () => const WelcomeState(
-          status: WelcomeStatus.loaded,
-          shouldNavigateToCreateAccount: true,
-        ),
-        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
-        expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
-      );
-
-      blocTest<WelcomeBloc, WelcomeState>(
-        'clears both navigation flags simultaneously',
-        build: buildBloc,
-        seed: () => const WelcomeState(
-          status: WelcomeStatus.loaded,
-          shouldNavigateToLoginOptions: true,
-          shouldNavigateToCreateAccount: true,
-        ),
-        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
-        expect: () => [const WelcomeState(status: WelcomeStatus.loaded)],
-      );
-
-      blocTest<WelcomeBloc, WelcomeState>(
-        'emits no change when both flags are already false',
-        build: buildBloc,
-        seed: () => const WelcomeState(status: WelcomeStatus.loaded),
-        act: (bloc) => bloc.add(const WelcomeNavigationConsumed()),
-        expect: () => <WelcomeState>[],
       );
     });
   });
@@ -494,12 +427,6 @@ void main() {
       const state = WelcomeState(signingInPubkeyHex: _testPubkeyHex);
       final cleared = state.copyWith(clearSigningIn: true);
       expect(cleared.signingInPubkeyHex, isNull);
-    });
-
-    test('copyWith shouldNavigateToCreateAccount', () {
-      const state = WelcomeState();
-      final updated = state.copyWith(shouldNavigateToCreateAccount: true);
-      expect(updated.shouldNavigateToCreateAccount, isTrue);
     });
 
     test('copyWith clearError removes error', () {

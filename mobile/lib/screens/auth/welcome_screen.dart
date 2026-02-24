@@ -77,21 +77,25 @@ class _WelcomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<WelcomeBloc, WelcomeState>(
+      listenWhen: (prev, current) =>
+          current.status == WelcomeStatus.navigatingToLoginOptions ||
+          current.status == WelcomeStatus.navigatingToCreateAccount ||
+          (current.status == WelcomeStatus.error && current.error != null),
       listener: (context, state) {
-        if (state.status == WelcomeStatus.error && state.error != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.error!),
-              backgroundColor: VineTheme.error,
-            ),
-          );
-        }
-        if (state.shouldNavigateToLoginOptions) {
-          context.push(WelcomeScreen.loginOptionsPath);
-          context.read<WelcomeBloc>().add(const WelcomeNavigationConsumed());
-        } else if (state.shouldNavigateToCreateAccount) {
-          context.push(WelcomeScreen.createAccountPath);
-          context.read<WelcomeBloc>().add(const WelcomeNavigationConsumed());
+        switch (state.status) {
+          case WelcomeStatus.navigatingToCreateAccount:
+            context.push(WelcomeScreen.createAccountPath);
+          case WelcomeStatus.navigatingToLoginOptions:
+            context.push(WelcomeScreen.loginOptionsPath);
+          case WelcomeStatus.error when state.error != null:
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.error!),
+                backgroundColor: VineTheme.error,
+              ),
+            );
+          default:
+            break;
         }
       },
       builder: (context, state) {

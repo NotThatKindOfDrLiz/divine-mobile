@@ -37,7 +37,6 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
       _onCreateAccountRequested,
       transformer: droppable(),
     );
-    on<WelcomeNavigationConsumed>(_onNavigationConsumed);
     on<WelcomeLoginOptionsRequested>(
       _onLoginOptionsRequested,
       transformer: droppable(),
@@ -160,8 +159,6 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
         status: WelcomeStatus.accepting,
         signingInPubkeyHex: account.pubkeyHex,
         clearError: true,
-        shouldNavigateToLoginOptions: false,
-        shouldNavigateToCreateAccount: false,
       ),
     );
 
@@ -214,19 +211,8 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
       category: LogCategory.auth,
     );
     await _authService.acceptTerms();
-    emit(state.copyWith(shouldNavigateToCreateAccount: true));
-  }
-
-  void _onNavigationConsumed(
-    WelcomeNavigationConsumed event,
-    Emitter<WelcomeState> emit,
-  ) {
-    emit(
-      state.copyWith(
-        shouldNavigateToLoginOptions: false,
-        shouldNavigateToCreateAccount: false,
-      ),
-    );
+    emit(state.copyWith(status: WelcomeStatus.navigatingToCreateAccount));
+    emit(state.copyWith(status: WelcomeStatus.loaded));
   }
 
   Future<void> _onLoginOptionsRequested(
@@ -240,6 +226,7 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
       category: LogCategory.auth,
     );
     await _authService.acceptTerms();
-    emit(state.copyWith(shouldNavigateToLoginOptions: true));
+    emit(state.copyWith(status: WelcomeStatus.navigatingToLoginOptions));
+    emit(state.copyWith(status: WelcomeStatus.loaded));
   }
 }

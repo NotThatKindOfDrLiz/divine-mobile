@@ -1082,6 +1082,78 @@ void main() {
       );
     });
 
+    group('skipWithAnonymousAccount', () {
+      blocTest<DivineAuthCubit, DivineAuthState>(
+        'emits isSkipping then $DivineAuthSuccess on success',
+        setUp: () {
+          when(
+            () => mockAuthService.createAnonymousAccount(),
+          ).thenAnswer((_) async {});
+        },
+        build: buildCubit,
+        seed: () =>
+            const DivineAuthFormState(email: testEmail, password: testPassword),
+        act: (cubit) => cubit.skipWithAnonymousAccount(),
+        expect: () => [
+          const DivineAuthFormState(
+            email: testEmail,
+            password: testPassword,
+            isSkipping: true,
+          ),
+          isA<DivineAuthSuccess>(),
+        ],
+        verify: (_) {
+          verify(() => mockAuthService.createAnonymousAccount()).called(1);
+        },
+      );
+
+      blocTest<DivineAuthCubit, DivineAuthState>(
+        'emits isSkipping then generalError on failure',
+        setUp: () {
+          when(
+            () => mockAuthService.createAnonymousAccount(),
+          ).thenThrow(Exception('identity creation failed'));
+        },
+        build: buildCubit,
+        seed: () =>
+            const DivineAuthFormState(email: testEmail, password: testPassword),
+        act: (cubit) => cubit.skipWithAnonymousAccount(),
+        expect: () => [
+          const DivineAuthFormState(
+            email: testEmail,
+            password: testPassword,
+            isSkipping: true,
+          ),
+          isA<DivineAuthFormState>()
+              .having((s) => s.isSkipping, 'isSkipping', isFalse)
+              .having((s) => s.generalError, 'generalError', isNotNull),
+        ],
+      );
+
+      blocTest<DivineAuthCubit, DivineAuthState>(
+        'does nothing when state is not $DivineAuthFormState',
+        build: buildCubit,
+        act: (cubit) => cubit.skipWithAnonymousAccount(),
+        expect: () => <DivineAuthState>[],
+      );
+
+      blocTest<DivineAuthCubit, DivineAuthState>(
+        'does nothing when already skipping',
+        build: buildCubit,
+        seed: () => const DivineAuthFormState(isSkipping: true),
+        act: (cubit) => cubit.skipWithAnonymousAccount(),
+        expect: () => <DivineAuthState>[],
+      );
+
+      blocTest<DivineAuthCubit, DivineAuthState>(
+        'does nothing when already submitting',
+        build: buildCubit,
+        seed: () => const DivineAuthFormState(isSubmitting: true),
+        act: (cubit) => cubit.skipWithAnonymousAccount(),
+        expect: () => <DivineAuthState>[],
+      );
+    });
+
     group('returnToForm', () {
       blocTest<DivineAuthCubit, DivineAuthState>(
         'returns to form with email preserved from '
@@ -1151,6 +1223,15 @@ void main() {
         expect(state.canSubmit, isFalse);
       });
 
+      test('canSubmit returns false when skipping', () {
+        const state = DivineAuthFormState(
+          email: testEmail,
+          password: testPassword,
+          isSkipping: true,
+        );
+        expect(state.canSubmit, isFalse);
+      });
+
       test('copyWith preserves values when no arguments provided', () {
         const original = DivineAuthFormState(
           email: testEmail,
@@ -1194,7 +1275,7 @@ void main() {
           obscurePassword: false,
           isSubmitting: true,
         );
-        expect(state.props, hasLength(8));
+        expect(state.props, hasLength(9));
       });
     });
 
