@@ -135,27 +135,25 @@ class _NewUserLayout extends StatelessWidget {
           const SizedBox(height: 16),
         ],
 
-        DivinePrimaryButton(
-          label: 'Create a new Divine account',
-          isLoading: isLoading,
-          onPressed: () => context.read<WelcomeBloc>().add(
-            const WelcomeCreateAccountRequested(),
+        if (!isLoading) ...[
+          DivinePrimaryButton(
+            label: 'Create a new Divine account',
+            onPressed: () => context.read<WelcomeBloc>().add(
+              const WelcomeCreateAccountRequested(),
+            ),
           ),
-        ),
 
-        const SizedBox(height: 12),
+          const SizedBox(height: 12),
 
-        DivineSecondaryButton(
-          label: 'Login with a different account',
-          onPressed: isLoading
-              ? null
-              : () => context.read<WelcomeBloc>().add(
-                  const WelcomeLoginOptionsRequested(),
-                ),
-        ),
+          DivineSecondaryButton(
+            label: 'Login with a different account',
+            onPressed: () => context.read<WelcomeBloc>().add(
+              const WelcomeLoginOptionsRequested(),
+            ),
+          ),
 
-        const SizedBox(height: 20),
-
+          const SizedBox(height: 20),
+        ],
         const _TermsNotice(),
 
         const SizedBox(height: 32),
