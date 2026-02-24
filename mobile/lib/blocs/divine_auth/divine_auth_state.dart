@@ -128,13 +128,3 @@ class DivineAuthEmailVerification extends DivineAuthState {
 class DivineAuthSuccess extends DivineAuthState {
   const DivineAuthSuccess();
 }
-
-/// State when an error occurs that requires user action
-class DivineAuthError extends DivineAuthState {
-  const DivineAuthError({required this.message});
-
-  final String message;
-
-  @override
-  List<Object?> get props => [message];
-}

@@ -1225,12 +1225,5 @@ void main() {
         expect(a, equals(b));
       });
     });
-
-    group('$DivineAuthError', () {
-      test('props contains message', () {
-        const state = DivineAuthError(message: 'test error');
-        expect(state.props, equals(['test error']));
-      });
-    });
   });
 }
