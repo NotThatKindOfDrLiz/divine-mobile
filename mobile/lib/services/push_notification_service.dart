@@ -18,7 +18,7 @@ import 'package:openvine/utils/unified_logger.dart';
 /// This is the public key of the divine-push-service that monitors
 /// relay.divine.video for kind 3079/3080 events.
 const pushServicePubkey =
-    'e26e277483b7707cba904b1a261998e4a9a8a0ceab08a24e8cba5a7e6729b1f5';
+    'd93716b5d8048f4ddde4c5a60bdb89fbff1cd813ac12f838cc6fff35a3383bc6';
 
 /// Relay URL for push notification registration events.
 const pushRegistrationRelay = 'wss://relay.divine.video';
