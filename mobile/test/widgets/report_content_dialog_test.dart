@@ -256,7 +256,7 @@ void main() {
 
     setUp(() {
       mockNostrClient = createMockNostrService();
-      when(mockNostrClient.publicKey).thenReturn('test_pubkey_hex');
+      // publicKey is already stubbed in createMockNostrService()
     });
 
     Widget buildSubject() {

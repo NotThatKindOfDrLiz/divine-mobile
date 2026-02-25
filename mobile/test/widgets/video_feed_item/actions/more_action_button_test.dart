@@ -79,8 +79,7 @@ void main() {
       mockBlocklistService = MockContentBlocklistService();
       mockMuteService = MockMuteService();
       mockNostrClient = createMockNostrService();
-      // Stub publicKey so _handleBlock can access it
-      when(mockNostrClient.publicKey).thenReturn('test_pubkey_hex');
+      // publicKey is already stubbed in createMockNostrService()
     });
 
     Widget buildMenuWidget({bool debugToolsEnabled = false}) {
