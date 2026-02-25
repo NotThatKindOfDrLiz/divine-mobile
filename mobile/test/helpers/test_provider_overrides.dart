@@ -116,7 +116,9 @@ MockNostrClient createMockNostrService() {
   mocktail.when(() => mockNostr.configuredRelays).thenReturn(<String>[]);
   mocktail
       .when(() => mockNostr.publicKey)
-      .thenReturn('0000000000000000000000000000000000000000000000000000000000000001');
+      .thenReturn(
+        '0000000000000000000000000000000000000000000000000000000000000001',
+      );
 
   // Stub subscribe() to return empty stream (never null) so SubscriptionManager
   // and UserProfileService batch fetch do not get type 'Null' is not a subtype of type 'Stream<Event>'
