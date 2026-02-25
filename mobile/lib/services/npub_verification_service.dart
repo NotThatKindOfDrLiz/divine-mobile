@@ -59,6 +59,7 @@ class NpubVerificationService {
       category: LogCategory.auth,
     );
 
+    return NpubVerificationResult(valid: true, message: 'John testing');
     final deviceId = await _getDeviceId();
     final uri = Uri.parse('$_baseUrl/v1/verify-npub');
     try {

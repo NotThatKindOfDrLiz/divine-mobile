@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:openvine/config/app_config.dart';
 import 'package:openvine/models/invite_code_result.dart';
 import 'package:openvine/repositories/invite_code_repository.dart';
+import 'package:openvine/services/nip98_auth_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,13 +38,16 @@ class InviteCodeService {
     http.Client? client,
     required InviteCodeRepository repository,
     required SharedPreferences prefs,
+    Nip98AuthService? nip98AuthService,
   }) : _client = client ?? http.Client(),
        _repository = repository,
-       _prefs = prefs;
+       _prefs = prefs,
+       _nip98AuthService = nip98AuthService;
 
   final http.Client _client;
   final InviteCodeRepository _repository;
   final SharedPreferences _prefs; // Only for device ID storage
+  final Nip98AuthService? _nip98AuthService;
 
   static const String _deviceIdKey = 'device_unique_id';
   static const Duration _timeout = Duration(seconds: 15);
@@ -56,6 +60,71 @@ class InviteCodeService {
 
   /// Check if device has a verified invite code
   bool get hasVerifiedCode => _repository.hasStoredCode;
+
+  /// Check the invite status for the authenticated user.
+  ///
+  /// Makes a NIP-98 authorized GET request to `/v1/invite-status`.
+  /// The server identifies the user by the public key in the signed event.
+  ///
+  /// Returns [InviteCodeResult] with the user's invite status.
+  ///
+  /// Throws:
+  ///
+  /// * [InviteCodeException] if NIP-98 auth is unavailable, the token
+  ///   cannot be created, or the server returns a non-200 response.
+  Future<InviteCodeResult> getInviteStatus() async {
+    if (_nip98AuthService == null) {
+      throw const InviteCodeException('NIP-98 auth service not available');
+    }
+
+    final url = '$_baseUrl/v1/invite-status';
+
+    Log.info(
+      'Checking invite status',
+      name: 'InviteCodeService',
+      category: LogCategory.auth,
+    );
+
+    final authToken = await _nip98AuthService.createAuthToken(
+      url: url,
+      method: HttpMethod.get,
+    );
+
+    if (authToken == null) {
+      throw const InviteCodeException('Failed to create NIP-98 auth token');
+    }
+
+    try {
+      final response = await _client
+          .get(
+            Uri.parse(url),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': authToken.authorizationHeader,
+            },
+          )
+          .timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return InviteCodeResult.fromJson(data);
+      } else {
+        throw InviteCodeException(
+          'Server error',
+          statusCode: response.statusCode,
+        );
+      }
+    } on TimeoutException {
+      throw const InviteCodeException('Request timed out. Please try again.');
+    } on SocketException {
+      throw const InviteCodeException(
+        'No internet connection. Please check your network.',
+      );
+    } catch (e) {
+      if (e is InviteCodeException) rethrow;
+      throw InviteCodeException('Failed to check invite status: $e');
+    }
+  }
 
   /// Get or generate a persistent device ID.
   ///

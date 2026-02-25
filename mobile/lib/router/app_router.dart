@@ -52,6 +52,7 @@ import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/screens/video_editor/video_editor_screen.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
 import 'package:openvine/screens/video_recorder_screen.dart';
+import 'package:openvine/screens/invite_status_screen.dart';
 import 'package:openvine/screens/auth/invite_choice_screen.dart';
 import 'package:openvine/screens/auth/invite_code_entry_screen.dart';
 import 'package:openvine/screens/auth/login_options_screen.dart';
@@ -511,6 +512,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: CreatorAnalyticsScreen.routeName,
         parentNavigatorKey: NavigatorKeys.root,
         builder: (ctx, st) => const CreatorAnalyticsScreen(),
+      ),
+      GoRoute(
+        path: InviteStatusScreen.path,
+        name: InviteStatusScreen.routeName,
+        parentNavigatorKey: NavigatorKeys.root,
+        builder: (ctx, st) => const InviteStatusScreen(),
       ),
 
       // CURATED LIST route (NIP-51 kind 30005 video lists)
@@ -1001,6 +1008,7 @@ int tabIndexFromLocation(String loc) {
     case 'list':
     case 'discover-lists':
     case 'creator-analytics':
+    case 'invite-status':
     case 'invite':
     case 'npub-verification':
       return -1; // Non-tab routes - no bottom nav (outside shell)

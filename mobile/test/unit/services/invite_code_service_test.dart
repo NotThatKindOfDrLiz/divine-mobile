@@ -6,11 +6,24 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:openvine/repositories/invite_code_repository.dart';
 import 'package:openvine/services/invite_code_service.dart';
+import 'package:openvine/services/nip98_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class _MockNip98AuthService extends Mock implements Nip98AuthService {}
+
+class _FakeNip98Token extends Fake implements Nip98Token {
+  @override
+  String get authorizationHeader => 'Nostr fakebase64token';
+}
+
 void main() {
+  setUpAll(() {
+    registerFallbackValue(HttpMethod.get);
+  });
+
   group('InviteCodeService', () {
     late SharedPreferences prefs;
     late InviteCodeRepository repository;
@@ -341,6 +354,196 @@ void main() {
 
         expect(service.hasVerifiedCode, isFalse);
         expect(service.storedInviteCode, isNull);
+      });
+    });
+
+    group('getInviteStatus', () {
+      late _MockNip98AuthService mockNip98AuthService;
+
+      setUp(() {
+        mockNip98AuthService = _MockNip98AuthService();
+      });
+
+      test('throws when nip98AuthService is null', () async {
+        final service = InviteCodeService(
+          client: MockClient((_) async => http.Response('', 200)),
+          repository: repository,
+          prefs: prefs,
+        );
+
+        expect(
+          () => service.getInviteStatus(),
+          throwsA(
+            isA<InviteCodeException>().having(
+              (e) => e.message,
+              'message',
+              'NIP-98 auth service not available',
+            ),
+          ),
+        );
+      });
+
+      test('throws when auth token creation fails', () async {
+        when(
+          () => mockNip98AuthService.createAuthToken(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+          ),
+        ).thenAnswer((_) async => null);
+
+        final service = InviteCodeService(
+          client: MockClient((_) async => http.Response('', 200)),
+          repository: repository,
+          prefs: prefs,
+          nip98AuthService: mockNip98AuthService,
+        );
+
+        expect(
+          () => service.getInviteStatus(),
+          throwsA(
+            isA<InviteCodeException>().having(
+              (e) => e.message,
+              'message',
+              'Failed to create NIP-98 auth token',
+            ),
+          ),
+        );
+      });
+
+      test('sends GET request with NIP-98 authorization header', () async {
+        final fakeToken = _FakeNip98Token();
+
+        when(
+          () => mockNip98AuthService.createAuthToken(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+          ),
+        ).thenAnswer((_) async => fakeToken);
+
+        final mockClient = MockClient((request) async {
+          capturedRequests.add(request);
+          return http.Response(
+            jsonEncode({'valid': true, 'code': 'ABCD1234'}),
+            200,
+          );
+        });
+
+        final service = InviteCodeService(
+          client: mockClient,
+          repository: repository,
+          prefs: prefs,
+          nip98AuthService: mockNip98AuthService,
+        );
+
+        await service.getInviteStatus();
+
+        expect(capturedRequests.length, equals(1));
+        final request = capturedRequests.first;
+        expect(request.url.path, contains('/v1/invite-status'));
+        expect(request.method, equals('GET'));
+        expect(
+          request.headers['Authorization'],
+          equals('Nostr fakebase64token'),
+        );
+      });
+
+      test('returns InviteCodeResult on 200 response', () async {
+        final fakeToken = _FakeNip98Token();
+
+        when(
+          () => mockNip98AuthService.createAuthToken(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+          ),
+        ).thenAnswer((_) async => fakeToken);
+
+        final mockClient = MockClient((_) async {
+          return http.Response(
+            jsonEncode({
+              'valid': true,
+              'code': 'ABCD1234',
+              'message': 'Active invite',
+            }),
+            200,
+          );
+        });
+
+        final service = InviteCodeService(
+          client: mockClient,
+          repository: repository,
+          prefs: prefs,
+          nip98AuthService: mockNip98AuthService,
+        );
+
+        final result = await service.getInviteStatus();
+
+        expect(result.valid, isTrue);
+        expect(result.code, equals('ABCD1234'));
+        expect(result.message, equals('Active invite'));
+      });
+
+      test('throws InviteCodeException on non-200 response', () async {
+        final fakeToken = _FakeNip98Token();
+
+        when(
+          () => mockNip98AuthService.createAuthToken(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+          ),
+        ).thenAnswer((_) async => fakeToken);
+
+        final mockClient = MockClient((_) async {
+          return http.Response('Internal Server Error', 500);
+        });
+
+        final service = InviteCodeService(
+          client: mockClient,
+          repository: repository,
+          prefs: prefs,
+          nip98AuthService: mockNip98AuthService,
+        );
+
+        expect(
+          () => service.getInviteStatus(),
+          throwsA(
+            isA<InviteCodeException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              500,
+            ),
+          ),
+        );
+      });
+
+      test('passes correct HttpMethod.get to createAuthToken', () async {
+        final fakeToken = _FakeNip98Token();
+
+        when(
+          () => mockNip98AuthService.createAuthToken(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+          ),
+        ).thenAnswer((_) async => fakeToken);
+
+        final mockClient = MockClient((_) async {
+          return http.Response(jsonEncode({'valid': true}), 200);
+        });
+
+        final service = InviteCodeService(
+          client: mockClient,
+          repository: repository,
+          prefs: prefs,
+          nip98AuthService: mockNip98AuthService,
+        );
+
+        await service.getInviteStatus();
+
+        verify(
+          () => mockNip98AuthService.createAuthToken(
+            url: any(named: 'url', that: contains('/v1/invite-status')),
+            method: HttpMethod.get,
+          ),
+        ).called(1);
       });
     });
 

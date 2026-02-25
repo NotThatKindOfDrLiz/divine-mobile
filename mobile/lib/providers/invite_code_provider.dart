@@ -3,6 +3,7 @@
 
 import 'package:openvine/blocs/invite_code/invite_code_bloc.dart';
 import 'package:openvine/models/invite_code_result.dart';
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/repositories/invite_code_repository.dart';
 import 'package:openvine/services/invite_code_service.dart';
@@ -43,7 +44,12 @@ InviteCodeRepository inviteCodeRepository(Ref ref) {
 InviteCodeService inviteCodeService(Ref ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   final repository = ref.watch(inviteCodeRepositoryProvider);
-  final service = InviteCodeService(repository: repository, prefs: prefs);
+  final nip98AuthService = ref.watch(nip98AuthServiceProvider);
+  final service = InviteCodeService(
+    repository: repository,
+    prefs: prefs,
+    nip98AuthService: nip98AuthService,
+  );
   ref.onDispose(service.dispose);
   return service;
 }

@@ -21,6 +21,7 @@ import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/screens/creator_analytics_screen.dart';
 import 'package:openvine/screens/feed/video_feed_page.dart';
+import 'package:openvine/screens/invite_status_screen.dart';
 import 'package:openvine/screens/profile_setup_screen.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -387,6 +388,15 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
     context.pushNamed(CreatorAnalyticsScreen.routeName);
   }
 
+  void _openInvites() {
+    final rootContext = NavigatorKeys.root.currentContext;
+    if (rootContext != null) {
+      GoRouter.of(rootContext).pushNamed(InviteStatusScreen.routeName);
+      return;
+    }
+    context.pushNamed(InviteStatusScreen.routeName);
+  }
+
   Future<void> _more(String userIdHex) async {
     final result = await VineBottomSheet.show<String>(
       context: context,
@@ -422,6 +432,27 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
                 const Icon(Icons.analytics_outlined, size: 24),
                 const SizedBox(width: 16),
                 Text('Creator analytics', style: VineTheme.titleMediumFont()),
+              ],
+            ),
+          ),
+        ),
+        InkWell(
+          onTap: () => Navigator.of(context).pop('invites'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Row(
+              children: [
+                SvgPicture.asset(
+                  'assets/icon/envelope_simple.svg',
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    VineTheme.whiteText,
+                    BlendMode.srcIn,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Text('Invites', style: VineTheme.titleMediumFont()),
               ],
             ),
           ),
@@ -480,6 +511,8 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
       _editProfile();
     } else if (result == 'analytics') {
       _openAnalytics();
+    } else if (result == 'invites') {
+      _openInvites();
     } else if (result == 'share') {
       await _shareProfile(userIdHex);
     } else if (result == 'copy_npub') {
