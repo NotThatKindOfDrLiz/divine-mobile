@@ -749,77 +749,35 @@ class ProfileViewSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final backgroundPublishBloc = context.watch<BackgroundPublishBloc>();
-
     // If videoIndex is set, show fullscreen video mode
     // Note: videoIndex maps directly to list index (0 = first video, etc.)
     // When videoIndex is null, show grid mode
-    final child = (videoIndex != null && videos.isNotEmpty)
-        ? ProfileVideoFeedView(
-            npub: npub,
-            userIdHex: userIdHex,
-            isOwnProfile: isOwnProfile,
-            videos: videos,
-            videoIndex: videoIndex!,
-            onPageChanged: (newIndex) {
-              context.go(ProfileScreenRouter.pathForIndex(npub, newIndex));
-            },
-          )
-        :
-          // Otherwise show Instagram-style grid view
-          ProfileGridView(
-            userIdHex: userIdHex,
-            isOwnProfile: isOwnProfile,
-            displayName: displayName,
-            videos: videos,
-            profileStatsAsync: profileStatsAsync,
-            scrollController: scrollController,
-            onSetupProfile: onSetupProfile,
-            onEditProfile: onEditProfile,
-            onOpenClips: onOpenClips,
-            onOpenAnalytics: onOpenAnalytics,
-            refreshNotifier: refreshNotifier,
-          );
-
-    final completedWithErrorUploads = backgroundPublishBloc.state.uploads
-        .where((upload) => upload.result != null)
-        .toList();
-
-    if (completedWithErrorUploads.isNotEmpty) {
-      final faultUpload = completedWithErrorUploads.first;
-
-      return Stack(
-        children: [
-          Positioned.fill(child: child),
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: Dismissible(
-              key: ValueKey(faultUpload.draft.id),
-              onDismissed: (_) {
-                backgroundPublishBloc.add(
-                  BackgroundPublishVanished(draftId: faultUpload.draft.id),
-                );
-              },
-              child: DivineSnackbarContainer(
-                label: 'Video upload failed.',
-                error: true,
-                actionLabel: 'Retry',
-                onActionPressed: () {
-                  backgroundPublishBloc.add(
-                    BackgroundPublishRetryRequested(
-                      draftId: faultUpload.draft.id,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+    if (videoIndex != null && videos.isNotEmpty) {
+      return ProfileVideoFeedView(
+        npub: npub,
+        userIdHex: userIdHex,
+        isOwnProfile: isOwnProfile,
+        videos: videos,
+        videoIndex: videoIndex!,
+        onPageChanged: (newIndex) {
+          context.go(ProfileScreenRouter.pathForIndex(npub, newIndex));
+        },
       );
-    } else {
-      return child;
     }
+
+    // Otherwise show Instagram-style grid view
+    return ProfileGridView(
+      userIdHex: userIdHex,
+      isOwnProfile: isOwnProfile,
+      displayName: displayName,
+      videos: videos,
+      profileStatsAsync: profileStatsAsync,
+      scrollController: scrollController,
+      onSetupProfile: onSetupProfile,
+      onEditProfile: onEditProfile,
+      onOpenClips: onOpenClips,
+      onOpenAnalytics: onOpenAnalytics,
+      refreshNotifier: refreshNotifier,
+    );
   }
 }

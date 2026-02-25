@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
+import 'package:openvine/services/video_publish/video_publish_service.dart';
 import 'package:openvine/mixins/grid_prefetch_mixin.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
@@ -138,10 +139,10 @@ class _ProfileVideosGridState extends ConsumerState<ProfileVideosGrid>
 
     final allVideos = [
       // Only show uploading tiles on own profile
+      // Successful uploads are already removed from state by the BLoC,
+      // so this includes both in-progress and failed uploads.
       if (isOwnProfile)
-        ...backgroundPublish.state.uploads
-            .where((upload) => upload.result == null)
-            .map(_GridUploadingVideoEntry.new),
+        ...backgroundPublish.state.uploads.map(_GridUploadingVideoEntry.new),
 
       ...widget.videos.map(_GridVideoEventEntry.new),
     ];
@@ -165,9 +166,7 @@ class _ProfileVideosGridState extends ConsumerState<ProfileVideosGrid>
     }
 
     // Count uploading videos to offset indices for published videos
-    final uploadingCount = backgroundPublish.state.uploads
-        .where((upload) => upload.result == null)
-        .length;
+    final uploadingCount = backgroundPublish.state.uploads.length;
 
     return CustomScrollView(
       slivers: [
@@ -269,12 +268,14 @@ class _VideoGridUploadingTile extends StatelessWidget {
 
   final BackgroundUpload backgroundUpload;
 
+  bool get _isFailed => backgroundUpload.result is PublishError;
+
   @override
   Widget build(BuildContext context) {
     final thumbnailPath =
         backgroundUpload.draft.clips.firstOrNull?.thumbnailPath;
 
-    return ClipRRect(
+    final tile = ClipRRect(
       borderRadius: BorderRadius.circular(4),
       child: Stack(
         fit: StackFit.expand,
@@ -287,13 +288,51 @@ class _VideoGridUploadingTile extends StatelessWidget {
             )
           else
             const _ThumbnailPlaceholder(),
-          const ColoredBox(color: Color(0x66000000)),
-          Center(
-            child: PartialCircleSpinner(progress: backgroundUpload.progress),
+          ColoredBox(
+            color: _isFailed
+                ? const Color(0x99000000)
+                : const Color(0x66000000),
           ),
+          if (_isFailed)
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DivineIcon(icon: DivineIconName.skull, size: 32),
+                  SizedBox(height: 4),
+                  Text(
+                    'Tap to retry',
+                    style: TextStyle(
+                      color: VineTheme.secondaryText,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Center(
+              child:
+                  PartialCircleSpinner(progress: backgroundUpload.progress),
+            ),
         ],
       ),
     );
+
+    if (_isFailed) {
+      return GestureDetector(
+        onTap: () {
+          context.read<BackgroundPublishBloc>().add(
+            BackgroundPublishRetryRequested(
+              draftId: backgroundUpload.draft.id,
+            ),
+          );
+        },
+        child: tile,
+      );
+    }
+
+    return tile;
   }
 }
 
