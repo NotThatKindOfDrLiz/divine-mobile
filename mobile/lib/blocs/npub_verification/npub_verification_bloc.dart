@@ -69,6 +69,9 @@ class NpubVerificationBloc
       final result = await _service.verifyNpub(event.npub);
 
       if (result.valid) {
+        // Persist verification so the router can read it synchronously
+        await _repository.setVerified(event.npub);
+
         Log.info(
           'Npub verified successfully',
           name: 'NpubVerificationBloc',

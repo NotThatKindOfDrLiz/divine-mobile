@@ -54,6 +54,9 @@ void main() {
             (_) async =>
                 const NpubVerificationResult(valid: true, message: 'OK'),
           );
+          when(
+            () => mockRepository.setVerified(_testNpub),
+          ).thenAnswer((_) async => true);
         },
         build: buildBloc,
         act: (bloc) => bloc.add(const NpubVerificationRequested(_testNpub)),
@@ -63,6 +66,7 @@ void main() {
         ],
         verify: (_) {
           verify(() => mockService.verifyNpub(_testNpub)).called(1);
+          verify(() => mockRepository.setVerified(_testNpub)).called(1);
         },
       );
 
@@ -72,6 +76,9 @@ void main() {
           when(
             () => mockService.verifyNpub(_testNpub),
           ).thenAnswer((_) async => const NpubVerificationResult(valid: true));
+          when(
+            () => mockRepository.setVerified(_testNpub),
+          ).thenAnswer((_) async => true);
         },
         build: buildBloc,
         seed: () => const NpubVerificationState(skipInviteRequested: true),
@@ -149,6 +156,9 @@ void main() {
           when(
             () => mockService.verifyNpub(_testNpub),
           ).thenAnswer((_) async => const NpubVerificationResult(valid: true));
+          when(
+            () => mockRepository.setVerified(_testNpub),
+          ).thenAnswer((_) async => true);
         },
         build: buildBloc,
         seed: () => const NpubVerificationState(
@@ -170,6 +180,9 @@ void main() {
             await Future<void>.delayed(const Duration(milliseconds: 50));
             return const NpubVerificationResult(valid: true);
           });
+          when(
+            () => mockRepository.setVerified(_testNpub),
+          ).thenAnswer((_) async => true);
         },
         build: buildBloc,
         act: (bloc) {
