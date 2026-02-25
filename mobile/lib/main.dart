@@ -24,6 +24,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/deep_link_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/providers/push_notification_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 
 import 'package:openvine/router/router.dart';
@@ -722,6 +723,9 @@ class _DivineAppState extends ConsumerState<DivineApp> {
         );
       }
     });
+
+    // Initialize FCM push notification registration (watches auth state)
+    ref.read(pushNotificationsProvider);
   }
 
   @override
