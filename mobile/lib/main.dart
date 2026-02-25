@@ -31,7 +31,7 @@ import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
-import 'package:openvine/screens/home_screen_router.dart';
+import 'package:openvine/screens/feed/video_feed_page.dart';
 import 'package:openvine/screens/notifications_screen.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/screens/pure/search_screen_pure.dart';
@@ -161,7 +161,8 @@ Future<void> _startOpenVineApp() async {
   }
 
   // DEFER window manager initialization until after UI is ready to avoid blocking
-  if (defaultTargetPlatform == TargetPlatform.macOS) {
+  if (defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux) {
     // Defer window manager setup to not block main thread during critical startup
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
@@ -1016,7 +1017,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
             ctx.hashtag ?? '',
           ),
           RouteType.search => SearchScreenPure.path,
-          RouteType.home => HomeScreenRouter.pathForIndex(0),
+          RouteType.home => VideoFeedPage.pathForIndex(0),
           _ => ExploreScreen.path,
         };
 
@@ -1044,7 +1045,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
         // So we'll use router.go directly
         switch (previousTab) {
           case 0:
-            router.go(HomeScreenRouter.pathForIndex(lastIndex ?? 0));
+            router.go(VideoFeedPage.pathForIndex(lastIndex ?? 0));
             break;
           case 1:
             if (lastIndex != null) {
@@ -1063,7 +1064,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
             if (currentNpub != null) {
               router.go(ProfileScreenRouter.pathForNpub(currentNpub));
             } else {
-              router.go(HomeScreenRouter.pathForIndex(0));
+              router.go(VideoFeedPage.pathForIndex(0));
             }
             break;
         }
@@ -1075,7 +1076,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
       final currentTab = _tabIndexFromRouteType(ctx.type);
       if (currentTab != null && currentTab != 0) {
         // Go to home first
-        router.go(HomeScreenRouter.pathForIndex(0));
+        router.go(VideoFeedPage.pathForIndex(0));
         return true; // Handled
       }
 
