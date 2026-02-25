@@ -51,13 +51,16 @@ class PushNotificationService {
     required AuthService authService,
     required NostrClient nostrClient,
     FirebaseMessaging? messaging,
+    NotificationService? notificationService,
   }) : _authService = authService,
        _nostrClient = nostrClient,
-       _messaging = messaging ?? FirebaseMessaging.instance;
+       _messaging = messaging ?? FirebaseMessaging.instance,
+       _notificationService = notificationService;
 
   final AuthService _authService;
   final NostrClient _nostrClient;
   final FirebaseMessaging _messaging;
+  final NotificationService? _notificationService;
 
   String? _currentToken;
   DateTime? _lastRegisteredAt;
@@ -321,11 +324,17 @@ class PushNotificationService {
   }
 
   /// Handle foreground FCM messages by showing a local notification.
+  ///
+  /// The push service sends **data-only** FCM messages (`notification: null`)
+  /// rather than display messages. This gives the client full control:
+  /// the app can silently process, aggregate, or ignore messages, and
+  /// supports structured payloads (eventId, senderPubkey, type) beyond
+  /// simple title/body. Title and body are read from [RemoteMessage.data].
   Future<void> _onForegroundMessage(RemoteMessage message) async {
     if (_disposed) return;
 
-    final title = message.notification?.title ?? 'divine';
-    final body = message.notification?.body ?? '';
+    final title = message.data['title'] as String? ?? 'divine';
+    final body = message.data['body'] as String? ?? '';
 
     Log.debug(
       'Foreground push received: $title',
@@ -334,7 +343,8 @@ class PushNotificationService {
     );
 
     // Show via existing local notification service
-    await NotificationService.instance.sendLocal(title: title, body: body);
+    final ns = _notificationService ?? NotificationService.instance;
+    await ns.sendLocal(title: title, body: body);
   }
 
   /// Schedule auto-renewal of the push token registration.
