@@ -24,15 +24,15 @@ class _MockVideoFeedBloc extends MockBloc<VideoFeedEvent, VideoFeedState>
 class _MockVideoFeedController extends Mock implements VideoFeedController {}
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(const VideoFeedStarted());
-    registerFallbackValue(const VideoFeedAutoRefreshRequested());
-  });
-
-  group('VideoFeedView overlay integration', () {
+  group(VideoFeedView, () {
     late VideoFeedBloc videoFeedBloc;
     late VideoFeedController videoFeedController;
     late StreamController<RouteContext> routeContextController;
+
+    setUpAll(() {
+      registerFallbackValue(const VideoFeedStarted());
+      registerFallbackValue(const VideoFeedAutoRefreshRequested());
+    });
 
     setUp(() {
       videoFeedBloc = _MockVideoFeedBloc();
@@ -47,6 +47,10 @@ void main() {
       when(() => videoFeedController.addListener(any())).thenReturn(null);
       when(() => videoFeedController.removeListener(any())).thenReturn(null);
       when(() => videoFeedController.dispose()).thenReturn(null);
+
+      routeContextController.add(
+        const RouteContext(type: RouteType.home, videoIndex: 0),
+      );
     });
 
     tearDown(() => routeContextController.close());
@@ -69,21 +73,10 @@ void main() {
       );
     }
 
-    /// Pumps the widget and emits a home route context so the overlay
-    /// guard in [hasVisibleOverlayProvider] listener passes.
-    Future<void> pumpOnHome(WidgetTester tester) async {
-      await tester.pumpWidget(buildSubject());
-      routeContextController.add(
-        const RouteContext(type: RouteType.home, videoIndex: 0),
-      );
-      await tester.pump();
-      clearInteractions(videoFeedController);
-    }
-
     testWidgets('calls setActive(active: false) when overlay becomes visible', (
       tester,
     ) async {
-      await pumpOnHome(tester);
+      await tester.pumpWidget(buildSubject());
 
       final element = tester.element(find.byType(VideoFeedView));
       final container = ProviderScope.containerOf(element);
@@ -97,7 +90,7 @@ void main() {
     testWidgets('calls setActive(active: false) when modal overlay opens', (
       tester,
     ) async {
-      await pumpOnHome(tester);
+      await tester.pumpWidget(buildSubject());
 
       final element = tester.element(find.byType(VideoFeedView));
       final container = ProviderScope.containerOf(element);
@@ -111,7 +104,7 @@ void main() {
     testWidgets('calls setActive(active: true) when overlay becomes hidden', (
       tester,
     ) async {
-      await pumpOnHome(tester);
+      await tester.pumpWidget(buildSubject());
 
       final element = tester.element(find.byType(VideoFeedView));
       final container = ProviderScope.containerOf(element);
@@ -130,10 +123,19 @@ void main() {
     testWidgets(
       'does NOT resume when overlay closes while on a non-home route',
       (tester) async {
-        await pumpOnHome(tester);
+        await tester.pumpWidget(buildSubject());
 
         final element = tester.element(find.byType(VideoFeedView));
         final container = ProviderScope.containerOf(element);
+
+        // Emit home AFTER the widget is built so it receives it and sets
+        // mountedRouteType = home.
+        routeContextController.add(
+          const RouteContext(type: RouteType.home, videoIndex: 0),
+        );
+        await tester.pump();
+
+        clearInteractions(videoFeedController);
 
         // Drawer opens while still on home
         container.read(overlayVisibilityProvider.notifier).setDrawerOpen(true);
@@ -156,47 +158,6 @@ void main() {
         );
       },
     );
-  });
-
-  group('VideoFeedView pageContext integration', () {
-    late VideoFeedBloc videoFeedBloc;
-    late VideoFeedController videoFeedController;
-    late StreamController<RouteContext> routeContextController;
-
-    setUp(() {
-      videoFeedBloc = _MockVideoFeedBloc();
-      videoFeedController = _MockVideoFeedController();
-      routeContextController = StreamController<RouteContext>.broadcast();
-
-      when(
-        () => videoFeedController.setActive(active: any(named: 'active')),
-      ).thenReturn(null);
-      when(() => videoFeedController.videoCount).thenReturn(0);
-      when(() => videoFeedController.videos).thenReturn([]);
-      when(() => videoFeedController.addListener(any())).thenReturn(null);
-      when(() => videoFeedController.removeListener(any())).thenReturn(null);
-      when(() => videoFeedController.dispose()).thenReturn(null);
-    });
-
-    tearDown(() => routeContextController.close());
-
-    Widget buildSubject({VideoFeedState? state}) {
-      when(() => videoFeedBloc.state).thenReturn(
-        state ?? const VideoFeedState(status: VideoFeedStatus.loading),
-      );
-
-      return testMaterialApp(
-        additionalOverrides: [
-          pageContextProvider.overrideWith(
-            (ref) => routeContextController.stream,
-          ),
-        ],
-        home: BlocProvider<VideoFeedBloc>.value(
-          value: videoFeedBloc,
-          child: VideoFeedView(controller: videoFeedController),
-        ),
-      );
-    }
 
     testWidgets(
       'calls setActive(active: false) when navigating away from home',
