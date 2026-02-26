@@ -247,40 +247,36 @@ void main() {
         expect(find.byType(PartialCircleSpinner), findsNothing);
       });
 
-      testWidgets(
-        'tapping failed upload dispatches '
-        '$BackgroundPublishRetryRequested',
-        (tester) async {
-          when(() => mockAuth.currentPublicKeyHex).thenReturn(_ownPubkey);
+      testWidgets('tapping failed upload dispatches '
+          '$BackgroundPublishRetryRequested', (tester) async {
+        when(() => mockAuth.currentPublicKeyHex).thenReturn(_ownPubkey);
 
-          final draft = _createTestDraft();
-          when(() => mockBloc.state).thenReturn(
-            BackgroundPublishState(
-              uploads: [
-                BackgroundUpload(
-                  draft: draft,
-                  result: const PublishError('Upload failed'),
-                  progress: 1,
-                ),
-              ],
-            ),
-          );
+        final draft = _createTestDraft();
+        when(() => mockBloc.state).thenReturn(
+          BackgroundPublishState(
+            uploads: [
+              BackgroundUpload(
+                draft: draft,
+                result: const PublishError('Upload failed'),
+                progress: 1,
+              ),
+            ],
+          ),
+        );
 
-          final videos = _createTestVideos(pubkey: _ownPubkey);
+        final videos = _createTestVideos(pubkey: _ownPubkey);
 
-          await tester.pumpWidget(
-            buildSubject(userIdHex: _ownPubkey, videos: videos),
-          );
+        await tester.pumpWidget(
+          buildSubject(userIdHex: _ownPubkey, videos: videos),
+        );
 
-          await tester.tap(find.text('Tap to retry'));
+        await tester.tap(find.text('Tap to retry'));
 
-          verify(
-            () => mockBloc.add(
-              BackgroundPublishRetryRequested(draftId: draft.id),
-            ),
-          ).called(1);
-        },
-      );
+        verify(
+          () =>
+              mockBloc.add(BackgroundPublishRetryRequested(draftId: draft.id)),
+        ).called(1);
+      });
     });
   });
 }

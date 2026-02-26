@@ -13,7 +13,6 @@ import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/state/video_feed_state.dart';
 
-
 void main() {
   Widget shell(ProviderContainer c) => UncontrolledProviderScope(
     container: c,
@@ -183,4 +182,3 @@ class FakeUserProfileNotifier extends UserProfileNotifier {
     onPrefetch(pubkeys);
   }
 }
-

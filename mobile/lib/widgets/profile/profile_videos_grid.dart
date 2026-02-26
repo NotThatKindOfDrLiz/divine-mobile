@@ -301,10 +301,12 @@ class _VideoGridUploadingTile extends StatelessWidget {
                   DivineIcon(icon: DivineIconName.skull, size: 32),
                   SizedBox(height: 4),
                   Text(
-                    'Tap to retry',
+                    'Retry upload',
                     style: TextStyle(
-                      color: VineTheme.secondaryText,
-                      fontSize: 10,
+                      color: VineTheme.whiteText,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
                 ],
@@ -312,8 +314,7 @@ class _VideoGridUploadingTile extends StatelessWidget {
             )
           else
             Center(
-              child:
-                  PartialCircleSpinner(progress: backgroundUpload.progress),
+              child: PartialCircleSpinner(progress: backgroundUpload.progress),
             ),
         ],
       ),
@@ -323,9 +324,7 @@ class _VideoGridUploadingTile extends StatelessWidget {
       return GestureDetector(
         onTap: () {
           context.read<BackgroundPublishBloc>().add(
-            BackgroundPublishRetryRequested(
-              draftId: backgroundUpload.draft.id,
-            ),
+            BackgroundPublishRetryRequested(draftId: backgroundUpload.draft.id),
           );
         },
         child: tile,
