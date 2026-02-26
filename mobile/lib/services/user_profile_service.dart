@@ -5,16 +5,16 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:models/models.dart';
+import 'package:nostr_client/nostr_client.dart';
 import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/filter.dart';
-import 'package:models/models.dart';
-import 'package:openvine/services/connection_status_service.dart';
-import 'package:nostr_client/nostr_client.dart';
 import 'package:nostr_sdk/signer/pubkey_only_nostr_signer.dart';
 import 'package:openvine/services/analytics_api_service.dart';
-import 'package:profile_repository/profile_repository.dart';
+import 'package:openvine/services/connection_status_service.dart';
 import 'package:openvine/services/subscription_manager.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:profile_repository/profile_repository.dart';
 
 /// Service for managing user profiles from Nostr kind 0 events
 /// Reactive service that notifies listeners when profiles are updated
@@ -82,7 +82,6 @@ class UserProfileService extends ChangeNotifier {
   DateTime? _lastPrefetchAt;
 
   // Background refresh rate limiting
-  DateTime? _lastBackgroundRefresh;
 
   final SubscriptionManager _subscriptionManager;
   ProfileRepository? _profileRepository;
@@ -212,7 +211,7 @@ class UserProfileService extends ChangeNotifier {
     // If forcing refresh, clean up existing state first
     if (forceRefresh) {
       Log.debug(
-        '🔄 Force refresh requested for ${pubkey}... - clearing cache and subscriptions',
+        '🔄 Force refresh requested for $pubkey... - clearing cache and subscriptions',
         name: 'UserProfileService',
         category: LogCategory.system,
       );
@@ -247,7 +246,7 @@ class UserProfileService extends ChangeNotifier {
       // Return existing completer's future if available
       if (_profileFetchCompleters.containsKey(pubkey)) {
         Log.debug(
-          'Reusing existing fetch request for ${pubkey}...',
+          'Reusing existing fetch request for $pubkey...',
           name: 'UserProfileService',
           category: LogCategory.system,
         );
@@ -260,7 +259,7 @@ class UserProfileService extends ChangeNotifier {
     // (Note: forceRefresh already cleaned up existing subscriptions above)
     if (_activeSubscriptionIds.containsKey(pubkey)) {
       Log.warning(
-        'Active subscription already exists for ${pubkey}... (skipping duplicate)',
+        'Active subscription already exists for $pubkey... (skipping duplicate)',
         name: 'UserProfileService',
         category: LogCategory.system,
       );
@@ -270,7 +269,7 @@ class UserProfileService extends ChangeNotifier {
     // Check connection
     if (!_connectionService.isOnline) {
       Log.debug(
-        'Offline - cannot fetch profile for ${pubkey}...',
+        'Offline - cannot fetch profile for $pubkey...',
         name: 'UserProfileService',
         category: LogCategory.system,
       );
@@ -336,15 +335,16 @@ class UserProfileService extends ChangeNotifier {
 
       // Cancel existing debounce timer and create new one
       _batchDebounceTimer?.cancel();
-      _batchDebounceTimer = Timer(const Duration(milliseconds: 100), () {
-        _executeBatchFetch();
-      });
+      _batchDebounceTimer = Timer(
+        const Duration(milliseconds: 100),
+        _executeBatchFetch,
+      );
 
       // Return the completer's future - it will complete when batch fetch finishes
       return completer.future;
     } catch (e) {
       Log.error(
-        'Failed to fetch profile for ${pubkey}: $e',
+        'Failed to fetch profile for $pubkey: $e',
         name: 'UserProfileService',
         category: LogCategory.system,
       );
@@ -916,9 +916,10 @@ class UserProfileService extends ChangeNotifier {
     if (_skipIndexerFallback) {
       _pendingBatchPubkeys.add(pubkey);
       _batchDebounceTimer?.cancel();
-      _batchDebounceTimer = Timer(const Duration(milliseconds: 200), () {
-        _executeBatchFetch();
-      });
+      _batchDebounceTimer = Timer(
+        const Duration(milliseconds: 200),
+        _executeBatchFetch,
+      );
       return;
     }
 
@@ -985,9 +986,10 @@ class UserProfileService extends ChangeNotifier {
 
     _pendingBatchPubkeys.add(pubkey);
     _batchDebounceTimer?.cancel();
-    _batchDebounceTimer = Timer(const Duration(milliseconds: 200), () {
-      _executeBatchFetch();
-    });
+    _batchDebounceTimer = Timer(
+      const Duration(milliseconds: 200),
+      _executeBatchFetch,
+    );
   }
 
   /// Get display name for a user (with fallback)
@@ -1010,47 +1012,7 @@ class UserProfileService extends ChangeNotifier {
       notifyListeners();
 
       Log.debug(
-        '📱️ Removed profile from cache: ${pubkey}...',
-        name: 'UserProfileService',
-        category: LogCategory.system,
-      );
-    }
-  }
-
-  /// Background refresh for stale profiles
-  Future<void> _backgroundRefreshProfile(String pubkey) async {
-    // Don't refresh if already pending
-    if (_pendingRequests.contains(pubkey) ||
-        _activeSubscriptionIds.containsKey(pubkey)) {
-      return;
-    }
-
-    // Rate limit background refreshes to avoid overwhelming the UI
-    final now = DateTime.now();
-    if (_lastBackgroundRefresh != null &&
-        now.difference(_lastBackgroundRefresh!).inSeconds < 30) {
-      Log.debug(
-        'Rate limiting background refresh for ${pubkey}...',
-        name: 'UserProfileService',
-        category: LogCategory.system,
-      );
-      return;
-    }
-
-    try {
-      Log.debug(
-        'Background refresh for stale profile ${pubkey}...',
-        name: 'UserProfileService',
-        category: LogCategory.system,
-      );
-
-      _lastBackgroundRefresh = now;
-
-      // Use a longer timeout for background refreshes to reduce urgency
-      await fetchProfile(pubkey, forceRefresh: true);
-    } catch (e) {
-      Log.error(
-        'Background refresh failed for ${pubkey}: $e',
+        '📱️ Removed profile from cache: $pubkey...',
         name: 'UserProfileService',
         category: LogCategory.system,
       );
