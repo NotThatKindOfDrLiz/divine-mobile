@@ -1,13 +1,15 @@
 // ABOUTME: Screen displaying videos filtered by a specific hashtag
 // ABOUTME: Allows users to explore all videos with a particular hashtag
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
-import 'package:openvine/screens/hashtag_screen_router.dart';
+import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/services/hashtag_service.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:divine_ui/divine_ui.dart';
@@ -15,6 +17,7 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/composable_video_grid.dart';
 import 'package:openvine/services/view_event_publisher.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
+import 'package:rxdart/rxdart.dart';
 
 class HashtagFeedScreen extends ConsumerStatefulWidget {
   const HashtagFeedScreen({
@@ -42,15 +45,26 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
   /// When available, these provide engagement-based sorting.
   List<VideoEvent>? _popularVideos;
 
+  /// Stream controller for pushing video list updates to the fullscreen feed.
+  /// Uses broadcast so the stream can be listened to after navigation.
+  late final StreamController<List<VideoEvent>> _videosStreamController;
+
   @override
   void initState() {
     super.initState();
+    _videosStreamController = StreamController<List<VideoEvent>>.broadcast();
     // Subscribe to videos with this hashtag
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return; // Safety check: don't use ref if widget is disposed
 
       _loadHashtagVideos();
     });
+  }
+
+  @override
+  void dispose() {
+    _videosStreamController.close();
+    super.dispose();
   }
 
   /// Load videos from both Funnelcake REST API and WebSocket in parallel.
@@ -244,6 +258,29 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
     return [..._popularVideos!, ...additionalVideos];
   }
 
+  /// Push the fullscreen pooled video feed for the tapped video.
+  void _pushFullscreenFeed(
+    BuildContext context,
+    List<VideoEvent> videoList,
+    int index,
+  ) {
+    context.push<String>(
+      PooledFullscreenVideoFeedScreen.path,
+      extra: PooledFullscreenVideoFeedArgs(
+        videosStream: _videosStreamController.stream.startWith(videoList),
+        initialIndex: index,
+        onLoadMore: () {
+          // Trigger more videos from the hashtag service
+          final hashtagService = ref.read(hashtagServiceProvider);
+          hashtagService.subscribeToHashtagVideos([widget.hashtag]);
+        },
+        contextTitle: '#${widget.hashtag}',
+        trafficSource: ViewTrafficSource.search,
+        sourceDetail: widget.hashtag,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final body = Builder(
@@ -333,6 +370,9 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
           );
         }
 
+        // Push video updates to the stream for fullscreen feed sync
+        _videosStreamController.add(videos);
+
         // Use grid view when embedded (in explore), full-screen list when standalone
         if (widget.embedded) {
           return ComposableVideoGrid(
@@ -340,14 +380,8 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
             useMasonryLayout: true,
             onVideoTap:
                 widget.onVideoTap ??
-                (videos, index) {
-                  // Default behavior: navigate to hashtag feed mode using GoRouter
-                  context.go(
-                    HashtagScreenRouter.pathForTag(
-                      widget.hashtag,
-                      index: index,
-                    ),
-                  );
+                (videoList, index) {
+                  _pushFullscreenFeed(context, videoList, index);
                 },
             onRefresh: () => _loadHashtagVideos(forceRefresh: true),
           );
@@ -401,13 +435,7 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
               final video = videos[index];
               return GestureDetector(
                 onTap: () {
-                  // Navigate to hashtag feed mode using GoRouter
-                  context.go(
-                    HashtagScreenRouter.pathForTag(
-                      widget.hashtag,
-                      index: index,
-                    ),
-                  );
+                  _pushFullscreenFeed(context, videos, index);
                 },
                 child: SizedBox(
                   height: MediaQuery.of(context).size.height,
