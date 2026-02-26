@@ -762,6 +762,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             videosStream: args.videosStream,
             initialIndex: args.initialIndex,
             onLoadMore: args.onLoadMore,
+            onPopWithVideoId: args.onPopWithVideoId,
             contextTitle: args.contextTitle,
             trafficSource: args.trafficSource,
             sourceDetail: args.sourceDetail,

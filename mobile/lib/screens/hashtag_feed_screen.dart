@@ -49,6 +49,8 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
   /// Uses broadcast so the stream can be listened to after navigation.
   late final StreamController<List<VideoEvent>> _videosStreamController;
 
+  final _scrollToVideoNotifier = ValueNotifier<String?>(null);
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +65,7 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
 
   @override
   void dispose() {
+    _scrollToVideoNotifier.dispose();
     _videosStreamController.close();
     super.dispose();
   }
@@ -274,6 +277,11 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
           final hashtagService = ref.read(hashtagServiceProvider);
           hashtagService.subscribeToHashtagVideos([widget.hashtag]);
         },
+        onPopWithVideoId: (videoId) {
+          if (mounted) {
+            _scrollToVideoNotifier.value = videoId;
+          }
+        },
         contextTitle: '#${widget.hashtag}',
         trafficSource: ViewTrafficSource.search,
         sourceDetail: widget.hashtag,
@@ -378,6 +386,7 @@ class _HashtagFeedScreenState extends ConsumerState<HashtagFeedScreen> {
           return ComposableVideoGrid(
             videos: videos,
             useMasonryLayout: true,
+            scrollToVideoNotifier: _scrollToVideoNotifier,
             onVideoTap:
                 widget.onVideoTap ??
                 (videoList, index) {

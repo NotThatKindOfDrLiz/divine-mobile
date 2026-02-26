@@ -194,6 +194,7 @@ class _NewVideosContent extends ConsumerStatefulWidget {
 
 class _NewVideosContentState extends ConsumerState<_NewVideosContent> {
   late final StreamController<List<VideoEvent>> _videosStreamController;
+  final _scrollToVideoNotifier = ValueNotifier<String?>(null);
 
   @override
   void initState() {
@@ -203,6 +204,7 @@ class _NewVideosContentState extends ConsumerState<_NewVideosContent> {
 
   @override
   void dispose() {
+    _scrollToVideoNotifier.dispose();
     _videosStreamController.close();
     super.dispose();
   }
@@ -222,19 +224,20 @@ class _NewVideosContentState extends ConsumerState<_NewVideosContent> {
     return ComposableVideoGrid(
       videos: widget.videos,
       useMasonryLayout: true,
+      scrollToVideoNotifier: _scrollToVideoNotifier,
       onVideoTap: (videoList, index) {
-        Log.info(
-          '🎯 NewVideosTab TAP: gridIndex=$index, '
-          'videoId=${videoList[index].id}',
-          category: LogCategory.video,
-        );
-        context.push(
+        context.push<String>(
           PooledFullscreenVideoFeedScreen.path,
           extra: PooledFullscreenVideoFeedArgs(
             videosStream: _videosStreamController.stream.startWith(videoList),
             initialIndex: index,
             onLoadMore: () =>
                 ref.read(popularNowFeedProvider.notifier).loadMore(),
+            onPopWithVideoId: (videoId) {
+              if (mounted) {
+                _scrollToVideoNotifier.value = videoId;
+              }
+            },
             contextTitle: 'New Videos',
             trafficSource: ViewTrafficSource.discoveryNew,
           ),

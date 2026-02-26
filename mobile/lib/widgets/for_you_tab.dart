@@ -96,6 +96,7 @@ class _ForYouContent extends ConsumerStatefulWidget {
 class _ForYouContentState extends ConsumerState<_ForYouContent>
     with ScrollToHideMixin {
   late final StreamController<List<VideoEvent>> _videosStreamController;
+  final _scrollToVideoNotifier = ValueNotifier<String?>(null);
 
   @override
   void initState() {
@@ -105,6 +106,7 @@ class _ForYouContentState extends ConsumerState<_ForYouContent>
 
   @override
   void dispose() {
+    _scrollToVideoNotifier.dispose();
     _videosStreamController.close();
     super.dispose();
   }
@@ -141,6 +143,7 @@ class _ForYouContentState extends ConsumerState<_ForYouContent>
             child: ComposableVideoGrid(
               videos: widget.videos,
               useMasonryLayout: true,
+              scrollToVideoNotifier: _scrollToVideoNotifier,
               padding: EdgeInsets.only(
                 left: 4,
                 right: 4,
@@ -148,12 +151,7 @@ class _ForYouContentState extends ConsumerState<_ForYouContent>
                 top: headerHeight > 0 ? headerHeight + 4 : 4,
               ),
               onVideoTap: (videoList, index) {
-                Log.info(
-                  '🎯 ForYouTab TAP: gridIndex=$index, '
-                  'videoId=${videoList[index].id}',
-                  category: LogCategory.video,
-                );
-                context.push(
+                context.push<String>(
                   PooledFullscreenVideoFeedScreen.path,
                   extra: PooledFullscreenVideoFeedArgs(
                     videosStream: _videosStreamController.stream.startWith(
@@ -162,6 +160,11 @@ class _ForYouContentState extends ConsumerState<_ForYouContent>
                     initialIndex: index,
                     onLoadMore: () =>
                         ref.read(forYouFeedProvider.notifier).loadMore(),
+                    onPopWithVideoId: (videoId) {
+                      if (mounted) {
+                        _scrollToVideoNotifier.value = videoId;
+                      }
+                    },
                     contextTitle: 'For You',
                     trafficSource: ViewTrafficSource.discoveryForYou,
                   ),

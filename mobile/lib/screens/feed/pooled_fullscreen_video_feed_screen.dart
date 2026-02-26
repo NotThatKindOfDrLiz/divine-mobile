@@ -33,6 +33,7 @@ class PooledFullscreenVideoFeedArgs {
     required this.videosStream,
     required this.initialIndex,
     this.onLoadMore,
+    this.onPopWithVideoId,
     this.contextTitle,
     this.trafficSource = ViewTrafficSource.unknown,
     this.sourceDetail,
@@ -46,6 +47,11 @@ class PooledFullscreenVideoFeedArgs {
 
   /// Callback to trigger pagination on the source.
   final VoidCallback? onLoadMore;
+
+  /// Called with the last viewed video ID just before the screen pops.
+  /// This callback is reliable across Navigator boundaries, unlike
+  /// the return value of `context.push<T>()`.
+  final void Function(String videoId)? onPopWithVideoId;
 
   /// Optional title for context display.
   final String? contextTitle;
@@ -76,6 +82,7 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
     required this.videosStream,
     required this.initialIndex,
     this.onLoadMore,
+    this.onPopWithVideoId,
     this.contextTitle,
     this.trafficSource = ViewTrafficSource.unknown,
     this.sourceDetail,
@@ -85,6 +92,7 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
   final Stream<List<VideoEvent>> videosStream;
   final int initialIndex;
   final VoidCallback? onLoadMore;
+  final void Function(String videoId)? onPopWithVideoId;
   final String? contextTitle;
   final ViewTrafficSource trafficSource;
   final String? sourceDetail;
@@ -106,6 +114,7 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
         contextTitle: contextTitle,
         trafficSource: trafficSource,
         sourceDetail: sourceDetail,
+        onPopWithVideoId: onPopWithVideoId,
       ),
     );
   }
@@ -129,6 +138,7 @@ class FullscreenFeedContent extends ConsumerStatefulWidget {
     this.contextTitle,
     this.trafficSource = ViewTrafficSource.unknown,
     this.sourceDetail,
+    this.onPopWithVideoId,
     @visibleForTesting this.controllerFactory,
     super.key,
   });
@@ -141,6 +151,9 @@ class FullscreenFeedContent extends ConsumerStatefulWidget {
 
   /// Additional context for the traffic source (e.g., hashtag name).
   final String? sourceDetail;
+
+  /// Called with the last viewed video ID just before the screen pops.
+  final void Function(String videoId)? onPopWithVideoId;
 
   /// Optional factory for creating the [VideoFeedController].
   ///
@@ -342,55 +355,70 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
             );
           }
 
-          return Scaffold(
-            backgroundColor: Colors.black,
-            extendBodyBehindAppBar: true,
-            appBar: _FullscreenAppBar(currentVideo: state.currentVideo),
-            body: PooledVideoFeed(
-              videos: state.pooledVideos,
-              controller: _controller,
-              initialIndex: state.currentIndex,
-              onActiveVideoChanged: (video, index) {
-                context.read<FullscreenFeedBloc>().add(
-                  FullscreenFeedIndexChanged(index),
-                );
-              },
-              onNearEnd: (index) => _onNearEnd(state, index),
-              nearEndThreshold: 0,
-              itemBuilder: (context, video, index, {required isActive}) {
-                // Look up by video ID instead of index, because
-                // pooledVideos filters out null-URL entries and indices
-                // may diverge from state.videos.
-                if (state.videos.isEmpty) {
-                  debugPrint(
-                    'FullscreenFeed: itemBuilder called with empty '
-                    'state.videos! index=$index, video.id=${video.id}',
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) {
+              if (didPop) return;
+              final bloc = context.read<FullscreenFeedBloc>();
+              final videoId = bloc.state.currentVideo?.id;
+              if (videoId != null) {
+                widget.onPopWithVideoId?.call(videoId);
+              }
+              context.pop(videoId);
+            },
+            child: Scaffold(
+              backgroundColor: VineTheme.backgroundColor,
+              extendBodyBehindAppBar: true,
+              appBar: _FullscreenAppBar(
+                currentVideo: state.currentVideo,
+                onPopWithVideoId: widget.onPopWithVideoId,
+              ),
+              body: PooledVideoFeed(
+                videos: state.pooledVideos,
+                controller: _controller,
+                initialIndex: state.currentIndex,
+                onActiveVideoChanged: (video, index) {
+                  context.read<FullscreenFeedBloc>().add(
+                    FullscreenFeedIndexChanged(index),
                   );
-                  return const ColoredBox(color: VineTheme.backgroundColor);
-                }
-                final originalEvent = state.videos.firstWhere(
-                  (v) => v.id == video.id,
-                  orElse: () {
-                    final clamped = index.clamp(0, state.videos.length - 1);
+                },
+                onNearEnd: (index) => _onNearEnd(state, index),
+                nearEndThreshold: 0,
+                itemBuilder: (context, video, index, {required isActive}) {
+                  // Look up by video ID instead of index, because
+                  // pooledVideos filters out null-URL entries and indices
+                  // may diverge from state.videos.
+                  if (state.videos.isEmpty) {
                     debugPrint(
-                      'FullscreenFeed: video ID lookup miss! '
-                      'video.id=${video.id}, index=$index, '
-                      'clamped=$clamped, '
-                      'state.videos.length=${state.videos.length}, '
-                      'pooledVideos.length=${state.pooledVideos.length}',
+                      'FullscreenFeed: itemBuilder called with empty '
+                      'state.videos! index=$index, video.id=${video.id}',
                     );
-                    return state.videos[clamped];
-                  },
-                );
-                return _PooledFullscreenItem(
-                  video: originalEvent,
-                  index: index,
-                  isActive: isActive,
-                  contextTitle: widget.contextTitle,
-                  trafficSource: widget.trafficSource,
-                  sourceDetail: widget.sourceDetail,
-                );
-              },
+                    return const ColoredBox(color: VineTheme.backgroundColor);
+                  }
+                  final originalEvent = state.videos.firstWhere(
+                    (v) => v.id == video.id,
+                    orElse: () {
+                      final clamped = index.clamp(0, state.videos.length - 1);
+                      debugPrint(
+                        'FullscreenFeed: video ID lookup miss! '
+                        'video.id=${video.id}, index=$index, '
+                        'clamped=$clamped, '
+                        'state.videos.length=${state.videos.length}, '
+                        'pooledVideos.length=${state.pooledVideos.length}',
+                      );
+                      return state.videos[clamped];
+                    },
+                  );
+                  return _PooledFullscreenItem(
+                    video: originalEvent,
+                    index: index,
+                    isActive: isActive,
+                    contextTitle: widget.contextTitle,
+                    trafficSource: widget.trafficSource,
+                    sourceDetail: widget.sourceDetail,
+                  );
+                },
+              ),
             ),
           );
         },
@@ -400,9 +428,10 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
 }
 
 class _FullscreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
-  const _FullscreenAppBar({this.currentVideo});
+  const _FullscreenAppBar({this.currentVideo, this.onPopWithVideoId});
 
   final VideoEvent? currentVideo;
+  final void Function(String videoId)? onPopWithVideoId;
 
   static const _style = DiVineAppBarStyle(
     iconButtonBackgroundColor: Color(0x4D000000), // black with 0.3 alpha
@@ -416,7 +445,13 @@ class _FullscreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
     return DiVineAppBar(
       titleWidget: const SizedBox.shrink(),
       showBackButton: true,
-      onBackPressed: context.pop,
+      onBackPressed: () {
+        final videoId = currentVideo?.id;
+        if (videoId != null) {
+          onPopWithVideoId?.call(videoId);
+        }
+        context.pop(videoId);
+      },
       backgroundMode: DiVineAppBarBackgroundMode.transparent,
       style: _style,
       actions: _buildEditAction(context, ref),

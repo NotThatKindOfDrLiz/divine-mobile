@@ -33,6 +33,7 @@ class ComposableVideoGrid extends ConsumerStatefulWidget {
     this.isLoadingMore = false,
     this.hasMoreContent = false,
     this.loadMoreThreshold = 5,
+    this.scrollToVideoNotifier,
   });
 
   final List<VideoEvent> videos;
@@ -59,6 +60,11 @@ class ComposableVideoGrid extends ConsumerStatefulWidget {
   /// Number of items from the bottom to trigger load more.
   final int loadMoreThreshold;
 
+  /// When a video ID is set on this notifier, the grid animates to show
+  /// that video. Used to scroll to the last viewed video when returning
+  /// from the fullscreen feed.
+  final ValueNotifier<String?>? scrollToVideoNotifier;
+
   @override
   ConsumerState<ComposableVideoGrid> createState() =>
       _ComposableVideoGridState();
@@ -68,17 +74,145 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingTriggered = false;
 
+  /// Videos currently displayed, cached for scroll-to-video estimation.
+  List<VideoEvent> _displayedVideos = const [];
+
+  /// When non-null, the item builder assigns [_scrollTargetKey] to the
+  /// matching video so [Scrollable.ensureVisible] can find it.
+  String? _scrollTargetVideoId;
+  final _scrollTargetKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    widget.scrollToVideoNotifier?.addListener(_onScrollToVideo);
+  }
+
+  @override
+  void didUpdateWidget(ComposableVideoGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.scrollToVideoNotifier != widget.scrollToVideoNotifier) {
+      oldWidget.scrollToVideoNotifier?.removeListener(_onScrollToVideo);
+      widget.scrollToVideoNotifier?.addListener(_onScrollToVideo);
+    }
   }
 
   @override
   void dispose() {
+    widget.scrollToVideoNotifier?.removeListener(_onScrollToVideo);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Called when [scrollToVideoNotifier] is set with a video ID.
+  ///
+  /// Uses a two-phase approach for reliable positioning:
+  /// 1. Marks the target video so the item builder assigns a [GlobalKey].
+  /// 2. Jumps to an approximate offset so the lazy grid builds the target.
+  /// 3. After the frame, uses [Scrollable.ensureVisible] on the actual
+  ///    rendered widget for pixel-perfect scrolling.
+  void _onScrollToVideo() {
+    final videoId = widget.scrollToVideoNotifier?.value;
+    if (videoId == null) return;
+
+    // Clear the notifier so it doesn't re-trigger
+    widget.scrollToVideoNotifier?.value = null;
+
+    final targetIndex = _displayedVideos.indexWhere((v) => v.id == videoId);
+    if (targetIndex < 0) return;
+
+    // Phase 1: Mark the target and trigger a rebuild so the item builder
+    // assigns _scrollTargetKey to the matching video widget. Without
+    // setState the grid reuses cached widgets from before navigation.
+    setState(() {
+      _scrollTargetVideoId = videoId;
+    });
+
+    // Phase 2: Jump to approximate offset so the lazy grid builds the item.
+    if (_scrollController.hasClients) {
+      final estimated = _estimateMasonryOffset(targetIndex);
+      final clamped = estimated.clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
+      _scrollController.jumpTo(clamped);
+    }
+
+    // Phase 3: After the frame renders with the new key assignment,
+    // use ensureVisible on the actual rendered widget for precision.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final targetContext = _scrollTargetKey.currentContext;
+      if (targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+      // Clear after attempting scroll (whether successful or not)
+      if (mounted) {
+        setState(() {
+          _scrollTargetVideoId = null;
+        });
+      }
+    });
+  }
+
+  /// Estimates the pixel offset for [targetIndex] in the masonry grid by
+  /// simulating the masonry layout algorithm (place each item in the
+  /// shortest column).
+  double _estimateMasonryOffset(int targetIndex) {
+    final padding = widget.padding ?? const EdgeInsets.all(4);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final columns = screenWidth >= 600 ? 3 : widget.crossAxisCount;
+    const spacing = 4.0;
+
+    final availableWidth =
+        screenWidth - padding.left - padding.right - (columns - 1) * spacing;
+    final columnWidth = availableWidth / columns;
+
+    // Track cumulative height per column
+    final columnHeights = List<double>.filled(columns, 0);
+
+    for (var i = 0; i < targetIndex && i < _displayedVideos.length; i++) {
+      // Find the shortest column (masonry placement strategy)
+      var shortestCol = 0;
+      for (var c = 1; c < columns; c++) {
+        if (columnHeights[c] < columnHeights[shortestCol]) shortestCol = c;
+      }
+
+      final itemHeight = _estimateItemHeight(_displayedVideos[i], columnWidth);
+      columnHeights[shortestCol] += itemHeight + spacing;
+    }
+
+    // The target item will be placed in the shortest column at its current
+    // height. Return that height as the scroll offset, minus some padding
+    // so the item isn't right at the top edge.
+    var minHeight = columnHeights[0];
+    for (var c = 1; c < columns; c++) {
+      if (columnHeights[c] < minHeight) minHeight = columnHeights[c];
+    }
+    return (minHeight + padding.top).clamp(0, double.infinity);
+  }
+
+  /// Estimates the rendered height of a single grid item based on video
+  /// dimensions, matching [VideoThumbnailWidget]'s aspect ratio logic.
+  double _estimateItemHeight(VideoEvent video, double columnWidth) {
+    double aspectRatio;
+    if (video.width != null && video.height != null && video.height! > 0) {
+      aspectRatio = video.width! / video.height!;
+    } else {
+      // Default fallback matches VideoThumbnailWidget (2:3 portrait)
+      aspectRatio = 2 / 3;
+    }
+    // Clamp portrait videos to 2:3 minimum (matches VideoThumbnailWidget)
+    if (aspectRatio < 2 / 3) aspectRatio = 2 / 3;
+
+    return columnWidth / aspectRatio;
   }
 
   void _onScroll() {
@@ -117,8 +251,16 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
     final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
 
     return brokenTrackerAsync.when(
-      loading: () =>
-          Center(child: CircularProgressIndicator(color: VineTheme.vineGreen)),
+      loading: () {
+        // Show grid with unfiltered videos during provider refresh to preserve
+        // scroll position. Only show loading spinner on first load (no videos).
+        if (widget.videos.isNotEmpty) {
+          return _buildGrid(context, widget.videos);
+        }
+        return Center(
+          child: CircularProgressIndicator(color: VineTheme.vineGreen),
+        );
+      },
       error: (error, stack) {
         // Fallback: show all videos if tracker fails
         return _buildGrid(context, widget.videos);
@@ -139,6 +281,9 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
   }
 
   Widget _buildGrid(BuildContext context, List<VideoEvent> videosToShow) {
+    // Cache for scroll-to-video estimation
+    _displayedVideos = videosToShow;
+
     if (videosToShow.isEmpty && widget.emptyBuilder != null) {
       return widget.emptyBuilder!();
     }
@@ -170,6 +315,7 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
       final isInSubscribedList = listIds != null && listIds.isNotEmpty;
 
       return _VideoItem(
+        key: video.id == _scrollTargetVideoId ? _scrollTargetKey : null,
         video: video,
         aspectRatio: widget.thumbnailAspectRatio,
         onVideoTap: widget.onVideoTap,
@@ -452,6 +598,7 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
 
 class _VideoItem extends StatelessWidget {
   const _VideoItem({
+    super.key,
     required this.video,
     required this.aspectRatio,
     required this.onVideoTap,
