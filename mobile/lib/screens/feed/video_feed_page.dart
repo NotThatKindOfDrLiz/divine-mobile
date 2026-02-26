@@ -8,6 +8,7 @@ import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/router/providers/page_context_provider.dart';
 import 'package:openvine/screens/feed/feed_mode_switch.dart';
 import 'package:openvine/screens/feed/feed_video_overlay.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
@@ -58,16 +59,15 @@ class VideoFeedPage extends ConsumerWidget {
   }
 }
 
-@visibleForTesting
 class VideoFeedView extends ConsumerStatefulWidget {
-  const VideoFeedView({super.key, @visibleForTesting this.controller});
+  @visibleForTesting
+  const VideoFeedView({this.controller, super.key});
 
   /// Optional external [VideoFeedController] for testing.
   ///
   /// When provided, this controller is used instead of creating one
   /// internally. This allows tests to inject a mock/fake controller
   /// and verify that overlay visibility changes call [setActive].
-  @visibleForTesting
   final VideoFeedController? controller;
 
   @override
@@ -89,6 +89,11 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
 
   /// Whether this state owns (and should dispose) the controller.
   bool get ownsController => widget.controller == null;
+
+  /// The route type this widget was mounted on, captured from the first
+  /// [pageContextProvider] emission. Used to detect navigation away/back
+  /// without hardcoding a specific [RouteType].
+  RouteType? mountedRouteType;
 
   @override
   void initState() {
@@ -182,11 +187,25 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
   @override
   Widget build(BuildContext context) {
     // Pause/resume the pooled video feed when overlays (drawer, modals)
-    // become visible or hidden. Without this, the home feed's
-    // PooledVideoFeed continues playing because activeVideoIdProvider
-    // returns null for RouteType.home (self-managed by the pool).
+    // become visible or hidden. Guarded by the mounted route type so that
+    // closing the drawer after navigating away (e.g. to Settings) does NOT
+    // resume playback — the pageContextProvider listener below handles
+    // that case instead.
     ref.listen(hasVisibleOverlayProvider, (_, hasOverlay) {
+      final routeType = ref.read(pageContextProvider).asData?.value.type;
+      if (routeType != mountedRouteType) return;
       controller?.setActive(active: !hasOverlay);
+    });
+
+    // Pause when navigating away from the route this widget is mounted on
+    // and resume when returning. Captures the mounted route type on the
+    // first valid emission so no specific RouteType is hardcoded here.
+    ref.listen(pageContextProvider, (previous, next) {
+      final prevType = previous?.asData?.value.type;
+      final nextType = next.asData?.value.type;
+      mountedRouteType ??= nextType;
+      if (prevType == nextType) return;
+      controller?.setActive(active: nextType == mountedRouteType);
     });
 
     return ColoredBox(
