@@ -342,6 +342,11 @@ class AudioPlaybackService {
     await _headphonesConnectedSubject.close();
     await _audioPlayer.dispose();
 
+    // Reset the iOS AVAudioSession back to default playback mode.
+    // Without this, the session stays in .playAndRecord + defaultToSpeaker
+    // after recorder use, which can cause audio routing issues. (#1872)
+    await resetAudioSession();
+
     Log.info('AudioPlaybackService disposed', name: 'AudioPlaybackService');
   }
 }

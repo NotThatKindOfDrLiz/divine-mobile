@@ -59,6 +59,9 @@ class PooledPlayer {
     _onDisposedCallbacks.clear();
 
     try {
+      // Volume safety net: silence audio synchronously before async disposal
+      // to prevent audio bleed if stop/dispose races or fails. (#1877)
+      unawaited(player.setVolume(0));
       await player.stop();
       await Future<void>.delayed(const Duration(milliseconds: 50));
       await player.dispose();
