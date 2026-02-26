@@ -7,22 +7,22 @@ import 'package:nostr_sdk/event.dart';
 import 'package:nostr_sdk/filter.dart';
 import 'package:models/models.dart';
 import 'package:nostr_client/nostr_client.dart';
-import 'package:openvine/services/profile_cache_service.dart';
 import 'package:openvine/services/subscription_manager.dart';
 import 'package:openvine/services/user_profile_service.dart';
+import 'package:profile_repository/profile_repository.dart';
 import 'dart:convert';
 
 class _MockNostrClient extends Mock implements NostrClient {}
 
 class _MockSubscriptionManager extends Mock implements SubscriptionManager {}
 
-class _MockProfileCacheService extends Mock implements ProfileCacheService {}
+class _MockProfileRepository extends Mock implements ProfileRepository {}
 
 void main() {
   late UserProfileService profileService;
   late _MockNostrClient mockNostrService;
   late _MockSubscriptionManager mockSubscriptionManager;
-  late _MockProfileCacheService mockCacheService;
+  late _MockProfileRepository mockProfileRepository;
 
   setUpAll(() {
     registerFallbackValue(<Filter>[]);
@@ -45,23 +45,31 @@ void main() {
     );
   });
 
-  setUp(() {
+  setUp(() async {
     mockNostrService = _MockNostrClient();
     mockSubscriptionManager = _MockSubscriptionManager();
-    mockCacheService = _MockProfileCacheService();
+    mockProfileRepository = _MockProfileRepository();
 
     // Set up default mock behaviors
     when(() => mockNostrService.isInitialized).thenReturn(true);
-    when(() => mockCacheService.isInitialized).thenReturn(true);
-    when(() => mockCacheService.getCachedProfile(any())).thenReturn(null);
-    when(() => mockCacheService.shouldRefreshProfile(any())).thenReturn(false);
+    when(
+      () => mockProfileRepository.getAllCachedProfiles(),
+    ).thenAnswer((_) async => []);
+    when(
+      () => mockProfileRepository.cacheProfile(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockProfileRepository.deleteCachedProfile(
+        pubkey: any(named: 'pubkey'),
+      ),
+    ).thenAnswer((_) async => 1);
 
     profileService = UserProfileService(
       mockNostrService,
       subscriptionManager: mockSubscriptionManager,
       skipIndexerFallback: true, // Avoid real WebSocket in tests
     );
-    profileService.setPersistentCache(mockCacheService);
+    await profileService.setProfileRepository(mockProfileRepository);
   });
 
   group('Profile Fetching on Video Display', () {
@@ -160,9 +168,9 @@ void main() {
         expect(cachedProfile.picture, equals(testPicture));
         expect(cachedProfile.bestDisplayName, equals(testDisplayName));
 
-        // Verify persistent cache was updated
+        // Verify profile was persisted to repository
         verify(
-          () => mockCacheService.cacheProfile(
+          () => mockProfileRepository.cacheProfile(
             any(
               that: predicate<UserProfile>(
                 (profile) =>
@@ -251,10 +259,11 @@ void main() {
         },
       );
 
-      // Mock cached profile
+      // Mock preload to include the cached profile
       when(
-        () => mockCacheService.getCachedProfile(testPubkey),
-      ).thenReturn(cachedProfile);
+        () => mockProfileRepository.getAllCachedProfiles(),
+      ).thenAnswer((_) async => [cachedProfile]);
+      await profileService.setProfileRepository(mockProfileRepository);
 
       // Act
       await profileService.initialize();

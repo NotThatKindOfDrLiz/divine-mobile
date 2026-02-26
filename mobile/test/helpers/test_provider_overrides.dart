@@ -223,7 +223,7 @@ List<dynamic> getStandardTestOverrides({
 
     // Always override NostrClient and SubscriptionManager with stubbed mocks
     // so UserProfileService/FollowRepository never get null Stream<Event> or
-    // Future<List<String>> (fixes type errors during ProfileCacheService use).
+    // Future<List<String>>.
     nostrServiceProvider.overrideWithValue(mockNostr),
     subscriptionManagerProvider.overrideWithValue(mockSub),
 

@@ -66,7 +66,6 @@ import 'package:openvine/services/password_reset_listener.dart';
 import 'package:openvine/services/pending_action_service.dart';
 import 'package:openvine/services/pending_verification_service.dart';
 import 'package:openvine/services/personal_event_cache_service.dart';
-import 'package:openvine/services/profile_cache_service.dart';
 import 'package:openvine/services/relay_capability_service.dart';
 import 'package:openvine/services/relay_statistics_service.dart';
 import 'package:openvine/services/seen_videos_service.dart';
@@ -561,25 +560,6 @@ NostrKeyManager nostrKeyManager(Ref ref) {
   return NostrKeyManager();
 }
 
-/// Profile cache service for persistent profile storage
-/// keepAlive to avoid expensive Hive reinitialization on auth state changes
-@Riverpod(keepAlive: true)
-ProfileCacheService profileCacheService(Ref ref) {
-  final service = ProfileCacheService();
-  // Initialize asynchronously to avoid blocking UI
-  service.initialize().catchError((e) {
-    Log.error(
-      'Failed to initialize ProfileCacheService',
-      name: 'AppProviders',
-      error: e,
-    );
-  });
-
-  ref.onDispose(() => service.dispose());
-
-  return service;
-}
-
 /// Hashtag cache service for persistent hashtag storage
 @riverpod
 HashtagCacheService hashtagCacheService(Ref ref) {
@@ -887,12 +867,12 @@ HashtagService hashtagService(Ref ref) {
   return HashtagService(videoEventService, cacheService);
 }
 
-/// User profile service depends on Nostr service, SubscriptionManager, and ProfileCacheService
+/// User profile service depends on Nostr service, SubscriptionManager, and ProfileRepository
 @Riverpod(keepAlive: true)
 UserProfileService userProfileService(Ref ref) {
   final nostrService = ref.watch(nostrServiceProvider);
   final subscriptionManager = ref.watch(subscriptionManagerProvider);
-  final profileCache = ref.watch(profileCacheServiceProvider);
+  final profileRepository = ref.watch(profileRepositoryProvider);
   final analyticsService = ref.watch(analyticsApiServiceProvider);
 
   // Use centralized funnelcake availability check (capability detection)
@@ -905,7 +885,9 @@ UserProfileService userProfileService(Ref ref) {
     analyticsApiService: analyticsService,
     funnelcakeAvailable: funnelcakeAvailable,
   );
-  service.setPersistentCache(profileCache);
+  if (profileRepository != null) {
+    unawaited(service.setProfileRepository(profileRepository));
+  }
 
   // Inject profile cache lookup into SubscriptionManager to avoid redundant relay requests
   subscriptionManager.setCacheLookup(hasProfileCached: service.hasProfile);
@@ -1220,6 +1202,7 @@ VideoEventPublisher videoEventPublisher(Ref ref) {
   final videoEventService = ref.watch(videoEventServiceProvider);
   final blossomUploadService = ref.watch(blossomUploadServiceProvider);
   final userProfileService = ref.watch(userProfileServiceProvider);
+  final profileStatsDao = ref.watch(databaseProvider).profileStatsDao;
 
   return VideoEventPublisher(
     uploadManager: uploadManager,
@@ -1229,6 +1212,7 @@ VideoEventPublisher videoEventPublisher(Ref ref) {
     videoEventService: videoEventService,
     blossomUploadService: blossomUploadService,
     userProfileService: userProfileService,
+    profileStatsDao: profileStatsDao,
   );
 }
 

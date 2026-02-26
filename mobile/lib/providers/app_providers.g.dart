@@ -1690,62 +1690,6 @@ final class NostrKeyManagerProvider
 
 String _$nostrKeyManagerHash() => r'a0d67b6d79af5ecdc42bc6616542249200a24b64';
 
-/// Profile cache service for persistent profile storage
-/// keepAlive to avoid expensive Hive reinitialization on auth state changes
-
-@ProviderFor(profileCacheService)
-const profileCacheServiceProvider = ProfileCacheServiceProvider._();
-
-/// Profile cache service for persistent profile storage
-/// keepAlive to avoid expensive Hive reinitialization on auth state changes
-
-final class ProfileCacheServiceProvider
-    extends
-        $FunctionalProvider<
-          ProfileCacheService,
-          ProfileCacheService,
-          ProfileCacheService
-        >
-    with $Provider<ProfileCacheService> {
-  /// Profile cache service for persistent profile storage
-  /// keepAlive to avoid expensive Hive reinitialization on auth state changes
-  const ProfileCacheServiceProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'profileCacheServiceProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$profileCacheServiceHash();
-
-  @$internal
-  @override
-  $ProviderElement<ProfileCacheService> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  ProfileCacheService create(Ref ref) {
-    return profileCacheService(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(ProfileCacheService value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<ProfileCacheService>(value),
-    );
-  }
-}
-
-String _$profileCacheServiceHash() =>
-    r'4de2ae89686e284dcadf4ad8d5611f7e4af8604b';
-
 /// Hashtag cache service for persistent hashtag storage
 
 @ProviderFor(hashtagCacheService)
@@ -2550,12 +2494,12 @@ final class HashtagServiceProvider
 
 String _$hashtagServiceHash() => r'5cd38d3c2e8d78a6f7b74a72b650d79e28938fe4';
 
-/// User profile service depends on Nostr service, SubscriptionManager, and ProfileCacheService
+/// User profile service depends on Nostr service, SubscriptionManager, and ProfileRepository
 
 @ProviderFor(userProfileService)
 const userProfileServiceProvider = UserProfileServiceProvider._();
 
-/// User profile service depends on Nostr service, SubscriptionManager, and ProfileCacheService
+/// User profile service depends on Nostr service, SubscriptionManager, and ProfileRepository
 
 final class UserProfileServiceProvider
     extends
@@ -2565,7 +2509,7 @@ final class UserProfileServiceProvider
           UserProfileService
         >
     with $Provider<UserProfileService> {
-  /// User profile service depends on Nostr service, SubscriptionManager, and ProfileCacheService
+  /// User profile service depends on Nostr service, SubscriptionManager, and ProfileRepository
   const UserProfileServiceProvider._()
     : super(
         from: null,
@@ -2601,7 +2545,7 @@ final class UserProfileServiceProvider
 }
 
 String _$userProfileServiceHash() =>
-    r'c794efc557e51b13c9cf3ff59fd3f56f1582cbd0';
+    r'b6bdc39f52b10ec063e676751682a4cde27f2276';
 
 /// Social service depends on Nostr service, Auth service, and Analytics API
 
@@ -3319,7 +3263,7 @@ final class VideoEventPublisherProvider
 }
 
 String _$videoEventPublisherHash() =>
-    r'b14b2c63806aa23370d43e14d9a047b36dcde180';
+    r'31a9147e1c9779180518fe8f4d8ee5527f5861d2';
 
 /// View event publisher for kind 22236 ephemeral analytics events
 ///

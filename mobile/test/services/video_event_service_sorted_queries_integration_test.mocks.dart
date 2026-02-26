@@ -14,10 +14,10 @@ import 'package:nostr_client/nostr_client.dart' as _i5;
 import 'package:nostr_client/src/models/models.dart' as _i2;
 import 'package:nostr_sdk/nostr_sdk.dart' as _i8;
 import 'package:openvine/services/event_router.dart' as _i14;
-import 'package:openvine/services/profile_cache_service.dart' as _i12;
 import 'package:openvine/services/relay_capability_service.dart' as _i4;
 import 'package:openvine/services/subscription_manager.dart' as _i9;
 import 'package:openvine/services/user_profile_service.dart' as _i10;
+import 'package:profile_repository/profile_repository.dart' as _i12;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -728,11 +728,13 @@ class MockUserProfileService extends _i1.Mock
   );
 
   @override
-  void setPersistentCache(_i12.ProfileCacheService? cacheService) =>
-      super.noSuchMethod(
-        Invocation.method(#setPersistentCache, [cacheService]),
-        returnValueForMissingStub: null,
-      );
+  _i7.Future<void> setProfileRepository(_i12.ProfileRepository? repository) =>
+      (super.noSuchMethod(
+            Invocation.method(#setProfileRepository, [repository]),
+            returnValue: _i7.Future<void>.value(),
+            returnValueForMissingStub: _i7.Future<void>.value(),
+          )
+          as _i7.Future<void>);
 
   @override
   _i11.UserProfile? getCachedProfile(String? pubkey) =>
