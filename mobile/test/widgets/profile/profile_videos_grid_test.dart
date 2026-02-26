@@ -243,7 +243,7 @@ void main() {
         );
 
         expect(find.byType(DivineIcon), findsOneWidget);
-        expect(find.text('Tap to retry'), findsOneWidget);
+        expect(find.text('Retry upload'), findsOneWidget);
         expect(find.byType(PartialCircleSpinner), findsNothing);
       });
 
@@ -270,7 +270,7 @@ void main() {
           buildSubject(userIdHex: _ownPubkey, videos: videos),
         );
 
-        await tester.tap(find.text('Tap to retry'));
+        await tester.tap(find.text('Retry upload'));
 
         verify(
           () =>
