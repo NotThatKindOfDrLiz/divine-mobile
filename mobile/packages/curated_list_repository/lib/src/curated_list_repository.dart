@@ -26,7 +26,7 @@ class CuratedListRepository {
   /// {@macro curated_list_repository}
   ///
   /// The optional [nostrClient] enables relay-based discovery methods
-  /// ([streamPublicLists], [streamListsContainingVideo], [fetchPublicLists]).
+  /// ([fetchPublicLists], [fetchListsContainingVideo]).
   /// When `null`, only subscribed-list queries are available.
   CuratedListRepository({NostrClient? nostrClient})
     : _nostrClient = nostrClient;
@@ -209,18 +209,107 @@ class CuratedListRepository {
   // Discovery (relay-based)
   // ---------------------------------------------------------------------------
 
-  /// Streams public curated lists from Nostr relays for discovery.
+  /// Fetches public curated lists from Nostr relays for discovery.
   ///
-  /// Yields an accumulated, deduplicated list each time a new valid list
-  /// arrives. Lists are sorted by video count (most videos first).
+  /// Returns a deduplicated list sorted by video count (most videos first)
+  /// after collecting events until [timeout] expires.
   ///
   /// Deduplicates by d-tag, keeping the newest version of each list.
   /// Skips lists with no videos and lists in [excludeIds].
   ///
+  /// Returns an empty list if no events arrive within the timeout.
+  ///
   /// Requires a [NostrClient] to be provided at construction time.
   ///
   /// Throws [StateError] if no [NostrClient] was provided.
-  Stream<List<CuratedList>> streamPublicLists({
+  Future<List<CuratedList>> fetchPublicLists({
+    DateTime? until,
+    int limit = 500,
+    Set<String>? excludeIds,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    var latest = <CuratedList>[];
+
+    await for (final update in _streamPublicLists(
+      until: until,
+      limit: limit,
+      excludeIds: excludeIds,
+    ).timeout(timeout, onTimeout: (sink) => sink.close())) {
+      latest = update;
+    }
+
+    return latest;
+  }
+
+  /// Fetches public curated lists that contain [videoEventId].
+  ///
+  /// Uses Nostr `#e` filter to find kind 30005 events referencing the video.
+  /// Returns a deduplicated list after collecting events until [timeout]
+  /// expires.
+  ///
+  /// Deduplicates by d-tag, keeping the newest version of each list.
+  ///
+  /// Returns an empty list if no events arrive within the timeout.
+  ///
+  /// Requires a [NostrClient] to be provided at construction time.
+  ///
+  /// Throws [StateError] if no [NostrClient] was provided.
+  Future<List<CuratedList>> fetchListsContainingVideo(
+    String videoEventId, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    _requireNostrClient();
+
+    final listsByDTag = <String, CuratedList>{};
+
+    final filter = Filter(
+      kinds: [30005],
+      e: [videoEventId],
+      limit: 50,
+    );
+
+    final stream = _nostrClient!.subscribe([filter]);
+
+    await for (final event in stream.timeout(
+      timeout,
+      onTimeout: (sink) => sink.close(),
+    )) {
+      final dTag = CuratedListConverter.extractDTag(event);
+      if (dTag == null) continue;
+
+      final list = CuratedListConverter.fromEvent(event);
+      if (list == null) continue;
+
+      final existing = listsByDTag[dTag];
+      if (existing == null || list.updatedAt.isAfter(existing.updatedAt)) {
+        listsByDTag[dTag] = list;
+      }
+    }
+
+    return listsByDTag.values.toList();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
+
+  /// Releases resources held by this repository.
+  ///
+  /// Idempotent — safe to call multiple times.
+  Future<void> dispose() async {
+    if (!_subscribedListsSubject.isClosed) {
+      await _subscribedListsSubject.close();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /// Streams accumulated public curated lists from relays.
+  ///
+  /// Used internally by [fetchPublicLists].
+  Stream<List<CuratedList>> _streamPublicLists({
     DateTime? until,
     int limit = 500,
     Set<String>? excludeIds,
@@ -255,91 +344,6 @@ class CuratedListRepository {
       }
     }
   }
-
-  /// Streams public curated lists that contain [videoEventId].
-  ///
-  /// Uses Nostr `#e` filter to find kind 30005 events referencing the video.
-  /// Emits individual [CuratedList] objects as they arrive from relays.
-  ///
-  /// Deduplicates by d-tag, skipping older versions of the same list.
-  ///
-  /// Requires a [NostrClient] to be provided at construction time.
-  ///
-  /// Throws [StateError] if no [NostrClient] was provided.
-  Stream<CuratedList> streamListsContainingVideo(String videoEventId) {
-    _requireNostrClient();
-
-    final seenDTags = <String, int>{};
-
-    final filter = Filter(
-      kinds: [30005],
-      e: [videoEventId],
-      limit: 50,
-    );
-
-    return _nostrClient!
-        .subscribe([filter])
-        .map((event) {
-          final dTag = CuratedListConverter.extractDTag(event);
-          if (dTag == null) return null;
-
-          final existingTime = seenDTags[dTag];
-          if (existingTime != null && existingTime >= event.createdAt) {
-            return null;
-          }
-          seenDTags[dTag] = event.createdAt;
-
-          return CuratedListConverter.fromEvent(event);
-        })
-        .where((list) => list != null)
-        .cast<CuratedList>();
-  }
-
-  /// Fetches public curated lists from relays with a timeout.
-  ///
-  /// Delegates to [streamPublicLists] and returns the last accumulated
-  /// snapshot before [timeout] expires.
-  ///
-  /// Returns an empty list if no events arrive within the timeout.
-  ///
-  /// Requires a [NostrClient] to be provided at construction time.
-  ///
-  /// Throws [StateError] if no [NostrClient] was provided.
-  Future<List<CuratedList>> fetchPublicLists({
-    DateTime? until,
-    int limit = 500,
-    Set<String>? excludeIds,
-    Duration timeout = const Duration(seconds: 15),
-  }) async {
-    var latest = <CuratedList>[];
-
-    await for (final update in streamPublicLists(
-      until: until,
-      limit: limit,
-      excludeIds: excludeIds,
-    ).timeout(timeout, onTimeout: (sink) => sink.close())) {
-      latest = update;
-    }
-
-    return latest;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Lifecycle
-  // ---------------------------------------------------------------------------
-
-  /// Releases resources held by this repository.
-  ///
-  /// Idempotent — safe to call multiple times.
-  Future<void> dispose() async {
-    if (!_subscribedListsSubject.isClosed) {
-      await _subscribedListsSubject.close();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
 
   void _emitSubscribedLists() {
     if (!_subscribedListsSubject.isClosed) {
