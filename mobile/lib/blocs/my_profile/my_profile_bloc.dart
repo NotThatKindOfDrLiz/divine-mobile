@@ -105,6 +105,10 @@ class MyProfileBloc extends Bloc<MyProfileEvent, MyProfileState> {
         }
         return const MyProfileLoading();
       },
+      onError: (error, stackTrace) {
+        addError(error, stackTrace);
+        return state;
+      },
     );
   }
 
