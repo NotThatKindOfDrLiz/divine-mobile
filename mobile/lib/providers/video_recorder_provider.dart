@@ -20,6 +20,7 @@ import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/screens/feed/video_feed_page.dart';
 import 'package:openvine/screens/video_editor/video_clip_editor_screen.dart';
 import 'package:openvine/services/audio_playback_service.dart';
+import 'package:openvine/services/countdown_sound_service.dart';
 import 'package:openvine/services/haptic_service.dart';
 import 'package:openvine/services/video_recorder/camera/camera_base_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
@@ -47,6 +48,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   final CameraService? _cameraServiceOverride;
   late final CameraService _cameraService;
   AudioPlaybackService? _audioPlaybackService;
+  CountdownSoundService? _countdownSoundService;
   Timer? _focusPointTimer;
 
   double _baseZoomLevel = 1;
@@ -209,6 +211,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
     _focusPointTimer?.cancel();
     await _audioPlaybackService?.dispose();
     _audioPlaybackService = null;
+    await _countdownSoundService?.dispose();
+    _countdownSoundService = null;
     await _disableRemoteRecordControl();
     await _cameraService.dispose();
   }
@@ -580,6 +584,19 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         category: .video,
       );
 
+      // Preload countdown sounds so playback is instant
+      _countdownSoundService ??= CountdownSoundService();
+      try {
+        await _countdownSoundService!.preload();
+      } catch (e) {
+        // Sounds are best-effort — continue without them
+        Log.warning(
+          '⚠️ Failed to preload countdown sounds: $e',
+          name: 'VideoRecorderNotifier',
+          category: .video,
+        );
+      }
+
       // Disable volume key interception during countdown so users can
       // adjust volume before recording starts
       await _cameraService.setVolumeKeysEnabled(enabled: false);
@@ -587,10 +604,17 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       // Set recording state during countdown so UI shows countdown
       state = state.copyWith(recordingState: .recording);
 
+      // Display countdown and play short beep on each tick
       for (var i = seconds; i > 0 && !_isDestroyed; i--) {
+        if (_isDestroyed) break;
         state = state.copyWith(countdownValue: i);
-        await Future<void>.delayed(const Duration(seconds: 1));
+
+        unawaited(_countdownSoundService!.playShortBeep());
+        // 940ms to compensate for following ~60ms long beep playback duration,
+        // keeping each tick at ~1 second total
+        await Future<void>.delayed(Duration(milliseconds: i > 0 ? 1000 : 940));
       }
+
       if (_isDestroyed) {
         _isStartingRecording = false;
         state = state.copyWith(recordingState: .idle);
@@ -598,8 +622,12 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
         await _cameraService.setVolumeKeysEnabled(enabled: true);
         return;
       }
+
       state = state.copyWith(countdownValue: 0);
       unawaited(HapticService.recordingFeedback());
+
+      // Play long "go" beep and wait for it to complete before recording
+      await _countdownSoundService!.playLongBeepAndWait();
 
       // Re-enable volume key interception after countdown
       // (unless a sound is selected, then keep them disabled)
