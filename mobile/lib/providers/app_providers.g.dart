@@ -2699,8 +2699,8 @@ String _$followRepositoryHash() => r'b26951609811714d4830b2c8388b1f168d66b516';
 /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
 /// until the repository owns its own persistence (Phase 1b).
 ///
-/// When the [NostrClient] is ready, it is passed to the repository to
-/// enable relay-based discovery methods (Phase 5).
+/// Returns `null` until the [NostrClient] is ready, following the same
+/// pattern as [followRepository].
 
 @ProviderFor(curatedListRepository)
 const curatedListRepositoryProvider = CuratedListRepositoryProvider._();
@@ -2712,17 +2712,17 @@ const curatedListRepositoryProvider = CuratedListRepositoryProvider._();
 /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
 /// until the repository owns its own persistence (Phase 1b).
 ///
-/// When the [NostrClient] is ready, it is passed to the repository to
-/// enable relay-based discovery methods (Phase 5).
+/// Returns `null` until the [NostrClient] is ready, following the same
+/// pattern as [followRepository].
 
 final class CuratedListRepositoryProvider
     extends
         $FunctionalProvider<
-          CuratedListRepository,
-          CuratedListRepository,
-          CuratedListRepository
+          CuratedListRepository?,
+          CuratedListRepository?,
+          CuratedListRepository?
         >
-    with $Provider<CuratedListRepository> {
+    with $Provider<CuratedListRepository?> {
   /// Provider for [CuratedListRepository] instance.
   ///
   /// Creates a repository that exposes subscribed curated lists via a
@@ -2730,8 +2730,8 @@ final class CuratedListRepositoryProvider
   /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
   /// until the repository owns its own persistence (Phase 1b).
   ///
-  /// When the [NostrClient] is ready, it is passed to the repository to
-  /// enable relay-based discovery methods (Phase 5).
+  /// Returns `null` until the [NostrClient] is ready, following the same
+  /// pattern as [followRepository].
   const CuratedListRepositoryProvider._()
     : super(
         from: null,
@@ -2748,26 +2748,26 @@ final class CuratedListRepositoryProvider
 
   @$internal
   @override
-  $ProviderElement<CuratedListRepository> $createElement(
+  $ProviderElement<CuratedListRepository?> $createElement(
     $ProviderPointer pointer,
   ) => $ProviderElement(pointer);
 
   @override
-  CuratedListRepository create(Ref ref) {
+  CuratedListRepository? create(Ref ref) {
     return curatedListRepository(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(CuratedListRepository value) {
+  Override overrideWithValue(CuratedListRepository? value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<CuratedListRepository>(value),
+      providerOverride: $SyncValueProvider<CuratedListRepository?>(value),
     );
   }
 }
 
 String _$curatedListRepositoryHash() =>
-    r'849b0bc22cb6d5290ee659c8f0b2fc936d7b686e';
+    r'61d73b41dacfa14ef33f6efc3a6e7c2b0eb0405d';
 
 /// Provider for HashtagRepository instance.
 ///

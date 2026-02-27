@@ -20,6 +20,7 @@ import 'package:openvine/services/startup_performance_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_presentation.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
+import 'package:openvine/widgets/branded_loading_scaffold.dart';
 import 'package:openvine/widgets/web_video_feed.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
@@ -90,6 +91,12 @@ class VideoFeedPage extends ConsumerWidget {
     final videosRepository = ref.watch(videosRepositoryProvider);
     final followRepository = ref.watch(followRepositoryProvider);
     final curatedListRepository = ref.watch(curatedListRepositoryProvider);
+
+    // Show loading until NostrClient has keys
+    if (curatedListRepository == null) {
+      return const BrandedLoadingScaffold();
+    }
+
     final authService = ref.watch(authServiceProvider);
     final sharedPreferences = ref.watch(sharedPreferencesProvider);
     final showDivineHostedOnly = ref

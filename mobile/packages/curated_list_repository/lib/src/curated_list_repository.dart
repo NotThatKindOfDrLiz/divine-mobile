@@ -19,19 +19,15 @@ const defaultListId = 'my_vine_list';
 /// reactively observe list changes, and provides read-only query methods
 /// for lookups on subscribed lists.
 ///
-/// When constructed with a [NostrClient], also provides discovery methods
-/// for streaming public curated lists from Nostr relays.
+/// Also provides discovery methods for fetching public curated lists from
+/// Nostr relays via the injected [NostrClient].
 /// {@endtemplate}
 class CuratedListRepository {
   /// {@macro curated_list_repository}
-  ///
-  /// The optional [nostrClient] enables relay-based discovery methods
-  /// ([fetchPublicLists], [fetchListsContainingVideo]).
-  /// When `null`, only subscribed-list queries are available.
-  CuratedListRepository({NostrClient? nostrClient})
+  CuratedListRepository({required NostrClient nostrClient})
     : _nostrClient = nostrClient;
 
-  final NostrClient? _nostrClient;
+  final NostrClient _nostrClient;
   final Map<String, CuratedList> _subscribedLists = {};
 
   // BehaviorSubject replays last value to late subscribers, fixing race
@@ -218,27 +214,40 @@ class CuratedListRepository {
   /// Skips lists with no videos and lists in [excludeIds].
   ///
   /// Returns an empty list if no events arrive within the timeout.
-  ///
-  /// Requires a [NostrClient] to be provided at construction time.
-  ///
-  /// Throws [StateError] if no [NostrClient] was provided.
   Future<List<CuratedList>> fetchPublicLists({
     DateTime? until,
     int limit = 500,
     Set<String>? excludeIds,
     Duration timeout = const Duration(seconds: 15),
   }) async {
-    var latest = <CuratedList>[];
+    final listsByDTag = <String, CuratedList>{};
+    final skipIds = excludeIds ?? <String>{};
 
-    await for (final update in _streamPublicLists(
-      until: until,
+    final filter = Filter(
+      kinds: [30005],
+      until: until != null ? until.millisecondsSinceEpoch ~/ 1000 : null,
       limit: limit,
-      excludeIds: excludeIds,
-    ).timeout(timeout, onTimeout: (sink) => sink.close())) {
-      latest = update;
+    );
+
+    final stream = _nostrClient.subscribe([filter]);
+
+    await for (final event in stream.timeout(
+      timeout,
+      onTimeout: (sink) => sink.close(),
+    )) {
+      final list = CuratedListConverter.fromEvent(event);
+      if (list == null || list.videoEventIds.isEmpty) continue;
+      if (skipIds.contains(list.id)) continue;
+
+      final existing = listsByDTag[list.id];
+      if (existing == null || list.updatedAt.isAfter(existing.updatedAt)) {
+        listsByDTag[list.id] = list;
+      }
     }
 
-    return latest;
+    return listsByDTag.values.toList()..sort(
+      (a, b) => b.videoEventIds.length.compareTo(a.videoEventIds.length),
+    );
   }
 
   /// Fetches public curated lists that contain [videoEventId].
@@ -250,16 +259,10 @@ class CuratedListRepository {
   /// Deduplicates by d-tag, keeping the newest version of each list.
   ///
   /// Returns an empty list if no events arrive within the timeout.
-  ///
-  /// Requires a [NostrClient] to be provided at construction time.
-  ///
-  /// Throws [StateError] if no [NostrClient] was provided.
   Future<List<CuratedList>> fetchListsContainingVideo(
     String videoEventId, {
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    _requireNostrClient();
-
     final listsByDTag = <String, CuratedList>{};
 
     final filter = Filter(
@@ -268,7 +271,7 @@ class CuratedListRepository {
       limit: 50,
     );
 
-    final stream = _nostrClient!.subscribe([filter]);
+    final stream = _nostrClient.subscribe([filter]);
 
     await for (final event in stream.timeout(
       timeout,
@@ -306,58 +309,10 @@ class CuratedListRepository {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  /// Streams accumulated public curated lists from relays.
-  ///
-  /// Used internally by [fetchPublicLists].
-  Stream<List<CuratedList>> _streamPublicLists({
-    DateTime? until,
-    int limit = 500,
-    Set<String>? excludeIds,
-  }) async* {
-    _requireNostrClient();
-
-    final listsByDTag = <String, CuratedList>{};
-    final skipIds = excludeIds ?? <String>{};
-
-    final filter = Filter(
-      kinds: [30005],
-      until: until != null ? until.millisecondsSinceEpoch ~/ 1000 : null,
-      limit: limit,
-    );
-
-    final subscription = _nostrClient!.subscribe([filter]);
-
-    await for (final event in subscription) {
-      final list = CuratedListConverter.fromEvent(event);
-      if (list == null || list.videoEventIds.isEmpty) continue;
-      if (skipIds.contains(list.id)) continue;
-
-      final existing = listsByDTag[list.id];
-      if (existing == null || list.updatedAt.isAfter(existing.updatedAt)) {
-        listsByDTag[list.id] = list;
-
-        final sorted = listsByDTag.values.toList()
-          ..sort(
-            (a, b) => b.videoEventIds.length.compareTo(a.videoEventIds.length),
-          );
-        yield sorted;
-      }
-    }
-  }
-
   void _emitSubscribedLists() {
     if (!_subscribedListsSubject.isClosed) {
       _subscribedListsSubject.add(
         List.unmodifiable(_subscribedLists.values.toList()),
-      );
-    }
-  }
-
-  void _requireNostrClient() {
-    if (_nostrClient == null) {
-      throw StateError(
-        'NostrClient is required for discovery methods. '
-        'Pass a NostrClient to the CuratedListRepository constructor.',
       );
     }
   }

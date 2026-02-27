@@ -11,7 +11,14 @@ class _MockNostrClient extends Mock implements NostrClient {}
 
 class _FakeFilter extends Fake implements Filter {}
 
+/// Valid 64-character hex pubkey for constructing test [Event] objects.
+const _testPubkey =
+    'aabbccdd11223344aabbccdd11223344'
+    'aabbccdd11223344aabbccdd11223344';
+
 void main() {
+  late _MockNostrClient mockNostrClient;
+
   setUpAll(() {
     registerFallbackValue(<_FakeFilter>[]);
   });
@@ -44,7 +51,8 @@ void main() {
     }
 
     setUp(() {
-      repository = CuratedListRepository();
+      mockNostrClient = _MockNostrClient();
+      repository = CuratedListRepository(nostrClient: mockNostrClient);
     });
 
     tearDown(() async {
@@ -52,7 +60,10 @@ void main() {
     });
 
     test('can be instantiated', () {
-      expect(CuratedListRepository(), isNotNull);
+      expect(
+        CuratedListRepository(nostrClient: _MockNostrClient()),
+        isNotNull,
+      );
     });
 
     group('subscribedListsStream', () {
@@ -603,7 +614,6 @@ void main() {
     // -----------------------------------------------------------------------
 
     group('fetchPublicLists', () {
-      late _MockNostrClient mockNostrClient;
       late StreamController<Event> eventController;
       late CuratedListRepository discoveryRepository;
 
@@ -615,7 +625,7 @@ void main() {
         String? title,
       }) {
         return Event(
-          'pub1',
+          _testPubkey,
           30005,
           [
             ['d', dTag],
@@ -628,7 +638,6 @@ void main() {
       }
 
       setUp(() {
-        mockNostrClient = _MockNostrClient();
         eventController = StreamController<Event>();
 
         when(
@@ -645,23 +654,19 @@ void main() {
         await discoveryRepository.dispose();
       });
 
-      test('throws StateError when no NostrClient is provided', () async {
-        final repo = CuratedListRepository();
-
-        expect(
-          repo.fetchPublicLists,
-          throwsA(isA<StateError>()),
-        );
-      });
-
       test('returns lists sorted by video count', () async {
+        final future = discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        // Allow async* generator to subscribe to the event stream.
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(createEvent(dTag: 'list-a', eTags: ['v1']))
           ..add(createEvent(dTag: 'list-b', eTags: ['v1', 'v2', 'v3']));
 
-        final result = await discoveryRepository.fetchPublicLists(
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(2));
         expect(result.first.id, equals('list-b'));
@@ -669,6 +674,12 @@ void main() {
       });
 
       test('deduplicates by d-tag, keeping newest', () async {
+        final future = discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(
             createEvent(dTag: 'list-a', eTags: ['v1'], title: 'Old'),
@@ -682,9 +693,7 @@ void main() {
             ),
           );
 
-        final result = await discoveryRepository.fetchPublicLists(
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.name, equals('New'));
@@ -692,6 +701,12 @@ void main() {
       });
 
       test('does not replace newer with older version', () async {
+        final future = discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(
             createEvent(
@@ -705,54 +720,64 @@ void main() {
             createEvent(dTag: 'list-a', eTags: ['v1'], title: 'Older'),
           );
 
-        final result = await discoveryRepository.fetchPublicLists(
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.name, equals('Newer'));
       });
 
       test('skips lists in excludeIds', () async {
+        final future = discoveryRepository.fetchPublicLists(
+          excludeIds: {'list-a'},
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(createEvent(dTag: 'list-a', eTags: ['v1']))
           ..add(createEvent(dTag: 'list-b', eTags: ['v2']));
 
-        final result = await discoveryRepository.fetchPublicLists(
-          excludeIds: {'list-a'},
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.id, equals('list-b'));
       });
 
       test('skips lists with no videos', () async {
+        final future = discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(createEvent(dTag: 'empty-list'))
           ..add(createEvent(dTag: 'has-videos', eTags: ['v1']));
 
-        final result = await discoveryRepository.fetchPublicLists(
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.id, equals('has-videos'));
       });
 
       test('skips events that converter returns null for', () async {
+        final future = discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           // Event without d-tag — converter returns null
           ..add(
-            Event('pub1', 30005, [
+            Event(_testPubkey, 30005, [
               ['e', 'v1'],
             ], ''),
           )
           ..add(createEvent(dTag: 'valid', eTags: ['v1']));
 
-        final result = await discoveryRepository.fetchPublicLists(
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.id, equals('valid'));
@@ -768,7 +793,6 @@ void main() {
     });
 
     group('fetchListsContainingVideo', () {
-      late _MockNostrClient mockNostrClient;
       late StreamController<Event> eventController;
       late CuratedListRepository discoveryRepository;
 
@@ -778,7 +802,7 @@ void main() {
         int createdAt = 1000,
       }) {
         return Event(
-          'pub1',
+          _testPubkey,
           30005,
           [
             ['d', dTag],
@@ -790,7 +814,6 @@ void main() {
       }
 
       setUp(() {
-        mockNostrClient = _MockNostrClient();
         eventController = StreamController<Event>();
 
         when(
@@ -807,30 +830,32 @@ void main() {
         await discoveryRepository.dispose();
       });
 
-      test('throws StateError when no NostrClient is provided', () async {
-        final repo = CuratedListRepository();
-
-        expect(
-          () => repo.fetchListsContainingVideo('video-id'),
-          throwsA(isA<StateError>()),
-        );
-      });
-
       test('returns all lists referencing the video', () async {
+        final future = discoveryRepository.fetchListsContainingVideo(
+          'target-video',
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(createEvent(dTag: 'list-a', eTags: ['target-video']))
           ..add(createEvent(dTag: 'list-b', eTags: ['target-video']));
 
-        final result = await discoveryRepository.fetchListsContainingVideo(
-          'target-video',
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(2));
         expect(result.map((l) => l.id), containsAll(['list-a', 'list-b']));
       });
 
       test('deduplicates by d-tag, keeping newest', () async {
+        final future = discoveryRepository.fetchListsContainingVideo(
+          'target-video',
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(
             createEvent(
@@ -846,28 +871,29 @@ void main() {
             ),
           );
 
-        final result = await discoveryRepository.fetchListsContainingVideo(
-          'target-video',
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.id, equals('list-a'));
       });
 
       test('skips events with no d-tag', () async {
+        final future = discoveryRepository.fetchListsContainingVideo(
+          'target-video',
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        await Future<void>.delayed(Duration.zero);
+
         eventController
           ..add(
-            Event('pub1', 30005, [
+            Event(_testPubkey, 30005, [
               ['e', 'target-video'],
             ], ''),
           )
           ..add(createEvent(dTag: 'valid', eTags: ['target-video']));
 
-        final result = await discoveryRepository.fetchListsContainingVideo(
-          'target-video',
-          timeout: const Duration(milliseconds: 100),
-        );
+        final result = await future;
 
         expect(result, hasLength(1));
         expect(result.first.id, equals('valid'));

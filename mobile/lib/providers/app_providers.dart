@@ -1093,13 +1093,15 @@ FollowRepository followRepository(Ref ref) {
 /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
 /// until the repository owns its own persistence (Phase 1b).
 ///
-/// When the [NostrClient] is ready, it is passed to the repository to
-/// enable relay-based discovery methods (Phase 5).
+/// Returns `null` until the [NostrClient] is ready, following the same
+/// pattern as [followRepository].
 @Riverpod(keepAlive: true)
-CuratedListRepository curatedListRepository(Ref ref) {
-  final isReady = ref.watch(isNostrReadyProvider);
-  final nostrClient = isReady ? ref.watch(nostrServiceProvider) : null;
+CuratedListRepository? curatedListRepository(Ref ref) {
+  if (!ref.watch(isNostrReadyProvider)) {
+    return null;
+  }
 
+  final nostrClient = ref.watch(nostrServiceProvider);
   final repository = CuratedListRepository(nostrClient: nostrClient);
 
   // Bridge: push curated list updates from legacy service into repository
