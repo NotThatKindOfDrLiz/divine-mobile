@@ -1069,8 +1069,6 @@ ProfileRepository? profileRepository(Ref ref) {
   );
 }
 
-// ProfileStatsProvider is now handled by profile_stats_provider.dart with pure Riverpod
-
 /// Enhanced notification service with Nostr integration (lazy loaded)
 @riverpod
 NotificationServiceEnhanced notificationServiceEnhanced(Ref ref) {
