@@ -118,6 +118,7 @@ void main() {
 
     ProfileStats createTestStats() {
       return ProfileStats(
+        pubkey: testUserHex,
         videoCount: 10,
         totalViews: 1000,
         totalLikes: 500,
