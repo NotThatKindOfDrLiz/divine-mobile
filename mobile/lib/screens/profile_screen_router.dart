@@ -10,6 +10,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
+import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
@@ -175,143 +176,175 @@ class _ProfileScreenRouterState extends ConsumerState<ProfileScreenRouter>
       ),
     };
 
-    // Own profile grid gets its own scaffold with custom app bar
     if (isOwnProfileGrid) {
       final environment = ref.watch(currentEnvironmentProvider);
       final userIdHex = ref.read(authServiceProvider).currentPublicKeyHex;
+      final profileRepository = ref.watch(profileRepositoryProvider);
 
-      // Watch profile for profile color
-      final profileAsync = userIdHex != null
-          ? ref.watch(fetchUserProfileProvider(userIdHex))
-          : null;
-      final profileColor = profileAsync?.value?.profileBackgroundColor;
+      if (userIdHex == null || profileRepository == null) {
+        return const ProfileLoadingView();
+      }
 
-      return Scaffold(
-        backgroundColor: Colors.black,
-        onDrawerChanged: (isOpen) {
-          ref.read(overlayVisibilityProvider.notifier).setDrawerOpen(isOpen);
-        },
-        appBar: AppBar(
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          toolbarHeight: 72,
-          leadingWidth: 80,
-          centerTitle: false,
-          titleSpacing: 0,
-          backgroundColor:
-              profileColor ?? getEnvironmentAppBarColor(environment),
-          leading: Builder(
-            builder: (context) => IconButton(
-              key: const Key('menu-icon-button'),
-              tooltip: 'Menu',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: Container(
-                width: 48,
-                height: 48,
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: VineTheme.iconButtonBackground,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: SvgPicture.asset(
-                  'assets/icon/menu.svg',
-                  width: 32,
-                  height: 32,
-                  colorFilter: const ColorFilter.mode(
-                    Colors.white,
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-              onPressed: () {
-                Log.info(
-                  '👆 User tapped menu button',
-                  name: 'Navigation',
-                  category: LogCategory.ui,
-                );
-                Scaffold.of(context).openDrawer();
+      return BlocProvider<MyProfileBloc>(
+        create: (context) =>
+            MyProfileBloc(
+                profileRepository: profileRepository,
+                pubkey: userIdHex,
+              )
+              ..add(const MyProfileSubscriptionRequested())
+              ..add(const MyProfileFetchRequested()),
+        child: BlocBuilder<MyProfileBloc, MyProfileState>(
+          buildWhen: (previous, current) {
+            final previousColor = switch (previous) {
+              MyProfileUpdated(:final profile) =>
+                profile.profileBackgroundColor,
+              _ => null,
+            };
+            final currentColor = switch (current) {
+              MyProfileUpdated(:final profile) =>
+                profile.profileBackgroundColor,
+              _ => null,
+            };
+            return previousColor != currentColor;
+          },
+          builder: (context, state) {
+            final profileColor = switch (state) {
+              MyProfileUpdated(:final profile) =>
+                profile.profileBackgroundColor,
+              _ => null,
+            };
+
+            return Scaffold(
+              backgroundColor: VineTheme.backgroundColor,
+              onDrawerChanged: (isOpen) {
+                ref
+                    .read(overlayVisibilityProvider.notifier)
+                    .setDrawerOpen(isOpen);
               },
-            ),
-          ),
-          title: Text(
-            'My Profile',
-            style: VineTheme.titleFont(),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          actions: [
-            // Refresh button
-            IconButton(
-              key: const Key('refresh-icon-button'),
-              tooltip: 'Refresh',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: Container(
-                width: 48,
-                height: 48,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: VineTheme.iconButtonBackground,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: _isRefreshing
-                    ? const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : SvgPicture.asset(
-                        'assets/icon/refresh.svg',
-                        width: 28,
-                        height: 28,
+              appBar: AppBar(
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                toolbarHeight: 72,
+                leadingWidth: 80,
+                centerTitle: false,
+                titleSpacing: 0,
+                backgroundColor:
+                    profileColor ?? getEnvironmentAppBarColor(environment),
+                leading: Builder(
+                  builder: (context) => IconButton(
+                    key: const Key('menu-icon-button'),
+                    tooltip: 'Menu',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Container(
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: VineTheme.iconButtonBackground,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: SvgPicture.asset(
+                        'assets/icon/menu.svg',
+                        width: 32,
+                        height: 32,
                         colorFilter: const ColorFilter.mode(
                           Colors.white,
                           BlendMode.srcIn,
                         ),
                       ),
-              ),
-              onPressed: userIdHex != null && !_isRefreshing
-                  ? () => _refreshProfile(userIdHex)
-                  : null,
-            ),
-            const SizedBox(width: 8),
-            // More button
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: IconButton(
-                tooltip: 'More',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: Container(
-                  width: 48,
-                  height: 48,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: VineTheme.iconButtonBackground,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: SvgPicture.asset(
-                    'assets/icon/DotsThree.svg',
-                    width: 28,
-                    height: 28,
-                    colorFilter: const ColorFilter.mode(
-                      Colors.white,
-                      BlendMode.srcIn,
                     ),
+                    onPressed: () {
+                      Log.info(
+                        '👆 User tapped menu button',
+                        name: 'Navigation',
+                        category: LogCategory.ui,
+                      );
+                      Scaffold.of(context).openDrawer();
+                    },
                   ),
                 ),
-                onPressed: userIdHex != null ? () => _more(userIdHex) : null,
+                title: Text(
+                  'My Profile',
+                  style: VineTheme.titleFont(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                actions: [
+                  // Refresh button
+                  IconButton(
+                    key: const Key('refresh-icon-button'),
+                    tooltip: 'Refresh',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    icon: Container(
+                      width: 48,
+                      height: 48,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: VineTheme.iconButtonBackground,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: _isRefreshing
+                          ? const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : SvgPicture.asset(
+                              'assets/icon/refresh.svg',
+                              width: 28,
+                              height: 28,
+                              colorFilter: const ColorFilter.mode(
+                                Colors.white,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                    ),
+                    onPressed: !_isRefreshing
+                        ? () => _refreshProfile(userIdHex)
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                  // More button
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16),
+                    child: IconButton(
+                      tooltip: 'More',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: Container(
+                        width: 48,
+                        height: 48,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: VineTheme.iconButtonBackground,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: SvgPicture.asset(
+                          'assets/icon/DotsThree.svg',
+                          width: 28,
+                          height: 28,
+                          colorFilter: const ColorFilter.mode(
+                            Colors.white,
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                      onPressed: () => _more(userIdHex),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
+              drawer: const VineDrawer(),
+              body: content,
+              bottomNavigationBar: const VineBottomNav(currentIndex: 3),
+            );
+          },
         ),
-        drawer: const VineDrawer(),
-        body: content,
-        bottomNavigationBar: const VineBottomNav(currentIndex: 3),
       );
     }
 
