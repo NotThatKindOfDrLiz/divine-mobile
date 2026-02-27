@@ -1,8 +1,21 @@
+import 'dart:async';
+
 import 'package:curated_list_repository/curated_list_repository.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:nostr_client/nostr_client.dart';
+import 'package:nostr_sdk/nostr_sdk.dart' show Event, Filter;
 import 'package:test/test.dart';
 
+class _MockNostrClient extends Mock implements NostrClient {}
+
+class _FakeFilter extends Fake implements Filter {}
+
 void main() {
+  setUpAll(() {
+    registerFallbackValue(<_FakeFilter>[]);
+  });
+
   group(CuratedListRepository, () {
     late CuratedListRepository repository;
 
@@ -582,6 +595,483 @@ void main() {
           repository.getVideoListSummary('v1'),
           equals('In 4 lists'),
         );
+      });
+    });
+
+    // -----------------------------------------------------------------------
+    // Discovery (relay-based)
+    // -----------------------------------------------------------------------
+
+    group('streamPublicLists', () {
+      late _MockNostrClient mockNostrClient;
+      late StreamController<Event> eventController;
+      late CuratedListRepository discoveryRepository;
+
+      /// Creates a kind 30005 event with the given [dTag] and [eTags].
+      Event createEvent({
+        required String dTag,
+        List<String> eTags = const [],
+        int createdAt = 1000,
+        String pubkey = 'pub1',
+        String? title,
+      }) {
+        return Event(
+          pubkey,
+          30005,
+          [
+            ['d', dTag],
+            if (title != null) ['title', title],
+            ...eTags.map((e) => ['e', e]),
+          ],
+          '',
+          createdAt: createdAt,
+        );
+      }
+
+      setUp(() {
+        mockNostrClient = _MockNostrClient();
+        eventController = StreamController<Event>();
+
+        when(
+          () => mockNostrClient.subscribe(any<List<Filter>>()),
+        ).thenAnswer((_) => eventController.stream);
+
+        discoveryRepository = CuratedListRepository(
+          nostrClient: mockNostrClient,
+        );
+      });
+
+      tearDown(() async {
+        await eventController.close();
+        await discoveryRepository.dispose();
+      });
+
+      test('throws StateError when no NostrClient is provided', () {
+        final repo = CuratedListRepository();
+
+        expect(
+          repo.streamPublicLists,
+          throwsA(isA<StateError>()),
+        );
+      });
+
+      test('yields accumulated lists sorted by video count', () async {
+        final stream = discoveryRepository.streamPublicLists();
+
+        // List with 1 video
+        eventController
+          ..add(createEvent(dTag: 'list-a', eTags: ['v1']))
+          // List with 3 videos — should sort first
+          ..add(
+            createEvent(dTag: 'list-b', eTags: ['v1', 'v2', 'v3']),
+          );
+
+        final emissions = <List<CuratedList>>[];
+        final subscription = stream.listen(emissions.add);
+
+        // Wait for events to process
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions, hasLength(2));
+
+        // First emission: just list-a
+        expect(emissions[0], hasLength(1));
+        expect(emissions[0].first.id, equals('list-a'));
+
+        // Second emission: list-b first (3 videos > 1 video)
+        expect(emissions[1], hasLength(2));
+        expect(emissions[1].first.id, equals('list-b'));
+        expect(emissions[1].last.id, equals('list-a'));
+
+        await subscription.cancel();
+      });
+
+      test('deduplicates by d-tag, keeping newest', () async {
+        final stream = discoveryRepository.streamPublicLists();
+
+        eventController
+          // Older version with 1 video
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['v1'],
+              title: 'Old',
+            ),
+          )
+          // Newer version with 2 videos
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['v1', 'v2'],
+              createdAt: 2000,
+              title: 'New',
+            ),
+          );
+
+        final emissions = <List<CuratedList>>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions, hasLength(2));
+
+        // Second emission should have the updated list
+        expect(emissions[1], hasLength(1));
+        expect(emissions[1].first.name, equals('New'));
+        expect(emissions[1].first.videoEventIds, hasLength(2));
+
+        await subscription.cancel();
+      });
+
+      test('does not replace newer with older version', () async {
+        final stream = discoveryRepository.streamPublicLists();
+
+        eventController
+          // Newer version first
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['v1', 'v2'],
+              createdAt: 2000,
+              title: 'Newer',
+            ),
+          )
+          // Older version arrives later (common with multiple relays)
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['v1'],
+              title: 'Older',
+            ),
+          );
+
+        final emissions = <List<CuratedList>>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        // Only one emission — the older event should be ignored
+        expect(emissions, hasLength(1));
+        expect(emissions.first.first.name, equals('Newer'));
+
+        await subscription.cancel();
+      });
+
+      test('skips lists in excludeIds', () async {
+        final stream = discoveryRepository.streamPublicLists(
+          excludeIds: {'list-a'},
+        );
+
+        eventController
+          ..add(createEvent(dTag: 'list-a', eTags: ['v1']))
+          ..add(createEvent(dTag: 'list-b', eTags: ['v2']));
+
+        final emissions = <List<CuratedList>>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        // Only list-b should appear
+        expect(emissions, hasLength(1));
+        expect(emissions.first, hasLength(1));
+        expect(emissions.first.first.id, equals('list-b'));
+
+        await subscription.cancel();
+      });
+
+      test('skips lists with no videos', () async {
+        final stream = discoveryRepository.streamPublicLists();
+
+        // Empty list (no e-tags)
+        eventController
+          ..add(createEvent(dTag: 'empty-list'))
+          // List with videos
+          ..add(createEvent(dTag: 'has-videos', eTags: ['v1']));
+
+        final emissions = <List<CuratedList>>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions, hasLength(1));
+        expect(emissions.first.first.id, equals('has-videos'));
+
+        await subscription.cancel();
+      });
+
+      test('skips events that converter returns null for', () async {
+        final stream = discoveryRepository.streamPublicLists();
+
+        // Event without d-tag — converter returns null
+        eventController
+          ..add(
+            Event('pub1', 30005, [
+              ['e', 'v1'],
+            ], ''),
+          )
+          // Valid event
+          ..add(createEvent(dTag: 'valid', eTags: ['v1']));
+
+        final emissions = <List<CuratedList>>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions, hasLength(1));
+        expect(emissions.first.first.id, equals('valid'));
+
+        await subscription.cancel();
+      });
+    });
+
+    group('streamListsContainingVideo', () {
+      late _MockNostrClient mockNostrClient;
+      late StreamController<Event> eventController;
+      late CuratedListRepository discoveryRepository;
+
+      Event createEvent({
+        required String dTag,
+        List<String> eTags = const [],
+        int createdAt = 1000,
+        String pubkey = 'pub1',
+      }) {
+        return Event(
+          pubkey,
+          30005,
+          [
+            ['d', dTag],
+            ...eTags.map((e) => ['e', e]),
+          ],
+          '',
+          createdAt: createdAt,
+        );
+      }
+
+      setUp(() {
+        mockNostrClient = _MockNostrClient();
+        eventController = StreamController<Event>();
+
+        when(
+          () => mockNostrClient.subscribe(any<List<Filter>>()),
+        ).thenAnswer((_) => eventController.stream);
+
+        discoveryRepository = CuratedListRepository(
+          nostrClient: mockNostrClient,
+        );
+      });
+
+      tearDown(() async {
+        await eventController.close();
+        await discoveryRepository.dispose();
+      });
+
+      test('throws StateError when no NostrClient is provided', () {
+        final repo = CuratedListRepository();
+
+        expect(
+          () => repo.streamListsContainingVideo('video-id'),
+          throwsA(isA<StateError>()),
+        );
+      });
+
+      test('emits individual lists as they arrive', () async {
+        final stream = discoveryRepository.streamListsContainingVideo(
+          'target-video',
+        );
+
+        eventController
+          ..add(createEvent(dTag: 'list-a', eTags: ['target-video']))
+          ..add(createEvent(dTag: 'list-b', eTags: ['target-video']));
+
+        final emissions = <CuratedList>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions, hasLength(2));
+        expect(emissions[0].id, equals('list-a'));
+        expect(emissions[1].id, equals('list-b'));
+
+        await subscription.cancel();
+      });
+
+      test('deduplicates by d-tag, skipping older versions', () async {
+        final stream = discoveryRepository.streamListsContainingVideo(
+          'target-video',
+        );
+
+        eventController
+          // Newer version first
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['target-video'],
+              createdAt: 2000,
+            ),
+          )
+          // Older duplicate
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['target-video'],
+            ),
+          );
+
+        final emissions = <CuratedList>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        // Only the first (newer) should be emitted
+        expect(emissions, hasLength(1));
+        expect(emissions.first.id, equals('list-a'));
+
+        await subscription.cancel();
+      });
+
+      test('emits newer version when it arrives after older', () async {
+        final stream = discoveryRepository.streamListsContainingVideo(
+          'target-video',
+        );
+
+        eventController
+          // Older version first
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['target-video'],
+            ),
+          )
+          // Newer version later
+          ..add(
+            createEvent(
+              dTag: 'list-a',
+              eTags: ['target-video'],
+              createdAt: 2000,
+            ),
+          );
+
+        final emissions = <CuratedList>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        // Both should be emitted (newer replaces older in seen map)
+        expect(emissions, hasLength(2));
+
+        await subscription.cancel();
+      });
+
+      test('skips events with no d-tag', () async {
+        final stream = discoveryRepository.streamListsContainingVideo(
+          'target-video',
+        );
+
+        eventController
+          // No d-tag
+          ..add(
+            Event('pub1', 30005, [
+              ['e', 'target-video'],
+            ], ''),
+          )
+          // Valid event
+          ..add(
+            createEvent(dTag: 'valid', eTags: ['target-video']),
+          );
+
+        final emissions = <CuratedList>[];
+        final subscription = stream.listen(emissions.add);
+
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(emissions, hasLength(1));
+        expect(emissions.first.id, equals('valid'));
+
+        await subscription.cancel();
+      });
+    });
+
+    group('fetchPublicLists', () {
+      late _MockNostrClient mockNostrClient;
+      late StreamController<Event> eventController;
+      late CuratedListRepository discoveryRepository;
+
+      Event createEvent({
+        required String dTag,
+        List<String> eTags = const [],
+        int createdAt = 1000,
+      }) {
+        return Event(
+          'pub1',
+          30005,
+          [
+            ['d', dTag],
+            ...eTags.map((e) => ['e', e]),
+          ],
+          '',
+          createdAt: createdAt,
+        );
+      }
+
+      setUp(() {
+        mockNostrClient = _MockNostrClient();
+        eventController = StreamController<Event>();
+
+        when(
+          () => mockNostrClient.subscribe(any<List<Filter>>()),
+        ).thenAnswer((_) => eventController.stream);
+
+        discoveryRepository = CuratedListRepository(
+          nostrClient: mockNostrClient,
+        );
+      });
+
+      tearDown(() async {
+        await eventController.close();
+        await discoveryRepository.dispose();
+      });
+
+      test('throws StateError when no NostrClient is provided', () async {
+        final repo = CuratedListRepository();
+
+        expect(
+          repo.fetchPublicLists,
+          throwsA(isA<StateError>()),
+        );
+      });
+
+      test('returns last accumulated snapshot before timeout', () async {
+        // Emit events quickly, then let the timeout close the stream
+        eventController
+          ..add(createEvent(dTag: 'a', eTags: ['v1']))
+          ..add(createEvent(dTag: 'b', eTags: ['v1', 'v2']));
+
+        final result = await discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 100),
+        );
+
+        // Should have both lists, sorted by video count
+        expect(result, hasLength(2));
+        expect(result.first.id, equals('b'));
+        expect(result.last.id, equals('a'));
+      });
+
+      test('returns empty list when no events arrive', () async {
+        final result = await discoveryRepository.fetchPublicLists(
+          timeout: const Duration(milliseconds: 50),
+        );
+
+        expect(result, isEmpty);
       });
     });
   });

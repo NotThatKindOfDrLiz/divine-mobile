@@ -1,30 +1,37 @@
-// ABOUTME(WIP): Repository for managing curated video list subscriptions.
-// ABOUTME(WIP): Provides BehaviorSubject stream for reactive BLoC subscription,
-// ABOUTME(WIP): read-only query methods, and in-memory state populated by the
-// ABOUTME(WIP): Page layer. Persistence and relay sync come in later phases.
+// ABOUTME: Repository for managing curated video list subscriptions and
+// ABOUTME: discovery. Provides BehaviorSubject stream for reactive BLoC
+// ABOUTME: subscription, read-only query methods, and relay-based discovery
+// ABOUTME: streaming for public NIP-51 kind 30005 lists.
 
+import 'package:curated_list_repository/src/curated_list_converter.dart';
 import 'package:models/models.dart';
+import 'package:nostr_client/nostr_client.dart';
+import 'package:nostr_sdk/nostr_sdk.dart' show Filter;
 import 'package:rxdart/rxdart.dart';
 
 /// Well-known d-tag for the user's default "My List".
 const defaultListId = 'my_vine_list';
 
 /// {@template curated_list_repository}
-/// Repository for managing curated video list subscriptions.
+/// Repository for managing curated video list subscriptions and discovery.
 ///
 /// Exposes a [subscribedListsStream] (BehaviorSubject) so that BLoCs can
 /// reactively observe list changes, and provides read-only query methods
 /// for lookups on subscribed lists.
 ///
-/// The repository maintains in-memory state populated via [setSubscribedLists],
-/// which is called by the Page layer to bridge from the current Riverpod
-/// `CuratedListService`. When persistence and relay sync are added later,
-/// [setSubscribedLists] will be replaced by internal loading.
+/// When constructed with a [NostrClient], also provides discovery methods
+/// for streaming public curated lists from Nostr relays.
 /// {@endtemplate}
 class CuratedListRepository {
   /// {@macro curated_list_repository}
-  CuratedListRepository();
+  ///
+  /// The optional [nostrClient] enables relay-based discovery methods
+  /// ([streamPublicLists], [streamListsContainingVideo], [fetchPublicLists]).
+  /// When `null`, only subscribed-list queries are available.
+  CuratedListRepository({NostrClient? nostrClient})
+    : _nostrClient = nostrClient;
 
+  final NostrClient? _nostrClient;
   final Map<String, CuratedList> _subscribedLists = {};
 
   // BehaviorSubject replays last value to late subscribers, fixing race
@@ -199,6 +206,125 @@ class CuratedListRepository {
   }
 
   // ---------------------------------------------------------------------------
+  // Discovery (relay-based)
+  // ---------------------------------------------------------------------------
+
+  /// Streams public curated lists from Nostr relays for discovery.
+  ///
+  /// Yields an accumulated, deduplicated list each time a new valid list
+  /// arrives. Lists are sorted by video count (most videos first).
+  ///
+  /// Deduplicates by d-tag, keeping the newest version of each list.
+  /// Skips lists with no videos and lists in [excludeIds].
+  ///
+  /// Requires a [NostrClient] to be provided at construction time.
+  ///
+  /// Throws [StateError] if no [NostrClient] was provided.
+  Stream<List<CuratedList>> streamPublicLists({
+    DateTime? until,
+    int limit = 500,
+    Set<String>? excludeIds,
+  }) async* {
+    _requireNostrClient();
+
+    final listsByDTag = <String, CuratedList>{};
+    final skipIds = excludeIds ?? <String>{};
+
+    final filter = Filter(
+      kinds: [30005],
+      until: until != null ? until.millisecondsSinceEpoch ~/ 1000 : null,
+      limit: limit,
+    );
+
+    final subscription = _nostrClient!.subscribe([filter]);
+
+    await for (final event in subscription) {
+      final list = CuratedListConverter.fromEvent(event);
+      if (list == null || list.videoEventIds.isEmpty) continue;
+      if (skipIds.contains(list.id)) continue;
+
+      final existing = listsByDTag[list.id];
+      if (existing == null || list.updatedAt.isAfter(existing.updatedAt)) {
+        listsByDTag[list.id] = list;
+
+        final sorted = listsByDTag.values.toList()
+          ..sort(
+            (a, b) => b.videoEventIds.length.compareTo(a.videoEventIds.length),
+          );
+        yield sorted;
+      }
+    }
+  }
+
+  /// Streams public curated lists that contain [videoEventId].
+  ///
+  /// Uses Nostr `#e` filter to find kind 30005 events referencing the video.
+  /// Emits individual [CuratedList] objects as they arrive from relays.
+  ///
+  /// Deduplicates by d-tag, skipping older versions of the same list.
+  ///
+  /// Requires a [NostrClient] to be provided at construction time.
+  ///
+  /// Throws [StateError] if no [NostrClient] was provided.
+  Stream<CuratedList> streamListsContainingVideo(String videoEventId) {
+    _requireNostrClient();
+
+    final seenDTags = <String, int>{};
+
+    final filter = Filter(
+      kinds: [30005],
+      e: [videoEventId],
+      limit: 50,
+    );
+
+    return _nostrClient!
+        .subscribe([filter])
+        .map((event) {
+          final dTag = CuratedListConverter.extractDTag(event);
+          if (dTag == null) return null;
+
+          final existingTime = seenDTags[dTag];
+          if (existingTime != null && existingTime >= event.createdAt) {
+            return null;
+          }
+          seenDTags[dTag] = event.createdAt;
+
+          return CuratedListConverter.fromEvent(event);
+        })
+        .where((list) => list != null)
+        .cast<CuratedList>();
+  }
+
+  /// Fetches public curated lists from relays with a timeout.
+  ///
+  /// Delegates to [streamPublicLists] and returns the last accumulated
+  /// snapshot before [timeout] expires.
+  ///
+  /// Returns an empty list if no events arrive within the timeout.
+  ///
+  /// Requires a [NostrClient] to be provided at construction time.
+  ///
+  /// Throws [StateError] if no [NostrClient] was provided.
+  Future<List<CuratedList>> fetchPublicLists({
+    DateTime? until,
+    int limit = 500,
+    Set<String>? excludeIds,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    var latest = <CuratedList>[];
+
+    await for (final update in streamPublicLists(
+      until: until,
+      limit: limit,
+      excludeIds: excludeIds,
+    ).timeout(timeout, onTimeout: (sink) => sink.close())) {
+      latest = update;
+    }
+
+    return latest;
+  }
+
+  // ---------------------------------------------------------------------------
   // Lifecycle
   // ---------------------------------------------------------------------------
 
@@ -219,6 +345,15 @@ class CuratedListRepository {
     if (!_subscribedListsSubject.isClosed) {
       _subscribedListsSubject.add(
         List.unmodifiable(_subscribedLists.values.toList()),
+      );
+    }
+  }
+
+  void _requireNostrClient() {
+    if (_nostrClient == null) {
+      throw StateError(
+        'NostrClient is required for discovery methods. '
+        'Pass a NostrClient to the CuratedListRepository constructor.',
       );
     }
   }

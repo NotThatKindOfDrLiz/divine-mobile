@@ -2698,6 +2698,9 @@ String _$followRepositoryHash() => r'b26951609811714d4830b2c8388b1f168d66b516';
 /// [BehaviorSubject] stream for reactive BLoC subscription. Data is
 /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
 /// until the repository owns its own persistence (Phase 1b).
+///
+/// When the [NostrClient] is ready, it is passed to the repository to
+/// enable relay-based discovery methods (Phase 5).
 
 @ProviderFor(curatedListRepository)
 const curatedListRepositoryProvider = CuratedListRepositoryProvider._();
@@ -2708,6 +2711,9 @@ const curatedListRepositoryProvider = CuratedListRepositoryProvider._();
 /// [BehaviorSubject] stream for reactive BLoC subscription. Data is
 /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
 /// until the repository owns its own persistence (Phase 1b).
+///
+/// When the [NostrClient] is ready, it is passed to the repository to
+/// enable relay-based discovery methods (Phase 5).
 
 final class CuratedListRepositoryProvider
     extends
@@ -2723,6 +2729,9 @@ final class CuratedListRepositoryProvider
   /// [BehaviorSubject] stream for reactive BLoC subscription. Data is
   /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
   /// until the repository owns its own persistence (Phase 1b).
+  ///
+  /// When the [NostrClient] is ready, it is passed to the repository to
+  /// enable relay-based discovery methods (Phase 5).
   const CuratedListRepositoryProvider._()
     : super(
         from: null,
@@ -2758,7 +2767,7 @@ final class CuratedListRepositoryProvider
 }
 
 String _$curatedListRepositoryHash() =>
-    r'ac877d48b81aebf77fb573cbeaf70a123ea843d4';
+    r'849b0bc22cb6d5290ee659c8f0b2fc936d7b686e';
 
 /// Provider for HashtagRepository instance.
 ///

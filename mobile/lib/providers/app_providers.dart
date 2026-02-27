@@ -1092,9 +1092,15 @@ FollowRepository followRepository(Ref ref) {
 /// [BehaviorSubject] stream for reactive BLoC subscription. Data is
 /// bridged from the legacy [CuratedListService] via [setSubscribedLists]
 /// until the repository owns its own persistence (Phase 1b).
+///
+/// When the [NostrClient] is ready, it is passed to the repository to
+/// enable relay-based discovery methods (Phase 5).
 @Riverpod(keepAlive: true)
 CuratedListRepository curatedListRepository(Ref ref) {
-  final repository = CuratedListRepository();
+  final isReady = ref.watch(isNostrReadyProvider);
+  final nostrClient = isReady ? ref.watch(nostrServiceProvider) : null;
+
+  final repository = CuratedListRepository(nostrClient: nostrClient);
 
   // Bridge: push curated list updates from legacy service into repository
   ref.listen(curatedListsStateProvider, (_, next) {
