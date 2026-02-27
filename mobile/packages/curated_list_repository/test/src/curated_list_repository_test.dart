@@ -790,6 +790,24 @@ void main() {
 
         expect(result, isEmpty);
       });
+
+      test('passes until to filter when provided', () async {
+        final until = DateTime.utc(2025, 6, 15);
+
+        final result = await discoveryRepository.fetchPublicLists(
+          until: until,
+          timeout: const Duration(milliseconds: 50),
+        );
+
+        expect(result, isEmpty);
+
+        final captured =
+            verify(
+                  () => mockNostrClient.subscribe(captureAny<List<Filter>>()),
+                ).captured.last
+                as List<Filter>;
+        expect(captured.first.until, until.millisecondsSinceEpoch ~/ 1000);
+      });
     });
 
     group('fetchListsContainingVideo', () {
