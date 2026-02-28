@@ -17,6 +17,8 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:nostr_client/nostr_client.dart'
     show RelayConnectionStatus, RelayState;
 import 'package:nostr_key_manager/nostr_key_manager.dart';
+import 'package:sticker_pack_repository/sticker_pack_repository.dart';
+import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
@@ -1542,6 +1544,40 @@ BugReportService bugReportService(Ref ref) {
 CommentsRepository commentsRepository(Ref ref) {
   final nostrClient = ref.watch(nostrServiceProvider);
   return CommentsRepository(nostrClient: nostrClient);
+}
+
+// =============================================================================
+// STICKER PACK REPOSITORY
+// =============================================================================
+
+/// Provider for [StickerPackRepository].
+///
+/// Loads sticker packs from multiple sources:
+/// 1. Curated packs from Divine team pubkeys
+/// 2. User-subscribed packs from the user's Kind 10030 emoji list
+///
+/// Uses:
+/// - NostrClient from nostrServiceProvider (for relay communication)
+/// - [AppConstants.classicVinesPubkey] and [AppConstants.divineTeamPubkeys]
+///   as curator pubkeys
+/// - AuthService for the current user's pubkey
+@Riverpod(keepAlive: true)
+StickerPackRepository stickerPackRepository(Ref ref) {
+  final nostrClient = ref.watch(nostrServiceProvider);
+  final authService = ref.watch(authServiceProvider);
+  return StickerPackRepository(
+    nostrClient: nostrClient,
+    curatorPubkeys: [
+      AppConstants.classicVinesPubkey,
+      ...AppConstants.divineTeamPubkeys,
+    ],
+    userPubkey: authService.currentPublicKeyHex,
+    discoveryRelays: const [
+      'wss://relay.damus.io',
+      'wss://nos.lol',
+      'wss://relay.nostr.band',
+    ],
+  );
 }
 
 // =============================================================================

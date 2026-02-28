@@ -24,6 +24,7 @@ class Comment extends Equatable {
     required this.rootAuthorPubkey,
     this.replyToEventId,
     this.replyToAuthorPubkey,
+    this.emojiTags = const {},
   });
 
   /// Unique comment ID (Nostr event ID).
@@ -51,6 +52,12 @@ class Comment extends Equatable {
 
   /// If this is a reply, the public key of the parent comment author.
   final String? replyToAuthorPubkey;
+
+  /// NIP-30 custom emoji tags: shortcode → imageUrl.
+  ///
+  /// Populated from `["emoji", shortcode, url]` tags in the Nostr event.
+  /// Used to render sticker comments as images instead of text.
+  final Map<String, String> emojiTags;
 
   /// Get relative time string (e.g., "2h ago", "1d ago", "3mo ago", "2y ago").
   String get relativeTime {
@@ -89,6 +96,7 @@ class Comment extends Equatable {
     String? rootAuthorPubkey,
     String? replyToEventId,
     String? replyToAuthorPubkey,
+    Map<String, String>? emojiTags,
   }) => Comment(
     id: id ?? this.id,
     content: content ?? this.content,
@@ -98,6 +106,7 @@ class Comment extends Equatable {
     rootAuthorPubkey: rootAuthorPubkey ?? this.rootAuthorPubkey,
     replyToEventId: replyToEventId ?? this.replyToEventId,
     replyToAuthorPubkey: replyToAuthorPubkey ?? this.replyToAuthorPubkey,
+    emojiTags: emojiTags ?? this.emojiTags,
   );
 
   @override
@@ -110,5 +119,6 @@ class Comment extends Equatable {
     rootAuthorPubkey,
     replyToEventId,
     replyToAuthorPubkey,
+    emojiTags,
   ];
 }
