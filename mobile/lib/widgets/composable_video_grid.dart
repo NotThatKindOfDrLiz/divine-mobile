@@ -1,14 +1,18 @@
 // ABOUTME: Composable video grid widget with automatic broken video filtering
 // ABOUTME: Reusable component for Explore, Hashtag, and Search screens
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/content_deletion_service.dart';
+import 'package:openvine/services/content_filter_service.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/user_name.dart';
@@ -139,6 +143,9 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
   }
 
   Widget _buildGrid(BuildContext context, List<VideoEvent> videosToShow) {
+    // Apply content filtering: remove hidden, annotate warned
+    videosToShow = _applyContentFiltering(videosToShow);
+
     if (videosToShow.isEmpty && widget.emptyBuilder != null) {
       return widget.emptyBuilder!();
     }
@@ -216,6 +223,40 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
     }
 
     return gridView;
+  }
+
+  /// Apply content filtering: remove hidden videos, annotate warned ones.
+  List<VideoEvent> _applyContentFiltering(List<VideoEvent> videos) {
+    final service = ref.read(contentFilterServiceProvider);
+    final nostrService = ref.read(nostrServiceProvider);
+    final currentUserPubkey = nostrService.publicKey;
+
+    final result = <VideoEvent>[];
+    for (final video in videos) {
+      // Always show user's own videos
+      if (currentUserPubkey.isNotEmpty && video.pubkey == currentUserPubkey) {
+        result.add(video);
+        continue;
+      }
+      final labels = video.contentWarningLabels;
+      if (labels.isEmpty) {
+        result.add(video);
+        continue;
+      }
+      final pref = service.getPreferenceForLabels(labels);
+      if (pref == ContentFilterPreference.hide) continue;
+      if (pref == ContentFilterPreference.warn) {
+        final warnLabels = labels.where((l) {
+          final label = ContentLabel.fromValue(l);
+          if (label == null) return false;
+          return service.getPreference(label) == ContentFilterPreference.warn;
+        }).toList();
+        result.add(video.copyWith(warnLabels: warnLabels));
+      } else {
+        result.add(video);
+      }
+    }
+    return result;
   }
 
   /// Show context menu for long press on video tiles
@@ -503,6 +544,25 @@ class _VideoItem extends StatelessWidget {
                       Icons.collections,
                       size: 14,
                       color: Colors.white,
+                    ),
+                  ),
+                ),
+              // Blur overlay for warned content
+              if (video.shouldShowWarning)
+                Positioned.fill(
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        child: const Center(
+                          child: Icon(
+                            Icons.warning_amber_rounded,
+                            color: Color(0xFFFFB84D),
+                            size: 32,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

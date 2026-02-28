@@ -7,9 +7,11 @@ import 'dart:math';
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
+import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/readiness_gate_providers.dart';
 import 'package:openvine/state/video_feed_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_nostr_enrichment.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'classic_vines_provider.g.dart';
@@ -83,10 +85,20 @@ class ClassicVinesFeed extends _$ClassicVinesFeed {
           sort: 'loops',
         );
 
-        // Filter for platform compatibility, content preferences, and shuffle
-        final filteredVideos = videoEventService.filterVideoList(
-          videos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
-        )..shuffle(_random);
+        // Enrich with Nostr tags first so content-warning labels
+        // are available for filtering.
+        final platformVideos = videos
+            .where((v) => v.isSupportedOnCurrentPlatform)
+            .toList();
+        final enrichedVideos = await enrichVideosWithNostrTags(
+          platformVideos,
+          nostrService: ref.read(nostrServiceProvider),
+          callerName: 'ClassicVinesFeedProvider',
+        );
+
+        // Filter for content preferences, then shuffle
+        final filteredVideos = videoEventService.filterVideoList(enrichedVideos)
+          ..shuffle(_random);
 
         Log.info(
           '🎬 ClassicVinesFeed: Loaded ${filteredVideos.length} videos '
@@ -170,10 +182,18 @@ class ClassicVinesFeed extends _$ClassicVinesFeed {
         sort: 'loops',
       );
 
+      final platformVideos = videos
+          .where((v) => v.isSupportedOnCurrentPlatform)
+          .toList();
+      final enrichedVideos = await enrichVideosWithNostrTags(
+        platformVideos,
+        nostrService: ref.read(nostrServiceProvider),
+        callerName: 'ClassicVinesFeedProvider',
+      );
+
       final videoEventService = ref.read(videoEventServiceProvider);
-      final filteredVideos = videoEventService.filterVideoList(
-        videos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
-      )..shuffle(_random);
+      final filteredVideos = videoEventService.filterVideoList(enrichedVideos)
+        ..shuffle(_random);
 
       final nextOffset = _randomOffset + _pageSize;
       state = AsyncData(
@@ -218,10 +238,17 @@ class ClassicVinesFeed extends _$ClassicVinesFeed {
         sort: 'loops',
       );
 
-      final videoEventService = ref.read(videoEventServiceProvider);
-      final filteredVideos = videoEventService.filterVideoList(
-        videos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
+      final platformVideos = videos
+          .where((v) => v.isSupportedOnCurrentPlatform)
+          .toList();
+      final enrichedVideos = await enrichVideosWithNostrTags(
+        platformVideos,
+        nostrService: ref.read(nostrServiceProvider),
+        callerName: 'ClassicVinesFeedProvider',
       );
+
+      final videoEventService = ref.read(videoEventServiceProvider);
+      final filteredVideos = videoEventService.filterVideoList(enrichedVideos);
 
       final allVideos = [...currentState.videos, ...filteredVideos];
       final followingOffset = nextOffset + _pageSize;

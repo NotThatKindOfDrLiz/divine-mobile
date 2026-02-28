@@ -56,13 +56,13 @@ class ContentFilterService extends ChangeNotifier {
     ContentLabel.graphicMedia: ContentFilterPreference.warn,
     ContentLabel.violence: ContentFilterPreference.warn,
     ContentLabel.selfHarm: ContentFilterPreference.warn,
-    // Substances — show by default
-    ContentLabel.drugs: ContentFilterPreference.show,
-    ContentLabel.alcohol: ContentFilterPreference.show,
-    ContentLabel.tobacco: ContentFilterPreference.show,
-    ContentLabel.gambling: ContentFilterPreference.show,
-    // Other — show by default
-    ContentLabel.profanity: ContentFilterPreference.show,
+    // Substances — warn by default (creator explicitly labeled)
+    ContentLabel.drugs: ContentFilterPreference.warn,
+    ContentLabel.alcohol: ContentFilterPreference.warn,
+    ContentLabel.tobacco: ContentFilterPreference.warn,
+    ContentLabel.gambling: ContentFilterPreference.warn,
+    // Other — warn for safety-related, show for informational
+    ContentLabel.profanity: ContentFilterPreference.warn,
     ContentLabel.hate: ContentFilterPreference.warn,
     ContentLabel.harassment: ContentFilterPreference.warn,
     ContentLabel.flashingLights: ContentFilterPreference.warn,

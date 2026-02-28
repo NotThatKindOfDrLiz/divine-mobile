@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,6 +8,7 @@ import 'package:models/models.dart' hide AspectRatio;
 import 'package:openvine/blocs/video_feed/video_feed_bloc.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/feed/feed_mode_switch.dart';
@@ -48,10 +51,15 @@ class VideoFeedPage extends ConsumerWidget {
       return const BrandedLoadingScaffold();
     }
 
+    final contentFilterService = ref.watch(contentFilterServiceProvider);
+    final nostrClient = ref.watch(nostrServiceProvider);
+
     return BlocProvider(
       create: (_) => VideoFeedBloc(
         videosRepository: videosRepository,
         followRepository: followRepository,
+        contentFilterService: contentFilterService,
+        currentUserPubkey: nostrClient.publicKey,
       )..add(VideoFeedStarted(mode: initialMode)),
       child: const VideoFeedView(),
     );
@@ -422,7 +430,7 @@ class _PooledVideoFeedItem extends ConsumerWidget {
   }
 }
 
-class _PooledVideoFeedItemContent extends StatelessWidget {
+class _PooledVideoFeedItemContent extends StatefulWidget {
   const _PooledVideoFeedItemContent({
     required this.video,
     required this.index,
@@ -436,27 +444,53 @@ class _PooledVideoFeedItemContent extends StatelessWidget {
   final String? contextTitle;
 
   @override
+  State<_PooledVideoFeedItemContent> createState() =>
+      _PooledVideoFeedItemContentState();
+}
+
+class _PooledVideoFeedItemContentState
+    extends State<_PooledVideoFeedItemContent> {
+  bool _contentWarningRevealed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final video = widget.video;
     // All videos without dimensions are treated as portrait as its default
     // usecase (e.g. Reels-style vertical videos).
     final isPortrait = video.dimensions != null ? video.isPortrait : true;
+    final showWarning = video.shouldShowWarning && !_contentWarningRevealed;
 
     return Container(
       color: Colors.black,
-      child: PooledVideoPlayer(
-        index: index,
-        thumbnailUrl: video.thumbnailUrl,
-        enableTapToPause: isActive,
-        videoBuilder: (context, videoController, player) => _FittedVideoPlayer(
-          videoController: videoController,
-          isPortrait: isPortrait,
-        ),
-        loadingBuilder: (context) => _VideoLoadingPlaceholder(
-          thumbnailUrl: video.thumbnailUrl,
-          isPortrait: isPortrait,
-        ),
-        overlayBuilder: (context, videoController, player) =>
-            FeedVideoOverlay(video: video, isActive: isActive, player: player),
+      child: Stack(
+        children: [
+          PooledVideoPlayer(
+            index: widget.index,
+            thumbnailUrl: video.thumbnailUrl,
+            enableTapToPause: widget.isActive && !showWarning,
+            videoBuilder: (context, videoController, player) =>
+                _FittedVideoPlayer(
+                  videoController: videoController,
+                  isPortrait: isPortrait,
+                ),
+            loadingBuilder: (context) => _VideoLoadingPlaceholder(
+              thumbnailUrl: video.thumbnailUrl,
+              isPortrait: isPortrait,
+            ),
+            overlayBuilder: (context, videoController, player) =>
+                FeedVideoOverlay(
+                  video: video,
+                  isActive: widget.isActive,
+                  player: player,
+                ),
+          ),
+          if (showWarning)
+            _FeedContentWarningOverlay(
+              labels: video.warnLabels,
+              thumbnailUrl: video.thumbnailUrl,
+              onReveal: () => setState(() => _contentWarningRevealed = true),
+            ),
+        ],
       ),
     );
   }
@@ -520,5 +554,138 @@ class _LoadingIndicator extends StatelessWidget {
     return const Center(
       child: CircularProgressIndicator(color: VineTheme.vineGreen),
     );
+  }
+}
+
+/// Content warning overlay for the new feed.
+///
+/// Shows a blurred thumbnail with warning text and a "View Anyway" button.
+/// Uses a thumbnail image as the blur source so the overlay works even
+/// before the video has loaded (BackdropFilter on a black screen = black).
+class _FeedContentWarningOverlay extends StatelessWidget {
+  const _FeedContentWarningOverlay({
+    required this.labels,
+    required this.onReveal,
+    this.thumbnailUrl,
+  });
+
+  final List<String> labels;
+  final VoidCallback onReveal;
+  final String? thumbnailUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Blurred thumbnail as background (ensures blur is always visible)
+          if (thumbnailUrl != null)
+            ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Image.network(
+                thumbnailUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const ColoredBox(
+                  color: Colors.black,
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ),
+          // Dark tint + content
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+            ),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFFFB84D),
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Sensitive Content',
+                      style: TextStyle(
+                        color: VineTheme.whiteText,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      labels.map(_humanize).join(', '),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: VineTheme.secondaryText,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton(
+                      onPressed: onReveal,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: VineTheme.whiteText,
+                        side: const BorderSide(color: VineTheme.onSurfaceMuted),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: const Text('View Anyway'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _humanize(String label) {
+    switch (label) {
+      case 'nudity':
+        return 'Nudity';
+      case 'sexual':
+        return 'Sexual Content';
+      case 'porn':
+        return 'Pornography';
+      case 'graphic-media':
+        return 'Graphic Media';
+      case 'violence':
+        return 'Violence';
+      case 'self-harm':
+        return 'Self-Harm';
+      case 'drugs':
+        return 'Drug Use';
+      case 'alcohol':
+        return 'Alcohol';
+      case 'tobacco':
+        return 'Tobacco';
+      case 'gambling':
+        return 'Gambling';
+      case 'profanity':
+        return 'Profanity';
+      case 'flashing-lights':
+        return 'Flashing Lights';
+      case 'ai-generated':
+        return 'AI-Generated';
+      case 'spoiler':
+        return 'Spoiler';
+      case 'content-warning':
+        return 'Sensitive Content';
+      default:
+        return 'Content Warning';
+    }
   }
 }

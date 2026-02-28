@@ -32,6 +32,7 @@ import 'package:openvine/constants/nip71_migration.dart';
 import 'package:openvine/services/age_verification_service.dart';
 import 'package:openvine/services/connection_status_service.dart';
 import 'package:openvine/services/content_blocklist_service.dart';
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/services/content_filter_service.dart';
 import 'package:openvine/services/crash_reporting_service.dart';
 import 'package:openvine/services/event_router.dart';
@@ -330,6 +331,12 @@ class VideoEventService extends ChangeNotifier {
   /// Check if an event should be filtered based on adult content settings
   /// Returns true if the event should be filtered OUT (not shown)
   bool shouldFilterEvent(Event event) {
+    // Never filter the current user's own events
+    final currentUserPubkey = _nostrService.publicKey;
+    if (currentUserPubkey.isNotEmpty && event.pubkey == currentUserPubkey) {
+      return false;
+    }
+
     // If not hiding adult content, don't filter anything
     if (!shouldFilterAdultContent) {
       return false;
@@ -386,6 +393,12 @@ class VideoEventService extends ChangeNotifier {
   ///
   /// Also returns the list of matched label values that triggered the action.
   (ContentFilterPreference, List<String>) getFilterAction(Event event) {
+    // Never filter the current user's own events
+    final currentUserPubkey = _nostrService.publicKey;
+    if (currentUserPubkey.isNotEmpty && event.pubkey == currentUserPubkey) {
+      return (ContentFilterPreference.show, <String>[]);
+    }
+
     final contentFilterService = _contentFilterService;
     if (contentFilterService == null) {
       // Fall back to legacy binary filtering
@@ -443,17 +456,68 @@ class VideoEventService extends ChangeNotifier {
 
   /// Filter a list of [VideoEvent]s based on the user's content filter
   /// preferences. Videos matching "hide" labels are removed from the list.
-  /// Videos matching "warn" labels are kept (the UI shows an overlay).
+  /// Videos matching "warn" labels are annotated with [VideoEvent.warnLabels]
+  /// so the UI can show an overlay with a dismiss button.
   List<VideoEvent> filterVideoList(List<VideoEvent> videos) {
     final service = _contentFilterService;
-    if (service == null) return videos;
+    if (service == null) {
+      Log.warning(
+        'Content filter: service not attached — '
+        'skipping filter for ${videos.length} videos',
+        name: 'VideoEventService',
+        category: LogCategory.video,
+      );
+      return videos;
+    }
 
-    return videos.where((video) {
+    // Never filter the current user's own videos
+    final currentUserPubkey = _nostrService.publicKey;
+
+    final result = <VideoEvent>[];
+    var hiddenCount = 0;
+    var warnedCount = 0;
+    var withLabelsCount = 0;
+    for (final video in videos) {
+      // Always show user's own videos unfiltered
+      if (currentUserPubkey.isNotEmpty && video.pubkey == currentUserPubkey) {
+        result.add(video);
+        continue;
+      }
       final labels = video.contentWarningLabels;
-      if (labels.isEmpty) return true;
+      if (labels.isEmpty) {
+        result.add(video);
+        continue;
+      }
+      withLabelsCount++;
       final pref = service.getPreferenceForLabels(labels);
-      return pref != ContentFilterPreference.hide;
-    }).toList();
+      if (pref == ContentFilterPreference.hide) {
+        hiddenCount++;
+        continue;
+      }
+      if (pref == ContentFilterPreference.warn) {
+        // Collect the specific labels that triggered the warn preference
+        final warnLabels = labels.where((l) {
+          final label = ContentLabel.fromValue(l);
+          if (label == null) return false;
+          return service.getPreference(label) == ContentFilterPreference.warn;
+        }).toList();
+        warnedCount++;
+        result.add(video.copyWith(warnLabels: warnLabels));
+      } else {
+        result.add(video);
+      }
+    }
+
+    // Always log filter results for diagnostics
+    Log.info(
+      'Content filter: ${videos.length} videos → ${result.length} '
+      '(withCWLabels=$withLabelsCount, hidden=$hiddenCount, '
+      'warned=$warnedCount)',
+      name: 'VideoEventService',
+      category: LogCategory.video,
+    );
+
+    return result;
   }
 
   /// Check if a VideoEvent contains adult content based on hashtags and tags

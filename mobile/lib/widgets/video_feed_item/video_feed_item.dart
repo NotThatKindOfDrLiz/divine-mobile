@@ -1214,19 +1214,6 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
               },
             ),
 
-            // Content warning overlay for videos with warn labels
-            if (video.shouldShowWarning && !_contentWarningRevealed)
-              _ContentWarningOverlay(
-                labels: video.warnLabels,
-                onReveal: () {
-                  setState(() {
-                    _contentWarningRevealed = true;
-                  });
-                  // Start playback now that the warning is dismissed
-                  _handlePlaybackChange(true);
-                },
-              ),
-
             // Video overlay with actions (badges, title, action buttons)
             // Wrap with VideoInteractionsBloc if available
             BlocProvider<VideoInteractionsBloc>.value(
@@ -1243,6 +1230,22 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
                 hideFollowButtonIfFollowing: widget.hideFollowButtonIfFollowing,
               ),
             ),
+
+            // Content warning overlay for videos with warn labels
+            // Must be on top of VideoOverlayActions so the dismiss button
+            // receives tap events
+            if (video.shouldShowWarning && !_contentWarningRevealed)
+              _ContentWarningOverlay(
+                labels: video.warnLabels,
+                thumbnailUrl: video.thumbnailUrl,
+                onReveal: () {
+                  setState(() {
+                    _contentWarningRevealed = true;
+                  });
+                  // Start playback now that the warning is dismissed
+                  _handlePlaybackChange(true);
+                },
+              ),
           ],
         ),
       ),
@@ -2479,18 +2482,38 @@ class _ContentWarningDetailsSheet extends StatelessWidget {
 /// Shows a blurred overlay with warning text and matched content labels.
 /// User can tap "View Anyway" to reveal the video.
 class _ContentWarningOverlay extends StatelessWidget {
-  const _ContentWarningOverlay({required this.labels, required this.onReveal});
+  const _ContentWarningOverlay({
+    required this.labels,
+    required this.onReveal,
+    this.thumbnailUrl,
+  });
 
   final List<String> labels;
   final VoidCallback onReveal;
+  final String? thumbnailUrl;
 
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-          child: DecoratedBox(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Blurred thumbnail as background (ensures blur is visible even
+          // before video loads — BackdropFilter on black = black)
+          if (thumbnailUrl != null)
+            ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Image.network(
+                thumbnailUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const ColoredBox(
+                  color: Colors.black,
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ),
+          // Dark tint + content
+          DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.6),
             ),
@@ -2544,7 +2567,7 @@ class _ContentWarningOverlay extends StatelessWidget {
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

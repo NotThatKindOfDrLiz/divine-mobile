@@ -2,6 +2,8 @@
 // ABOUTME: Displays videos with swipe navigation using managed player pool
 // ABOUTME: Uses FullscreenFeedBloc for state management
 
+import 'dart:ui' as ui;
+
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,7 +15,10 @@ import 'package:openvine/blocs/fullscreen_feed/fullscreen_feed_bloc.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/services/content_filter_service.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/services/view_event_publisher.dart';
 import 'package:openvine/widgets/pooled_video_metrics_tracker.dart';
@@ -93,10 +98,23 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mediaCache = ref.read(mediaCacheProvider);
     final blossomAuthService = ref.read(blossomAuthServiceProvider);
+    final contentFilterService = ref.read(contentFilterServiceProvider);
+    final nostrService = ref.read(nostrServiceProvider);
+    final currentUserPubkey = nostrService.publicKey;
+
+    // Apply content filtering to the video stream: remove hidden videos
+    // and annotate warned videos with warnLabels for overlay display.
+    final filteredStream = videosStream.map(
+      (videos) => _applyContentFiltering(
+        videos,
+        contentFilterService,
+        currentUserPubkey,
+      ),
+    );
 
     return BlocProvider(
       create: (_) => FullscreenFeedBloc(
-        videosStream: videosStream,
+        videosStream: filteredStream,
         initialIndex: initialIndex,
         onLoadMore: onLoadMore,
         mediaCache: mediaCache,
@@ -108,6 +126,40 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
         sourceDetail: sourceDetail,
       ),
     );
+  }
+
+  /// Apply content filtering: remove hidden videos, annotate warned ones.
+  static List<VideoEvent> _applyContentFiltering(
+    List<VideoEvent> videos,
+    ContentFilterService service,
+    String currentUserPubkey,
+  ) {
+    final result = <VideoEvent>[];
+    for (final video in videos) {
+      // Always show user's own videos
+      if (currentUserPubkey.isNotEmpty && video.pubkey == currentUserPubkey) {
+        result.add(video);
+        continue;
+      }
+      final labels = video.contentWarningLabels;
+      if (labels.isEmpty) {
+        result.add(video);
+        continue;
+      }
+      final pref = service.getPreferenceForLabels(labels);
+      if (pref == ContentFilterPreference.hide) continue;
+      if (pref == ContentFilterPreference.warn) {
+        final warnLabels = labels.where((l) {
+          final label = ContentLabel.fromValue(l);
+          if (label == null) return false;
+          return service.getPreference(label) == ContentFilterPreference.warn;
+        }).toList();
+        result.add(video.copyWith(warnLabels: warnLabels));
+      } else {
+        result.add(video);
+      }
+    }
+    return result;
   }
 }
 
@@ -506,7 +558,7 @@ class _PooledFullscreenItem extends ConsumerWidget {
   }
 }
 
-class _PooledFullscreenItemContent extends StatelessWidget {
+class _PooledFullscreenItemContent extends StatefulWidget {
   const _PooledFullscreenItemContent({
     required this.video,
     required this.index,
@@ -524,41 +576,62 @@ class _PooledFullscreenItemContent extends StatelessWidget {
   final String? sourceDetail;
 
   @override
+  State<_PooledFullscreenItemContent> createState() =>
+      _PooledFullscreenItemContentState();
+}
+
+class _PooledFullscreenItemContentState
+    extends State<_PooledFullscreenItemContent> {
+  bool _contentWarningRevealed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final video = widget.video;
     final isPortrait = video.dimensions != null ? video.isPortrait : false;
+    final showWarning = video.shouldShowWarning && !_contentWarningRevealed;
 
     return ColoredBox(
       color: Colors.black,
-      child: PooledVideoPlayer(
-        index: index,
-        thumbnailUrl: video.thumbnailUrl,
-        enableTapToPause: isActive,
-        videoBuilder: (context, videoController, player) =>
-            PooledVideoMetricsTracker(
-              key: ValueKey('metrics-${video.id}'),
-              video: video,
-              player: player,
-              isActive: isActive,
-              trafficSource: trafficSource,
-              sourceDetail: sourceDetail,
-              child: _FittedVideoPlayer(
-                videoController: videoController,
-                isPortrait: isPortrait,
-              ),
+      child: Stack(
+        children: [
+          PooledVideoPlayer(
+            index: widget.index,
+            thumbnailUrl: video.thumbnailUrl,
+            enableTapToPause: widget.isActive && !showWarning,
+            videoBuilder: (context, videoController, player) =>
+                PooledVideoMetricsTracker(
+                  key: ValueKey('metrics-${video.id}'),
+                  video: video,
+                  player: player,
+                  isActive: widget.isActive,
+                  trafficSource: widget.trafficSource,
+                  sourceDetail: widget.sourceDetail,
+                  child: _FittedVideoPlayer(
+                    videoController: videoController,
+                    isPortrait: isPortrait,
+                  ),
+                ),
+            loadingBuilder: (context) => _VideoLoadingPlaceholder(
+              thumbnailUrl: video.thumbnailUrl,
+              isPortrait: isPortrait,
             ),
-        loadingBuilder: (context) => _VideoLoadingPlaceholder(
-          thumbnailUrl: video.thumbnailUrl,
-          isPortrait: isPortrait,
-        ),
-        overlayBuilder: (context, videoController, player) =>
-            VideoOverlayActions(
-              video: video,
-              isVisible: isActive,
-              isActive: isActive,
-              hasBottomNavigation: false,
-              contextTitle: contextTitle,
-              isFullscreen: true,
+            overlayBuilder: (context, videoController, player) =>
+                VideoOverlayActions(
+                  video: video,
+                  isVisible: widget.isActive,
+                  isActive: widget.isActive,
+                  hasBottomNavigation: false,
+                  contextTitle: widget.contextTitle,
+                  isFullscreen: true,
+                ),
+          ),
+          if (showWarning)
+            _FullscreenContentWarningOverlay(
+              labels: video.warnLabels,
+              thumbnailUrl: video.thumbnailUrl,
+              onReveal: () => setState(() => _contentWarningRevealed = true),
             ),
+        ],
       ),
     );
   }
@@ -623,5 +696,138 @@ class _LoadingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(child: BrandedLoadingIndicator(size: 60));
+  }
+}
+
+/// Content warning overlay for the fullscreen explore feed.
+///
+/// Shows a blurred thumbnail with warning text and a "View Anyway" button.
+/// Uses [ImageFiltered] wrapping the thumbnail so blur works even before
+/// the video has loaded.
+class _FullscreenContentWarningOverlay extends StatelessWidget {
+  const _FullscreenContentWarningOverlay({
+    required this.labels,
+    required this.onReveal,
+    this.thumbnailUrl,
+  });
+
+  final List<String> labels;
+  final VoidCallback onReveal;
+  final String? thumbnailUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Blurred thumbnail as background
+          if (thumbnailUrl != null)
+            ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+              child: Image.network(
+                thumbnailUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const ColoredBox(
+                  color: Colors.black,
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ),
+          // Dark tint + warning content
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+            ),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Color(0xFFFFB84D),
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Sensitive Content',
+                      style: TextStyle(
+                        color: VineTheme.whiteText,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      labels.map(_humanize).join(', '),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: VineTheme.secondaryText,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    OutlinedButton(
+                      onPressed: onReveal,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: VineTheme.whiteText,
+                        side: const BorderSide(color: VineTheme.onSurfaceMuted),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      child: const Text('View Anyway'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _humanize(String label) {
+    switch (label) {
+      case 'nudity':
+        return 'Nudity';
+      case 'sexual':
+        return 'Sexual Content';
+      case 'porn':
+        return 'Pornography';
+      case 'graphic-media':
+        return 'Graphic Media';
+      case 'violence':
+        return 'Violence';
+      case 'self-harm':
+        return 'Self-Harm';
+      case 'drugs':
+        return 'Drug Use';
+      case 'alcohol':
+        return 'Alcohol';
+      case 'tobacco':
+        return 'Tobacco';
+      case 'gambling':
+        return 'Gambling';
+      case 'profanity':
+        return 'Profanity';
+      case 'flashing-lights':
+        return 'Flashing Lights';
+      case 'ai-generated':
+        return 'AI-Generated';
+      case 'spoiler':
+        return 'Spoiler';
+      case 'content-warning':
+        return 'Sensitive Content';
+      default:
+        return 'Content Warning';
+    }
   }
 }

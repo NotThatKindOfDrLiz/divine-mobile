@@ -36,6 +36,7 @@ class VideoStats {
     this.loops,
     this.views,
     this.rawTags = const {},
+    this.contentWarningLabels = const [],
   });
 
   /// Creates a [VideoStats] from JSON response.
@@ -137,6 +138,7 @@ class VideoStats {
     String? summaryFromTag;
     int? publishedAt;
     final rawTags = <String, String>{};
+    final contentWarningLabels = <String>[];
 
     if (eventData['tags'] is List) {
       final tags = eventData['tags'] as List<dynamic>;
@@ -169,6 +171,22 @@ class VideoStats {
           }
           if (tagName == 'views' && views == null) {
             views = int.tryParse(tagValue);
+          }
+
+          // NIP-36 content-warning tag
+          if (tagName == 'content-warning' &&
+              tagValue.isNotEmpty &&
+              !contentWarningLabels.contains(tagValue)) {
+            contentWarningLabels.add(tagValue);
+          }
+
+          // NIP-32 label tag with content-warning namespace
+          if (tagName == 'l' &&
+              tag.length >= 3 &&
+              tag[2].toString() == 'content-warning' &&
+              tagValue.isNotEmpty &&
+              !contentWarningLabels.contains(tagValue)) {
+            contentWarningLabels.add(tagValue);
           }
         }
       }
@@ -254,6 +272,7 @@ class VideoStats {
       loops: loops,
       views: views,
       rawTags: rawTags,
+      contentWarningLabels: contentWarningLabels,
     );
   }
 
@@ -327,6 +346,9 @@ class VideoStats {
   /// C2PA, verification) that don't have dedicated fields on this model.
   final Map<String, String> rawTags;
 
+  /// NIP-32 content-warning labels parsed from event tags.
+  final List<String> contentWarningLabels;
+
   /// Converts this [VideoStats] to a [VideoEvent] for use in the app.
   ///
   /// Maps the Funnelcake API response fields to the corresponding
@@ -365,6 +387,7 @@ class VideoStats {
         if (loops != null) 'loops': loops.toString(),
         if (views != null) 'views': views.toString(),
       },
+      contentWarningLabels: contentWarningLabels,
     );
   }
 

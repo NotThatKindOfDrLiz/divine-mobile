@@ -133,27 +133,30 @@ class PopularVideosFeed extends _$PopularVideosFeed {
           _usingRestApi = true;
           _nextCursor = _getOldestTimestamp(apiVideos);
 
-          // Filter for platform compatibility and content preferences
+          // Enrich FIRST so content warning labels are available
           final videoEventService = ref.read(videoEventServiceProvider);
-          final filteredVideos = videoEventService.filterVideoList(
-            apiVideos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
-          );
-
-          // Enrich REST API videos with Nostr tags for ProofMode badge
+          final platformVideos = apiVideos
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
           final enrichedVideos = await enrichVideosWithNostrTags(
-            filteredVideos,
+            platformVideos,
             nostrService: ref.read(nostrServiceProvider),
             callerName: 'PopularVideosFeedProvider',
           );
 
+          // Then filter for content preferences
+          final filteredVideos = videoEventService.filterVideoList(
+            enrichedVideos,
+          );
+
           Log.info(
-            'PopularVideosFeed: Got ${enrichedVideos.length} videos from REST API (trending + recent)',
+            'PopularVideosFeed: Got ${filteredVideos.length} videos from REST API (trending + recent)',
             name: 'PopularVideosFeedProvider',
             category: LogCategory.video,
           );
 
           return VideoFeedState(
-            videos: enrichedVideos,
+            videos: filteredVideos,
             hasMoreContent:
                 apiVideos.length >= AppConstants.paginationBatchSize,
             isLoadingMore: false,
@@ -269,24 +272,26 @@ class PopularVideosFeed extends _$PopularVideosFeed {
           final existingIds = currentState.videos
               .map((v) => v.id.toLowerCase())
               .toSet();
-          final videoEventService = ref.read(videoEventServiceProvider);
-          final newVideos = videoEventService.filterVideoList(
-            enrichedVideos
-                .where((v) => !existingIds.contains(v.id.toLowerCase()))
-                .where((v) => v.isSupportedOnCurrentPlatform)
-                .toList(),
-          );
+          final dedupedVideos = enrichedVideos
+              .where((v) => !existingIds.contains(v.id.toLowerCase()))
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
 
           _nextCursor = _getOldestTimestamp(enrichedVideos);
 
-          if (newVideos.isNotEmpty) {
-            // Enrich REST API videos with Nostr tags for ProofMode badge
+          if (dedupedVideos.isNotEmpty) {
+            // Enrich FIRST so content warning labels are available
             final enrichedNewVideos = await enrichVideosWithNostrTags(
-              newVideos,
+              dedupedVideos,
               nostrService: ref.read(nostrServiceProvider),
               callerName: 'PopularVideosFeedProvider',
             );
-            final allVideos = [...currentState.videos, ...enrichedNewVideos];
+            // Then filter for content preferences
+            final videoEventService = ref.read(videoEventServiceProvider);
+            final filteredNewVideos = videoEventService.filterVideoList(
+              enrichedNewVideos,
+            );
+            final allVideos = [...currentState.videos, ...filteredNewVideos];
             Log.info(
               'PopularVideosFeed: Loaded ${enrichedNewVideos.length} more videos (total: ${allVideos.length})',
               name: 'PopularVideosFeedProvider',
@@ -362,21 +367,25 @@ class PopularVideosFeed extends _$PopularVideosFeed {
 
           _nextCursor = _getOldestTimestamp(statsEnriched);
 
-          final videoEventService = ref.read(videoEventServiceProvider);
-          final filteredVideos = videoEventService.filterVideoList(
-            statsEnriched.where((v) => v.isSupportedOnCurrentPlatform).toList(),
-          );
-
-          // Enrich REST API videos with Nostr tags for ProofMode badge
+          // Enrich FIRST so content warning labels are available
+          final platformVideos = statsEnriched
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
           final enrichedVideos = await enrichVideosWithNostrTags(
-            filteredVideos,
+            platformVideos,
             nostrService: ref.read(nostrServiceProvider),
             callerName: 'PopularVideosFeedProvider',
           );
 
+          // Then filter for content preferences
+          final videoEventService = ref.read(videoEventServiceProvider);
+          final filteredVideos = videoEventService.filterVideoList(
+            enrichedVideos,
+          );
+
           state = AsyncData(
             VideoFeedState(
-              videos: enrichedVideos,
+              videos: filteredVideos,
               hasMoreContent:
                   statsEnriched.length >= AppConstants.paginationBatchSize,
               isLoadingMore: false,

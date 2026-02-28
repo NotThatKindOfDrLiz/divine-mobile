@@ -30,7 +30,7 @@ void main() {
         );
         expect(
           service.getPreference(ContentLabel.drugs),
-          equals(ContentFilterPreference.show),
+          equals(ContentFilterPreference.warn),
         );
       });
 
@@ -38,13 +38,13 @@ void main() {
         await service.initialize();
         await service.setPreference(
           ContentLabel.drugs,
-          ContentFilterPreference.warn,
+          ContentFilterPreference.hide,
         );
         await service.initialize(); // Should not reset
 
         expect(
           service.getPreference(ContentLabel.drugs),
-          equals(ContentFilterPreference.warn),
+          equals(ContentFilterPreference.hide),
         );
       });
     });
@@ -79,16 +79,16 @@ void main() {
         );
       });
 
-      test('substance categories default to show', () async {
+      test('substance categories default to warn', () async {
         await service.initialize();
 
         expect(
           service.getPreference(ContentLabel.drugs),
-          equals(ContentFilterPreference.show),
+          equals(ContentFilterPreference.warn),
         );
         expect(
           service.getPreference(ContentLabel.alcohol),
-          equals(ContentFilterPreference.show),
+          equals(ContentFilterPreference.warn),
         );
       });
     });
@@ -218,16 +218,16 @@ void main() {
       test('returns most restrictive preference', () async {
         await service.initialize();
 
-        // drugs=show, violence=warn -> should return warn
-        final result = service.getPreferenceForLabels(['drugs', 'violence']);
+        // spoiler=show, violence=warn -> should return warn
+        final result = service.getPreferenceForLabels(['spoiler', 'violence']);
         expect(result, equals(ContentFilterPreference.warn));
       });
 
       test('returns hide when any label is hide', () async {
         await service.initialize();
 
-        // drugs=show, nudity=hide -> should return hide
-        final result = service.getPreferenceForLabels(['drugs', 'nudity']);
+        // spoiler=show, nudity=hide -> should return hide
+        final result = service.getPreferenceForLabels(['spoiler', 'nudity']);
         expect(result, equals(ContentFilterPreference.hide));
       });
     });

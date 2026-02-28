@@ -8,7 +8,9 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/repositories/follow_repository.dart';
+import 'package:openvine/services/content_filter_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:videos_repository/videos_repository.dart';
@@ -36,10 +38,14 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
   VideoFeedBloc({
     required VideosRepository videosRepository,
     required FollowRepository followRepository,
+    ContentFilterService? contentFilterService,
+    String? currentUserPubkey,
     SharedPreferences? sharedPreferences,
     Duration autoRefreshMinInterval = _defaultAutoRefreshMinInterval,
   }) : _videosRepository = videosRepository,
        _followRepository = followRepository,
+       _contentFilterService = contentFilterService,
+       _currentUserPubkey = currentUserPubkey,
        _sharedPreferences = sharedPreferences,
        _autoRefreshMinInterval = autoRefreshMinInterval,
        super(const VideoFeedState()) {
@@ -56,6 +62,8 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
 
   final VideosRepository _videosRepository;
   final FollowRepository _followRepository;
+  final ContentFilterService? _contentFilterService;
+  final String? _currentUserPubkey;
   final SharedPreferences? _sharedPreferences;
   final Duration _autoRefreshMinInterval;
 
@@ -146,10 +154,10 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
 
       final newVideos = await _fetchVideosForMode(state.mode, until: cursor);
 
-      // Filter out videos without valid URLs
-      final validNewVideos = newVideos
-          .where((v) => v.videoUrl != null)
-          .toList();
+      // Filter out videos without valid URLs and apply content filtering
+      final validNewVideos = _filterVideos(
+        newVideos.where((v) => v.videoUrl != null).toList(),
+      );
 
       // Deduplicate by event ID. Funnelcake and Nostr can return
       // overlapping videos when Funnelcake runs out and we fall through
@@ -263,8 +271,10 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     try {
       final videos = await _fetchVideosForMode(mode);
 
-      // Filter out videos without valid URLs
-      final validVideos = videos.where((v) => v.videoUrl != null).toList();
+      // Filter out videos without valid URLs and apply content filtering
+      final validVideos = _filterVideos(
+        videos.where((v) => v.videoUrl != null).toList(),
+      );
 
       // Check for empty home feed due to no followed users
       if (mode == FeedMode.home &&
@@ -307,6 +317,44 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
         ),
       );
     }
+  }
+
+  /// Apply content filtering to a list of videos.
+  ///
+  /// Videos matching "hide" preference are removed. Videos matching "warn"
+  /// are annotated with [VideoEvent.warnLabels] for UI overlay display.
+  List<VideoEvent> _filterVideos(List<VideoEvent> videos) {
+    final service = _contentFilterService;
+    if (service == null) return videos;
+
+    final result = <VideoEvent>[];
+    for (final video in videos) {
+      // Always show user's own videos unfiltered
+      if (_currentUserPubkey != null &&
+          _currentUserPubkey.isNotEmpty &&
+          video.pubkey == _currentUserPubkey) {
+        result.add(video);
+        continue;
+      }
+      final labels = video.contentWarningLabels;
+      if (labels.isEmpty) {
+        result.add(video);
+        continue;
+      }
+      final pref = service.getPreferenceForLabels(labels);
+      if (pref == ContentFilterPreference.hide) continue;
+      if (pref == ContentFilterPreference.warn) {
+        final warnLabels = labels.where((l) {
+          final label = ContentLabel.fromValue(l);
+          if (label == null) return false;
+          return service.getPreference(label) == ContentFilterPreference.warn;
+        }).toList();
+        result.add(video.copyWith(warnLabels: warnLabels));
+      } else {
+        result.add(video);
+      }
+    }
+    return result;
   }
 
   /// Fetch videos for a specific mode from the repository.

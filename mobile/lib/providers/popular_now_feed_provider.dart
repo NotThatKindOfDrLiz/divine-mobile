@@ -102,20 +102,25 @@ class PopularNowFeed extends _$PopularNowFeed {
             category: LogCategory.video,
           );
 
-          // Filter for platform compatibility and content preferences
-          final filteredVideos = videoEventService.filterVideoList(
-            apiVideos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
-          );
-
-          // Enrich REST API videos with Nostr tags for ProofMode badge
+          // Enrich REST API videos with Nostr tags FIRST so content
+          // warning labels are available for filtering.
+          final platformVideos = apiVideos
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
           final enrichedVideos = await enrichVideosWithNostrTags(
-            filteredVideos,
+            platformVideos,
             nostrService: ref.read(nostrServiceProvider),
             callerName: 'PopularNowFeedProvider',
           );
 
+          // Filter for content preferences (needs contentWarningLabels
+          // from enrichment)
+          final filteredVideos = videoEventService.filterVideoList(
+            enrichedVideos,
+          );
+
           return VideoFeedState(
-            videos: enrichedVideos,
+            videos: filteredVideos,
             hasMoreContent:
                 apiVideos.length >= AppConstants.paginationBatchSize,
             isLoadingMore: false,
@@ -259,24 +264,26 @@ class PopularNowFeed extends _$PopularNowFeed {
           final existingIds = currentState.videos
               .map((v) => v.id.toLowerCase())
               .toSet();
-          final newVideos = videoEventService.filterVideoList(
-            apiVideos
-                .where((v) => !existingIds.contains(v.id.toLowerCase()))
-                .where((v) => v.isSupportedOnCurrentPlatform)
-                .toList(),
-          );
+          final dedupedVideos = apiVideos
+              .where((v) => !existingIds.contains(v.id.toLowerCase()))
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
 
           // Update cursor for next pagination
           _nextCursor = _getOldestTimestamp(apiVideos);
 
-          if (newVideos.isNotEmpty) {
-            // Enrich REST API videos with Nostr tags for ProofMode badge
+          if (dedupedVideos.isNotEmpty) {
+            // Enrich FIRST so content warning labels are available
             final enrichedNewVideos = await enrichVideosWithNostrTags(
-              newVideos,
+              dedupedVideos,
               nostrService: ref.read(nostrServiceProvider),
               callerName: 'PopularNowFeedProvider',
             );
-            final allVideos = [...currentState.videos, ...enrichedNewVideos];
+            // Then filter for content preferences
+            final filteredNewVideos = videoEventService.filterVideoList(
+              enrichedNewVideos,
+            );
+            final allVideos = [...currentState.videos, ...filteredNewVideos];
             Log.info(
               '🆕 PopularNowFeed: Loaded ${enrichedNewVideos.length} new videos from REST API (total: ${allVideos.length})',
               name: 'PopularNowFeedProvider',
@@ -426,20 +433,24 @@ class PopularNowFeed extends _$PopularNowFeed {
           // Reset cursor for pagination
           _nextCursor = _getOldestTimestamp(apiVideos);
 
-          final filteredVideos = videoEventService.filterVideoList(
-            apiVideos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
-          );
-
-          // Enrich REST API videos with Nostr tags for ProofMode badge
+          // Enrich FIRST so content warning labels are available
+          final platformVideos = apiVideos
+              .where((v) => v.isSupportedOnCurrentPlatform)
+              .toList();
           final enrichedVideos = await enrichVideosWithNostrTags(
-            filteredVideos,
+            platformVideos,
             nostrService: ref.read(nostrServiceProvider),
             callerName: 'PopularNowFeedProvider',
           );
 
+          // Then filter for content preferences
+          final filteredVideos = videoEventService.filterVideoList(
+            enrichedVideos,
+          );
+
           state = AsyncData(
             VideoFeedState(
-              videos: enrichedVideos,
+              videos: filteredVideos,
               hasMoreContent:
                   apiVideos.length >= AppConstants.paginationBatchSize,
               isLoadingMore: false,

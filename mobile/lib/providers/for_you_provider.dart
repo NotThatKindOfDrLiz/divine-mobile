@@ -4,9 +4,11 @@
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
+import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/readiness_gate_providers.dart';
 import 'package:openvine/state/video_feed_state.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/video_nostr_enrichment.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'for_you_provider.g.dart';
@@ -112,11 +114,20 @@ class ForYouFeed extends _$ForYouFeed {
         category: LogCategory.video,
       );
 
-      // Filter for platform compatibility and content preferences
-      final videoEventService = ref.read(videoEventServiceProvider);
-      final filteredVideos = videoEventService.filterVideoList(
-        result.videos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
+      // Enrich with Nostr tags first so content-warning labels
+      // are available for filtering.
+      final platformVideos = result.videos
+          .where((v) => v.isSupportedOnCurrentPlatform)
+          .toList();
+      final enrichedVideos = await enrichVideosWithNostrTags(
+        platformVideos,
+        nostrService: ref.read(nostrServiceProvider),
+        callerName: 'ForYouFeedProvider',
       );
+
+      // Filter for content preferences
+      final videoEventService = ref.read(videoEventServiceProvider);
+      final filteredVideos = videoEventService.filterVideoList(enrichedVideos);
 
       return VideoFeedState(
         videos: filteredVideos,
@@ -174,10 +185,19 @@ class ForYouFeed extends _$ForYouFeed {
 
       if (!ref.mounted) return;
 
-      final videoEventService = ref.read(videoEventServiceProvider);
-      final filteredVideos = videoEventService.filterVideoList(
-        result.videos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
+      final platformVideos = result.videos
+          .where((v) => v.isSupportedOnCurrentPlatform)
+          .toList();
+      final enrichedVideos = await enrichVideosWithNostrTags(
+        platformVideos,
+        nostrService: ref.read(nostrServiceProvider),
+        callerName: 'ForYouFeedProvider',
       );
+
+      if (!ref.mounted) return;
+
+      final videoEventService = ref.read(videoEventServiceProvider);
+      final filteredVideos = videoEventService.filterVideoList(enrichedVideos);
       final newEventsLoaded =
           filteredVideos.length - currentState.videos.length;
 
