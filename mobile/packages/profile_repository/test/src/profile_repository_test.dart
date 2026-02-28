@@ -2212,7 +2212,7 @@ void main() {
         when(
           () => mockFunnelcakeClient.getBulkProfiles(any()),
         ).thenAnswer(
-          (_) async => BulkProfilesResponse(
+          (_) async => const BulkProfilesResponse(
             profiles: {
               testPubkey: {
                 'display_name': 'API User',
@@ -2285,7 +2285,7 @@ void main() {
         when(
           () => mockFunnelcakeClient.getBulkProfiles(any()),
         ).thenAnswer(
-          (_) async => BulkProfilesResponse(
+          (_) async => const BulkProfilesResponse(
             profiles: {
               testPubkey2: {'display_name': 'API User'},
             },
