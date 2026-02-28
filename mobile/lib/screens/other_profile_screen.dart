@@ -7,11 +7,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:models/models.dart';
 import 'package:openvine/blocs/other_profile/other_profile_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
 import 'package:openvine/utils/clipboard_utils.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -179,7 +180,7 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
     final isFollowing = followRepository?.isFollowing(widget.pubkey) ?? false;
 
     // Get display name for actions (match pattern from build())
-    final profile = ref.read(userProfileReactiveProvider(widget.pubkey)).value;
+    final profile = context.read<ProfilesBloc>().state.profiles[widget.pubkey];
     final displayName =
         profile?.bestDisplayName ?? widget.displayNameHint ?? 'user';
 
@@ -226,7 +227,7 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
   }
 
   Future<void> _unfollowUser() async {
-    final profile = ref.read(userProfileReactiveProvider(widget.pubkey)).value;
+    final profile = context.read<ProfilesBloc>().state.profiles[widget.pubkey];
     final displayName =
         profile?.bestDisplayName ?? widget.displayNameHint ?? 'user';
 
@@ -243,7 +244,7 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
   }
 
   Future<void> _showUnblockConfirmation() async {
-    final profile = ref.read(userProfileReactiveProvider(widget.pubkey)).value;
+    final profile = context.read<ProfilesBloc>().state.profiles[widget.pubkey];
     final displayName =
         profile?.bestDisplayName ?? widget.displayNameHint ?? 'user';
 
@@ -284,13 +285,15 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
 
     // Watch profile reactively to get display name for AppBar
     // Use hint as fallback for users without Kind 0 profiles (e.g., classic Viners)
-    final profileAsync = ref.watch(userProfileReactiveProvider(widget.pubkey));
-    final profile = profileAsync.value;
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: widget.pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[widget.pubkey],
+    );
     // Get profile color for Vine-style colored header
     final profileColor = profile?.profileBackgroundColor;
 
     // Track analytics when data is loaded
-    if (videosAsync is AsyncData && profileAsync is AsyncData) {
+    if (videosAsync is AsyncData && profile != null) {
       ScreenAnalyticsService().markDataLoaded(
         'other_profile',
         dataMetrics: {

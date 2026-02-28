@@ -15,7 +15,7 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/clip_library_screen.dart';
 import 'package:openvine/screens/creator_analytics_screen.dart';
@@ -574,12 +574,13 @@ class _ProfileContentView extends ConsumerWidget {
     });
 
     // Get display name for unfollow confirmation (only needed for other profiles)
-    final displayName = isOwnProfile
-        ? null
-        : ref
-              .watch(userProfileReactiveProvider(userIdHex))
-              .value
-              ?.bestDisplayName;
+    String? displayName;
+    if (!isOwnProfile) {
+      context.read<ProfilesBloc>().add(ProfileRequested(pubkey: userIdHex));
+      displayName = context.select<ProfilesBloc, String?>(
+        (bloc) => bloc.state.profiles[userIdHex]?.bestDisplayName,
+      );
+    }
 
     return _ProfileDataView(
       npub: npub,

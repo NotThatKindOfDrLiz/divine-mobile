@@ -18,7 +18,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
 import 'package:openvine/blocs/profile_editor/profile_editor_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/user_profile_utils.dart';
 import 'package:openvine/widgets/branded_loading_scaffold.dart';
@@ -188,13 +188,14 @@ class _ProfileSetupScreenViewState
           listenWhen: (prev, curr) => prev.status != curr.status,
           listener: (context, state) {
             if (state.status == ProfileEditorStatus.success) {
-              // Invalidate profile providers so profile screen refetches
+              // Refresh ProfilesBloc so shell/drawer show updated data
               final currentPubkey = ref
                   .read(authServiceProvider)
                   .currentPublicKeyHex;
               if (currentPubkey != null) {
-                ref.invalidate(fetchUserProfileProvider(currentPubkey));
-                ref.invalidate(userProfileReactiveProvider(currentPubkey));
+                context.read<ProfilesBloc>().add(
+                  ProfileRefreshRequested(pubkey: currentPubkey),
+                );
               }
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -273,13 +274,14 @@ class _ProfileSetupScreenViewState
                 ),
               );
             } else if (state.status == ProfileEditorStatus.failure) {
-              // Invalidate profile providers after rollback
+              // Refresh ProfilesBloc after rollback
               final currentPubkey = ref
                   .read(authServiceProvider)
                   .currentPublicKeyHex;
               if (currentPubkey != null) {
-                ref.invalidate(fetchUserProfileProvider(currentPubkey));
-                ref.invalidate(userProfileReactiveProvider(currentPubkey));
+                context.read<ProfilesBloc>().add(
+                  ProfileRefreshRequested(pubkey: currentPubkey),
+                );
               }
               switch (state.error) {
                 case ProfileEditorError.usernameTaken:

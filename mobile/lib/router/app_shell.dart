@@ -32,32 +32,8 @@ import 'package:openvine/widgets/environment_indicator.dart';
 import 'package:openvine/widgets/notification_badge.dart';
 import 'package:openvine/widgets/vine_drawer.dart';
 
-/// Outer shell that provides [ProfilesBloc] at the app level.
-///
-/// Reads [ProfileRepository] from Riverpod, creates a single
-/// [ProfilesBloc] instance, and delegates all UI to [_AppShellBody].
 class AppShell extends ConsumerWidget {
   const AppShell({required this.child, required this.currentIndex, super.key});
-
-  final Widget child;
-  final int currentIndex;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileRepo = ref.watch(profileRepositoryProvider);
-    final body = _AppShellBody(currentIndex: currentIndex, child: child);
-
-    if (profileRepo == null) return body;
-
-    return BlocProvider(
-      create: (_) => ProfilesBloc(profileRepository: profileRepo),
-      child: body,
-    );
-  }
-}
-
-class _AppShellBody extends ConsumerWidget {
-  const _AppShellBody({required this.child, required this.currentIndex});
 
   final Widget child;
   final int currentIndex;

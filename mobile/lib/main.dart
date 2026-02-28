@@ -17,6 +17,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/camera_permission/camera_permission_bloc.dart';
 import 'package:openvine/blocs/email_verification/email_verification_cubit.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/config/zendesk_config.dart';
 import 'package:openvine/network/vine_cdn_http_overrides.dart'
     if (dart.library.html) 'package:openvine/utils/platform_io_web.dart';
@@ -1125,6 +1126,13 @@ class _DivineAppState extends ConsumerState<DivineApp> {
           create: (_) => EmailVerificationCubit(
             oauthClient: ref.read(oauthClientProvider),
             authService: ref.read(authServiceProvider),
+          ),
+        ),
+        BlocProvider(
+          // Lazy by default — create only fires when first accessed,
+          // which is after auth when profileRepository is available.
+          create: (_) => ProfilesBloc(
+            profileRepository: ref.read(profileRepositoryProvider)!,
           ),
         ),
       ],

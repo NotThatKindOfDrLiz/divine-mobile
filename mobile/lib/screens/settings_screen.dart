@@ -10,12 +10,13 @@ import 'package:camera_macos_plus/camera_macos.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/developer_mode_tap_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
 import 'package:openvine/screens/blossom_settings_screen.dart';
@@ -829,7 +830,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final npub = NostrKeyUtils.encodePubKey(userPubkey);
 
         // Try to get user profile for display name and NIP-05
-        final profile = ref.read(userProfileReactiveProvider(userPubkey)).value;
+        final profile = context.read<ProfilesBloc>().state.profiles[userPubkey];
 
         await ZendeskSupportService.setUserIdentity(
           displayName: profile?.bestDisplayName,

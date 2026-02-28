@@ -12,7 +12,7 @@ import 'package:openvine/blocs/email_verification/email_verification_cubit.dart'
 import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/utils/clipboard_utils.dart';
@@ -65,7 +65,10 @@ class ProfileHeaderWidget extends ConsumerWidget {
         _ => null,
       };
     } else {
-      profile = ref.watch(fetchUserProfileProvider(userIdHex)).value;
+      context.read<ProfilesBloc>().add(ProfileRequested(pubkey: userIdHex));
+      profile = context.select<ProfilesBloc, UserProfile?>(
+        (bloc) => bloc.state.profiles[userIdHex],
+      );
     }
 
     // Use hints as fallbacks for users without Kind 0 profiles (e.g., classic Viners)
