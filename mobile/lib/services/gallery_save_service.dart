@@ -81,6 +81,7 @@ class GallerySaveService {
           video: video,
           aspectRatio: aspectRatio,
           metadata: metadata,
+          shouldOptimizeForNetworkUse: true,
         );
       } else {
         resolvedPath = await video.safeFilePath();
