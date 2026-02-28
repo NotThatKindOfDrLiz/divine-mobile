@@ -17,8 +17,8 @@ import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/content_moderation_service.dart';
 import 'package:openvine/services/content_reporting_service.dart';
 import 'package:openvine/services/mute_service.dart';
-import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:profile_repository/profile_repository.dart';
 
 part 'comments_event.dart';
 part 'comments_state.dart';
@@ -772,7 +772,7 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     // Tier 2: Async remote search if <5 local results
     if (suggestions.length < 5 && _profileRepository != null) {
       try {
-        final remoteResults = await _profileRepository!.searchUsers(
+        final remoteResults = await _profileRepository.searchUsers(
           query: query,
           limit: 10,
         );

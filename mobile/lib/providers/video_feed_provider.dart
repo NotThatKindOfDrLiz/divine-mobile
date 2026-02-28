@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/tab_visibility_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/video_events_providers.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/state/video_feed_state.dart';

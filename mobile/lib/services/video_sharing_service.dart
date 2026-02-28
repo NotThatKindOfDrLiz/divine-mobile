@@ -6,8 +6,8 @@ import 'dart:async';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/services/auth_service.dart';
-import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:profile_repository/profile_repository.dart';
 
 /// Represents a user that can receive shared videos
 /// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod

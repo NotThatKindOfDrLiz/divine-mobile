@@ -13,9 +13,9 @@ import 'package:nostr_sdk/event_kind.dart';
 import 'package:nostr_sdk/filter.dart';
 import 'package:openvine/constants/nostr_event_kinds.dart';
 import 'package:openvine/services/notification_helpers.dart';
-import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:profile_repository/profile_repository.dart';
 import 'package:synchronized/synchronized.dart';
 
 /// Enhanced notification service with social features

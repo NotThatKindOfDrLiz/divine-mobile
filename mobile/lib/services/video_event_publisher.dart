@@ -22,11 +22,11 @@ import 'package:openvine/services/blurhash_service.dart';
 import 'package:openvine/services/c2pa_signing_service.dart';
 import 'package:openvine/services/personal_event_cache_service.dart';
 import 'package:openvine/services/upload_manager.dart';
-import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/proofmode_publishing_helpers.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:profile_repository/profile_repository.dart';
 
 /// Service for publishing processed videos to Nostr relays
 /// REFACTORED: Removed ChangeNotifier - now uses pure state management via Riverpod

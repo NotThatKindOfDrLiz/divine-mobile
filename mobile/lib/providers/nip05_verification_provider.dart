@@ -3,8 +3,8 @@
 
 import 'dart:async';
 
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -46,13 +46,17 @@ Future<Nip05VerificationStatus> nip05Verification(
   String pubkey,
 ) async {
   final verificationService = ref.watch(nip05VerificationServiceProvider);
-  final profileAsync = ref.watch(userProfileReactiveProvider(pubkey));
+  final profileRepo = ref.watch(profileRepositoryProvider);
 
-  // Extract NIP-05 from profile using pattern matching
-  final nip05 = switch (profileAsync) {
-    AsyncData(:final value) when value != null => value.nip05,
-    _ => null,
-  };
+  // ProfileRepository not ready yet (pre-auth)
+  if (profileRepo == null) return Nip05VerificationStatus.none;
+
+  // Get profile from cache (fast) then fetch fresh in background
+  final profile =
+      await profileRepo.getCachedProfile(pubkey: pubkey) ??
+      await profileRepo.fetchFreshProfile(pubkey: pubkey);
+
+  final nip05 = profile?.nip05;
 
   // No NIP-05 claim
   if (nip05 == null || nip05.isEmpty) {
@@ -119,13 +123,20 @@ Stream<Nip05VerificationStatus> nip05VerificationStream(
   String pubkey,
 ) async* {
   final verificationService = ref.watch(nip05VerificationServiceProvider);
-  final profileAsync = ref.watch(userProfileReactiveProvider(pubkey));
+  final profileRepo = ref.watch(profileRepositoryProvider);
 
-  // Extract NIP-05 from profile using pattern matching
-  final nip05 = switch (profileAsync) {
-    AsyncData(:final value) when value != null => value.nip05,
-    _ => null,
-  };
+  // ProfileRepository not ready yet (pre-auth)
+  if (profileRepo == null) {
+    yield Nip05VerificationStatus.none;
+    return;
+  }
+
+  // Get profile from cache or fetch fresh
+  final profile =
+      await profileRepo.getCachedProfile(pubkey: pubkey) ??
+      await profileRepo.fetchFreshProfile(pubkey: pubkey);
+
+  final nip05 = profile?.nip05;
 
   // No NIP-05 claim
   if (nip05 == null || nip05.isEmpty) {
