@@ -4,11 +4,12 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/widgets/user_avatar.dart';
@@ -225,21 +226,24 @@ class _InspiredByDisplay extends ConsumerWidget {
 }
 
 /// Shows profile info when we have a hex pubkey (from video ref).
-class _InspiredByProfileInfo extends ConsumerWidget {
+class _InspiredByProfileInfo extends StatelessWidget {
   const _InspiredByProfileInfo({required this.pubkey});
 
   final String pubkey;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(fetchUserProfileProvider(pubkey));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkey],
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         UserAvatar(
-          imageUrl: profileAsync.value?.picture,
-          name: profileAsync.value?.bestDisplayName,
+          imageUrl: profile?.picture,
+          name: profile?.bestDisplayName,
           size: 32,
         ),
         const SizedBox(width: 8),
@@ -257,8 +261,8 @@ class _InspiredByProfileInfo extends ConsumerWidget {
               ),
             ),
             Text(
-              profileAsync.value?.bestDisplayName ??
-                  '${pubkey.substring(0, 12)}...',
+              profile?.bestDisplayName ??
+                  UserProfile.defaultDisplayNameFor(pubkey),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: VineTheme.bodyFont(
@@ -275,16 +279,19 @@ class _InspiredByProfileInfo extends ConsumerWidget {
 }
 
 /// Shows profile info when we only have an npub (person reference).
-class _InspiredByNpubInfo extends ConsumerWidget {
+class _InspiredByNpubInfo extends StatelessWidget {
   const _InspiredByNpubInfo({required this.npub});
 
   final String npub;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     // Convert npub to hex pubkey for profile lookup
     final hexPubkey = NostrKeyUtils.decode(npub);
-    final profileAsync = ref.watch(fetchUserProfileProvider(hexPubkey));
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: hexPubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[hexPubkey],
+    );
 
     // Truncated npub for fallback display
     final truncatedNpub = npub.length > 20
@@ -296,8 +303,8 @@ class _InspiredByNpubInfo extends ConsumerWidget {
       spacing: 8,
       children: [
         UserAvatar(
-          imageUrl: profileAsync.value?.picture,
-          name: profileAsync.value?.bestDisplayName,
+          imageUrl: profile?.picture,
+          name: profile?.bestDisplayName,
           size: 32,
         ),
         Expanded(
@@ -315,7 +322,7 @@ class _InspiredByNpubInfo extends ConsumerWidget {
                 ),
               ),
               Text(
-                profileAsync.value?.bestDisplayName ?? truncatedNpub,
+                profile?.bestDisplayName ?? truncatedNpub,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: VineTheme.bodyFont(

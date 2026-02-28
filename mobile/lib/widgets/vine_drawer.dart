@@ -5,11 +5,12 @@ import 'dart:math';
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/settings_screen.dart';
 // import 'package:openvine/screens/p2p_sync_screen.dart'; // Hidden for release
 import 'package:openvine/services/zendesk_support_service.dart';
@@ -144,11 +145,10 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                             );
                             final userPubkey = authService.currentPublicKeyHex;
                             final userProfile = userPubkey != null
-                                ? ref
-                                      .read(
-                                        userProfileReactiveProvider(userPubkey),
-                                      )
-                                      .value
+                                ? context
+                                      .read<ProfilesBloc>()
+                                      .state
+                                      .profiles[userPubkey]
                                 : null;
 
                             final navigatorContext = Navigator.of(

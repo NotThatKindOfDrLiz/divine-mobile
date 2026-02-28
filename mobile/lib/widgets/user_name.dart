@@ -1,9 +1,10 @@
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 
 class UserName extends ConsumerWidget {
@@ -83,20 +84,19 @@ class UserName extends ConsumerWidget {
       displayName = userProfile.betterDisplayName(anonymousName);
       effectivePubkey = userProfile.pubkey;
     } else {
-      final profileAsync = ref.watch(userProfileReactiveProvider(pubkey!));
+      context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey!));
+      final profile = context.select<ProfilesBloc, UserProfile?>(
+        (bloc) => bloc.state.profiles[pubkey!],
+      );
       effectivePubkey = pubkey!;
 
       // Use embedded name from REST API as fallback, then generated name.
       final fallbackName =
           embeddedName ?? UserProfile.defaultDisplayNameFor(pubkey!);
 
-      displayName = switch (profileAsync) {
-        AsyncData(:final value) when value != null => value.betterDisplayName(
-          anonymousName,
-        ),
-        AsyncLoading() || AsyncData() => fallbackName,
-        AsyncError() => fallbackName,
-      };
+      displayName = profile != null
+          ? profile.betterDisplayName(anonymousName)
+          : fallbackName;
     }
 
     // Watch NIP-05 verification status using pattern matching

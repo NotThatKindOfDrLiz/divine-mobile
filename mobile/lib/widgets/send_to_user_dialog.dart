@@ -7,9 +7,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/blocs/user_search/user_search_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/video_sharing_service.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -259,7 +259,7 @@ class _SendToUserDialogState extends ConsumerState<SendToUserDialog> {
   /// Build a user tile for contacts or search results
   Widget _buildUserTile(ShareableUser user) {
     // Get user profile to check for nip05
-    final profile = ref.read(userProfileReactiveProvider(user.pubkey)).value;
+    final profile = context.read<ProfilesBloc>().state.profiles[user.pubkey];
 
     // Display nip05 if available, otherwise npub (never show raw hex)
     // Use normalizeToNpub to convert hex to npub format

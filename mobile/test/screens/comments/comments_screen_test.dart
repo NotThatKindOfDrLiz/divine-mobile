@@ -10,6 +10,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/blocs/comments/comments_bloc.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/screens/comments/comments.dart';
@@ -42,6 +43,9 @@ class MockNostrClient extends Mock implements NostrClient {}
 class MockCommentsBloc extends MockBloc<CommentsEvent, CommentsState>
     implements CommentsBloc {}
 
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
+
 // Full 64-character test IDs
 const testVideoEventId =
     'a1b2c3d4e5f6789012345678901234567890abcdef123456789012345678901234';
@@ -54,6 +58,7 @@ void main() {
     late MockAuthService mockAuthService;
     late MockNostrClient mockNostrClient;
     late MockCommentsBloc mockCommentsBloc;
+    late _MockProfilesBloc mockProfilesBloc;
     late ScrollController scrollController;
     late VideoEvent testVideoEvent;
 
@@ -66,6 +71,7 @@ void main() {
       mockAuthService = MockAuthService();
       mockNostrClient = MockNostrClient();
       mockCommentsBloc = MockCommentsBloc();
+      mockProfilesBloc = _MockProfilesBloc();
       scrollController = ScrollController();
 
       testVideoEvent = TestHelpers.createVideoEvent(
@@ -75,6 +81,7 @@ void main() {
 
       // Return empty string to indicate user is not the comment author (no 3-dot menu)
       when(() => mockNostrClient.publicKey).thenReturn('');
+      when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
 
       // Default state
       when(() => mockCommentsBloc.state).thenReturn(
@@ -107,8 +114,11 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: BlocProvider<CommentsBloc>.value(
-              value: mockCommentsBloc,
+            body: MultiBlocProvider(
+              providers: [
+                BlocProvider<CommentsBloc>.value(value: mockCommentsBloc),
+                BlocProvider<ProfilesBloc>.value(value: mockProfilesBloc),
+              ],
               child: _CommentsScreenTestContent(
                 videoEvent: videoEvent ?? testVideoEvent,
                 sheetScrollController: scrollController,

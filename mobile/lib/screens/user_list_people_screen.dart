@@ -3,13 +3,13 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
-import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/list_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/screens/pure/explore_video_screen_pure.dart';
 import 'package:openvine/services/user_list_service.dart';
@@ -410,14 +410,17 @@ class _PeopleCarousel extends StatelessWidget {
   }
 }
 
-class _PeopleAvatarItem extends ConsumerWidget {
+class _PeopleAvatarItem extends StatelessWidget {
   const _PeopleAvatarItem({required this.pubkey});
 
   final String pubkey;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileReactiveProvider(pubkey)).value;
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkey],
+    );
     final displayName =
         profile?.bestDisplayName ?? UserProfile.defaultDisplayNameFor(pubkey);
 

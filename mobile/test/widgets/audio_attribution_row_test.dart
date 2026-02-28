@@ -1,14 +1,21 @@
 // ABOUTME: Tests for AudioAttributionRow widget - displays sound attribution on videos.
 // ABOUTME: Verifies dark theme colors, tap navigation, loading states, and graceful errors.
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/widgets/video_feed_item/audio_attribution_row.dart';
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 void main() {
   group('AudioAttributionRow', () {
@@ -21,8 +28,12 @@ void main() {
         'video0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab';
 
     late AudioEvent testAudio;
+    late _MockProfilesBloc mockProfilesBloc;
 
     setUp(() {
+      mockProfilesBloc = _MockProfilesBloc();
+      when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
+
       testAudio = const AudioEvent(
         id: testAudioEventId,
         pubkey: testPubkey,
@@ -72,11 +83,14 @@ void main() {
             return audioOverride ?? testAudio;
           }),
         ],
-        child: MaterialApp(
-          theme: VineTheme.theme,
-          home: Scaffold(
-            backgroundColor: Colors.black,
-            body: AudioAttributionRow(video: video),
+        child: BlocProvider<ProfilesBloc>.value(
+          value: mockProfilesBloc,
+          child: MaterialApp(
+            theme: VineTheme.theme,
+            home: Scaffold(
+              backgroundColor: Colors.black,
+              body: AudioAttributionRow(video: video),
+            ),
           ),
         ),
       );
@@ -107,11 +121,14 @@ void main() {
                 return null;
               }),
             ],
-            child: MaterialApp(
-              theme: VineTheme.theme,
-              home: Scaffold(
-                backgroundColor: Colors.black,
-                body: AudioAttributionRow(video: video),
+            child: BlocProvider<ProfilesBloc>.value(
+              value: mockProfilesBloc,
+              child: MaterialApp(
+                theme: VineTheme.theme,
+                home: Scaffold(
+                  backgroundColor: Colors.black,
+                  body: AudioAttributionRow(video: video),
+                ),
               ),
             ),
           ),
@@ -207,11 +224,14 @@ void main() {
                 return testAudio;
               }),
             ],
-            child: MaterialApp(
-              theme: VineTheme.theme,
-              home: Scaffold(
-                backgroundColor: Colors.black,
-                body: AudioAttributionRow(video: video),
+            child: BlocProvider<ProfilesBloc>.value(
+              value: mockProfilesBloc,
+              child: MaterialApp(
+                theme: VineTheme.theme,
+                home: Scaffold(
+                  backgroundColor: Colors.black,
+                  body: AudioAttributionRow(video: video),
+                ),
               ),
             ),
           ),

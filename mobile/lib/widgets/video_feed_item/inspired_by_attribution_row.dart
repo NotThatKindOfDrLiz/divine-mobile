@@ -4,10 +4,10 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
@@ -21,7 +21,7 @@ import 'package:openvine/utils/unified_logger.dart';
 ///
 /// Tapping navigates to the inspiring creator's profile.
 /// Shows nothing if the video has no inspired-by attribution.
-class InspiredByAttributionRow extends ConsumerWidget {
+class InspiredByAttributionRow extends StatelessWidget {
   /// Creates an InspiredByAttributionRow.
   ///
   /// [video] must have [VideoEvent.hasInspiredBy] return true for this
@@ -39,7 +39,7 @@ class InspiredByAttributionRow extends ConsumerWidget {
   final bool isActive;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (!video.hasInspiredBy) {
       return const SizedBox.shrink();
     }
@@ -76,7 +76,7 @@ class InspiredByAttributionRow extends ConsumerWidget {
 }
 
 /// The actual content showing inspired-by attribution.
-class _InspiredByContent extends ConsumerWidget {
+class _InspiredByContent extends StatelessWidget {
   const _InspiredByContent({
     required this.creatorPubkey,
     required this.isActive,
@@ -86,10 +86,13 @@ class _InspiredByContent extends ConsumerWidget {
   final bool isActive;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final creatorProfile = ref
-        .watch(userProfileReactiveProvider(creatorPubkey))
-        .value;
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: creatorPubkey),
+    );
+    final creatorProfile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[creatorPubkey],
+    );
 
     final creatorName =
         creatorProfile?.bestDisplayName ??

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/blocs/comments/comments_bloc.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/screens/comments/comments.dart';
 
@@ -18,6 +19,9 @@ class MockNostrClient extends Mock implements NostrClient {}
 
 class MockCommentsBloc extends MockBloc<CommentsEvent, CommentsState>
     implements CommentsBloc {}
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 // Full 64-character test IDs
 const testVideoEventId =
@@ -29,6 +33,7 @@ void main() {
   group('CommentsList', () {
     late MockNostrClient mockNostrClient;
     late MockCommentsBloc mockCommentsBloc;
+    late _MockProfilesBloc mockProfilesBloc;
 
     setUpAll(() {
       registerFallbackValue(const CommentsLoadRequested());
@@ -37,9 +42,11 @@ void main() {
     setUp(() {
       mockNostrClient = MockNostrClient();
       mockCommentsBloc = MockCommentsBloc();
+      mockProfilesBloc = _MockProfilesBloc();
 
       // Return empty string to indicate user is not the comment author (no 3-dot menu)
       when(() => mockNostrClient.publicKey).thenReturn('');
+      when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
     });
 
     Widget buildTestWidget({
@@ -57,8 +64,11 @@ void main() {
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: BlocProvider<CommentsBloc>.value(
-              value: mockCommentsBloc,
+            body: MultiBlocProvider(
+              providers: [
+                BlocProvider<CommentsBloc>.value(value: mockCommentsBloc),
+                BlocProvider<ProfilesBloc>.value(value: mockProfilesBloc),
+              ],
               child: CommentsList(
                 isOriginalVine: isOriginalVine,
                 scrollController: sc,

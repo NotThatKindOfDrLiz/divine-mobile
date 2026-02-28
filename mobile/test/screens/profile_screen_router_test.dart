@@ -13,6 +13,7 @@ import 'package:models/models.dart' hide VineDraft;
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/providers/active_video_provider.dart';
 import 'package:openvine/providers/app_lifecycle_provider.dart';
@@ -74,6 +75,9 @@ class _MockNostrClient extends Mock implements NostrClient {
 
 class _MockMyProfileBloc extends MockBloc<MyProfileEvent, MyProfileState>
     implements MyProfileBloc {}
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 class _MockVideoEventService extends Mock implements VideoEventService {}
 
@@ -209,6 +213,7 @@ void main() {
     late _MockVideosRepository mockVideosRepository;
     late _MockNostrClient mockNostrClient;
     late _MockVideoEventService mockVideoEventService;
+    late _MockProfilesBloc mockProfilesBloc;
 
     setUp(() {
       mockDraft = _MockVineDraft();
@@ -243,6 +248,8 @@ void main() {
       mockVideosRepository = _MockVideosRepository();
       mockNostrClient = _MockNostrClient();
       mockVideoEventService = _MockVideoEventService();
+      mockProfilesBloc = _MockProfilesBloc();
+      when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
     });
 
     tearDown(() {
@@ -273,6 +280,7 @@ void main() {
             providers: [
               BlocProvider<BackgroundPublishBloc>.value(value: bloc),
               BlocProvider<MyProfileBloc>.value(value: mockMyProfileBloc),
+              BlocProvider<ProfilesBloc>.value(value: mockProfilesBloc),
             ],
             child: Scaffold(
               body: ProfileViewSwitcher(

@@ -6,15 +6,16 @@ import 'dart:convert';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:nostr_sdk/nip19/nip19_tlv.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/report_content_dialog.dart';
@@ -241,7 +242,7 @@ class _VideoMoreMenu extends ConsumerWidget {
   }
 }
 
-class _MoreMenuHeader extends ConsumerWidget {
+class _MoreMenuHeader extends StatelessWidget {
   const _MoreMenuHeader({required this.video});
 
   static const double _avatarSize = 40;
@@ -249,8 +250,13 @@ class _MoreMenuHeader extends ConsumerWidget {
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: video.pubkey),
+    );
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[video.pubkey],
+    );
 
     final videoTitle = video.title?.isNotEmpty == true
         ? video.title!
@@ -261,14 +267,10 @@ class _MoreMenuHeader extends ConsumerWidget {
       child: Row(
         spacing: 12,
         children: [
-          profileAsync.when(
-            data: (profile) => UserAvatar(
-              imageUrl: profile?.picture,
-              name: profile?.displayName,
-              size: _avatarSize,
-            ),
-            loading: () => const UserAvatar(size: _avatarSize),
-            error: (_, _) => const UserAvatar(size: _avatarSize),
+          UserAvatar(
+            imageUrl: profile?.picture,
+            name: profile?.displayName,
+            size: _avatarSize,
           ),
           Expanded(
             child: Column(
@@ -322,10 +324,13 @@ class _MoreMenuItems extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
-    final displayName =
-        profileAsync.whenOrNull(data: (profile) => profile?.bestDisplayName) ??
-        '';
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: video.pubkey),
+    );
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[video.pubkey],
+    );
+    final displayName = profile?.bestDisplayName ?? '';
     final showDebugTools = ref.watch(
       isFeatureEnabledProvider(FeatureFlag.debugTools),
     );

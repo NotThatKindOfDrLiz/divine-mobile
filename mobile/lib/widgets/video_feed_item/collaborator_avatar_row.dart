@@ -4,10 +4,10 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -21,7 +21,7 @@ import 'package:openvine/widgets/user_avatar.dart';
 ///
 /// Returns [SizedBox.shrink] if the video has no
 /// collaborators.
-class CollaboratorAvatarRow extends ConsumerWidget {
+class CollaboratorAvatarRow extends StatelessWidget {
   /// Creates a CollaboratorAvatarRow.
   const CollaboratorAvatarRow({required this.video, super.key});
 
@@ -29,7 +29,7 @@ class CollaboratorAvatarRow extends ConsumerWidget {
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (!video.hasCollaborators) {
       return const SizedBox.shrink();
     }
@@ -82,13 +82,13 @@ class CollaboratorAvatarRow extends ConsumerWidget {
 }
 
 /// Small overlapping avatar circles.
-class _CollaboratorAvatarStack extends ConsumerWidget {
+class _CollaboratorAvatarStack extends StatelessWidget {
   const _CollaboratorAvatarStack({required this.pubkeys});
 
   final List<String> pubkeys;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return SizedBox(
       width: 20.0 + (pubkeys.length - 1) * 12.0,
       height: 20,
@@ -106,14 +106,17 @@ class _CollaboratorAvatarStack extends ConsumerWidget {
 }
 
 /// A small 20px avatar with white border.
-class _SmallAvatar extends ConsumerWidget {
+class _SmallAvatar extends StatelessWidget {
   const _SmallAvatar({required this.pubkey});
 
   final String pubkey;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(fetchUserProfileProvider(pubkey));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkey],
+    );
 
     return Container(
       width: 20,
@@ -124,8 +127,8 @@ class _SmallAvatar extends ConsumerWidget {
       ),
       child: ClipOval(
         child: UserAvatar(
-          imageUrl: profileAsync.value?.picture,
-          name: profileAsync.value?.bestDisplayName,
+          imageUrl: profile?.picture,
+          name: profile?.bestDisplayName,
           size: 17,
         ),
       ),
@@ -134,17 +137,20 @@ class _SmallAvatar extends ConsumerWidget {
 }
 
 /// Text label showing collaborator name(s).
-class _CollaboratorLabel extends ConsumerWidget {
+class _CollaboratorLabel extends StatelessWidget {
   const _CollaboratorLabel({required this.pubkeys});
 
   final List<String> pubkeys;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final firstProfile = ref.watch(fetchUserProfileProvider(pubkeys.first));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkeys.first));
+    final firstProfile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkeys.first],
+    );
 
     final firstName =
-        firstProfile.value?.bestDisplayName ??
+        firstProfile?.bestDisplayName ??
         UserProfile.defaultDisplayNameFor(pubkeys.first);
 
     final label = pubkeys.length == 1

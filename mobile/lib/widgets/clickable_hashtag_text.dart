@@ -3,9 +3,9 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/router/nav_extensions.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
 import 'package:openvine/utils/hashtag_extractor.dart';
@@ -18,7 +18,7 @@ import 'package:openvine/utils/unified_logger.dart';
 /// Parses both hashtags (#something) and nostr: URIs (nostr:npub..., nostr:nprofile...)
 /// and makes them tappable for navigation. Nostr mentions are displayed as @username
 /// if the profile is cached, otherwise as a truncated npub.
-class ClickableHashtagText extends ConsumerWidget {
+class ClickableHashtagText extends StatelessWidget {
   const ClickableHashtagText({
     required this.text,
     super.key,
@@ -48,7 +48,7 @@ class ClickableHashtagText extends ConsumerWidget {
   static final _plainMentionRegex = RegExp('@([a-zA-Z][a-zA-Z0-9_]{0,30})');
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (text.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -64,7 +64,7 @@ class ClickableHashtagText extends ConsumerWidget {
     }
 
     // Build text spans with clickable hashtags and nostr mentions
-    final spans = _buildTextSpans(context, ref);
+    final spans = _buildTextSpans(context);
 
     return Text.rich(
       TextSpan(children: spans),
@@ -73,7 +73,7 @@ class ClickableHashtagText extends ConsumerWidget {
     );
   }
 
-  List<TextSpan> _buildTextSpans(BuildContext context, WidgetRef ref) {
+  List<TextSpan> _buildTextSpans(BuildContext context) {
     final spans = <TextSpan>[];
     final defaultStyle =
         style ?? const TextStyle(color: Colors.white70, fontSize: 14);
@@ -122,11 +122,11 @@ class ClickableHashtagText extends ConsumerWidget {
       } else if (fullMatch.startsWith('nostr:')) {
         // Handle nostr: URI
         final nostrId = match.group(2)!;
-        spans.add(_buildNostrMentionSpan(context, ref, nostrId, profileStyle));
+        spans.add(_buildNostrMentionSpan(context, nostrId, profileStyle));
       } else if (fullMatch.startsWith('@')) {
         // Handle plain @mention (legacy Vine format)
         final username = match.group(3)!;
-        spans.add(_buildPlainMentionSpan(context, ref, username, profileStyle));
+        spans.add(_buildPlainMentionSpan(context, username, profileStyle));
       }
 
       lastEnd = match.end;
@@ -145,7 +145,6 @@ class ClickableHashtagText extends ConsumerWidget {
   /// Displays @username if profile is cached, otherwise truncated npub
   TextSpan _buildNostrMentionSpan(
     BuildContext context,
-    WidgetRef ref,
     String nostrId,
     TextStyle style,
   ) {
@@ -156,8 +155,9 @@ class ClickableHashtagText extends ConsumerWidget {
       return TextSpan(text: 'nostr:$nostrId', style: style);
     }
 
-    // Try to get cached profile (reactive provider handles background fetch)
-    final profile = ref.read(userProfileReactiveProvider(hexPubkey)).value;
+    // Dispatch profile request and read cached value
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: hexPubkey));
+    final profile = context.read<ProfilesBloc>().state.profiles[hexPubkey];
 
     // Display name: @username if available, otherwise @truncated_npub
     final displayName = profile?.bestDisplayName;
@@ -179,7 +179,6 @@ class ClickableHashtagText extends ConsumerWidget {
   /// If found, navigates to that profile. Otherwise navigates to search.
   TextSpan _buildPlainMentionSpan(
     BuildContext context,
-    WidgetRef ref,
     String username,
     TextStyle style,
   ) {

@@ -1,16 +1,18 @@
 // ABOUTME: Tests for profile grid → fullscreen video navigation
 // ABOUTME: Verifies tapping grid item navigates to correct video index and autoplays
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/active_video_provider.dart';
 import 'package:openvine/providers/app_lifecycle_provider.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/profile_feed_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
@@ -19,6 +21,9 @@ import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_provider_overrides.dart';
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 void main() {
   setUpAll(() async {
@@ -39,18 +44,29 @@ void main() {
     return mockAuth;
   }
 
-  Widget shell(ProviderContainer c) => UncontrolledProviderScope(
-    container: c,
-    child: MaterialApp.router(routerConfig: c.read(goRouterProvider)),
-  );
-
-  final now = DateTime.now();
-  final nowUnix = now.millisecondsSinceEpoch ~/ 1000;
-
   const testUserHex =
       '78a5c21b5166dc1474b64ddf7454bf79e6b5d6b4a77148593bf1e866b73c2738';
   const testUserNpub =
       'npub10zjuyx63vmwpga9kfh0hg49l08ntt4455ac5skfm785xddeuyuuqt7gxpj';
+
+  final now = DateTime.now();
+  final nowUnix = now.millisecondsSinceEpoch ~/ 1000;
+
+  final mockProfile = UserProfile(
+    pubkey: testUserHex,
+    displayName: 'Test User',
+    name: 'testuser',
+    about: 'Test profile',
+    picture: 'https://example.com/avatar.jpg',
+    createdAt: now,
+    eventId: 'profile_event_id',
+    rawData: const {
+      'name': 'testuser',
+      'display_name': 'Test User',
+      'about': 'Test profile',
+      'picture': 'https://example.com/avatar.jpg',
+    },
+  );
 
   final mockVideos = [
     VideoEvent(
@@ -91,20 +107,24 @@ void main() {
     ),
   ];
 
-  final mockProfile = UserProfile(
-    pubkey: testUserHex,
-    displayName: 'Test User',
-    name: 'testuser',
-    about: 'Test profile',
-    picture: 'https://example.com/avatar.jpg',
-    createdAt: now,
-    eventId: 'profile_event_id',
-    rawData: const {
-      'name': 'testuser',
-      'display_name': 'Test User',
-      'about': 'Test profile',
-      'picture': 'https://example.com/avatar.jpg',
-    },
+  late _MockProfilesBloc mockProfilesBloc;
+
+  setUp(() {
+    mockProfilesBloc = _MockProfilesBloc();
+    when(() => mockProfilesBloc.state).thenReturn(
+      ProfilesState(
+        profiles: {testUserHex: mockProfile},
+        requestedPubkeys: const {testUserHex},
+      ),
+    );
+  });
+
+  Widget shell(ProviderContainer c) => UncontrolledProviderScope(
+    container: c,
+    child: BlocProvider<ProfilesBloc>.value(
+      value: mockProfilesBloc,
+      child: MaterialApp.router(routerConfig: c.read(goRouterProvider)),
+    ),
   );
 
   group('Profile Grid Navigation', () {
@@ -121,9 +141,6 @@ void main() {
                 hasMoreContent: false,
               ),
             );
-          }),
-          fetchUserProfileProvider(testUserHex).overrideWith((ref) async {
-            return mockProfile;
           }),
           authServiceProvider.overrideWithValue(
             createTestAuthService(testUserHex),
@@ -198,9 +215,6 @@ void main() {
               ),
             );
           }),
-          fetchUserProfileProvider(testUserHex).overrideWith((ref) async {
-            return mockProfile;
-          }),
           authServiceProvider.overrideWithValue(
             createTestAuthService(testUserHex),
           ), // Own profile
@@ -236,9 +250,6 @@ void main() {
                   hasMoreContent: false,
                 ),
               );
-            }),
-            fetchUserProfileProvider(testUserHex).overrideWith((ref) async {
-              return mockProfile;
             }),
             authServiceProvider.overrideWithValue(
               createTestAuthService(testUserHex),
@@ -280,9 +291,6 @@ void main() {
                 hasMoreContent: false,
               ),
             );
-          }),
-          fetchUserProfileProvider(testUserHex).overrideWith((ref) async {
-            return mockProfile;
           }),
           authServiceProvider.overrideWithValue(
             createTestAuthService(testUserHex),

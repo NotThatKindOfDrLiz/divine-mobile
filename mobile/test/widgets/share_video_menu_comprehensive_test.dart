@@ -1,11 +1,14 @@
 // ABOUTME: Tests for the MVP simplified share menu (_SimpleShareMenu)
 // ABOUTME: Covers menu rendering, share actions, feature flags, and error handling
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -15,6 +18,9 @@ import 'package:openvine/services/video_sharing_service.dart';
 import 'package:openvine/widgets/video_feed_item/actions/share_action_button.dart';
 
 import '../helpers/test_provider_overrides.dart';
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 class _MockBookmarkService extends Mock implements BookmarkService {}
 
@@ -35,6 +41,7 @@ void main() {
   late VideoEvent testVideo;
   late _MockBookmarkService mockBookmarkService;
   late _MockVideoSharingService mockVideoSharingService;
+  late _MockProfilesBloc mockProfilesBloc;
 
   setUpAll(() {
     registerFallbackValue(
@@ -62,6 +69,8 @@ void main() {
 
     mockBookmarkService = _MockBookmarkService();
     mockVideoSharingService = _MockVideoSharingService();
+    mockProfilesBloc = _MockProfilesBloc();
+    when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
     _fakeLists = [];
 
     when(
@@ -86,8 +95,11 @@ void main() {
           FeatureFlag.curatedLists,
         ).overrideWithValue(curatedListsEnabled),
       ],
-      child: MaterialApp(
-        home: Scaffold(body: ShareActionButton(video: testVideo)),
+      child: BlocProvider<ProfilesBloc>.value(
+        value: mockProfilesBloc,
+        child: MaterialApp(
+          home: Scaffold(body: ShareActionButton(video: testVideo)),
+        ),
       ),
     );
 

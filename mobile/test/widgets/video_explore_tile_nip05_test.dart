@@ -1,14 +1,20 @@
 // ABOUTME: Tests that VideoExploreTile only shows NIP-05 badge for verified users
 // ABOUTME: Ensures blue checkmark requires actual DNS verification, not just a claim
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/widgets/video_explore_tile.dart';
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,28 +44,38 @@ void main() {
     required Nip05VerificationStatus verificationStatus,
     String? nip05,
   }) {
-    return ProviderScope(
-      overrides: [
-        userProfileReactiveProvider.overrideWith(
-          (ref, pubkey) async => UserProfile(
-            pubkey: pubkey,
+    final mockProfilesBloc = _MockProfilesBloc();
+    when(() => mockProfilesBloc.state).thenReturn(
+      ProfilesState(
+        profiles: {
+          testPubkey: UserProfile(
+            pubkey: testPubkey,
             name: 'Test User',
             nip05: nip05,
             rawData: const {},
             createdAt: DateTime(2026),
             eventId: 'test_event',
           ),
-        ),
+        },
+        requestedPubkeys: const {testPubkey},
+      ),
+    );
+
+    return ProviderScope(
+      overrides: [
         nip05VerificationProvider.overrideWith(
           (ref, pubkey) async => verificationStatus,
         ),
       ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 200,
-            height: 300,
-            child: VideoExploreTile(video: testVideo, isActive: false),
+      child: BlocProvider<ProfilesBloc>.value(
+        value: mockProfilesBloc,
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 200,
+              height: 300,
+              child: VideoExploreTile(video: testVideo, isActive: false),
+            ),
           ),
         ),
       ),

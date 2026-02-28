@@ -1,12 +1,15 @@
 // ABOUTME: Tests for SearchScreenPure widget
 // ABOUTME: Verifies tab count formatting consistency and search behavior
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hashtag_repository/hashtag_repository.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/route_feed_providers.dart';
 import 'package:openvine/router/router.dart';
@@ -23,6 +26,9 @@ class _MockContentBlocklistService extends Mock
     implements ContentBlocklistService {}
 
 class _MockHashtagRepository extends Mock implements HashtagRepository {}
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 class _FakeVideoEventService extends ChangeNotifier
     implements VideoEventService {
@@ -55,12 +61,15 @@ void main() {
     late _MockContentBlocklistService mockBlocklistService;
     late _FakeVideoEventService fakeVideoEventService;
     late _MockHashtagRepository mockHashtagRepository;
+    late _MockProfilesBloc mockProfilesBloc;
 
     setUp(() {
       mockProfileRepository = _MockProfileRepository();
       mockBlocklistService = _MockContentBlocklistService();
       fakeVideoEventService = _FakeVideoEventService();
       mockHashtagRepository = _MockHashtagRepository();
+      mockProfilesBloc = _MockProfilesBloc();
+      when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
 
       when(
         () => mockBlocklistService.shouldFilterFromFeeds(any()),
@@ -104,9 +113,12 @@ void main() {
             return Stream.value(const RouteContext(type: RouteType.search));
           }),
         ],
-        child: MaterialApp(
-          theme: ThemeData.dark(),
-          home: const Scaffold(body: SearchScreenPure(embedded: true)),
+        child: BlocProvider<ProfilesBloc>.value(
+          value: mockProfilesBloc,
+          child: MaterialApp(
+            theme: ThemeData.dark(),
+            home: const Scaffold(body: SearchScreenPure(embedded: true)),
+          ),
         ),
       );
     }
@@ -137,9 +149,12 @@ void main() {
             }),
             searchScreenVideosProvider.overrideWith((ref) => searchVideos),
           ],
-          child: MaterialApp(
-            theme: ThemeData.dark(),
-            home: const Scaffold(body: SearchScreenPure(embedded: true)),
+          child: BlocProvider<ProfilesBloc>.value(
+            value: mockProfilesBloc,
+            child: MaterialApp(
+              theme: ThemeData.dark(),
+              home: const Scaffold(body: SearchScreenPure(embedded: true)),
+            ),
           ),
         );
       }

@@ -1,13 +1,16 @@
 // ABOUTME: Tests for MoreActionButton widget and _VideoMoreMenu
 // ABOUTME: Verifies moderation actions (report, mute, block) and debug tools
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -18,6 +21,9 @@ import 'package:openvine/widgets/video_feed_item/actions/more_action_button.dart
 
 import '../../../helpers/test_provider_overrides.dart';
 
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
+
 class _MockContentBlocklistService extends Mock
     implements ContentBlocklistService {}
 
@@ -25,8 +31,12 @@ class _MockMuteService extends Mock implements MuteService {}
 
 void main() {
   late VideoEvent testVideo;
+  late _MockProfilesBloc mockProfilesBloc;
 
   setUp(() {
+    mockProfilesBloc = _MockProfilesBloc();
+    when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
+
     testVideo = VideoEvent(
       id: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       pubkey:
@@ -42,8 +52,13 @@ void main() {
   group(MoreActionButton, () {
     testWidgets('renders three-dots icon button', (tester) async {
       await tester.pumpWidget(
-        testMaterialApp(
-          home: Scaffold(body: MoreActionButton(video: testVideo)),
+        testProviderScope(
+          child: BlocProvider<ProfilesBloc>.value(
+            value: mockProfilesBloc,
+            child: MaterialApp(
+              home: Scaffold(body: MoreActionButton(video: testVideo)),
+            ),
+          ),
         ),
       );
 
@@ -61,8 +76,13 @@ void main() {
 
     testWidgets('has correct accessibility semantics', (tester) async {
       await tester.pumpWidget(
-        testMaterialApp(
-          home: Scaffold(body: MoreActionButton(video: testVideo)),
+        testProviderScope(
+          child: BlocProvider<ProfilesBloc>.value(
+            value: mockProfilesBloc,
+            child: MaterialApp(
+              home: Scaffold(body: MoreActionButton(video: testVideo)),
+            ),
+          ),
         ),
       );
 
@@ -106,7 +126,10 @@ void main() {
             FeatureFlag.debugTools,
           ).overrideWithValue(debugToolsEnabled),
         ],
-        child: MaterialApp.router(routerConfig: router),
+        child: BlocProvider<ProfilesBloc>.value(
+          value: mockProfilesBloc,
+          child: MaterialApp.router(routerConfig: router),
+        ),
       );
     }
 

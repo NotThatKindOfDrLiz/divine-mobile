@@ -12,8 +12,8 @@ import 'package:models/models.dart';
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/blocs/email_verification/email_verification_cubit.dart';
 import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/repositories/follow_repository.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
 import 'package:openvine/widgets/profile/profile_header_widget.dart';
@@ -24,6 +24,9 @@ import '../../helpers/test_provider_overrides.dart';
 
 class _MockMyProfileBloc extends MockBloc<MyProfileEvent, MyProfileState>
     implements MyProfileBloc {}
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 // Mock for KeycastOAuth used by EmailVerificationCubit
 class MockKeycastOAuth extends Mock implements KeycastOAuth {}
@@ -167,28 +170,38 @@ void main() {
         );
       }
 
+      final mockProfilesBloc = _MockProfilesBloc();
+      when(() => mockProfilesBloc.state).thenReturn(
+        ProfilesState(
+          profiles: {
+            userIdHex: ?profile,
+          },
+          requestedPubkeys: {userIdHex},
+        ),
+      );
+
       return ProviderScope(
         overrides: [
           ...getStandardTestOverrides(
             mockNostrService: mockNostrClient,
           ),
-          fetchUserProfileProvider(
-            userIdHex,
-          ).overrideWith((ref) async => profile),
           followRepositoryProvider.overrideWithValue(mockFollowRepository),
           authServiceProvider.overrideWithValue(authService),
           currentAuthStateProvider.overrideWith(
             (ref) => AuthState.authenticated,
           ),
         ],
-        child: BlocProvider<EmailVerificationCubit>(
-          create: (_) => EmailVerificationCubit(
-            oauthClient: MockKeycastOAuth(),
-            authService: authService,
-          ),
-          child: MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(child: header),
+        child: BlocProvider<ProfilesBloc>.value(
+          value: mockProfilesBloc,
+          child: BlocProvider<EmailVerificationCubit>(
+            create: (_) => EmailVerificationCubit(
+              oauthClient: MockKeycastOAuth(),
+              authService: authService,
+            ),
+            child: MaterialApp(
+              home: Scaffold(
+                body: SingleChildScrollView(child: header),
+              ),
             ),
           ),
         ),

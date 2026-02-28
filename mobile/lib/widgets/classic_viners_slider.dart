@@ -3,12 +3,13 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/classic_vines_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
@@ -138,7 +139,10 @@ class _VinerAvatar extends ConsumerWidget {
     final displayName = _cleanDisplayName(rawName);
 
     // Get avatar URL: try REST API first, then fallback to Nostr profile
-    final profile = ref.watch(userProfileReactiveProvider(viner.pubkey)).value;
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: viner.pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[viner.pubkey],
+    );
     final avatarUrl = viner.authorAvatar ?? profile?.picture;
 
     return Semantics(

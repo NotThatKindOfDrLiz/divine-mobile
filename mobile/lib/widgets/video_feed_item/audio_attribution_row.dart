@@ -3,12 +3,13 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/sounds_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
@@ -67,17 +68,20 @@ class AudioAttributionRow extends ConsumerWidget {
 }
 
 /// The actual content showing audio attribution.
-class _AudioAttributionContent extends ConsumerWidget {
+class _AudioAttributionContent extends StatelessWidget {
   const _AudioAttributionContent({required this.audio});
 
   final AudioEvent audio;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Watch the creator's profile reactively via Drift stream
-    final creatorProfile = ref
-        .watch(userProfileReactiveProvider(audio.pubkey))
-        .value;
+  Widget build(BuildContext context) {
+    // Fetch the creator's profile via ProfilesBloc
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: audio.pubkey),
+    );
+    final creatorProfile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[audio.pubkey],
+    );
 
     final creatorName =
         creatorProfile?.bestDisplayName ??

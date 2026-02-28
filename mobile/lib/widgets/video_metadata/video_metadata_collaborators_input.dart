@@ -4,10 +4,12 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:openvine/widgets/user_picker_sheet.dart';
@@ -174,7 +176,10 @@ class _CollaboratorChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(fetchUserProfileProvider(pubkey));
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkey],
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -187,15 +192,15 @@ class _CollaboratorChip extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           UserAvatar(
-            imageUrl: profileAsync.value?.picture,
-            name: profileAsync.value?.bestDisplayName,
+            imageUrl: profile?.picture,
+            name: profile?.bestDisplayName,
             size: 24,
           ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
-              profileAsync.value?.bestDisplayName ??
-                  '${pubkey.substring(0, 8)}...',
+              profile?.bestDisplayName ??
+                  UserProfile.defaultDisplayNameFor(pubkey),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: VineTheme.bodyFont(

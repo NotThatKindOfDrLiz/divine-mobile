@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory, NIP71VideoKinds;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
@@ -21,7 +22,6 @@ import 'package:openvine/providers/individual_video_providers.dart'; // For indi
 import 'package:openvine/providers/nip05_verification_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart'; // For hasVisibleOverlayProvider (modal pause/resume)
 import 'package:openvine/providers/subtitle_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/comments/comments.dart';
 import 'package:openvine/screens/curated_list_feed_screen.dart';
@@ -1455,11 +1455,14 @@ class VideoOverlayActions extends ConsumerWidget {
                   const SizedBox(height: 8),
                 ],
                 // Author avatar and info row
-                Consumer(
-                  builder: (context, ref, _) {
-                    final profile = ref
-                        .watch(userProfileReactiveProvider(video.pubkey))
-                        .value;
+                Builder(
+                  builder: (context) {
+                    context.read<ProfilesBloc>().add(
+                      ProfileRequested(pubkey: video.pubkey),
+                    );
+                    final profile = context.select<ProfilesBloc, UserProfile?>(
+                      (bloc) => bloc.state.profiles[video.pubkey],
+                    );
                     // Use embedded author data from REST API as fallback
                     // This avoids WebSocket profile fetches for videos
                     // that already have author_name/author_avatar embedded
@@ -1936,7 +1939,7 @@ class _VideoEditButton extends ConsumerWidget {
 /// Username and follow button row for video overlay.
 ///
 /// Displays the video author's name (tappable to go to profile) and a follow button.
-class VideoAuthorRow extends ConsumerWidget {
+class VideoAuthorRow extends StatelessWidget {
   const VideoAuthorRow({
     required this.video,
     super.key,
@@ -1949,10 +1952,11 @@ class VideoAuthorRow extends ConsumerWidget {
   final bool hideFollowButtonIfFollowing;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Profile is unused here (UserName.fromPubKey handles display),
-    // but watching ensures the widget rebuilds when profile data arrives.
-    ref.watch(userProfileReactiveProvider(video.pubkey));
+  Widget build(BuildContext context) {
+    // Ensure profile is requested so downstream UserName widget has data.
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: video.pubkey),
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -2004,16 +2008,19 @@ class VideoAuthorRow extends ConsumerWidget {
 }
 
 /// Repost header banner showing who reposted the video.
-class VideoRepostHeader extends ConsumerWidget {
+class VideoRepostHeader extends StatelessWidget {
   const VideoRepostHeader({required this.reposterPubkey, super.key});
 
   final String reposterPubkey;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reposterProfile = ref
-        .watch(userProfileReactiveProvider(reposterPubkey))
-        .value;
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: reposterPubkey),
+    );
+    final reposterProfile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[reposterPubkey],
+    );
 
     final displayName =
         reposterProfile?.bestDisplayName ??

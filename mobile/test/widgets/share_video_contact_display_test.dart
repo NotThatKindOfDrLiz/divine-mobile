@@ -1,10 +1,13 @@
 // ABOUTME: Tests for contact display in SendToUserDialog
 // ABOUTME: Verifies npub/nip05 is shown instead of raw hex pubkey
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/repositories/follow_repository.dart';
 import 'package:openvine/widgets/send_to_user_dialog.dart';
@@ -18,6 +21,9 @@ class _MockFollowRepository extends Mock implements FollowRepository {}
 
 /// Mocktail mock for ProfileRepository
 class _MockProfileRepository extends Mock implements ProfileRepository {}
+
+class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 /// Creates a mock FollowRepository with the given following pubkeys
 _MockFollowRepository _createMockFollowRepository(
@@ -37,6 +43,7 @@ void main() {
   group('SendToUserDialog Contact Display', () {
     late _MockFollowRepository mockFollowRepository;
     late _MockProfileRepository mockProfileRepository;
+    late _MockProfilesBloc mockProfilesBloc;
 
     final testVideo = VideoEvent(
       id: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -55,6 +62,8 @@ void main() {
     setUp(() {
       mockFollowRepository = _createMockFollowRepository([testPubkey]);
       mockProfileRepository = _MockProfileRepository();
+      mockProfilesBloc = _MockProfilesBloc();
+      when(() => mockProfilesBloc.state).thenReturn(const ProfilesState());
 
       // Stub profile methods used by SendToUserDialog._loadUserContacts
       when(
@@ -69,8 +78,11 @@ void main() {
         followRepositoryProvider.overrideWithValue(mockFollowRepository),
         profileRepositoryProvider.overrideWithValue(mockProfileRepository),
       ],
-      child: MaterialApp(
-        home: Scaffold(body: SendToUserDialog(video: testVideo)),
+      child: BlocProvider<ProfilesBloc>.value(
+        value: mockProfilesBloc,
+        child: MaterialApp(
+          home: Scaffold(body: SendToUserDialog(video: testVideo)),
+        ),
       ),
     );
 

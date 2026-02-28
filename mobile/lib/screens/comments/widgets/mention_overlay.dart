@@ -3,14 +3,15 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:models/models.dart';
 import 'package:openvine/blocs/comments/comments_bloc.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 
 /// Overlay widget showing mention suggestions above the comment input.
-class MentionOverlay extends ConsumerWidget {
+class MentionOverlay extends StatelessWidget {
   const MentionOverlay({
     required this.suggestions,
     required this.onSelect,
@@ -24,7 +25,7 @@ class MentionOverlay extends ConsumerWidget {
   final void Function(String npub, String displayName) onSelect;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (suggestions.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -55,9 +56,10 @@ class MentionOverlay extends ConsumerWidget {
                 final npub = NostrKeyUtils.encodePubKey(suggestion.pubkey);
                 // Use displayName from BLoC search results, fall back to
                 // cached profile lookup, then npub as last resort
-                final cachedProfile = ref
-                    .read(userProfileReactiveProvider(suggestion.pubkey))
-                    .value;
+                final cachedProfile = context
+                    .read<ProfilesBloc>()
+                    .state
+                    .profiles[suggestion.pubkey];
                 final displayName =
                     suggestion.displayName ??
                     cachedProfile?.displayName ??
@@ -73,17 +75,20 @@ class MentionOverlay extends ConsumerWidget {
   }
 }
 
-class _MentionSuggestionItem extends ConsumerWidget {
+class _MentionSuggestionItem extends StatelessWidget {
   const _MentionSuggestionItem({required this.suggestion, required this.onTap});
 
   final MentionSuggestion suggestion;
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(userProfileReactiveProvider(suggestion.pubkey))
-        .value;
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: suggestion.pubkey),
+    );
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[suggestion.pubkey],
+    );
 
     final displayName = profile?.displayName ?? profile?.name;
     final npub = NostrKeyUtils.encodePubKey(suggestion.pubkey);

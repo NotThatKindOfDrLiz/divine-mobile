@@ -3,14 +3,15 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory, NIP71VideoKinds;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/constants/nip71_migration.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/services/bookmark_service.dart';
 import 'package:openvine/services/content_deletion_service.dart';
@@ -833,9 +834,10 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
     _safePop(ctx);
 
     // Resolve the creator's display name from their profile
-    final profile = ref
-        .read(userProfileReactiveProvider(widget.video.pubkey))
-        .value;
+    final profile = context
+        .read<ProfilesBloc>()
+        .state
+        .profiles[widget.video.pubkey];
     final username =
         profile?.bestDisplayName ?? widget.video.authorName ?? 'diVine';
 
@@ -1933,7 +1935,7 @@ class _EditCollaboratorsSection extends ConsumerWidget {
 }
 
 /// Single collaborator chip for the edit dialog.
-class _EditCollaboratorChip extends ConsumerWidget {
+class _EditCollaboratorChip extends StatelessWidget {
   const _EditCollaboratorChip({
     required this.pubkey,
     required this.isDisabled,
@@ -1945,8 +1947,11 @@ class _EditCollaboratorChip extends ConsumerWidget {
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(fetchUserProfileProvider(pubkey));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkey],
+    );
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1958,14 +1963,14 @@ class _EditCollaboratorChip extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           UserAvatar(
-            imageUrl: profileAsync.value?.picture,
-            name: profileAsync.value?.bestDisplayName,
+            imageUrl: profile?.picture,
+            name: profile?.bestDisplayName,
             size: 20,
           ),
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-              profileAsync.value?.bestDisplayName ?? 'Loading...',
+              profile?.bestDisplayName ?? 'Loading...',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: VineTheme.bodyFont(
@@ -2093,7 +2098,7 @@ class _EditInspiredBySection extends ConsumerWidget {
 }
 
 /// Displays the current inspired-by attribution in the edit dialog.
-class _EditInspiredByDisplay extends ConsumerWidget {
+class _EditInspiredByDisplay extends StatelessWidget {
   const _EditInspiredByDisplay({
     required this.inspiredByNpub,
     required this.inspiredByVideo,
@@ -2107,16 +2112,19 @@ class _EditInspiredByDisplay extends ConsumerWidget {
   final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     // Resolve the pubkey to display
     String? displayName;
     String? avatarUrl;
 
     if (inspiredByVideo != null) {
       final pubkey = inspiredByVideo!.creatorPubkey;
-      final profileAsync = ref.watch(fetchUserProfileProvider(pubkey));
-      displayName = profileAsync.value?.bestDisplayName;
-      avatarUrl = profileAsync.value?.picture;
+      context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+      final profile = context.select<ProfilesBloc, UserProfile?>(
+        (bloc) => bloc.state.profiles[pubkey],
+      );
+      displayName = profile?.bestDisplayName;
+      avatarUrl = profile?.picture;
     }
 
     return Container(

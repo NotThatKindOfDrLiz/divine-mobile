@@ -2,12 +2,13 @@
 // ABOUTME: Reusable between own profile and others' profile screens
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/mixins/page_controller_sync_mixin.dart';
 import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:openvine/providers/profile_feed_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/view_event_publisher.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
@@ -196,9 +197,10 @@ class _ProfileVideoFeedViewState extends ConsumerState<ProfileVideoFeedView>
           hasBottomNavigation: false,
           forceShowOverlay: widget.isOwnProfile,
           isActiveOverride: isActive,
-          contextTitle: ref
-              .read(fetchUserProfileProvider(widget.userIdHex))
-              .value
+          contextTitle: context
+              .read<ProfilesBloc>()
+              .state
+              .profiles[widget.userIdHex]
               ?.betterDisplayName('Profile'),
           hideFollowButtonIfFollowing:
               true, // Hide if already following this profile's user

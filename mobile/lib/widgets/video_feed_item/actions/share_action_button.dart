@@ -3,13 +3,14 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/add_to_list_dialog.dart';
@@ -220,14 +221,19 @@ class _DragIndicator extends StatelessWidget {
   }
 }
 
-class _ShareMenuHeader extends ConsumerWidget {
+class _ShareMenuHeader extends StatelessWidget {
   const _ShareMenuHeader({required this.video});
 
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: video.pubkey),
+    );
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[video.pubkey],
+    );
 
     final videoTitle = video.title?.isNotEmpty == true
         ? video.title!
@@ -237,14 +243,10 @@ class _ShareMenuHeader extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          profileAsync.when(
-            data: (profile) => UserAvatar(
-              imageUrl: profile?.picture,
-              name: profile?.displayName,
-              size: 40,
-            ),
-            loading: () => const UserAvatar(size: 40),
-            error: (_, _) => const UserAvatar(size: 40),
+          UserAvatar(
+            imageUrl: profile?.picture,
+            name: profile?.displayName,
+            size: 40,
           ),
           const SizedBox(width: 12),
           Expanded(

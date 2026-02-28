@@ -2,11 +2,12 @@
 // ABOUTME: Shows clean thumbnail with title/hashtag overlay - full screen handled by parent
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
@@ -139,13 +140,13 @@ class _CreatorInfo extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(userProfileReactiveProvider(pubkey));
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[pubkey],
+    );
 
-    final displayName = switch (profileAsync) {
-      AsyncData(:final value) when value != null => value.bestDisplayName,
-      AsyncData() || AsyncError() => UserProfile.defaultDisplayNameFor(pubkey),
-      AsyncLoading() => 'Loading...',
-    };
+    final displayName =
+        profile?.bestDisplayName ?? UserProfile.defaultDisplayNameFor(pubkey);
 
     // Use actual NIP-05 verification provider — only show badge when DNS
     // lookup confirms the pubkey owns the claimed identifier (NIP-05 spec).

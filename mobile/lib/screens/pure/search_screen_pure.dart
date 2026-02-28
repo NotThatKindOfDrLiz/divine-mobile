@@ -11,11 +11,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/hashtag_search/hashtag_search_bloc.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/blocs/user_search/user_search_bloc.dart';
 import 'package:openvine/mixins/grid_prefetch_mixin.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/route_feed_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/pure/explore_video_screen_pure.dart';
@@ -194,9 +194,10 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
           return false;
         }
 
-        final creatorProfile = ref
-            .read(userProfileReactiveProvider(video.pubkey))
-            .value;
+        final creatorProfile = context
+            .read<ProfilesBloc>()
+            .state
+            .profiles[video.pubkey];
         final creatorName = creatorProfile?.bestDisplayName;
         final score = SearchUtils.matchVideo(
           query: query,

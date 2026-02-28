@@ -11,10 +11,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:models/models.dart';
 import 'package:openvine/blocs/comments/comments_bloc.dart';
-import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/comments/widgets/comment_options_modal.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -224,7 +224,10 @@ class _CommentHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileReactiveProvider(authorPubkey)).value;
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: authorPubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[authorPubkey],
+    );
 
     // Check if this comment is from the current user
     final nostrService = ref.watch(nostrServiceProvider);
@@ -399,17 +402,20 @@ class _CommentContent extends StatelessWidget {
 }
 
 /// Inline mention link that resolves profile name and navigates to profile.
-class _MentionLink extends ConsumerWidget {
+class _MentionLink extends StatelessWidget {
   const _MentionLink({required this.npub});
 
   final String npub;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     String displayText;
     try {
       final hexPubkey = NostrKeyUtils.decode(npub);
-      final profile = ref.watch(userProfileReactiveProvider(hexPubkey)).value;
+      context.read<ProfilesBloc>().add(ProfileRequested(pubkey: hexPubkey));
+      final profile = context.select<ProfilesBloc, UserProfile?>(
+        (bloc) => bloc.state.profiles[hexPubkey],
+      );
       displayText = profile?.displayName ?? profile?.name ?? npub;
     } catch (_) {
       displayText = npub;
@@ -625,16 +631,19 @@ extension _ScoreFormatting on int {
 
 /// Shows "Re: {display_name}" indicator for replies
 /// Fetches parent author profile and displays their name
-class _ReplyIndicator extends ConsumerWidget {
+class _ReplyIndicator extends StatelessWidget {
   const _ReplyIndicator({required this.parentAuthorPubkey});
 
   final String parentAuthorPubkey;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(userProfileReactiveProvider(parentAuthorPubkey))
-        .value;
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(
+      ProfileRequested(pubkey: parentAuthorPubkey),
+    );
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[parentAuthorPubkey],
+    );
 
     // Get display name with fallback chain
     final displayName =
