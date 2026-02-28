@@ -78,6 +78,7 @@ void main() {
           authServiceProvider.overrideWithValue(mockAuthService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
           nip98AuthServiceProvider.overrideWithValue(mockNip98AuthService),
+          profileRepositoryProvider.overrideWithValue(null),
         ],
       );
     }

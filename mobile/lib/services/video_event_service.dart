@@ -4026,18 +4026,9 @@ class VideoEventService extends ChangeNotifier {
       return; // Don't add duplicate events
     }
 
-    // Fetch profile for video author if not already cached
+    // Fetch profile for video author if not already cached (fire-and-forget)
     if (_profileRepository != null) {
-      _profileRepository
-          .fetchFreshProfile(pubkey: videoEvent.pubkey)
-          .catchError((error) {
-            Log.warning(
-              'Failed to fetch profile for ${videoEvent.pubkey}: $error',
-              name: 'VideoEventService',
-              category: LogCategory.video,
-            );
-            return null;
-          });
+      unawaited(_fetchProfileIfMissing(videoEvent.pubkey));
     }
 
     // Fetch live Nostr like count for this video (fire-and-forget)
@@ -4205,6 +4196,21 @@ class VideoEventService extends ChangeNotifier {
 
     // Schedule frame-based UI update for progressive loading
     _scheduleFrameUpdate();
+  }
+
+  /// Fetches and caches a profile only if it isn't already in the local cache.
+  Future<void> _fetchProfileIfMissing(String pubkey) async {
+    try {
+      final cached = await _profileRepository!.getCachedProfile(pubkey: pubkey);
+      if (cached != null) return;
+      await _profileRepository!.fetchFreshProfile(pubkey: pubkey);
+    } catch (e) {
+      Log.warning(
+        'Failed to fetch profile for $pubkey: $e',
+        name: 'VideoEventService',
+        category: LogCategory.video,
+      );
+    }
   }
 
   /// Queue a video for batched like count fetching.

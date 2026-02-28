@@ -47,6 +47,7 @@ void main() {
         ),
       );
       registerFallbackValue(Uri.parse('https://example.com'));
+      registerFallbackValue(<Filter>[]);
     });
 
     setUp(() {
@@ -2379,6 +2380,14 @@ void main() {
         when(
           () => mockNostrClient.fetchProfile(testPubkey),
         ).thenThrow(Exception('Relay error'));
+        // Step 4 indexer fallback also calls queryEvents
+        when(
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            useCache: any(named: 'useCache'),
+          ),
+        ).thenAnswer((_) async => <Event>[]);
 
         final result = await profileRepository.fetchBatchProfiles(
           pubkeys: [testPubkey],

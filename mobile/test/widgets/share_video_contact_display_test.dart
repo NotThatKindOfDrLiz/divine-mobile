@@ -55,6 +55,13 @@ void main() {
     setUp(() {
       mockFollowRepository = _createMockFollowRepository([testPubkey]);
       mockProfileRepository = _MockProfileRepository();
+
+      // Stub profile methods used by SendToUserDialog._loadUserContacts
+      when(
+        () => mockProfileRepository.fetchBatchProfiles(
+          pubkeys: any(named: 'pubkeys'),
+        ),
+      ).thenAnswer((_) async => {});
     });
 
     Widget buildSubject() => testProviderScope(
