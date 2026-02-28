@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
+import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/subtitle_providers.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
@@ -151,8 +152,9 @@ class _AuthorInfoSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userProfileService = ref.watch(userProfileServiceProvider);
-    final profile = userProfileService.getCachedProfile(video.pubkey);
+    final profile = ref
+        .watch(userProfileReactiveProvider(video.pubkey))
+        .valueOrNull;
     final avatarUrl = profile?.picture ?? video.authorAvatar;
     final displayName =
         profile?.bestDisplayName ??

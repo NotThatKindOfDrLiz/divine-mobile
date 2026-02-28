@@ -15,6 +15,7 @@ import 'package:openvine/blocs/user_search/user_search_bloc.dart';
 import 'package:openvine/mixins/grid_prefetch_mixin.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/curation_providers.dart';
+import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/route_feed_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/pure/explore_video_screen_pure.dart';
@@ -179,7 +180,6 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
     try {
       final videoEventService = ref.read(videoEventServiceProvider);
       final videos = videoEventService.discoveryVideos;
-      final profileService = ref.read(userProfileServiceProvider);
       final blocklistService = ref.read(contentBlocklistServiceProvider);
 
       Log.debug(
@@ -194,7 +194,10 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
           return false;
         }
 
-        final creatorName = profileService.getDisplayName(video.pubkey);
+        final creatorProfile = ref
+            .read(userProfileReactiveProvider(video.pubkey))
+            .valueOrNull;
+        final creatorName = creatorProfile?.bestDisplayName;
         final score = SearchUtils.matchVideo(
           query: query,
           title: video.title,

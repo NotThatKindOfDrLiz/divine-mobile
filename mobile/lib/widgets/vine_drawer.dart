@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/settings_screen.dart';
 // import 'package:openvine/screens/p2p_sync_screen.dart'; // Hidden for release
 import 'package:openvine/services/zendesk_support_service.dart';
@@ -141,10 +142,14 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                             final bugReportService = ref.read(
                               bugReportServiceProvider,
                             );
-                            final userProfileService = ref.read(
-                              userProfileServiceProvider,
-                            );
                             final userPubkey = authService.currentPublicKeyHex;
+                            final userProfile = userPubkey != null
+                                ? ref
+                                      .read(
+                                        userProfileReactiveProvider(userPubkey),
+                                      )
+                                      .valueOrNull
+                                : null;
 
                             final navigatorContext = Navigator.of(
                               context,
@@ -166,7 +171,7 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                             _showSupportOptionsDialog(
                               navigatorContext,
                               bugReportService,
-                              userProfileService,
+                              userProfile,
                               userPubkey,
                               isZendeskAvailable,
                             );
@@ -281,7 +286,7 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
   void _showSupportOptionsDialog(
     BuildContext context,
     dynamic bugReportService,
-    dynamic userProfileService,
+    dynamic userProfile,
     String? userPubkey,
     bool isZendeskAvailable,
   ) {
@@ -306,7 +311,7 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                 _handleBugReportWithServices(
                   context,
                   bugReportService,
-                  userProfileService,
+                  userProfile,
                   userPubkey,
                   isZendeskAvailable,
                 );
@@ -323,7 +328,7 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                   // Ensure identity is set before viewing tickets
                   await _setZendeskIdentityWithService(
                     userPubkey,
-                    userProfileService,
+                    userProfile,
                   );
                   Log.debug(
                     '💬 Opening Zendesk ticket list',
@@ -371,7 +376,7 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
   /// This version doesn't use ref, so it works after drawer is closed
   Future<void> _setZendeskIdentityWithService(
     String? userPubkey,
-    dynamic userProfileService,
+    dynamic profile,
   ) async {
     if (userPubkey == null) {
       // Users always have pubkey in this app, but handle edge case gracefully
@@ -384,7 +389,6 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
 
     try {
       final npub = NostrKeyUtils.encodePubKey(userPubkey);
-      final profile = userProfileService.getCachedProfile(userPubkey);
 
       Log.debug(
         '🎫 Zendesk: Setting identity for ${profile?.bestDisplayName ?? npub}',
@@ -417,12 +421,12 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
   Future<void> _handleBugReportWithServices(
     BuildContext context,
     dynamic bugReportService,
-    dynamic userProfileService,
+    dynamic userProfile,
     String? userPubkey,
     bool isZendeskAvailable,
   ) async {
     // Set Zendesk identity for all paths (native SDK and REST API)
-    await _setZendeskIdentityWithService(userPubkey, userProfileService);
+    await _setZendeskIdentityWithService(userPubkey, userProfile);
 
     if (isZendeskAvailable) {
       // Get device and app info

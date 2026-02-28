@@ -173,8 +173,8 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         ref
-            .read(userProfileProvider.notifier)
-            .prefetchProfilesImmediately(pubkeys);
+            .read(profileRepositoryProvider)
+            ?.fetchBatchProfiles(pubkeys: pubkeys);
       });
     }
   }

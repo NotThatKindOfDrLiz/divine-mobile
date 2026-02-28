@@ -213,17 +213,9 @@ class _CommentHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Fetch profile for this comment author
-    final userProfileService = ref.watch(userProfileServiceProvider);
-    final profile = userProfileService.getCachedProfile(authorPubkey);
-
-    // If profile not cached and not known missing, fetch it
-    if (profile == null &&
-        !userProfileService.shouldSkipProfileFetch(authorPubkey)) {
-      Future.microtask(() {
-        ref.read(userProfileProvider.notifier).fetchProfile(authorPubkey);
-      });
-    }
+    final profile = ref
+        .watch(userProfileReactiveProvider(authorPubkey))
+        .valueOrNull;
 
     // Check if this comment is from the current user
     final nostrService = ref.watch(nostrServiceProvider);
@@ -373,16 +365,9 @@ class _MentionLink extends ConsumerWidget {
     String displayText;
     try {
       final hexPubkey = NostrKeyUtils.decode(npub);
-      final userProfileService = ref.watch(userProfileServiceProvider);
-      final profile = userProfileService.getCachedProfile(hexPubkey);
-
-      if (profile == null &&
-          !userProfileService.shouldSkipProfileFetch(hexPubkey)) {
-        Future.microtask(() {
-          ref.read(userProfileProvider.notifier).fetchProfile(hexPubkey);
-        });
-      }
-
+      final profile = ref
+          .watch(userProfileReactiveProvider(hexPubkey))
+          .valueOrNull;
       displayText = profile?.displayName ?? profile?.name ?? npub;
     } catch (_) {
       displayText = npub;
@@ -544,17 +529,9 @@ class _ReplyIndicator extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Fetch parent author profile
-    final userProfileService = ref.watch(userProfileServiceProvider);
-    final profile = userProfileService.getCachedProfile(parentAuthorPubkey);
-
-    // Trigger fetch if needed
-    if (profile == null &&
-        !userProfileService.shouldSkipProfileFetch(parentAuthorPubkey)) {
-      Future.microtask(() {
-        ref.read(userProfileProvider.notifier).fetchProfile(parentAuthorPubkey);
-      });
-    }
+    final profile = ref
+        .watch(userProfileReactiveProvider(parentAuthorPubkey))
+        .valueOrNull;
 
     // Get display name with fallback chain
     final displayName =

@@ -11,6 +11,7 @@ import 'package:openvine/blocs/comments/comments_bloc.dart';
 import 'package:openvine/constants/nip71_migration.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
+import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/comments/widgets/widgets.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 
@@ -329,10 +330,9 @@ class _MainCommentInputState extends ConsumerState<_MainCommentInput> {
           replyToAuthorPubkey = replyComment.authorPubkey;
 
           // Fetch profile for display name
-          final userProfileService = ref.watch(userProfileServiceProvider);
-          final profile = userProfileService.getCachedProfile(
-            replyToAuthorPubkey,
-          );
+          final profile = ref
+              .watch(userProfileReactiveProvider(replyToAuthorPubkey))
+              .valueOrNull;
 
           // Get display name with fallback
           replyToDisplayName =

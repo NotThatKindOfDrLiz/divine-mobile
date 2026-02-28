@@ -78,23 +78,19 @@ class VideoFeed extends _$VideoFeed {
     _profileFetchTimer?.cancel();
 
     // Fetch profiles immediately - no delay needed as provider handles batching internally
-    final profilesProvider = ref.read(userProfileProvider.notifier);
+    final profileRepo = ref.read(profileRepositoryProvider);
 
-    final newPubkeys = videos
-        .map((v) => v.pubkey)
-        .where((pubkey) => !profilesProvider.hasProfile(pubkey))
-        .toSet()
-        .toList();
+    final newPubkeys = videos.map((v) => v.pubkey).toSet().toList();
 
-    if (newPubkeys.isNotEmpty) {
+    if (newPubkeys.isNotEmpty && profileRepo != null) {
       Log.debug(
-        'VideoFeed: Fetching ${newPubkeys.length} new profiles immediately and waiting for completion',
+        'VideoFeed: Fetching ${newPubkeys.length} profiles via batch',
         name: 'VideoFeedProvider',
         category: LogCategory.video,
       );
 
       // Wait for profiles to be fetched before continuing
-      await profilesProvider.fetchMultipleProfiles(newPubkeys);
+      await profileRepo.fetchBatchProfiles(pubkeys: newPubkeys);
 
       Log.debug(
         'VideoFeed: Profile fetching completed for ${newPubkeys.length} profiles',
