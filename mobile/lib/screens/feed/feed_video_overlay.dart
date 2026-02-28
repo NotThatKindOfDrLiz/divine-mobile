@@ -162,9 +162,7 @@ class _AuthorInfoSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(userProfileReactiveProvider(video.pubkey))
-        .value;
+    final profile = ref.watch(userProfileReactiveProvider(video.pubkey)).value;
     final avatarUrl = profile?.picture ?? video.authorAvatar;
     final displayName =
         profile?.bestDisplayName ??

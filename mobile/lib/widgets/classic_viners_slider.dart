@@ -138,9 +138,7 @@ class _VinerAvatar extends ConsumerWidget {
     final displayName = _cleanDisplayName(rawName);
 
     // Get avatar URL: try REST API first, then fallback to Nostr profile
-    final profile = ref
-        .watch(userProfileReactiveProvider(viner.pubkey))
-        .value;
+    final profile = ref.watch(userProfileReactiveProvider(viner.pubkey)).value;
     final avatarUrl = viner.authorAvatar ?? profile?.picture;
 
     return Semantics(

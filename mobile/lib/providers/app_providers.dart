@@ -1095,7 +1095,6 @@ NotificationServiceEnhanced notificationServiceEnhanced(Ref ref) {
           return;
         }
 
-
         await service.initialize(
           nostrService: nostrService,
           profileRepository: profileRepository,

@@ -52,8 +52,9 @@ void main() {
 
     setUp(() {
       mockProfileRepository = _MockProfileRepository();
-      when(() => mockProfileRepository.cacheProfile(any()))
-          .thenAnswer((_) async {});
+      when(
+        () => mockProfileRepository.cacheProfile(any()),
+      ).thenAnswer((_) async {});
     });
 
     ProfileEditorBloc createBloc({bool hasExistingProfile = true}) =>

@@ -829,9 +829,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final npub = NostrKeyUtils.encodePubKey(userPubkey);
 
         // Try to get user profile for display name and NIP-05
-        final profile = ref
-            .read(userProfileReactiveProvider(userPubkey))
-            .value;
+        final profile = ref.read(userProfileReactiveProvider(userPubkey)).value;
 
         await ZendeskSupportService.setUserIdentity(
           displayName: profile?.bestDisplayName,

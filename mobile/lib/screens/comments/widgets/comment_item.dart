@@ -224,9 +224,7 @@ class _CommentHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref
-        .watch(userProfileReactiveProvider(authorPubkey))
-        .value;
+    final profile = ref.watch(userProfileReactiveProvider(authorPubkey)).value;
 
     // Check if this comment is from the current user
     final nostrService = ref.watch(nostrServiceProvider);
@@ -411,9 +409,7 @@ class _MentionLink extends ConsumerWidget {
     String displayText;
     try {
       final hexPubkey = NostrKeyUtils.decode(npub);
-      final profile = ref
-          .watch(userProfileReactiveProvider(hexPubkey))
-          .value;
+      final profile = ref.watch(userProfileReactiveProvider(hexPubkey)).value;
       displayText = profile?.displayName ?? profile?.name ?? npub;
     } catch (_) {
       displayText = npub;

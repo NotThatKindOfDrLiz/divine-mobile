@@ -259,9 +259,7 @@ class _SendToUserDialogState extends ConsumerState<SendToUserDialog> {
   /// Build a user tile for contacts or search results
   Widget _buildUserTile(ShareableUser user) {
     // Get user profile to check for nip05
-    final profile = ref
-        .read(userProfileReactiveProvider(user.pubkey))
-        .value;
+    final profile = ref.read(userProfileReactiveProvider(user.pubkey)).value;
 
     // Display nip05 if available, otherwise npub (never show raw hex)
     // Use normalizeToNpub to convert hex to npub format

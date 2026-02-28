@@ -2396,6 +2396,67 @@ void main() {
         expect(result, isEmpty);
       });
 
+      test('falls back to indexer relay when step 3 returns nothing', () async {
+        final indexerEvent = MockEvent();
+        when(() => indexerEvent.kind).thenReturn(0);
+        when(() => indexerEvent.pubkey).thenReturn(testPubkey);
+        when(() => indexerEvent.createdAt).thenReturn(1704067200);
+        when(() => indexerEvent.id).thenReturn(testEventId);
+        when(() => indexerEvent.content).thenReturn(
+          jsonEncode({'display_name': 'Indexer User'}),
+        );
+
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => []);
+        // Step 3 returns null (no result)
+        when(
+          () => mockNostrClient.fetchProfile(testPubkey),
+        ).thenAnswer((_) async => null);
+        // Step 4 indexer fallback returns the profile
+        when(
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            useCache: any(named: 'useCache'),
+          ),
+        ).thenAnswer((_) async => [indexerEvent]);
+        when(
+          () => mockUserProfilesDao.upsertProfiles(any()),
+        ).thenAnswer((_) async {});
+
+        final result = await profileRepository.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, hasLength(1));
+        expect(result[testPubkey]?.displayName, equals('Indexer User'));
+      });
+
+      test('handles indexer relay failure gracefully', () async {
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => []);
+        // Step 3 returns null
+        when(
+          () => mockNostrClient.fetchProfile(testPubkey),
+        ).thenAnswer((_) async => null);
+        // Step 4 indexer fallback throws
+        when(
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            useCache: any(named: 'useCache'),
+          ),
+        ).thenThrow(Exception('Indexer error'));
+
+        final result = await profileRepository.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, isEmpty);
+      });
+
       test('does not batch-write when nothing was fetched', () async {
         final cached = UserProfile(
           pubkey: testPubkey,
