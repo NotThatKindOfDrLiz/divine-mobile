@@ -161,6 +161,8 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
     // Refresh videos from provider
     await ref.read(profileFeedProvider(widget.pubkey).notifier).refresh();
 
+    if (!mounted) return;
+
     // Refresh user profile info
     context.read<OtherProfileBloc>().add(const OtherProfileRefreshRequested());
 

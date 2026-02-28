@@ -7,12 +7,13 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/providers/subtitle_providers.dart';
+import 'package:openvine/router/routes/route_extras.dart';
+import 'package:openvine/screens/curated_list_feed_screen.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/utils/pause_aware_modals.dart';
@@ -31,6 +32,7 @@ import 'package:openvine/widgets/video_feed_item/audio_attribution_row.dart';
 import 'package:openvine/widgets/video_feed_item/collaborator_avatar_row.dart';
 import 'package:openvine/widgets/video_feed_item/content_warning_helpers.dart';
 import 'package:openvine/widgets/video_feed_item/inspired_by_attribution_row.dart';
+import 'package:openvine/widgets/video_feed_item/list_attribution_chip.dart';
 import 'package:openvine/widgets/video_feed_item/subtitle_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:openvine/widgets/video_feed_item/video_follow_button.dart';
@@ -47,12 +49,14 @@ class FeedVideoOverlay extends ConsumerStatefulWidget {
     required this.video,
     required this.isActive,
     required this.player,
+    this.listSources,
     super.key,
   });
 
   final VideoEvent video;
   final bool isActive;
   final Player player;
+  final Set<String>? listSources;
 
   @override
   ConsumerState<FeedVideoOverlay> createState() => _FeedVideoOverlayState();
@@ -131,6 +135,7 @@ class _FeedVideoOverlayState extends ConsumerState<FeedVideoOverlay> {
           child: _AuthorInfoSection(
             video: video,
             hasTextContent: hasTextContent,
+            listSources: widget.listSources,
           ),
         ),
         // Action buttons column (bottom-right)
@@ -145,10 +150,15 @@ class _FeedVideoOverlayState extends ConsumerState<FeedVideoOverlay> {
 }
 
 class _AuthorInfoSection extends ConsumerWidget {
-  const _AuthorInfoSection({required this.video, required this.hasTextContent});
+  const _AuthorInfoSection({
+    required this.video,
+    required this.hasTextContent,
+    this.listSources,
+  });
 
   final VideoEvent video;
   final bool hasTextContent;
+  final Set<String>? listSources;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -180,7 +190,9 @@ class _AuthorInfoSection extends ConsumerWidget {
                 onTap: () {
                   final npub = normalizeToNpub(video.pubkey);
                   if (npub != null) {
-                    context.push(OtherProfileScreen.pathForNpub(npub));
+                    context.pushWithVideoPause(
+                      OtherProfileScreen.pathForNpub(npub),
+                    );
                   }
                 },
                 child: Column(
@@ -247,6 +259,11 @@ class _AuthorInfoSection extends ConsumerWidget {
             const SizedBox(height: 4),
             AudioAttributionRow(video: video),
           ],
+          // List attribution (curated lists)
+          if (listSources != null && listSources!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _ListAttribution(listSources: listSources!),
+          ],
           const SizedBox(height: 8),
         ],
       ],
@@ -267,22 +284,48 @@ class _AuthorAvatar extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: VineTheme.whiteText, width: 2),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: avatarUrl != null && avatarUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: avatarUrl!,
-                      width: 44,
-                      height: 44,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const ColoredBox(
+          GestureDetector(
+            onTap: () {
+              final npub = normalizeToNpub(pubkey);
+              if (npub != null) {
+                context.pushWithVideoPause(
+                  OtherProfileScreen.pathForNpub(npub),
+                );
+              }
+            },
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: VineTheme.whiteText, width: 2),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: avatarUrl != null && avatarUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: avatarUrl!,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const ColoredBox(
+                          color: VineTheme.cardBackground,
+                          child: Icon(
+                            Icons.person,
+                            color: VineTheme.onSurfaceMuted,
+                            size: 24,
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => const ColoredBox(
+                          color: VineTheme.cardBackground,
+                          child: Icon(
+                            Icons.person,
+                            color: VineTheme.onSurfaceMuted,
+                            size: 24,
+                          ),
+                        ),
+                      )
+                    : const ColoredBox(
                         color: VineTheme.cardBackground,
                         child: Icon(
                           Icons.person,
@@ -290,23 +333,7 @@ class _AuthorAvatar extends StatelessWidget {
                           size: 24,
                         ),
                       ),
-                      errorWidget: (context, url, error) => const ColoredBox(
-                        color: VineTheme.cardBackground,
-                        child: Icon(
-                          Icons.person,
-                          color: VineTheme.onSurfaceMuted,
-                          size: 24,
-                        ),
-                      ),
-                    )
-                  : const ColoredBox(
-                      color: VineTheme.cardBackground,
-                      child: Icon(
-                        Icons.person,
-                        color: VineTheme.onSurfaceMuted,
-                        size: 24,
-                      ),
-                    ),
+              ),
             ),
           ),
           Positioned(
@@ -382,6 +409,33 @@ class _Nip05Badge extends ConsumerWidget {
       },
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+}
+
+/// Displays curated list attribution chips and handles navigation.
+class _ListAttribution extends ConsumerWidget {
+  const _ListAttribution({required this.listSources});
+
+  final Set<String> listSources;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final curatedListRepository = ref.watch(curatedListRepositoryProvider);
+
+    return ListAttributionChip(
+      listIds: listSources,
+      listLookup: curatedListRepository.getListById,
+      onListTap: (listId, listName) {
+        final list = curatedListRepository.getListById(listId);
+        context.pushWithVideoPause(
+          CuratedListFeedScreen.pathForId(listId),
+          extra: CuratedListRouteExtra(
+            listName: listName,
+            videoIds: list?.videoEventIds,
+          ),
+        );
+      },
     );
   }
 }

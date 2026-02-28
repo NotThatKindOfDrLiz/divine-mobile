@@ -415,7 +415,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 onTap: () async {
                   await languageService.clearContentLanguage();
-                  if (mounted) {
+                  if (context.mounted) {
                     setState(() {});
                     Navigator.pop(context);
                   }
@@ -457,7 +457,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       onTap: () async {
                         await languageService.setContentLanguage(code);
-                        if (mounted) {
+                        if (context.mounted) {
                           setState(() {});
                           Navigator.pop(context);
                         }
@@ -588,7 +588,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               onTap: () async {
                 await audioDevicePref.setPreferredDeviceId(null);
-                if (mounted) {
+                if (context.mounted) {
                   setState(() {});
                   Navigator.pop(context);
                 }
@@ -615,7 +615,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 onTap: () async {
                   await audioDevicePref.setPreferredDeviceId(device.deviceId);
-                  if (mounted) {
+                  if (context.mounted) {
                     setState(() {});
                     Navigator.pop(context);
                   }
@@ -635,7 +635,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final drafts = await draftService.getAllDrafts();
     final draftCount = drafts.length;
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     // If drafts exist, show warning dialog first
     if (draftCount > 0) {
@@ -673,7 +673,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (proceedWithWarning != true) return;
     }
 
-    if (!context.mounted) return;
+    if (!mounted) return;
 
     // Show standard confirmation dialog
     await showDialog<bool>(
@@ -792,7 +792,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Could not open ProofMode info page'),
@@ -802,7 +802,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         }
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to open URL: $e'),
