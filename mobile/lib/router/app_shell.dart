@@ -3,10 +3,13 @@
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:models/models.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/active_video_provider.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/classic_vines_provider.dart';
@@ -15,7 +18,6 @@ import 'package:openvine/providers/for_you_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/relay_notifications_provider.dart';
 import 'package:openvine/providers/route_feed_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/feed/video_feed_page.dart';
@@ -30,13 +32,37 @@ import 'package:openvine/widgets/environment_indicator.dart';
 import 'package:openvine/widgets/notification_badge.dart';
 import 'package:openvine/widgets/vine_drawer.dart';
 
+/// Outer shell that provides [ProfilesBloc] at the app level.
+///
+/// Reads [ProfileRepository] from Riverpod, creates a single
+/// [ProfilesBloc] instance, and delegates all UI to [_AppShellBody].
 class AppShell extends ConsumerWidget {
   const AppShell({required this.child, required this.currentIndex, super.key});
 
   final Widget child;
   final int currentIndex;
 
-  String _titleFor(WidgetRef ref) {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profileRepo = ref.watch(profileRepositoryProvider);
+    final body = _AppShellBody(currentIndex: currentIndex, child: child);
+
+    if (profileRepo == null) return body;
+
+    return BlocProvider(
+      create: (_) => ProfilesBloc(profileRepository: profileRepo),
+      child: body,
+    );
+  }
+}
+
+class _AppShellBody extends ConsumerWidget {
+  const _AppShellBody({required this.child, required this.currentIndex});
+
+  final Widget child;
+  final int currentIndex;
+
+  String _titleFor(BuildContext context, WidgetRef ref) {
     final ctx = ref.watch(pageContextProvider).asData?.value;
     switch (ctx?.type) {
       case RouteType.home:
@@ -74,8 +100,11 @@ class AppShell extends ConsumerWidget {
         // Get user profile to show their display name
         final userIdHex = npubToHexOrNull(npub);
         if (userIdHex != null) {
-          final profileAsync = ref.watch(fetchUserProfileProvider(userIdHex));
-          final displayName = profileAsync.value?.displayName;
+          context.read<ProfilesBloc>().add(ProfileRequested(pubkey: userIdHex));
+          final profile = context.select<ProfilesBloc, UserProfile?>(
+            (bloc) => bloc.state.profiles[userIdHex],
+          );
+          final displayName = profile?.displayName;
           if (displayName != null && !displayName.startsWith('npub1')) {
             return displayName;
           }
@@ -248,7 +277,7 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final title = _titleFor(ref);
+    final title = _titleFor(context, ref);
 
     // Initialize auto-cleanup provider to ensure only one video plays at a time
     ref.watch(videoControllerAutoCleanupProvider);
