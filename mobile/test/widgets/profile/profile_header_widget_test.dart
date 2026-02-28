@@ -140,7 +140,6 @@ void main() {
       String? avatarUrlHint,
     }) {
       final authService = MockAuthService(isAnonymousValue: isAnonymous);
-      final mockUserProfileService = createMockUserProfileService();
 
       Widget header = ProfileHeaderWidget(
         userIdHex: userIdHex,
@@ -172,7 +171,6 @@ void main() {
         overrides: [
           ...getStandardTestOverrides(
             mockNostrService: mockNostrClient,
-            mockUserProfileService: mockUserProfileService,
           ),
           fetchUserProfileProvider(
             userIdHex,

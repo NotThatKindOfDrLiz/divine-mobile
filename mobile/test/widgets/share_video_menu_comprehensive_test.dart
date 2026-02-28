@@ -74,7 +74,6 @@ void main() {
 
   group('ShareActionButton opens _SimpleShareMenu', () {
     Widget buildSubject({bool curatedListsEnabled = true}) => testProviderScope(
-      mockUserProfileService: createMockUserProfileService(),
       additionalOverrides: [
         bookmarkServiceProvider.overrideWith(
           (ref) async => mockBookmarkService,

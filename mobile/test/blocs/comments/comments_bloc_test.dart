@@ -16,7 +16,7 @@ import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/content_moderation_service.dart';
 import 'package:openvine/services/content_reporting_service.dart';
 import 'package:openvine/services/mute_service.dart';
-import 'package:openvine/services/user_profile_service.dart';
+import 'package:profile_repository/profile_repository.dart';
 
 class _MockCommentsRepository extends Mock implements CommentsRepository {}
 
@@ -32,7 +32,7 @@ class _MockMuteService extends Mock implements MuteService {}
 class _MockContentBlocklistService extends Mock
     implements ContentBlocklistService {}
 
-class _MockUserProfileService extends Mock implements UserProfileService {}
+class _MockProfileRepository extends Mock implements ProfileRepository {}
 
 class _MockFollowRepository extends Mock implements FollowRepository {}
 
@@ -49,7 +49,7 @@ void main() {
     late _MockContentReportingService mockContentReportingService;
     late _MockMuteService mockMuteService;
     late _MockContentBlocklistService mockContentBlocklistService;
-    late _MockUserProfileService mockUserProfileService;
+    late _MockProfileRepository mockProfileRepository;
     late _MockFollowRepository mockFollowRepository;
 
     // Helper to create valid hex IDs (64 hex characters)
@@ -67,7 +67,7 @@ void main() {
       mockContentReportingService = _MockContentReportingService();
       mockMuteService = _MockMuteService();
       mockContentBlocklistService = _MockContentBlocklistService();
-      mockUserProfileService = _MockUserProfileService();
+      mockProfileRepository = _MockProfileRepository();
       mockFollowRepository = _MockFollowRepository();
 
       when(() => mockAuthService.isAuthenticated).thenReturn(true);
@@ -85,11 +85,13 @@ void main() {
 
       // Default stubs for mention search dependencies
       when(
-        () => mockUserProfileService.getCachedProfile(any()),
-      ).thenReturn(null);
+        () => mockProfileRepository.getCachedProfile(
+          pubkey: any(named: 'pubkey'),
+        ),
+      ).thenAnswer((_) async => null);
       when(
-        () => mockUserProfileService.searchUsers(
-          any(),
+        () => mockProfileRepository.searchUsers(
+          query: any(named: 'query'),
           limit: any(named: 'limit'),
         ),
       ).thenAnswer((_) async => []);
@@ -120,7 +122,7 @@ void main() {
     CommentsBloc createBloc({
       String? rootEventId,
       String? rootAuthorPubkey,
-      UserProfileService? userProfileService,
+      ProfileRepository? profileRepository,
       FollowRepository? followRepository,
     }) => CommentsBloc(
       commentsRepository: mockCommentsRepository,
@@ -132,7 +134,7 @@ void main() {
       rootEventId: rootEventId ?? validId('root'),
       rootEventKind: testRootEventKind,
       rootAuthorPubkey: rootAuthorPubkey ?? validId('author'),
-      userProfileService: userProfileService ?? mockUserProfileService,
+      profileRepository: profileRepository ?? mockProfileRepository,
       followRepository: followRepository ?? mockFollowRepository,
     );
 
@@ -1544,9 +1546,11 @@ void main() {
         'filters suggestions by query matching display name',
         setUp: () {
           when(
-            () => mockUserProfileService.getCachedProfile(validId('user1')),
-          ).thenReturn(
-            UserProfile(
+            () => mockProfileRepository.getCachedProfile(
+              pubkey: validId('user1'),
+            ),
+          ).thenAnswer(
+            (_) async => UserProfile(
               pubkey: validId('user1'),
               rawData: const {},
               createdAt: DateTime.now(),
@@ -1555,9 +1559,11 @@ void main() {
             ),
           );
           when(
-            () => mockUserProfileService.getCachedProfile(validId('user2')),
-          ).thenReturn(
-            UserProfile(
+            () => mockProfileRepository.getCachedProfile(
+              pubkey: validId('user2'),
+            ),
+          ).thenAnswer(
+            (_) async => UserProfile(
               pubkey: validId('user2'),
               rawData: const {},
               createdAt: DateTime.now(),
@@ -1631,9 +1637,11 @@ void main() {
             () => mockFollowRepository.followingPubkeys,
           ).thenReturn([validId('followee1')]);
           when(
-            () => mockUserProfileService.getCachedProfile(validId('followee1')),
-          ).thenReturn(
-            UserProfile(
+            () => mockProfileRepository.getCachedProfile(
+              pubkey: validId('followee1'),
+            ),
+          ).thenAnswer(
+            (_) async => UserProfile(
               pubkey: validId('followee1'),
               rawData: const {},
               createdAt: DateTime.now(),
@@ -1661,8 +1669,8 @@ void main() {
         'fetches remote results when fewer than 5 local matches',
         setUp: () {
           when(
-            () => mockUserProfileService.searchUsers(
-              'rem',
+            () => mockProfileRepository.searchUsers(
+              query: 'rem',
               limit: any(named: 'limit'),
             ),
           ).thenAnswer(
@@ -1706,9 +1714,11 @@ void main() {
         'deduplicates authors in suggestions',
         setUp: () {
           when(
-            () => mockUserProfileService.getCachedProfile(validId('sameuser')),
-          ).thenReturn(
-            UserProfile(
+            () => mockProfileRepository.getCachedProfile(
+              pubkey: validId('sameuser'),
+            ),
+          ).thenAnswer(
+            (_) async => UserProfile(
               pubkey: validId('sameuser'),
               rawData: const {},
               createdAt: DateTime.now(),

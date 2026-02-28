@@ -22,7 +22,7 @@ import 'package:openvine/services/blurhash_service.dart';
 import 'package:openvine/services/c2pa_signing_service.dart';
 import 'package:openvine/services/personal_event_cache_service.dart';
 import 'package:openvine/services/upload_manager.dart';
-import 'package:openvine/services/user_profile_service.dart';
+import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/proofmode_publishing_helpers.dart';
@@ -38,7 +38,7 @@ class VideoEventPublisher {
     PersonalEventCacheService? personalEventCache,
     VideoEventService? videoEventService,
     BlossomUploadService? blossomUploadService,
-    UserProfileService? userProfileService,
+    ProfileRepository? profileRepository,
     AudioExtractionService? audioExtractionService,
     ProfileStatsDao? profileStatsDao,
   }) : _uploadManager = uploadManager,
@@ -47,7 +47,7 @@ class VideoEventPublisher {
        _personalEventCache = personalEventCache,
        _videoEventService = videoEventService,
        _blossomUploadService = blossomUploadService,
-       _userProfileService = userProfileService,
+       _profileRepository = profileRepository,
        _audioExtractionService = audioExtractionService,
        _profileStatsDao = profileStatsDao;
   final UploadManager _uploadManager;
@@ -56,7 +56,7 @@ class VideoEventPublisher {
   final PersonalEventCacheService? _personalEventCache;
   final VideoEventService? _videoEventService;
   final BlossomUploadService? _blossomUploadService;
-  final UserProfileService? _userProfileService;
+  final ProfileRepository? _profileRepository;
   final AudioExtractionService? _audioExtractionService;
   final ProfileStatsDao? _profileStatsDao;
 
@@ -1067,9 +1067,11 @@ class VideoEventPublisher {
       } else {
         // Fallback to "Original sound - @username" format
         audioTitle = 'Original sound';
-        if (_userProfileService != null) {
+        if (_profileRepository != null) {
           try {
-            final profile = await _userProfileService.fetchProfile(pubkey);
+            final profile = await _profileRepository.fetchFreshProfile(
+              pubkey: pubkey,
+            );
             if (profile != null) {
               // Use bestDisplayName which has proper fallback logic:
               // displayName -> name -> truncated npub

@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
-import 'package:openvine/services/user_profile_service.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:openvine/widgets/user_profile_tile.dart';
 
@@ -21,7 +20,6 @@ void main() {
   setUpAll(_setupPlatformMocks);
 
   group('UserProfileTile - Layout & Display Bug Tests', () {
-    late TestUserProfileService testUserProfileService;
     late TestAuthService testAuthService;
     late UserProfile testProfile;
     late UserProfile longContentProfile;
@@ -30,7 +28,6 @@ void main() {
     const currentUserPubkey = 'npub1current987654321xyz';
 
     setUp(() {
-      testUserProfileService = TestUserProfileService();
       testAuthService = TestAuthService();
 
       // Create test profiles with various content lengths
@@ -69,8 +66,6 @@ void main() {
       );
 
       testAuthService.setCurrentUser(currentUserPubkey);
-      testUserProfileService.addProfile(testProfile);
-      testUserProfileService.addProfile(longContentProfile);
     });
 
     group('🎯 LAYOUT STRUCTURE TESTS', () {
@@ -79,7 +74,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -109,7 +103,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -136,7 +129,6 @@ void main() {
       testWidgets('LAYOUT: avatar positioning and sizing', (tester) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -165,7 +157,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -198,7 +189,6 @@ void main() {
       testWidgets('CONTENT: displays profile name correctly', (tester) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -220,7 +210,6 @@ void main() {
       testWidgets('CONTENT: displays bio when available', (tester) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -252,11 +241,9 @@ void main() {
           displayName: 'No Bio Display',
           createdAt: DateTime.now(),
         );
-        testUserProfileService.addProfile(profileNoBio);
 
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: 'npub1nobio123'),
           ),
@@ -281,12 +268,9 @@ void main() {
           eventId: 'noname_event_id',
           createdAt: DateTime.now(),
         );
-        testUserProfileService.clearProfiles();
-        testUserProfileService.addProfile(profileNoName);
 
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -305,7 +289,6 @@ void main() {
         (tester) async {
           await tester.pumpWidget(
             _buildTestWidget(
-              testUserProfileService,
               testAuthService,
               const UserProfileTile(pubkey: 'npub1long123456789'),
             ),
@@ -330,7 +313,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: 'npub1long123456789'),
           ),
@@ -357,7 +339,6 @@ void main() {
         (tester) async {
           await tester.pumpWidget(
             _buildTestWidget(
-              testUserProfileService,
               testAuthService,
               const UserProfileTile(pubkey: 'npub1long123456789'),
             ),
@@ -398,7 +379,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -416,7 +396,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(
               pubkey: currentUserPubkey,
@@ -437,7 +416,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey, showFollowButton: false),
           ),
@@ -460,9 +438,6 @@ void main() {
           MaterialApp(
             home: ProviderScope(
               overrides: [
-                userProfileServiceProvider.overrideWithValue(
-                  testUserProfileService,
-                ),
                 authServiceProvider.overrideWithValue(testAuthService),
               ],
               child: const Scaffold(
@@ -493,9 +468,6 @@ void main() {
           MaterialApp(
             home: ProviderScope(
               overrides: [
-                userProfileServiceProvider.overrideWithValue(
-                  testUserProfileService,
-                ),
                 authServiceProvider.overrideWithValue(testAuthService),
               ],
               child: const Scaffold(
@@ -525,7 +497,6 @@ void main() {
           // Test with short content
           await tester.pumpWidget(
             _buildTestWidget(
-              testUserProfileService,
               testAuthService,
               const UserProfileTile(pubkey: testPubkey),
             ),
@@ -540,7 +511,6 @@ void main() {
           // Test with long content
           await tester.pumpWidget(
             _buildTestWidget(
-              testUserProfileService,
               testAuthService,
               const UserProfileTile(pubkey: 'npub1long123456789'),
             ),
@@ -569,7 +539,6 @@ void main() {
 
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             UserProfileTile(pubkey: testPubkey, onTap: () => wasTapped = true),
           ),
@@ -596,7 +565,6 @@ void main() {
       ) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: testPubkey),
           ),
@@ -618,11 +586,8 @@ void main() {
     group('🎯 ERROR STATE HANDLING', () {
       testWidgets('ERROR: handles null profile gracefully', (tester) async {
         // Don't add profile to service, simulating null/missing profile
-        testUserProfileService.clearProfiles();
-
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: 'npub1missing123'),
           ),
@@ -641,7 +606,6 @@ void main() {
       testWidgets('ERROR: handles empty pubkey edge case', (tester) async {
         await tester.pumpWidget(
           _buildTestWidget(
-            testUserProfileService,
             testAuthService,
             const UserProfileTile(pubkey: ''),
           ),
@@ -659,14 +623,12 @@ void main() {
 }
 
 Widget _buildTestWidget(
-  TestUserProfileService userProfileService,
   TestAuthService authService,
   Widget child,
 ) {
   return MaterialApp(
     home: testProviderScope(
       additionalOverrides: [
-        userProfileServiceProvider.overrideWithValue(userProfileService),
         authServiceProvider.overrideWithValue(authService),
       ],
       child: Scaffold(body: child),
@@ -675,35 +637,6 @@ Widget _buildTestWidget(
 }
 
 // Simple test implementations
-class TestUserProfileService implements UserProfileService {
-  final Map<String, UserProfile> _profiles = {};
-
-  void addProfile(UserProfile profile) {
-    _profiles[profile.pubkey] = profile;
-  }
-
-  void clearProfiles() {
-    _profiles.clear();
-  }
-
-  @override
-  Future<UserProfile?> fetchProfile(
-    String pubkey, {
-    bool forceRefresh = false,
-  }) async {
-    return _profiles[pubkey];
-  }
-
-  @override
-  UserProfile? getCachedProfile(String pubkey) {
-    return _profiles[pubkey];
-  }
-
-  // Implement other required methods with basic implementations
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}
-
 class TestAuthService implements AuthService {
   String? _currentUser;
 

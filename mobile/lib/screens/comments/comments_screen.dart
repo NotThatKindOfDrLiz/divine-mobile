@@ -169,7 +169,7 @@ class CommentsScreen extends ConsumerWidget {
     final muteServiceFuture = ref.read(muteServiceProvider.future);
 
     // Mention search dependencies
-    final userProfileService = ref.watch(userProfileServiceProvider);
+    final profileRepository = ref.watch(profileRepositoryProvider);
     final followRepository = ref.watch(followRepositoryProvider);
 
     // Use original comments count for pagination hint
@@ -189,7 +189,7 @@ class CommentsScreen extends ConsumerWidget {
         rootAuthorPubkey: videoEvent.pubkey,
         rootAddressableId: videoEvent.addressableId,
         initialTotalCount: initialCount,
-        userProfileService: userProfileService,
+        profileRepository: profileRepository,
         followRepository: followRepository,
       )..add(const CommentsLoadRequested()),
       child: BlocListener<CommentsBloc, CommentsState>(
@@ -332,7 +332,7 @@ class _MainCommentInputState extends ConsumerState<_MainCommentInput> {
           // Fetch profile for display name
           final profile = ref
               .watch(userProfileReactiveProvider(replyToAuthorPubkey))
-              .valueOrNull;
+              .value;
 
           // Get display name with fallback
           replyToDisplayName =

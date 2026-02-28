@@ -292,7 +292,6 @@ void main() {
       );
 
       return testProviderScope(
-        mockUserProfileService: createMockUserProfileService(),
         mockNostrService: mockNostrClient,
         additionalOverrides: [
           contentReportingServiceProvider.overrideWith(

@@ -52,7 +52,7 @@ class UserProfileTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileReactiveProvider(pubkey)).valueOrNull;
+    final profile = ref.watch(userProfileReactiveProvider(pubkey)).value;
     final authService = ref.watch(authServiceProvider);
     final isCurrentUser = pubkey == authService.currentPublicKeyHex;
 

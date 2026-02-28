@@ -835,7 +835,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
     // Resolve the creator's display name from their profile
     final profile = ref
         .read(userProfileReactiveProvider(widget.video.pubkey))
-        .valueOrNull;
+        .value;
     final username =
         profile?.bestDisplayName ?? widget.video.authorName ?? 'diVine';
 

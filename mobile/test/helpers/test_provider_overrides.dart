@@ -16,7 +16,6 @@ import 'package:openvine/services/blossom_auth_service.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/services/social_service.dart';
 import 'package:openvine/services/subscription_manager.dart';
-import 'package:openvine/services/user_profile_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Mock classes (public because they are imported by many test files)
@@ -25,8 +24,6 @@ class MockSharedPreferences extends Mock implements SharedPreferences {}
 class MockSocialService extends Mock implements SocialService {}
 
 class MockAuthService extends Mock implements AuthService {}
-
-class MockUserProfileService extends Mock implements UserProfileService {}
 
 class MockSubscriptionManager extends Mock implements SubscriptionManager {}
 
@@ -96,20 +93,6 @@ MockSocialService createMockSocialService() {
   return mockSocial;
 }
 
-/// Creates a properly stubbed MockUserProfileService for testing
-MockUserProfileService createMockUserProfileService() {
-  final mockProfile = MockUserProfileService();
-
-  // Stub common methods
-  when(() => mockProfile.getCachedProfile(any())).thenReturn(null);
-  when(() => mockProfile.hasProfile(any())).thenReturn(false);
-  when(() => mockProfile.shouldSkipProfileFetch(any())).thenReturn(false);
-  when(() => mockProfile.fetchProfile(any())).thenAnswer((_) async => null);
-  when(() => mockProfile.fetchMultipleProfiles(any())).thenAnswer((_) async {});
-
-  return mockProfile;
-}
-
 /// Creates a properly stubbed MockNostrClient for testing
 MockNostrClient createMockNostrService() {
   final mockNostr = MockNostrClient();
@@ -120,7 +103,7 @@ MockNostrClient createMockNostrService() {
   when(() => mockNostr.configuredRelays).thenReturn(<String>[]);
 
   // Stub subscribe() to return empty stream (never null) so
-  // SubscriptionManager and UserProfileService batch fetch do not get
+  // SubscriptionManager batch fetch does not get
   // type 'Null' is not a subtype of type 'Stream<Event>'
   when(
     () => mockNostr.subscribe(any()),
@@ -142,9 +125,7 @@ MockSubscriptionManager createMockSubscriptionManager() {
   final mockSub = MockSubscriptionManager();
 
   // Stub createSubscription to return a valid subscription id (never null)
-  // and immediately call onComplete to simulate empty results, so
-  // UserProfileService batch fetch does not get
-  // type 'Null' is not a subtype of type 'Future<String>'.
+  // and immediately call onComplete to simulate empty results.
   when(
     () => mockSub.createSubscription(
       name: any(named: 'name'),
@@ -208,7 +189,6 @@ List<dynamic> getStandardTestOverrides({
   SharedPreferences? mockSharedPreferences,
   AuthService? mockAuthService,
   SocialService? mockSocialService,
-  UserProfileService? mockUserProfileService,
   NostrClient? mockNostrService,
   SubscriptionManager? mockSubscriptionManager,
   BlossomAuthService? mockBlossomAuthService,
@@ -217,7 +197,6 @@ List<dynamic> getStandardTestOverrides({
   final mockPrefs = mockSharedPreferences ?? createMockSharedPreferences();
   final mockAuth = mockAuthService ?? createMockAuthService();
   final mockSocial = mockSocialService ?? createMockSocialService();
-  final mockProfile = mockUserProfileService ?? createMockUserProfileService();
   final mockNostr = mockNostrService ?? createMockNostrService();
   final mockSub = mockSubscriptionManager ?? createMockSubscriptionManager();
   final mockBlossom = mockBlossomAuthService ?? createMockBlossomAuthService();
@@ -228,7 +207,7 @@ List<dynamic> getStandardTestOverrides({
     sharedPreferencesProvider.overrideWithValue(mockPrefs),
 
     // Always override NostrClient and SubscriptionManager with stubbed mocks
-    // so UserProfileService/FollowRepository never get null Stream<Event> or
+    // so FollowRepository never gets null Stream<Event> or
     // Future<List<String>>.
     nostrServiceProvider.overrideWithValue(mockNostr),
     subscriptionManagerProvider.overrideWithValue(mockSub),
@@ -244,8 +223,6 @@ List<dynamic> getStandardTestOverrides({
       authServiceProvider.overrideWithValue(mockAuth),
     if (mockSocialService != null)
       socialServiceProvider.overrideWithValue(mockSocial),
-    if (mockUserProfileService != null)
-      userProfileServiceProvider.overrideWithValue(mockProfile),
   ];
 }
 
@@ -270,7 +247,6 @@ Widget testProviderScope({
   SharedPreferences? mockSharedPreferences,
   AuthService? mockAuthService,
   SocialService? mockSocialService,
-  UserProfileService? mockUserProfileService,
   NostrClient? mockNostrService,
   SubscriptionManager? mockSubscriptionManager,
   BlossomAuthService? mockBlossomAuthService,
@@ -282,7 +258,6 @@ Widget testProviderScope({
         mockSharedPreferences: mockSharedPreferences,
         mockAuthService: mockAuthService,
         mockSocialService: mockSocialService,
-        mockUserProfileService: mockUserProfileService,
         mockNostrService: mockNostrService,
         mockSubscriptionManager: mockSubscriptionManager,
         mockBlossomAuthService: mockBlossomAuthService,
@@ -316,7 +291,6 @@ Widget testMaterialApp({
   SharedPreferences? mockSharedPreferences,
   AuthService? mockAuthService,
   SocialService? mockSocialService,
-  UserProfileService? mockUserProfileService,
   NostrClient? mockNostrService,
   SubscriptionManager? mockSubscriptionManager,
   BlossomAuthService? mockBlossomAuthService,
@@ -328,7 +302,6 @@ Widget testMaterialApp({
     mockSharedPreferences: mockSharedPreferences,
     mockAuthService: mockAuthService,
     mockSocialService: mockSocialService,
-    mockUserProfileService: mockUserProfileService,
     mockNostrService: mockNostrService,
     mockSubscriptionManager: mockSubscriptionManager,
     mockBlossomAuthService: mockBlossomAuthService,

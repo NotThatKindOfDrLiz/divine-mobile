@@ -96,7 +96,6 @@ void main() {
       );
 
       return testProviderScope(
-        mockUserProfileService: createMockUserProfileService(),
         mockNostrService: mockNostrClient,
         additionalOverrides: [
           contentBlocklistServiceProvider.overrideWith(

@@ -274,4 +274,4 @@ final class TopClassicVinersProvider
   }
 }
 
-String _$topClassicVinersHash() => r'9db1ae4a1f431c64437d2042277d25d3086cace4';
+String _$topClassicVinersHash() => r'1bc3627a196166e35d72a46f20a13556bc1586ad';

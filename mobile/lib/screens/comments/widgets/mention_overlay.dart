@@ -57,7 +57,7 @@ class MentionOverlay extends ConsumerWidget {
                 // cached profile lookup, then npub as last resort
                 final cachedProfile = ref
                     .read(userProfileReactiveProvider(suggestion.pubkey))
-                    .valueOrNull;
+                    .value;
                 final displayName =
                     suggestion.displayName ??
                     cachedProfile?.displayName ??
@@ -83,7 +83,7 @@ class _MentionSuggestionItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref
         .watch(userProfileReactiveProvider(suggestion.pubkey))
-        .valueOrNull;
+        .value;
 
     final displayName = profile?.displayName ?? profile?.name;
     final npub = NostrKeyUtils.encodePubKey(suggestion.pubkey);

@@ -45,7 +45,6 @@ class ProfileSetupScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileRepository = ref.watch(profileRepositoryProvider);
-    final userProfileService = ref.watch(userProfileServiceProvider);
     final authService = ref.watch(authServiceProvider);
 
     final pubkey = authService.currentPublicKeyHex;
@@ -60,7 +59,6 @@ class ProfileSetupScreen extends ConsumerWidget {
         BlocProvider<ProfileEditorBloc>(
           create: (context) => ProfileEditorBloc(
             profileRepository: profileRepository,
-            userProfileService: userProfileService,
             hasExistingProfile: authService.hasExistingProfile,
           ),
         ),

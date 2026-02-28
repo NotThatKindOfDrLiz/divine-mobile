@@ -18,11 +18,9 @@ import 'package:openvine/providers/active_video_provider.dart';
 import 'package:openvine/providers/app_lifecycle_provider.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/profile_feed_providers.dart';
-import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/repositories/follow_repository.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
-import 'package:openvine/services/user_profile_service.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_publish/video_publish_service.dart';
 import 'package:openvine/state/video_feed_state.dart';
@@ -76,8 +74,6 @@ class _MockNostrClient extends Mock implements NostrClient {
 
 class _MockMyProfileBloc extends MockBloc<MyProfileEvent, MyProfileState>
     implements MyProfileBloc {}
-
-class _MockUserProfileService extends Mock implements UserProfileService {}
 
 class _MockVideoEventService extends Mock implements VideoEventService {}
 
@@ -176,41 +172,6 @@ void main() {
     // TODO(any): Fix and re-enable this test
   }, skip: true);
 
-  testWidgets('PROFILE: Prefetch ±1 profiles when URL index changes', (
-    tester,
-  ) async {
-    final prefetchedPubkeys = <String>[];
-
-    final mockNotifier = FakeUserProfileNotifier(
-      onPrefetch: prefetchedPubkeys.addAll,
-    );
-
-    final c = ProviderContainer(
-      overrides: [
-        videosForProfileRouteProvider.overrideWith((ref) {
-          return AsyncValue.data(
-            VideoFeedState(
-              videos: mockVideos,
-              hasMoreContent: false,
-            ),
-          );
-        }),
-        userProfileProvider.overrideWith(() => mockNotifier),
-      ],
-    );
-    addTearDown(c.dispose);
-
-    await tester.pumpWidget(shell(c));
-    c.read(goRouterProvider).go(ProfileScreenRouter.pathForIndex('npubXYZ', 1));
-    await tester.pumpAndSettle();
-
-    // Should prefetch profiles for videos at index 0 and 2 (±1 from current)
-    // In profile screen, all videos are from the same author, so this might
-    // prefetch the same npub multiple times - that's fine for now
-    expect(prefetchedPubkeys.length, greaterThanOrEqualTo(1));
-    // TODO(any): Fix and re-enable this test
-  }, skip: true);
-
   testWidgets('PROFILE: Lifecycle pause → activeVideoId becomes null', (
     tester,
   ) async {
@@ -247,7 +208,6 @@ void main() {
     late _MockRepostsRepository mockRepostsRepository;
     late _MockVideosRepository mockVideosRepository;
     late _MockNostrClient mockNostrClient;
-    late _MockUserProfileService mockUserProfileService;
     late _MockVideoEventService mockVideoEventService;
 
     setUp(() {
@@ -282,28 +242,7 @@ void main() {
 
       mockVideosRepository = _MockVideosRepository();
       mockNostrClient = _MockNostrClient();
-      mockUserProfileService = _MockUserProfileService();
       mockVideoEventService = _MockVideoEventService();
-
-      // Stub UserProfileService methods to prevent real network calls
-      when(
-        () => mockUserProfileService.getCachedProfile(any()),
-      ).thenReturn(null);
-      when(() => mockUserProfileService.hasProfile(any())).thenReturn(false);
-      when(
-        () => mockUserProfileService.shouldSkipProfileFetch(any()),
-      ).thenReturn(true);
-      when(
-        () => mockUserProfileService.fetchProfile(
-          any(),
-          forceRefresh: any(named: 'forceRefresh'),
-        ),
-      ).thenAnswer((_) async => null);
-      when(
-        () => mockUserProfileService.prefetchProfilesImmediately(any()),
-      ).thenAnswer((_) async {});
-      when(() => mockUserProfileService.addListener(any())).thenReturn(null);
-      when(() => mockUserProfileService.removeListener(any())).thenReturn(null);
     });
 
     tearDown(() {
@@ -321,7 +260,6 @@ void main() {
         overrides: [
           ...getStandardTestOverrides(
             mockNostrService: mockNostrClient,
-            mockUserProfileService: mockUserProfileService,
           ),
           followRepositoryProvider.overrideWithValue(mockFollowRepository),
           likesRepositoryProvider.overrideWithValue(mockLikesRepository),
@@ -467,18 +405,6 @@ void main() {
       },
     );
   });
-}
-
-/// Fake UserProfileNotifier for testing prefetch behavior
-class FakeUserProfileNotifier extends UserProfileNotifier {
-  FakeUserProfileNotifier({required this.onPrefetch});
-
-  final void Function(List<String>) onPrefetch;
-
-  @override
-  Future<void> prefetchProfilesImmediately(List<String> pubkeys) async {
-    onPrefetch(pubkeys);
-  }
 }
 
 /// Fake BackgroundPublishBloc for testing error snackbar display and retry

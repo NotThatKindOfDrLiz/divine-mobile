@@ -215,7 +215,7 @@ class _CommentHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref
         .watch(userProfileReactiveProvider(authorPubkey))
-        .valueOrNull;
+        .value;
 
     // Check if this comment is from the current user
     final nostrService = ref.watch(nostrServiceProvider);
@@ -367,7 +367,7 @@ class _MentionLink extends ConsumerWidget {
       final hexPubkey = NostrKeyUtils.decode(npub);
       final profile = ref
           .watch(userProfileReactiveProvider(hexPubkey))
-          .valueOrNull;
+          .value;
       displayText = profile?.displayName ?? profile?.name ?? npub;
     } catch (_) {
       displayText = npub;
@@ -531,7 +531,7 @@ class _ReplyIndicator extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref
         .watch(userProfileReactiveProvider(parentAuthorPubkey))
-        .valueOrNull;
+        .value;
 
     // Get display name with fallback chain
     final displayName =

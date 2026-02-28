@@ -261,7 +261,7 @@ class _SendToUserDialogState extends ConsumerState<SendToUserDialog> {
     // Get user profile to check for nip05
     final profile = ref
         .read(userProfileReactiveProvider(user.pubkey))
-        .valueOrNull;
+        .value;
 
     // Display nip05 if available, otherwise npub (never show raw hex)
     // Use normalizeToNpub to convert hex to npub format

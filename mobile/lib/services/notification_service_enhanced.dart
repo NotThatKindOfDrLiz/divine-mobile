@@ -13,7 +13,7 @@ import 'package:nostr_sdk/event_kind.dart';
 import 'package:nostr_sdk/filter.dart';
 import 'package:openvine/constants/nostr_event_kinds.dart';
 import 'package:openvine/services/notification_helpers.dart';
-import 'package:openvine/services/user_profile_service.dart';
+import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:synchronized/synchronized.dart';
@@ -50,7 +50,7 @@ class NotificationServiceEnhanced {
       _newNotificationController.stream;
 
   NostrClient? _nostrService;
-  UserProfileService? _profileService;
+  ProfileRepository? _profileRepository;
   VideoEventService? _videoService;
   Box<dynamic>? _notificationBox;
 
@@ -71,7 +71,7 @@ class NotificationServiceEnhanced {
   /// Initialize notification service
   Future<void> initialize({
     required NostrClient nostrService,
-    required UserProfileService profileService,
+    required ProfileRepository profileRepository,
     required VideoEventService videoService,
   }) async {
     Log.debug(
@@ -81,7 +81,7 @@ class NotificationServiceEnhanced {
     );
 
     _nostrService = nostrService;
-    _profileService = profileService;
+    _profileRepository = profileRepository;
     _videoService = videoService;
 
     try {
@@ -268,7 +268,9 @@ class NotificationServiceEnhanced {
     }
 
     // Get actor info using helper function
-    final actorProfile = await _profileService?.fetchProfile(event.pubkey);
+    final actorProfile = await _profileRepository?.fetchFreshProfile(
+      pubkey: event.pubkey,
+    );
     final actorName = resolveActorName(actorProfile);
 
     final notification = NotificationModel(
@@ -302,7 +304,9 @@ class NotificationServiceEnhanced {
     }
 
     // Get actor info using helper function
-    final actorProfile = await _profileService?.fetchProfile(event.pubkey);
+    final actorProfile = await _profileRepository?.fetchFreshProfile(
+      pubkey: event.pubkey,
+    );
     final actorName = resolveActorName(actorProfile);
 
     final notification = NotificationModel(
@@ -343,7 +347,9 @@ class NotificationServiceEnhanced {
     if (!isFollowingCurrentUser) return;
 
     // Get actor info using helper function
-    final actorProfile = await _profileService?.fetchProfile(event.pubkey);
+    final actorProfile = await _profileRepository?.fetchFreshProfile(
+      pubkey: event.pubkey,
+    );
     final actorName = resolveActorName(actorProfile);
 
     final notification = NotificationModel(
@@ -380,7 +386,9 @@ class NotificationServiceEnhanced {
     if (!mentionsCurrentUser) return;
 
     // Get actor info using helper function
-    final actorProfile = await _profileService?.fetchProfile(event.pubkey);
+    final actorProfile = await _profileRepository?.fetchFreshProfile(
+      pubkey: event.pubkey,
+    );
     final actorName = resolveActorName(actorProfile);
 
     final notification = NotificationModel(
@@ -412,7 +420,9 @@ class NotificationServiceEnhanced {
     }
 
     // Get actor info using helper function
-    final actorProfile = await _profileService?.fetchProfile(event.pubkey);
+    final actorProfile = await _profileRepository?.fetchFreshProfile(
+      pubkey: event.pubkey,
+    );
     final actorName = resolveActorName(actorProfile);
 
     final notification = NotificationModel(

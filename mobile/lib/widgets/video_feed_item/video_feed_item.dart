@@ -1459,7 +1459,7 @@ class VideoOverlayActions extends ConsumerWidget {
                   builder: (context, ref, _) {
                     final profile = ref
                         .watch(userProfileReactiveProvider(video.pubkey))
-                        .valueOrNull;
+                        .value;
                     // Use embedded author data from REST API as fallback
                     // This avoids WebSocket profile fetches for videos
                     // that already have author_name/author_avatar embedded
@@ -2011,7 +2011,7 @@ class VideoRepostHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final reposterProfile = ref
         .watch(userProfileReactiveProvider(reposterPubkey))
-        .valueOrNull;
+        .value;
 
     final displayName =
         reposterProfile?.bestDisplayName ??

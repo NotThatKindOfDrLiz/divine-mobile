@@ -154,7 +154,7 @@ class _AuthorInfoSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref
         .watch(userProfileReactiveProvider(video.pubkey))
-        .valueOrNull;
+        .value;
     final avatarUrl = profile?.picture ?? video.authorAvatar;
     final displayName =
         profile?.bestDisplayName ??

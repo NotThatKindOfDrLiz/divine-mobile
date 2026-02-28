@@ -6,11 +6,12 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 // Hide Drift table class to avoid collision with ProfileStats domain model.
-import 'package:db_client/db_client.dart' hide ProfileStats;
+import 'package:db_client/db_client.dart' hide Filter, ProfileStats;
 import 'package:funnelcake_api_client/funnelcake_api_client.dart';
 import 'package:http/http.dart';
 import 'package:models/models.dart';
 import 'package:nostr_client/nostr_client.dart';
+import 'package:nostr_sdk/nostr_sdk.dart' show Event, Filter;
 import 'package:profile_repository/profile_repository.dart';
 
 /// API endpoint for claiming usernames via NIP-98 auth.
@@ -33,6 +34,14 @@ typedef ProfileSearchFilter =
       String query,
       List<UserProfile> profiles,
     );
+
+/// Well-known indexer relays that maintain broad coverage of kind 0 events.
+/// Used as a last-resort fallback when main relays and REST API don't have
+/// a profile.
+const _profileIndexerRelays = [
+  'wss://purplepag.es',
+  'wss://user.kindpag.es',
+];
 
 /// Repository for fetching and publishing user profiles (Kind 0 metadata).
 class ProfileRepository {
@@ -596,7 +605,44 @@ class ProfileRepository {
       }
     }
 
-    // Step 4: Batch-write all freshly fetched to Drift
+    // Step 4: Indexer relay fallback (Purple Pages, Kind Pages)
+    if (remaining.isNotEmpty) {
+      try {
+        final indexerEvents = await _nostrClient
+            .queryEvents(
+              [
+                Filter(
+                  kinds: [0],
+                  authors: remaining.toList(),
+                  limit: remaining.length,
+                ),
+              ],
+              tempRelays: _profileIndexerRelays,
+              useCache: false,
+            )
+            .timeout(const Duration(seconds: 5), onTimeout: () => <Event>[]);
+        for (final event in indexerEvents) {
+          if (event.kind != 0) continue;
+          final profile = UserProfile.fromNostrEvent(event);
+          results[profile.pubkey] = profile;
+          toCache.add(profile);
+          remaining.remove(profile.pubkey);
+        }
+        if (indexerEvents.isNotEmpty) {
+          developer.log(
+            'Indexer fallback: found ${indexerEvents.length} profiles',
+            name: 'ProfileRepository.fetchBatchProfiles',
+          );
+        }
+      } on Exception catch (e) {
+        developer.log(
+          'Indexer fallback failed: $e',
+          name: 'ProfileRepository.fetchBatchProfiles',
+        );
+      }
+    }
+
+    // Step 5: Batch-write all freshly fetched to Drift
     if (toCache.isNotEmpty) {
       await _userProfilesDao.upsertProfiles(toCache);
     }

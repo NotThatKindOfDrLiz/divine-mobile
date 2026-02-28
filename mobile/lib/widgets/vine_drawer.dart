@@ -148,7 +148,7 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                                       .read(
                                         userProfileReactiveProvider(userPubkey),
                                       )
-                                      .valueOrNull
+                                      .value
                                 : null;
 
                             final navigatorContext = Navigator.of(

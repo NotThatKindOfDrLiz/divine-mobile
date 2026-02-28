@@ -159,7 +159,7 @@ class ClickableHashtagText extends ConsumerWidget {
     // Try to get cached profile (reactive provider handles background fetch)
     final profile = ref
         .read(userProfileReactiveProvider(hexPubkey))
-        .valueOrNull;
+        .value;
 
     // Display name: @username if available, otherwise @truncated_npub
     final displayName = profile?.bestDisplayName;

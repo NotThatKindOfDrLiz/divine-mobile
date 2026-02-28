@@ -12,15 +12,12 @@ import 'package:openvine/providers/relay_notifications_provider.dart';
 import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/services/nip98_auth_service.dart';
 import 'package:openvine/services/relay_notification_api_service.dart';
-import 'package:openvine/services/user_profile_service.dart';
 import 'package:openvine/services/video_event_service.dart';
 
 class MockRelayNotificationApiService extends Mock
     implements RelayNotificationApiService {}
 
 class MockAuthService extends Mock implements AuthService {}
-
-class MockUserProfileService extends Mock implements UserProfileService {}
 
 class MockVideoEventService extends Mock implements VideoEventService {}
 
@@ -30,7 +27,6 @@ void main() {
   group('RelayNotifications Provider', () {
     late MockRelayNotificationApiService mockApiService;
     late MockAuthService mockAuthService;
-    late MockUserProfileService mockUserProfileService;
     late MockVideoEventService mockVideoEventService;
     late MockNip98AuthService mockNip98AuthService;
 
@@ -40,7 +36,6 @@ void main() {
     setUp(() {
       mockApiService = MockRelayNotificationApiService();
       mockAuthService = MockAuthService();
-      mockUserProfileService = MockUserProfileService();
       mockVideoEventService = MockVideoEventService();
       mockNip98AuthService = MockNip98AuthService();
 
@@ -50,14 +45,6 @@ void main() {
 
       // Default API service behavior - available
       when(() => mockApiService.isAvailable).thenReturn(true);
-
-      // Default profile service behavior
-      when(
-        () => mockUserProfileService.getCachedProfile(any()),
-      ).thenReturn(null);
-      when(
-        () => mockUserProfileService.fetchProfile(any()),
-      ).thenAnswer((_) async => null);
 
       // Default video service behavior
       when(
@@ -89,7 +76,6 @@ void main() {
         overrides: [
           relayNotificationApiServiceProvider.overrideWithValue(mockApiService),
           authServiceProvider.overrideWithValue(mockAuthService),
-          userProfileServiceProvider.overrideWithValue(mockUserProfileService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
           nip98AuthServiceProvider.overrideWithValue(mockNip98AuthService),
         ],

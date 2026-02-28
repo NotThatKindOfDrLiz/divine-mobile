@@ -417,7 +417,7 @@ class _PeopleAvatarItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(userProfileReactiveProvider(pubkey)).valueOrNull;
+    final profile = ref.watch(userProfileReactiveProvider(pubkey)).value;
     final displayName =
         profile?.bestDisplayName ?? UserProfile.defaultDisplayNameFor(pubkey);
 

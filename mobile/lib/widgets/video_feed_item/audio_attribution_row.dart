@@ -77,7 +77,7 @@ class _AudioAttributionContent extends ConsumerWidget {
     // Watch the creator's profile reactively via Drift stream
     final creatorProfile = ref
         .watch(userProfileReactiveProvider(audio.pubkey))
-        .valueOrNull;
+        .value;
 
     final creatorName =
         creatorProfile?.bestDisplayName ??

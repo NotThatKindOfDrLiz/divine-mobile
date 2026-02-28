@@ -89,7 +89,7 @@ class _InspiredByContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final creatorProfile = ref
         .watch(userProfileReactiveProvider(creatorPubkey))
-        .valueOrNull;
+        .value;
 
     final creatorName =
         creatorProfile?.bestDisplayName ??

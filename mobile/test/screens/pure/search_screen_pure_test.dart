@@ -89,15 +89,10 @@ void main() {
           ? _FakeVideoEventService(videos: videos)
           : fakeVideoEventService;
 
-      // Create mock with getDisplayName stubbed
-      final mockUserProfileService = createMockUserProfileService();
-      when(() => mockUserProfileService.getDisplayName(any())).thenReturn('');
-
       return ProviderScope(
         overrides: [
           ...getStandardTestOverrides(
             mockAuthService: createMockAuthService(),
-            mockUserProfileService: mockUserProfileService,
           ),
           profileRepositoryProvider.overrideWithValue(mockProfileRepository),
           videoEventServiceProvider.overrideWithValue(videoService),
@@ -121,14 +116,10 @@ void main() {
         required int videoIndex,
         List<VideoEvent>? searchVideos,
       }) {
-        final mockUserProfileService = createMockUserProfileService();
-        when(() => mockUserProfileService.getDisplayName(any())).thenReturn('');
-
         return ProviderScope(
           overrides: [
             ...getStandardTestOverrides(
               mockAuthService: createMockAuthService(),
-              mockUserProfileService: mockUserProfileService,
             ),
             profileRepositoryProvider.overrideWithValue(mockProfileRepository),
             videoEventServiceProvider.overrideWithValue(fakeVideoEventService),

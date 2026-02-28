@@ -22,3 +22,4 @@ dependencies:
   http: ^1.2.2
   models:
   nostr_client:
+  nostr_sdk:

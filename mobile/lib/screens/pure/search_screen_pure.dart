@@ -196,7 +196,7 @@ class _SearchScreenPureState extends ConsumerState<SearchScreenPure>
 
         final creatorProfile = ref
             .read(userProfileReactiveProvider(video.pubkey))
-            .valueOrNull;
+            .value;
         final creatorName = creatorProfile?.bestDisplayName;
         final score = SearchUtils.matchVideo(
           query: query,
