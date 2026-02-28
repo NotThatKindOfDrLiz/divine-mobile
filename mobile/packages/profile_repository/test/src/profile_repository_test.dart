@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 // Hide Drift table class to avoid collision with ProfileStats domain model.
-import 'package:db_client/db_client.dart' hide ProfileStats;
+import 'package:db_client/db_client.dart' hide Filter, ProfileStats;
 import 'package:funnelcake_api_client/funnelcake_api_client.dart';
 import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart';
@@ -2159,6 +2159,249 @@ void main() {
           () => repoWithFunnelcake.getBulkProfilesFromApi([testPubkey]),
           throwsA(isA<FunnelcakeTimeoutException>()),
         );
+      });
+    });
+
+    group('fetchBatchProfiles', () {
+      const testPubkey2 =
+          'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3';
+      const testPubkey3 =
+          'c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4';
+
+      late MockFunnelcakeApiClient mockFunnelcakeClient;
+
+      setUp(() {
+        mockFunnelcakeClient = MockFunnelcakeApiClient();
+
+        registerFallbackValue(<UserProfile>[]);
+      });
+
+      test('returns empty map for empty pubkeys', () async {
+        final result = await profileRepository.fetchBatchProfiles(
+          pubkeys: [],
+        );
+        expect(result, isEmpty);
+      });
+
+      test('returns all from cache when all are cached', () async {
+        final cached = UserProfile(
+          pubkey: testPubkey,
+          displayName: 'Cached',
+          rawData: const {},
+          createdAt: DateTime(2026),
+          eventId: 'cached-event',
+        );
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys([testPubkey]),
+        ).thenAnswer((_) async => [cached]);
+
+        final result = await profileRepository.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, hasLength(1));
+        expect(result[testPubkey]?.displayName, equals('Cached'));
+        verifyNever(() => mockNostrClient.fetchProfile(any()));
+      });
+
+      test('fetches uncached from Funnelcake API', () async {
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => []);
+        when(() => mockFunnelcakeClient.isAvailable).thenReturn(true);
+        when(
+          () => mockFunnelcakeClient.getBulkProfiles(any()),
+        ).thenAnswer(
+          (_) async => BulkProfilesResponse(
+            profiles: {
+              testPubkey: {
+                'display_name': 'API User',
+                'picture': 'https://example.com/pic.jpg',
+              },
+            },
+          ),
+        );
+        when(
+          () => mockUserProfilesDao.upsertProfiles(any()),
+        ).thenAnswer((_) async {});
+
+        final repoWithFunnelcake = ProfileRepository(
+          nostrClient: mockNostrClient,
+          userProfilesDao: mockUserProfilesDao,
+          httpClient: mockHttpClient,
+          funnelcakeApiClient: mockFunnelcakeClient,
+        );
+
+        final result = await repoWithFunnelcake.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, hasLength(1));
+        expect(result[testPubkey]?.displayName, equals('API User'));
+        verify(() => mockUserProfilesDao.upsertProfiles(any())).called(1);
+      });
+
+      test('falls back to relay for pubkeys not in cache or API', () async {
+        final relayEvent = MockEvent();
+        when(() => relayEvent.kind).thenReturn(0);
+        when(() => relayEvent.pubkey).thenReturn(testPubkey);
+        when(() => relayEvent.createdAt).thenReturn(1704067200);
+        when(() => relayEvent.id).thenReturn(testEventId);
+        when(() => relayEvent.content).thenReturn(
+          jsonEncode({'display_name': 'Relay User'}),
+        );
+
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => []);
+        when(
+          () => mockNostrClient.fetchProfile(testPubkey),
+        ).thenAnswer((_) async => relayEvent);
+        when(
+          () => mockUserProfilesDao.upsertProfiles(any()),
+        ).thenAnswer((_) async {});
+
+        final result = await profileRepository.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, hasLength(1));
+        expect(result[testPubkey]?.displayName, equals('Relay User'));
+      });
+
+      test('combines cache, API, and relay results', () async {
+        final cachedProfile = UserProfile(
+          pubkey: testPubkey,
+          displayName: 'Cached',
+          rawData: const {},
+          createdAt: DateTime(2026),
+          eventId: 'cached-event',
+        );
+
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => [cachedProfile]);
+        when(() => mockFunnelcakeClient.isAvailable).thenReturn(true);
+        when(
+          () => mockFunnelcakeClient.getBulkProfiles(any()),
+        ).thenAnswer(
+          (_) async => BulkProfilesResponse(
+            profiles: {
+              testPubkey2: {'display_name': 'API User'},
+            },
+          ),
+        );
+
+        final relayEvent = MockEvent();
+        when(() => relayEvent.kind).thenReturn(0);
+        when(() => relayEvent.pubkey).thenReturn(testPubkey3);
+        when(() => relayEvent.createdAt).thenReturn(1704067200);
+        when(() => relayEvent.id).thenReturn(
+          'd4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5',
+        );
+        when(() => relayEvent.content).thenReturn(
+          jsonEncode({'display_name': 'Relay User'}),
+        );
+
+        when(
+          () => mockNostrClient.fetchProfile(testPubkey3),
+        ).thenAnswer((_) async => relayEvent);
+        when(
+          () => mockUserProfilesDao.upsertProfiles(any()),
+        ).thenAnswer((_) async {});
+
+        final repoWithFunnelcake = ProfileRepository(
+          nostrClient: mockNostrClient,
+          userProfilesDao: mockUserProfilesDao,
+          httpClient: mockHttpClient,
+          funnelcakeApiClient: mockFunnelcakeClient,
+        );
+
+        final result = await repoWithFunnelcake.fetchBatchProfiles(
+          pubkeys: [testPubkey, testPubkey2, testPubkey3],
+        );
+
+        expect(result, hasLength(3));
+        expect(result[testPubkey]?.displayName, equals('Cached'));
+        expect(result[testPubkey2]?.displayName, equals('API User'));
+        expect(result[testPubkey3]?.displayName, equals('Relay User'));
+      });
+
+      test('handles API failure gracefully and falls back to relay', () async {
+        final relayEvent = MockEvent();
+        when(() => relayEvent.kind).thenReturn(0);
+        when(() => relayEvent.pubkey).thenReturn(testPubkey);
+        when(() => relayEvent.createdAt).thenReturn(1704067200);
+        when(() => relayEvent.id).thenReturn(testEventId);
+        when(() => relayEvent.content).thenReturn(
+          jsonEncode({'display_name': 'Relay Fallback'}),
+        );
+
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => []);
+        when(() => mockFunnelcakeClient.isAvailable).thenReturn(true);
+        when(
+          () => mockFunnelcakeClient.getBulkProfiles(any()),
+        ).thenThrow(
+          const FunnelcakeApiException(
+            message: 'Server error',
+            statusCode: 500,
+            url: 'https://example.com',
+          ),
+        );
+        when(
+          () => mockNostrClient.fetchProfile(testPubkey),
+        ).thenAnswer((_) async => relayEvent);
+        when(
+          () => mockUserProfilesDao.upsertProfiles(any()),
+        ).thenAnswer((_) async {});
+
+        final repoWithFunnelcake = ProfileRepository(
+          nostrClient: mockNostrClient,
+          userProfilesDao: mockUserProfilesDao,
+          httpClient: mockHttpClient,
+          funnelcakeApiClient: mockFunnelcakeClient,
+        );
+
+        final result = await repoWithFunnelcake.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, hasLength(1));
+        expect(result[testPubkey]?.displayName, equals('Relay Fallback'));
+      });
+
+      test('handles relay failure gracefully with partial results', () async {
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys(any()),
+        ).thenAnswer((_) async => []);
+        when(
+          () => mockNostrClient.fetchProfile(testPubkey),
+        ).thenThrow(Exception('Relay error'));
+
+        final result = await profileRepository.fetchBatchProfiles(
+          pubkeys: [testPubkey],
+        );
+
+        expect(result, isEmpty);
+      });
+
+      test('does not batch-write when nothing was fetched', () async {
+        final cached = UserProfile(
+          pubkey: testPubkey,
+          displayName: 'Cached',
+          rawData: const {},
+          createdAt: DateTime(2026),
+          eventId: 'cached-event',
+        );
+        when(
+          () => mockUserProfilesDao.getProfilesByPubkeys([testPubkey]),
+        ).thenAnswer((_) async => [cached]);
+
+        await profileRepository.fetchBatchProfiles(pubkeys: [testPubkey]);
+
+        verifyNever(() => mockUserProfilesDao.upsertProfiles(any()));
       });
     });
   });

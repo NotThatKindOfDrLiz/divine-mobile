@@ -508,6 +508,108 @@ class ProfileRepository {
     return _funnelcakeApiClient.getBulkProfiles(pubkeys);
   }
 
+  /// Fetches profiles for multiple pubkeys using a layered strategy.
+  ///
+  /// Pipeline:
+  /// 1. Batch-read Drift for cached profiles
+  /// 2. [FunnelcakeApiClient.getBulkProfiles] for uncached pubkeys
+  /// 3. [NostrClient.queryEvents] with multi-author kind 0 filter for
+  ///    any remaining
+  /// 4. Batch-write all freshly fetched profiles to Drift
+  /// 5. Return combined results as `Map<String, UserProfile>`
+  ///
+  /// Errors from the API or relay layers are caught and logged — partial
+  /// results are returned rather than throwing.
+  Future<Map<String, UserProfile>> fetchBatchProfiles({
+    required List<String> pubkeys,
+  }) async {
+    if (pubkeys.isEmpty) return {};
+
+    final results = <String, UserProfile>{};
+    final remaining = Set<String>.of(pubkeys);
+
+    // Step 1: Batch-read Drift cache
+    final cached = await _userProfilesDao.getProfilesByPubkeys(pubkeys);
+    for (final profile in cached) {
+      results[profile.pubkey] = profile;
+      remaining.remove(profile.pubkey);
+    }
+    if (remaining.isEmpty) return results;
+
+    developer.log(
+      'Batch fetch: ${cached.length} cached, ${remaining.length} uncached',
+      name: 'ProfileRepository.fetchBatchProfiles',
+    );
+
+    final toCache = <UserProfile>[];
+
+    // Step 2: Funnelcake REST API for uncached
+    if (_funnelcakeApiClient?.isAvailable ?? false) {
+      try {
+        final bulkResponse = await _funnelcakeApiClient!.getBulkProfiles(
+          remaining.toList(),
+        );
+        for (final entry in bulkResponse.profiles.entries) {
+          final pubkey = entry.key;
+          final data = entry.value;
+          final profile = UserProfile(
+            pubkey: pubkey,
+            name: data['name'] as String?,
+            displayName: data['display_name'] as String?,
+            about: data['about'] as String?,
+            picture: data['picture'] as String?,
+            banner: data['banner'] as String?,
+            nip05: data['nip05'] as String?,
+            lud16: data['lud16'] as String?,
+            rawData: data,
+            createdAt: DateTime.now(),
+            eventId: 'rest-bulk-$pubkey',
+          );
+          results[pubkey] = profile;
+          toCache.add(profile);
+          remaining.remove(pubkey);
+        }
+      } on Exception catch (e) {
+        developer.log(
+          'Batch REST fetch failed: $e',
+          name: 'ProfileRepository.fetchBatchProfiles',
+        );
+      }
+    }
+
+    // Step 3: Individual relay fetches for anything still missing
+    if (remaining.isNotEmpty) {
+      final futures = remaining.toList().map((pubkey) async {
+        try {
+          return await _nostrClient.fetchProfile(pubkey);
+        } on Exception {
+          return null;
+        }
+      });
+      final events = await Future.wait(futures);
+      for (final event in events) {
+        if (event == null || event.kind != 0) continue;
+        final profile = UserProfile.fromNostrEvent(event);
+        results[profile.pubkey] = profile;
+        toCache.add(profile);
+        remaining.remove(profile.pubkey);
+      }
+    }
+
+    // Step 4: Batch-write all freshly fetched to Drift
+    if (toCache.isNotEmpty) {
+      await _userProfilesDao.upsertProfiles(toCache);
+    }
+
+    developer.log(
+      'Batch complete: ${results.length}/${pubkeys.length} resolved, '
+      '${remaining.length} still missing',
+      name: 'ProfileRepository.fetchBatchProfiles',
+    );
+
+    return results;
+  }
+
   /// Enriches search results from the local SQLite cache.
   ///
   /// For each profile, fills in null fields (picture, about, etc.) from
