@@ -99,7 +99,6 @@ class _StickerContent extends StatelessWidget {
           snap: true,
           automaticallyImplyLeading: false,
           backgroundColor: VineTheme.surfaceBackground,
-          toolbarHeight: 56,
           title: _SearchBar(
             onChanged: (query) {
               context.read<StickerPickerBloc>().add(

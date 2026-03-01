@@ -17,7 +17,6 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:nostr_client/nostr_client.dart'
     show RelayConnectionStatus, RelayState;
 import 'package:nostr_key_manager/nostr_key_manager.dart';
-import 'package:sticker_pack_repository/sticker_pack_repository.dart';
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
@@ -95,6 +94,7 @@ import 'package:permissions_service/permissions_service.dart';
 import 'package:profile_repository/profile_repository.dart';
 import 'package:reposts_repository/reposts_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sticker_pack_repository/sticker_pack_repository.dart';
 import 'package:videos_repository/videos_repository.dart';
 
 part 'app_providers.g.dart';
