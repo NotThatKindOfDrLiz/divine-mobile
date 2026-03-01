@@ -39,10 +39,10 @@ import 'package:openvine/services/event_router.dart';
 import 'package:openvine/services/performance_monitoring_service.dart';
 import 'package:openvine/services/repost_resolver.dart';
 import 'package:openvine/services/subscription_manager.dart';
-import 'package:profile_repository/profile_repository.dart';
 import 'package:openvine/services/video_filter_builder.dart';
 import 'package:openvine/utils/log_batcher.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:profile_repository/profile_repository.dart';
 
 /// Pagination state for tracking cursor position and loading status per subscription
 class PaginationState {
@@ -4203,7 +4203,7 @@ class VideoEventService extends ChangeNotifier {
     try {
       final cached = await _profileRepository!.getCachedProfile(pubkey: pubkey);
       if (cached != null) return;
-      await _profileRepository!.fetchFreshProfile(pubkey: pubkey);
+      await _profileRepository.fetchFreshProfile(pubkey: pubkey);
     } catch (e) {
       Log.warning(
         'Failed to fetch profile for $pubkey: $e',

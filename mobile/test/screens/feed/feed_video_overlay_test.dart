@@ -82,9 +82,6 @@ void main() {
           curatedListRepositoryProvider.overrideWithValue(
             mockCuratedListRepository,
           ),
-          userProfileServiceProvider.overrideWithValue(
-            createMockUserProfileService(),
-          ),
         ],
         home: Scaffold(
           body: BlocProvider<VideoInteractionsBloc>.value(
