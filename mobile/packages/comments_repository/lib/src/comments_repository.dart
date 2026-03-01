@@ -41,7 +41,13 @@ class CommentsRepository {
 
   final NostrClient _nostrClient;
 
-  /// Subscription ID for the active comment watch, if any.
+  /// Active comment-watch subscription ID, if any.
+  ///
+  /// Limitation: only one watch can be active at a time. If two comment
+  /// screens run simultaneously, the second [watchComments] call overwrites
+  /// this field, causing [stopWatchingComments] to cancel only the second
+  /// subscription while the first leaks. Fixing requires a map keyed by
+  /// rootEventId.
   String? _watchSubscriptionId;
 
   /// Loads comments for a root event and returns them in a flat list.
@@ -240,6 +246,21 @@ class CommentsRepository {
     String? replyToEventId,
     String? replyToAuthorPubkey,
   }) async {
+    if (stickerShortcode.isEmpty ||
+        !RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(stickerShortcode)) {
+      throw const PostCommentFailedException(
+        'Sticker shortcode must be non-empty and contain only '
+        'alphanumeric characters and underscores',
+      );
+    }
+
+    final uri = Uri.tryParse(stickerImageUrl);
+    if (uri == null || uri.scheme != 'https') {
+      throw const PostCommentFailedException(
+        'Sticker image URL must be a valid https URL',
+      );
+    }
+
     final content = ':$stickerShortcode:';
 
     // Build NIP-22 threading tags via shared helper, then append NIP-30 emoji
