@@ -239,6 +239,7 @@ void main() {
             'rootAuthor',
             'replyTo',
             'replyAuthor',
+            <String, String>{},
           ]),
         );
       });

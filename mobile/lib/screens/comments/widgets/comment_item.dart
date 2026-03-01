@@ -367,7 +367,7 @@ class _CommentContent extends StatelessWidget {
   final Map<String, String> emojiTags;
 
   /// Pattern matching a single `:shortcode:` with nothing else.
-  static final _stickerOnlyPattern = RegExp(r'^:(\w+):$');
+  static final _stickerOnlyPattern = RegExp(r'^:([\w-]+):$');
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +416,7 @@ class _CommentContent extends StatelessWidget {
   TextSpan _buildContentSpans(BuildContext context) {
     // Match nostr:npub1... mentions and :shortcode: emoji patterns.
     final combinedPattern = RegExp(
-      r'nostr:(npub1[a-zA-Z0-9]{58,})|:(\w+):',
+      r'nostr:(npub1[a-zA-Z0-9]{58,})|:([\w-]+):',
     );
     final spans = <InlineSpan>[];
     var lastEnd = 0;
