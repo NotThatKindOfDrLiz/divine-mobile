@@ -3,7 +3,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:models/models.dart' show InspiredByInfo;
-import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
@@ -42,7 +42,9 @@ class VideoEditorProviderState {
     this.collaboratorPubkeys = const [],
     this.inspiredByVideo,
     this.inspiredByNpub,
-    this.selectedSound,
+    this.contentWarnings = const {},
+    this.selectedAudioEventId,
+    this.selectedAudioRelay,
     this.proofManifestJson,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
@@ -126,10 +128,14 @@ class VideoEditorProviderState {
   /// NIP-27 npub reference for general "Inspired By" a creator.
   final String? inspiredByNpub;
 
-  /// Currently selected sound for the video.
-  /// Contains the full AudioEvent data including URL, title, and start offset.
-  /// This is persisted in drafts and used for audio playback during editing.
-  final AudioEvent? selectedSound;
+  /// Event ID of a selected existing audio event (Kind 1063) to reference.
+  final String? selectedAudioEventId;
+
+  /// NIP-32 content warning labels selected by the creator.
+  final Set<ContentLabel> contentWarnings;
+
+  /// Relay hint for the selected audio event.
+  final String? selectedAudioRelay;
 
   /// ProofMode attestation manifest JSON for the final rendered clip.
   final String? proofManifestJson;
@@ -153,8 +159,8 @@ class VideoEditorProviderState {
   /// [inspiredByVideo] to null.
   /// Use [clearInspiredByNpub] = true to explicitly set
   /// [inspiredByNpub] to null.
-  /// Use [clearSelectedSound] = true to explicitly set
-  /// [selectedSound] to null.
+  /// Use [clearProofManifestJson] = true to explicitly set
+  /// [proofManifestJson] to null independently of [clearFinalRenderedClip].
   VideoEditorProviderState copyWith({
     int? currentClipIndex,
     Duration? currentPosition,
@@ -182,12 +188,13 @@ class VideoEditorProviderState {
     Map<String, dynamic>? editorStateHistory,
     CompleteParameters? editorEditingParameters,
     List<String>? collaboratorPubkeys,
+    Set<ContentLabel>? contentWarnings,
     InspiredByInfo? inspiredByVideo,
     bool clearInspiredByVideo = false,
     String? inspiredByNpub,
     bool clearInspiredByNpub = false,
-    AudioEvent? selectedSound,
-    bool clearSelectedSound = false,
+    Object? selectedAudioEventId = _sentinel,
+    Object? selectedAudioRelay = _sentinel,
   }) {
     return VideoEditorProviderState(
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
@@ -216,18 +223,24 @@ class VideoEditorProviderState {
       editorEditingParameters:
           editorEditingParameters ?? this.editorEditingParameters,
       collaboratorPubkeys: collaboratorPubkeys ?? this.collaboratorPubkeys,
+      contentWarnings: contentWarnings ?? this.contentWarnings,
       inspiredByVideo: clearInspiredByVideo
           ? null
           : (inspiredByVideo ?? this.inspiredByVideo),
       inspiredByNpub: clearInspiredByNpub
           ? null
           : (inspiredByNpub ?? this.inspiredByNpub),
-      selectedSound: clearSelectedSound
-          ? null
-          : (selectedSound ?? this.selectedSound),
+      selectedAudioEventId: selectedAudioEventId == _sentinel
+          ? this.selectedAudioEventId
+          : selectedAudioEventId as String?,
+      selectedAudioRelay: selectedAudioRelay == _sentinel
+          ? this.selectedAudioRelay
+          : selectedAudioRelay as String?,
       proofManifestJson: clearProofManifestJson || clearFinalRenderedClip
           ? null
           : proofManifestJson ?? this.proofManifestJson,
     );
   }
+
+  static const _sentinel = Object();
 }

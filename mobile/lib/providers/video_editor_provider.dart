@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' show InspiredByInfo;
 import 'package:openvine/constants/video_editor_constants.dart';
-import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/divine_video_draft.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
@@ -16,9 +16,11 @@ import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/database_provider.dart';
+import 'package:openvine/providers/sounds_providers.dart';
+import 'package:openvine/providers/video_comment_publish_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
+import 'package:openvine/providers/video_reply_context_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/file_cleanup_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
@@ -59,9 +61,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Get clips from clip manager.
   List<DivineVideoClip> get _clips => ref.read(clipManagerProvider).clips;
 
-  late final DraftStorageService _draftService = ref.read(
-    draftStorageServiceProvider,
-  );
+  final _draftService = DraftStorageService();
 
   bool get isAutosavedDraft => draftId == VideoEditorConstants.autoSaveId;
 
@@ -103,14 +103,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
 
     // Delete the old rendered file from disk to free up space
-    final db = ref.read(databaseProvider);
-    unawaited(
-      FileCleanupService.deleteRecordingClipFiles(
-        clip,
-        draftsDao: db.draftsDao,
-        clipsDao: db.clipsDao,
-      ),
-    );
+    unawaited(FileCleanupService.deleteRecordingClipFiles(clip));
   }
 
   /// Initialize the video editor with an optional draft.
@@ -552,6 +545,12 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     triggerAutosave();
   }
 
+  /// Set NIP-32 content warning labels for the video.
+  void setContentWarnings(Set<ContentLabel> warnings) {
+    state = state.copyWith(contentWarnings: warnings);
+    triggerAutosave();
+  }
+
   // === COLLABORATORS & INSPIRED BY ===
 
   /// Maximum number of collaborators allowed per video.
@@ -601,39 +600,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     triggerAutosave();
   }
 
-  // === SOUND MANAGEMENT ===
-
-  /// Select a sound for the video.
-  ///
-  /// This updates the editor's local state. The sound is persisted
-  /// in drafts and used for audio playback during editing.
-  void selectSound(AudioEvent? sound) {
-    state = state.copyWith(
-      selectedSound: sound,
-      clearSelectedSound: sound == null,
-    );
-    invalidateFinalRenderedClip();
-    triggerAutosave();
-  }
-
-  /// Clear the currently selected sound.
-  void clearSound() {
-    state = state.copyWith(clearSelectedSound: true);
-    invalidateFinalRenderedClip();
-    triggerAutosave();
-  }
-
-  /// Update the start offset of the currently selected sound.
-  void updateSoundStartOffset(Duration offset) {
-    if (state.selectedSound != null) {
-      state = state.copyWith(
-        selectedSound: state.selectedSound!.copyWith(startOffset: offset),
-      );
-      invalidateFinalRenderedClip();
-      triggerAutosave();
-    }
-  }
-
   /// Create a VineDraft from the rendered clip with metadata.
   ///
   /// When a sound is selected via [selectedSoundProvider], automatically
@@ -645,8 +611,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     bool isAutosave = false,
     bool enforceSeparatedClips = false,
   }) {
-    // Read selected sound from local state
-    final selectedSound = state.selectedSound;
+    // Read selected sound for audio reference and auto-attribution
+    final selectedSound = ref.read(selectedSoundProvider);
 
     // Auto-populate inspired-by from selected sound's source video
     var inspiredByVideo = state.inspiredByVideo;
@@ -673,9 +639,11 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       editorStateHistory: state.editorStateHistory,
       editorEditingParameters: state.editorEditingParameters?.toMap(),
       collaboratorPubkeys: state.collaboratorPubkeys,
+      contentWarningLabels: state.contentWarnings.map((l) => l.value).toList(),
       inspiredByVideo: inspiredByVideo,
       inspiredByNpub: state.inspiredByNpub,
-      selectedSound: selectedSound,
+      selectedAudioEventId: selectedSound?.id,
+      selectedAudioRelay: selectedSound?.sourceVideoRelay,
       finalRenderedClip: isAutosave ? state.finalRenderedClip : null,
       proofManifestJson: state.proofManifestJson,
     );
@@ -924,7 +892,8 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       collaboratorPubkeys: draft.collaboratorPubkeys,
       inspiredByVideo: draft.inspiredByVideo,
       inspiredByNpub: draft.inspiredByNpub,
-      selectedSound: draft.selectedSound,
+      selectedAudioEventId: draft.selectedAudioEventId,
+      selectedAudioRelay: draft.selectedAudioRelay,
       finalRenderedClip: validFinalRenderedClip,
       clearFinalRenderedClip: validFinalRenderedClip == null,
     );
@@ -1078,5 +1047,89 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     await ref
         .read(videoPublishProvider.notifier)
         .publishVideo(context, getActiveDraft());
+  }
+
+  /// Renders the video and publishes it as a video reply comment.
+  ///
+  /// Returns `true` if the video was handled as a reply (reply context
+  /// was active), `false` if no reply context was set.
+  ///
+  /// When returning `true`, the caller should navigate to the feed
+  /// instead of pushing the metadata screen.
+  Future<bool> publishAsVideoReply() async {
+    final replyContext = ref.read(videoReplyContextProvider);
+    if (replyContext == null) return false;
+
+    Log.info(
+      '🎬 Video reply mode detected, rendering and publishing',
+      name: 'VideoEditorNotifier',
+      category: LogCategory.video,
+    );
+
+    await startRenderVideo();
+
+    final renderedClip = state.finalRenderedClip;
+    if (renderedClip == null) {
+      Log.error(
+        '❌ Video reply render failed',
+        name: 'VideoEditorNotifier',
+        category: LogCategory.video,
+      );
+      ref.read(videoReplyContextProvider.notifier).clear();
+      return true;
+    }
+
+    final authService = ref.read(authServiceProvider);
+    final nostrPubkey = authService.currentPublicKeyHex;
+
+    if (nostrPubkey == null) {
+      Log.error(
+        '❌ Cannot post video reply: not authenticated',
+        name: 'VideoEditorNotifier',
+        category: LogCategory.video,
+      );
+      ref.read(videoReplyContextProvider.notifier).clear();
+      return true;
+    }
+
+    final publishService = ref.read(videoCommentPublishServiceProvider);
+    try {
+      final result = await publishService.publishVideoComment(
+        videoFilePath: renderedClip.video.file!.path,
+        rootEventId: replyContext.rootEventId,
+        rootEventKind: replyContext.rootEventKind,
+        rootEventAuthorPubkey: replyContext.rootAuthorPubkey,
+        nostrPubkey: nostrPubkey,
+        rootAddressableId: replyContext.rootAddressableId,
+        parentCommentId: replyContext.parentCommentId,
+        parentAuthorPubkey: replyContext.parentAuthorPubkey,
+      );
+
+      if (result.isSuccess) {
+        Log.info(
+          '✅ Video reply published successfully',
+          name: 'VideoEditorNotifier',
+          category: LogCategory.video,
+        );
+      } else {
+        Log.error(
+          '❌ Video reply publish failed: ${result.error}',
+          name: 'VideoEditorNotifier',
+          category: LogCategory.video,
+        );
+      }
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Video reply publish error: $e',
+        name: 'VideoEditorNotifier',
+        category: LogCategory.video,
+        error: e,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      ref.read(videoReplyContextProvider.notifier).clear();
+    }
+
+    return true;
   }
 }

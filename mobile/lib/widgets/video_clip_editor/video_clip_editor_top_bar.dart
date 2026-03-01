@@ -87,21 +87,50 @@ class VideoClipEditorTopBar extends ConsumerWidget {
                   : Align(
                       alignment: .centerRight,
                       child: _NextButton(
-                        onTap: () {
+                        onTap: () async {
                           final notifier = ref.read(
                             videoEditorProvider.notifier,
                           );
 
                           notifier.pauseVideo();
+
+                          // Normal flow: start render and go to
+                          // metadata screen.
                           unawaited(notifier.startRenderVideo());
-                          // TODO(@hm21): Replace with VideoEditorScreen.path
                           Log.info(
                             '📤 Navigating to metadata screen',
                             name: 'VideoClipEditorTopBar',
-                            category: .video,
+                            category: LogCategory.video,
                           );
-
                           context.push(VideoMetadataScreen.path);
+                          /* TODO(hm21): The video editor is NOT ready, so we will skip the part below for now.
+
+                          final isReply =
+                              ref.read(videoReplyContextProvider) != null;
+
+                          if (isReply) {
+                            // Video reply: skip metadata, go to
+                            // main editor which handles render +
+                            // publish via "Post Reply" button.
+                            Log.info(
+                              '📤 Navigating to main editor '
+                              '(video reply mode)',
+                              name: 'VideoClipEditorTopBar',
+                              category: LogCategory.video,
+                            );
+                            context.push(VideoEditorScreen.path);
+                          } else {
+                            // Normal flow: start render and go to
+                            // metadata screen.
+                            unawaited(notifier.startRenderVideo());
+                            Log.info(
+                              '📤 Navigating to metadata screen',
+                              name: 'VideoClipEditorTopBar',
+                              category: LogCategory.video,
+                            );
+                            context.push(VideoMetadataScreen.path);
+                          }
+                          */
                         },
                       ),
                     ),
@@ -171,12 +200,11 @@ class _NextButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      // TODO(l10n): Replace with context.l10n when localization is added.
-      label: 'Continue to metadata',
+      label: 'Continue to next step',
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const .symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: VineTheme.whiteText,
             borderRadius: .circular(16),
@@ -194,11 +222,10 @@ class _NextButton extends StatelessWidget {
             ],
           ),
           child: Text(
-            // TODO(l10n): Replace with context.l10n when localization is added.
             'Next',
             style: GoogleFonts.bricolageGrotesque(
               fontSize: 18,
-              fontWeight: .w800,
+              fontWeight: FontWeight.w800,
               height: 1.33,
               letterSpacing: 0.15,
               color: VineTheme.inverseOnSurface,

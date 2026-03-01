@@ -5,13 +5,22 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:models/models.dart' hide NIP71VideoKinds;
 import 'package:openvine/blocs/comments/comments_bloc.dart';
+import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/constants/nip71_migration.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
+import 'package:openvine/models/video_reply_context.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
+import 'package:openvine/providers/video_comment_publish_provider.dart';
+import 'package:openvine/providers/video_reply_context_provider.dart';
 import 'package:openvine/screens/comments/widgets/widgets.dart';
+import 'package:openvine/screens/video_recorder_screen.dart';
+import 'package:openvine/utils/unified_logger.dart';
 
 /// Maps [CommentsError] to user-facing strings.
 /// TODO(l10n): Replace with context.l10n when localization is added.
@@ -25,6 +34,7 @@ String _errorToString(CommentsError error) {
     CommentsError.voteFailed => 'Failed to vote on comment',
     CommentsError.reportFailed => 'Failed to report comment',
     CommentsError.blockFailed => 'Failed to block user',
+    CommentsError.videoReplyFailed => 'Failed to post video reply',
   };
 }
 
@@ -117,9 +127,28 @@ class CommentsScreen extends ConsumerWidget {
     int? initialCommentCount,
     ValueChanged<int>? onCommentCountChanged,
   }) {
+    final showStopwatch = Stopwatch()..start();
+    Log.info(
+      '[TIMING] CommentsScreen.show() called for '
+      '${video.id}',
+      name: 'CommentsScreen',
+      category: LogCategory.ui,
+    );
+
     final container = ProviderScope.containerOf(context, listen: false);
     final overlayNotifier = container.read(overlayVisibilityProvider.notifier);
     overlayNotifier.setModalOpen(true);
+
+    // Capture GoRouter before showing the modal — the caller's
+    // BuildContext may be deactivated by the time whenComplete fires.
+    final router = GoRouter.of(context);
+
+    Log.info(
+      '[TIMING] Providers resolved at '
+      '${showStopwatch.elapsedMilliseconds}ms',
+      name: 'CommentsScreen',
+      category: LogCategory.ui,
+    );
 
     return showModalBottomSheet<void>(
       context: context,
@@ -147,6 +176,18 @@ class CommentsScreen extends ConsumerWidget {
       },
     ).whenComplete(() {
       overlayNotifier.setModalOpen(false);
+
+      // If a video reply was requested, navigate to the recorder.
+      final replyContext = container.read(videoReplyContextProvider);
+      Log.info(
+        '[VIDEO_REPLY] whenComplete fired, '
+        'replyContext: ${replyContext != null}',
+        name: 'CommentsScreen',
+        category: LogCategory.ui,
+      );
+      if (replyContext != null) {
+        router.push(VideoRecorderScreen.path);
+      }
     });
   }
 
@@ -164,13 +205,27 @@ class CommentsScreen extends ConsumerWidget {
     final contentReportingServiceFuture = ref.read(
       contentReportingServiceProvider.future,
     );
+    final muteServiceFuture = ref.read(muteServiceProvider.future);
+
     // Mention search dependencies
     final userProfileService = ref.watch(userProfileServiceProvider);
     final followRepository = ref.watch(followRepositoryProvider);
 
+    // Video comment publish service (for video replies)
+    final videoCommentPublishService = ref.watch(
+      videoCommentPublishServiceProvider,
+    );
+
     // Use original comments count for pagination hint
     // This helps determine hasMoreContent more accurately than page size heuristic
     final initialCount = videoEvent.originalComments;
+
+    Log.info(
+      '[TIMING] CommentsScreen.build() called for '
+      '${videoEvent.id}',
+      name: 'CommentsScreen',
+      category: LogCategory.ui,
+    );
 
     return BlocProvider<CommentsBloc>(
       create: (_) => CommentsBloc(
@@ -178,6 +233,7 @@ class CommentsScreen extends ConsumerWidget {
         authService: authService,
         likesRepository: likesRepository,
         contentReportingServiceFuture: contentReportingServiceFuture,
+        muteServiceFuture: muteServiceFuture,
         contentBlocklistService: contentBlocklistService,
         rootEventId: videoEvent.id,
         rootEventKind: NIP71VideoKinds.addressableShortVideo,
@@ -186,6 +242,8 @@ class CommentsScreen extends ConsumerWidget {
         initialTotalCount: initialCount,
         userProfileService: userProfileService,
         followRepository: followRepository,
+        videoCommentPublishService: videoCommentPublishService,
+        primaryRelayUrl: AppConstants.defaultRelayUrl,
       )..add(const CommentsLoadRequested()),
       child: BlocListener<CommentsBloc, CommentsState>(
         listenWhen: (prev, next) =>
@@ -215,7 +273,7 @@ class CommentsScreen extends ConsumerWidget {
             videoEvent: videoEvent,
             sheetScrollController: sheetScrollController,
           ),
-          bottomInput: const _MainCommentInput(),
+          bottomInput: _MainCommentInput(videoEvent: videoEvent),
         ),
       ),
     );
@@ -247,7 +305,7 @@ class _CommentsScreenBody extends StatelessWidget {
       },
       child: SizedBox(
         child: CommentsList(
-          showClassicVineNotice: videoEvent.isVintageRecoveredVine,
+          isOriginalVine: videoEvent.isOriginalVine,
           scrollController: sheetScrollController,
         ),
       ),
@@ -257,7 +315,9 @@ class _CommentsScreenBody extends StatelessWidget {
 
 /// Main comment input widget that reads from CommentsBloc state
 class _MainCommentInput extends ConsumerStatefulWidget {
-  const _MainCommentInput();
+  const _MainCommentInput({required this.videoEvent});
+
+  final VideoEvent videoEvent;
 
   @override
   ConsumerState<_MainCommentInput> createState() => _MainCommentInputState();
@@ -344,6 +404,11 @@ class _MainCommentInputState extends ConsumerState<_MainCommentInput> {
               UserProfile.generatedNameFor(replyToAuthorPubkey);
         }
 
+        // Video reply callback gated by feature flag
+        final isVideoRepliesEnabled = ref.watch(
+          isFeatureEnabledProvider(FeatureFlag.videoReplies),
+        );
+
         return CommentInput(
           controller: _controller,
           focusNode: _focusNode,
@@ -351,6 +416,25 @@ class _MainCommentInputState extends ConsumerState<_MainCommentInput> {
           replyToDisplayName: replyToDisplayName,
           isEditing: isEditMode,
           mentionSuggestions: state.mentionSuggestions,
+          onVideoReply: isVideoRepliesEnabled
+              ? () {
+                  // Set video reply context for the recorder/editor flow
+                  ref
+                      .read(videoReplyContextProvider.notifier)
+                      .setContext(
+                        VideoReplyContext(
+                          rootEventId: widget.videoEvent.id,
+                          rootEventKind: NIP71VideoKinds.addressableShortVideo,
+                          rootAuthorPubkey: widget.videoEvent.pubkey,
+                          rootAddressableId: widget.videoEvent.addressableId,
+                        ),
+                      );
+                  // Close the comments bottom sheet.
+                  // Navigation to recorder happens in
+                  // CommentsScreen.show() whenComplete.
+                  Navigator.of(context).pop();
+                }
+              : null,
           onMentionQuery: (query) {
             if (query.isEmpty) {
               context.read<CommentsBloc>().add(

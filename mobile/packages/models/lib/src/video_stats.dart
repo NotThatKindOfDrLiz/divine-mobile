@@ -38,6 +38,7 @@ class VideoStats {
     this.rawTags = const {},
     this.textTrackRef,
     this.textTrackContent,
+    this.contentWarningLabels = const [],
   });
 
   /// Creates a [VideoStats] from JSON response.
@@ -248,14 +249,6 @@ class VideoStats {
         json['embedded_reposts'] ??
         0;
 
-    // Parse platform from Funnelcake (server-controlled, not user-settable).
-    // "vine" indicates a genuine Vine archive import.
-    final platform =
-        json['platform']?.toString() ?? eventData['platform']?.toString();
-    if (platform != null && platform.isNotEmpty) {
-      rawTags['platform'] = platform;
-    }
-
     return VideoStats(
       id: id,
       pubkey: pubkey,
@@ -365,6 +358,13 @@ class VideoStats {
   /// Embedded VTT content from API (saves client a relay round-trip).
   final String? textTrackContent;
 
+  /// NIP-32 and NIP-36 content warning labels from event tags.
+  ///
+  /// Populated from `['content-warning', '<reason>']` (NIP-36) and
+  /// `['l', '<label>', 'content-warning']` (NIP-32) tags when the
+  /// full event tags are available in the API response.
+  final List<String> contentWarningLabels;
+
   /// Converts this [VideoStats] to a [VideoEvent] for use in the app.
   ///
   /// Maps the Funnelcake API response fields to the corresponding
@@ -402,10 +402,7 @@ class VideoStats {
       textTrackContent: textTrackContent,
       rawTags: {
         ...rawTags,
-        // Note: Do NOT inject engagement `loops` here — rawTags['loops']
-        // must only exist when the original Nostr event contains a
-        // ['loops', ...] tag (i.e., genuine Vine archive imports).
-        // The engagement loop count is stored in `originalLoops` instead.
+        if (loops != null) 'loops': loops.toString(),
         if (views != null) 'views': views.toString(),
       },
     );

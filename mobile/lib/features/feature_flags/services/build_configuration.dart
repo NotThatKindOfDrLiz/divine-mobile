@@ -32,7 +32,13 @@ class BuildConfiguration {
       case FeatureFlag.classicsHashtags:
         return const bool.fromEnvironment('FF_CLASSICS_HASHTAGS');
       case FeatureFlag.curatedLists:
-        return const bool.fromEnvironment('FF_CURATED_LISTS');
+        return const bool.fromEnvironment(
+          'FF_CURATED_LISTS',
+        );
+      case FeatureFlag.videoReplies:
+        return const bool.fromEnvironment(
+          'FF_VIDEO_REPLIES',
+        );
     }
   }
 
@@ -65,6 +71,8 @@ class BuildConfiguration {
         return 'FF_CLASSICS_HASHTAGS';
       case FeatureFlag.curatedLists:
         return 'FF_CURATED_LISTS';
+      case FeatureFlag.videoReplies:
+        return 'FF_VIDEO_REPLIES';
     }
   }
 }

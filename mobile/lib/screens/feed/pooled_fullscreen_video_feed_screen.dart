@@ -13,6 +13,7 @@ import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/subtitle_providers.dart';
 import 'package:openvine/router/app_router.dart';
 import 'package:openvine/services/feed_performance_tracker.dart';
@@ -22,7 +23,6 @@ import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/pooled_video_metrics_tracker.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
 import 'package:openvine/widgets/video_feed_item/content_warning_helpers.dart';
-import 'package:openvine/widgets/video_feed_item/paused_video_play_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/subtitle_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
@@ -297,6 +297,16 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
 
   @override
   Widget build(BuildContext context) {
+    // Pause/resume when overlays (modals, drawers) are shown.
+    // RouteAware only fires on route pushes, not modal bottom sheets.
+    ref.listen<bool>(hasVisibleOverlayProvider, (prev, next) {
+      if (next) {
+        _controller?.setActive(active: false);
+      } else {
+        _controller?.setActive(active: true);
+      }
+    });
+
     return MultiBlocListener(
       listeners: [
         // Initialize controller when videos first become available
@@ -429,7 +439,11 @@ class _FullscreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.only(top: 8, left: 16, right: 16),
+        padding: const EdgeInsets.only(
+          top: 8,
+          left: 16,
+          right: 16,
+        ),
         child: Row(
           mainAxisAlignment: .spaceBetween,
           crossAxisAlignment: .start,
@@ -452,7 +466,10 @@ class _FullscreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
   }
 
   // TODO(any) : update to use bloc instead of riverpod
-  Widget? _buildEditAction(BuildContext context, WidgetRef ref) {
+  Widget? _buildEditAction(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
     final video = currentVideo;
     if (video == null) return null;
 
@@ -598,15 +615,13 @@ class _PooledFullscreenItemContentState
             data: MediaQueryData.fromView(View.of(context)),
             child: Stack(
               children: [
-                PausedVideoPlayOverlay(
-                  player: player,
-                  firstFrameFuture: videoController.waitUntilFirstFrameRendered,
-                  isVisible: widget.isActive,
-                ),
                 // Subtitle overlay — needs player position stream
                 if (video.hasSubtitles)
                   Positioned.fill(
-                    child: _SubtitleLayer(video: video, player: player),
+                    child: _SubtitleLayer(
+                      video: video,
+                      player: player,
+                    ),
                   ),
                 VideoOverlayActions(
                   video: video,
