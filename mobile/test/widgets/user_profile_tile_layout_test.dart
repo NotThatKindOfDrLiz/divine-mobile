@@ -22,8 +22,6 @@ void main() {
   group('UserProfileTile - Layout & Display Bug Tests', () {
     late TestAuthService testAuthService;
     late UserProfile testProfile;
-    late UserProfile longContentProfile;
-
     const testPubkey = 'npub1test123456789abcdef';
     const currentUserPubkey = 'npub1current987654321xyz';
 
@@ -43,24 +41,6 @@ void main() {
         name: 'Test User',
         displayName: 'Test Display Name',
         about: 'Short bio',
-        picture: 'https://example.com/avatar.jpg',
-        createdAt: DateTime.now(),
-      );
-
-      longContentProfile = UserProfile(
-        pubkey: 'npub1long123456789',
-        rawData: const {
-          'name': 'Very Long Username',
-          'display_name': 'Extremely Long Display Name',
-          'about': 'Very long bio',
-        },
-        eventId: 'long_event_id',
-        name: 'Very Long Username That Should Not Break Layout',
-        displayName:
-            'Extremely Long Display Name That Tests Text Overflow Handling In The Widget',
-        about:
-            'This is an extremely long bio that should test text truncation and ellipsis handling. ' *
-            5,
         picture: 'https://example.com/avatar.jpg',
         createdAt: DateTime.now(),
       );
@@ -230,18 +210,6 @@ void main() {
       });
 
       testWidgets('CONTENT: hides bio when not available', (tester) async {
-        final profileNoBio = UserProfile(
-          pubkey: 'npub1nobio123',
-          rawData: const {
-            'name': 'No Bio User',
-            'display_name': 'No Bio Display',
-          },
-          eventId: 'nobio_event_id',
-          name: 'No Bio User',
-          displayName: 'No Bio Display',
-          createdAt: DateTime.now(),
-        );
-
         await tester.pumpWidget(
           _buildTestWidget(
             testAuthService,
@@ -262,13 +230,6 @@ void main() {
       testWidgets('CONTENT: shows abbreviated pubkey when no display name', (
         tester,
       ) async {
-        final profileNoName = UserProfile(
-          pubkey: testPubkey,
-          rawData: const <String, dynamic>{},
-          eventId: 'noname_event_id',
-          createdAt: DateTime.now(),
-        );
-
         await tester.pumpWidget(
           _buildTestWidget(
             testAuthService,
