@@ -53,6 +53,8 @@ class CommentsRepository {
   /// rootEventId.
   String? _watchSubscriptionId;
 
+  /// Default page size for author comment queries.
+
   /// Loads comments for a root event and returns them in a flat list.
   ///
   /// This is a one-shot query that returns all comments organized
@@ -475,6 +477,59 @@ class CommentsRepository {
     if (id != null) {
       await _nostrClient.unsubscribe(id);
       _watchSubscriptionId = null;
+    }
+  }
+
+  /// Loads comments authored by a specific user across all threads.
+  ///
+  /// Returns a flat list sorted by creation time (newest first).
+  ///
+  /// Throws [LoadCommentsByAuthorFailedException] on failure.
+  Future<List<Comment>> loadCommentsByAuthor({
+    required String authorPubkey,
+    int limit = _defaultLimit,
+    DateTime? before,
+  }) async {
+    try {
+      final filter = Filter(
+        kinds: const [_commentKind],
+        authors: [authorPubkey],
+        limit: limit,
+        until: before != null ? before.millisecondsSinceEpoch ~/ 1000 : null,
+      );
+
+      final events = await _nostrClient.queryEvents([filter]);
+
+      final comments = <Comment>[];
+      for (final event in events) {
+        // Extract root event ID from uppercase E tag
+        String? rootEventId;
+        int rootEventKind = _commentKind;
+        for (final rawTag in event.tags) {
+          final tag = rawTag as List<dynamic>;
+          if (tag.length < 2) continue;
+          final tagType = tag[0] as String;
+          if (tagType == 'E') {
+            rootEventId = tag[1] as String;
+          } else if (tagType == 'K') {
+            rootEventKind = int.tryParse(tag[1] as String) ?? _commentKind;
+          }
+        }
+        if (rootEventId == null) continue;
+
+        final comment = _eventToComment(event, rootEventId, rootEventKind);
+        if (comment != null) {
+          comments.add(comment);
+        }
+      }
+
+      // Sort newest first
+      comments.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return comments;
+    } on Exception catch (e) {
+      throw LoadCommentsByAuthorFailedException(
+        'Failed to load comments by author: $e',
+      );
     }
   }
 

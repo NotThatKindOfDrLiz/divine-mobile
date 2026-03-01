@@ -13,7 +13,6 @@ import 'package:openvine/constants/nip71_migration.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/screens/comments/widgets/widgets.dart';
-import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:sticker_pack_repository/sticker_pack_repository.dart';
 
 /// Maps [CommentsError] to user-facing strings.
@@ -385,7 +384,7 @@ class _MainCommentInputState extends ConsumerState<_MainCommentInput> {
           replyToDisplayName =
               profile?.displayName ??
               profile?.name ??
-              NostrKeyUtils.encodePubKey(replyToAuthorPubkey);
+              UserProfile.generatedNameFor(replyToAuthorPubkey);
         }
 
         return CommentInput(

@@ -12,6 +12,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:models/models.dart' show UserProfile;
 import 'package:openvine/blocs/comments/comments_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
@@ -289,7 +290,7 @@ class _CommentHeader extends ConsumerWidget {
                 },
                 child: profile == null
                     ? Text(
-                        NostrKeyUtils.encodePubKey(authorPubkey),
+                        UserProfile.generatedNameFor(authorPubkey),
                         style: const TextStyle(
                           color: VineTheme.onSurface, // rgba(255,255,255,0.95)
                           fontSize: 14,
@@ -333,7 +334,6 @@ bool _isEmojiOnly(String text) {
   // Includes Emoji_Component for keycap (\u20e3) and tag sequences,
   // and Regional_Indicator for flag emojis.
   final emojiRegex = RegExp(
-    // ignore: valid_regexps
     r'^[\p{Emoji_Presentation}\p{Emoji}'
     r'\u200d\ufe0f\u20e3\p{Regional_Indicator}]+$',
     unicode: true,
@@ -765,7 +765,7 @@ class _ReplyIndicator extends ConsumerWidget {
     final displayName =
         profile?.displayName ??
         profile?.name ??
-        NostrKeyUtils.encodePubKey(parentAuthorPubkey);
+        UserProfile.generatedNameFor(parentAuthorPubkey);
 
     return Row(
       mainAxisSize: MainAxisSize.min,

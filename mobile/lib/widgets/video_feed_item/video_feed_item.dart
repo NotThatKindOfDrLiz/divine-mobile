@@ -866,7 +866,6 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
                   ),
                   RouteType.hashtag => HashtagScreenRouter.pathForTag(
                     ctx.hashtag ?? '',
-                    index: widget.index,
                   ),
                   RouteType.likedVideos => LikedVideosScreenRouter.pathForIndex(
                     widget.index,
@@ -924,9 +923,7 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
                       return Stack(
                         fit: StackFit.expand,
                         children: [
-                          VideoThumbnailWidget(
-                            video: video,
-                          ),
+                          VideoThumbnailWidget(video: video),
                           const ColoredBox(
                             color: Colors.black54,
                             child: Center(
@@ -979,9 +976,7 @@ class _VideoFeedItemState extends ConsumerState<VideoFeedItem> {
                             child: Stack(
                               fit: StackFit.expand,
                               children: [
-                                VideoThumbnailWidget(
-                                  video: video,
-                                ),
+                                VideoThumbnailWidget(video: video),
                                 if (isActive)
                                   const Center(
                                     child: BrandedLoadingIndicator(size: 60),
@@ -1322,6 +1317,7 @@ class VideoOverlayActions extends ConsumerWidget {
     this.showListAttribution = false,
     this.isPreviewMode = false,
     this.hideFollowButtonIfFollowing = false,
+    this.topOffset = 8.0,
   });
 
   final VideoEvent video;
@@ -1330,6 +1326,7 @@ class VideoOverlayActions extends ConsumerWidget {
   final bool hasBottomNavigation;
   final String? contextTitle;
   final bool isFullscreen;
+  final double topOffset;
 
   /// Displays the overlay in preview mode during video creation.
   /// When true, users can preview how their video will appear to other users
@@ -1354,16 +1351,6 @@ class VideoOverlayActions extends ConsumerWidget {
         video.content.isNotEmpty ||
         (video.title != null && video.title!.isNotEmpty);
 
-    // Stack does not block pointer events by default - taps pass through to GestureDetector below
-    // Only interactive elements (buttons, chips with GestureDetector) absorb taps
-    // When contextTitle is non-empty, a list header exists above - add extra offset to avoid overlap
-    // List header is roughly 64px tall (8px padding + 48px content + 8px padding), add clearance
-    // In fullscreen mode, the AppBar floats transparently over the content
-    // so the badge just needs the same base offset - no extra list header padding
-    final hasListHeader =
-        !isFullscreen && contextTitle != null && contextTitle!.isNotEmpty;
-    final topOffset = hasListHeader ? 80.0 : 16.0;
-
     // In fullscreen mode, ensure badges clear the status bar icons
     // (battery, wifi, clock). viewPaddingOf may return 0 if a parent
     // widget (Scaffold, SafeArea) has already consumed the safe area.
@@ -1372,15 +1359,12 @@ class VideoOverlayActions extends ConsumerWidget {
     final safeAreaTop = isFullscreen
         ? (viewPaddingTop > 0
               ? viewPaddingTop
-              : MediaQuery.of(context).padding.top > 0
-              ? MediaQuery.of(context).padding.top
+              : MediaQuery.paddingOf(context).top > 0
+              ? MediaQuery.paddingOf(context).top
               : 54.0) // Fallback for Dynamic Island iPhones
         : viewPaddingTop;
 
-    // Calculate bottom offset based on navigation state
-    final bottomOffset = hasBottomNavigation
-        ? 14.0
-        : (isFullscreen ? 48.0 : 14.0);
+    const bottomOffset = 14.0;
 
     return Stack(
       children: [
@@ -2386,9 +2370,7 @@ class _ContentWarningDetailsSheet extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   'Content Warnings',
-                  style: VineTheme.titleFont(
-                    fontSize: 18,
-                  ),
+                  style: VineTheme.titleFont(fontSize: 18),
                 ),
               ],
             ),
