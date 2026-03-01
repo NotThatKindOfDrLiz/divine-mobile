@@ -2,6 +2,8 @@
 // ABOUTME: Uses VideosRepository which tries Funnelcake, NIP-50, then
 // ABOUTME: client-side engagement sorting as fallbacks.
 
+import 'dart:async';
+
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
@@ -75,21 +77,17 @@ class PopularVideosFeed extends _$PopularVideosFeed {
 
         final filteredVideos = _filterVideos(videos);
 
-        // Enrich with Nostr tags for ProofMode badge
-        final enrichedVideos = await enrichVideosWithNostrTags(
-          filteredVideos,
-          nostrService: ref.read(nostrServiceProvider),
-          callerName: 'PopularVideosFeedProvider',
-        );
+        // Enrich in background — show videos immediately
+        _enrichInBackground(filteredVideos);
 
         Log.info(
-          'PopularVideosFeed: Got ${enrichedVideos.length} trending videos',
+          'PopularVideosFeed: Got ${filteredVideos.length} trending videos',
           name: 'PopularVideosFeedProvider',
           category: LogCategory.video,
         );
 
         return VideoFeedState(
-          videos: enrichedVideos,
+          videos: filteredVideos,
           hasMoreContent: videos.length >= AppConstants.paginationBatchSize,
           lastUpdated: DateTime.now(),
         );
@@ -167,23 +165,19 @@ class PopularVideosFeed extends _$PopularVideosFeed {
         return;
       }
 
-      // Enrich with Nostr tags for ProofMode badge
-      final enrichedNew = await enrichVideosWithNostrTags(
-        filteredNew,
-        nostrService: ref.read(nostrServiceProvider),
-        callerName: 'PopularVideosFeedProvider',
-      );
+      final allVideos = [...currentState.videos, ...filteredNew];
 
-      if (!ref.mounted) return;
-
-      final allVideos = [...currentState.videos, ...enrichedNew];
+      // Enrich in background — show videos immediately
+      _enrichInBackground(filteredNew);
 
       Log.info(
-        'PopularVideosFeed: Loaded ${enrichedNew.length} more videos '
+        'PopularVideosFeed: Loaded ${filteredNew.length} more videos '
         '(total: ${allVideos.length})',
         name: 'PopularVideosFeedProvider',
         category: LogCategory.video,
       );
+
+      if (!ref.mounted) return;
 
       state = AsyncData(
         VideoFeedState(
@@ -222,6 +216,29 @@ class PopularVideosFeed extends _$PopularVideosFeed {
     final videoEventService = ref.read(videoEventServiceProvider);
     return videoEventService.filterVideoList(
       videos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
+    );
+  }
+
+  /// Enrich videos with Nostr tags in the background without blocking display.
+  void _enrichInBackground(List<VideoEvent> videos) {
+    unawaited(
+      enrichVideosWithNostrTags(
+        videos,
+        nostrService: ref.read(nostrServiceProvider),
+        callerName: 'PopularVideosFeedProvider',
+      ).then((enriched) {
+        if (!ref.mounted) return;
+        if (enriched == videos) return;
+        final currentState = state.asData?.value;
+        if (currentState == null) return;
+        final enrichedMap = <String, VideoEvent>{
+          for (final v in enriched) v.id: v,
+        };
+        final updatedVideos = currentState.videos
+            .map((v) => enrichedMap[v.id] ?? v)
+            .toList();
+        state = AsyncData(currentState.copyWith(videos: updatedVideos));
+      }),
     );
   }
 

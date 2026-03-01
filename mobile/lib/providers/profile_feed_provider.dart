@@ -399,12 +399,12 @@ class ProfileFeed extends _$ProfileFeed {
         // Update metadata cache with fresh data
         _cacheVideoMetadata(authorVideos);
 
-        // Enrich with rawTags from Nostr (for ProofMode/C2PA badges)
-        authorVideos = await _enrichWithNostrTags(authorVideos);
-
         // Apply content filter preferences
         final videoEventService = ref.read(videoEventServiceProvider);
         authorVideos = videoEventService.filterVideoList(authorVideos);
+
+        // Enrich in background — show videos immediately
+        _enrichInBackground(authorVideos);
 
         state = AsyncData(
           VideoFeedState(
@@ -509,12 +509,12 @@ class ProfileFeed extends _$ProfileFeed {
           // Cache metadata from new videos
           _cacheVideoMetadata(newVideos);
 
-          // Enrich with rawTags from Nostr (for ProofMode/C2PA badges)
-          newVideos = await _enrichWithNostrTags(newVideos);
-
           // Apply content filter preferences
           final videoEventService = ref.read(videoEventServiceProvider);
           newVideos = videoEventService.filterVideoList(newVideos);
+
+          // Enrich in background — show videos immediately
+          _enrichInBackground(newVideos);
 
           if (newVideos.isNotEmpty) {
             final allVideos = [...currentState.videos, ...newVideos];
@@ -661,12 +661,12 @@ class ProfileFeed extends _$ProfileFeed {
           // Cache metadata for future Nostr fallbacks
           _cacheVideoMetadata(authorVideos);
 
-          // Enrich with rawTags from Nostr (for ProofMode/C2PA badges)
-          authorVideos = await _enrichWithNostrTags(authorVideos);
-
           // Apply content filter preferences
           final videoEventService = ref.read(videoEventServiceProvider);
           authorVideos = videoEventService.filterVideoList(authorVideos);
+
+          // Enrich in background — show videos immediately
+          _enrichInBackground(authorVideos);
 
           state = AsyncData(
             VideoFeedState(

@@ -1,6 +1,8 @@
 // ABOUTME: PopularNow feed provider showing newest videos with REST API + Nostr fallback
 // ABOUTME: Tries Funnelcake REST API first, falls back to Nostr subscription if unavailable
 
+import 'dart:async';
+
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/constants/app_constants.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
@@ -106,15 +108,12 @@ class PopularNowFeed extends _$PopularNowFeed {
             apiVideos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
           );
 
-          // Enrich REST API videos with Nostr tags for ProofMode badge
-          final enrichedVideos = await enrichVideosWithNostrTags(
-            filteredVideos,
-            nostrService: ref.read(nostrServiceProvider),
-            callerName: 'PopularNowFeedProvider',
-          );
+          // Enrich in background — show videos immediately, update when
+          // enrichment completes (ProofMode badges appear slightly delayed)
+          _enrichInBackground(filteredVideos);
 
           return VideoFeedState(
-            videos: enrichedVideos,
+            videos: filteredVideos,
             hasMoreContent:
                 apiVideos.length >= AppConstants.paginationBatchSize,
             lastUpdated: DateTime.now(),
@@ -266,18 +265,15 @@ class PopularNowFeed extends _$PopularNowFeed {
           _nextCursor = _getOldestTimestamp(apiVideos);
 
           if (newVideos.isNotEmpty) {
-            // Enrich REST API videos with Nostr tags for ProofMode badge
-            final enrichedNewVideos = await enrichVideosWithNostrTags(
-              newVideos,
-              nostrService: ref.read(nostrServiceProvider),
-              callerName: 'PopularNowFeedProvider',
-            );
-            final allVideos = [...currentState.videos, ...enrichedNewVideos];
+            final allVideos = [...currentState.videos, ...newVideos];
             Log.info(
-              '🆕 PopularNowFeed: Loaded ${enrichedNewVideos.length} new videos from REST API (total: ${allVideos.length})',
+              '🆕 PopularNowFeed: Loaded ${newVideos.length} new videos from REST API (total: ${allVideos.length})',
               name: 'PopularNowFeedProvider',
               category: LogCategory.video,
             );
+
+            // Show immediately, enrich in background
+            _enrichInBackground(newVideos);
 
             state = AsyncData(
               VideoFeedState(
@@ -424,16 +420,12 @@ class PopularNowFeed extends _$PopularNowFeed {
             apiVideos.where((v) => v.isSupportedOnCurrentPlatform).toList(),
           );
 
-          // Enrich REST API videos with Nostr tags for ProofMode badge
-          final enrichedVideos = await enrichVideosWithNostrTags(
-            filteredVideos,
-            nostrService: ref.read(nostrServiceProvider),
-            callerName: 'PopularNowFeedProvider',
-          );
+          // Show immediately, enrich in background
+          _enrichInBackground(filteredVideos);
 
           state = AsyncData(
             VideoFeedState(
-              videos: enrichedVideos,
+              videos: filteredVideos,
               hasMoreContent:
                   apiVideos.length >= AppConstants.paginationBatchSize,
               lastUpdated: DateTime.now(),
@@ -441,7 +433,7 @@ class PopularNowFeed extends _$PopularNowFeed {
           );
 
           Log.info(
-            '✅ PopularNowFeed: Refreshed ${enrichedVideos.length} videos from REST API, cursor: $_nextCursor',
+            '✅ PopularNowFeed: Refreshed ${filteredVideos.length} videos from REST API, cursor: $_nextCursor',
             name: 'PopularNowFeedProvider',
             category: LogCategory.video,
           );
@@ -462,6 +454,29 @@ class PopularNowFeed extends _$PopularNowFeed {
 
     // Invalidate to re-run build() which will try REST API then Nostr
     ref.invalidateSelf();
+  }
+
+  /// Enrich videos with Nostr tags in the background without blocking display.
+  void _enrichInBackground(List<VideoEvent> videos) {
+    unawaited(
+      enrichVideosWithNostrTags(
+        videos,
+        nostrService: ref.read(nostrServiceProvider),
+        callerName: 'PopularNowFeedProvider',
+      ).then((enriched) {
+        if (!ref.mounted) return;
+        if (enriched == videos) return;
+        final currentState = state.asData?.value;
+        if (currentState == null) return;
+        final enrichedMap = <String, VideoEvent>{
+          for (final v in enriched) v.id: v,
+        };
+        final updatedVideos = currentState.videos
+            .map((v) => enrichedMap[v.id] ?? v)
+            .toList();
+        state = AsyncData(currentState.copyWith(videos: updatedVideos));
+      }),
+    );
   }
 
   /// Get oldest timestamp from videos for cursor pagination
