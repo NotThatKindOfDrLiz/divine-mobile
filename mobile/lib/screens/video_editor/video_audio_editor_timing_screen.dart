@@ -1,14 +1,19 @@
 // ABOUTME: Screen for adjusting audio timing/offset for video editor.
 // ABOUTME: Displays video preview with audio segment selector overlay.
 
+import 'dart:typed_data';
+
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
-import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/sounds_providers.dart';
+import 'package:openvine/widgets/stereo_waveform_painter.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
 
 /// Screen for adjusting audio timing/offset in the video editor.
@@ -31,13 +36,81 @@ class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
 }
 
 class _VideoAudioEditorTimingScreenState
-    extends ConsumerState<VideoAudioEditorTimingScreen> {
+    extends ConsumerState<VideoAudioEditorTimingScreen>
+    with SingleTickerProviderStateMixin {
   // TODO: Implement actual audio playback and timing adjustment.
   double _startOffset = 0;
+  late final SoundWaveformBloc _waveformBloc;
+  late final AnimationController _flingController;
+
+  /// Friction for momentum scrolling (higher = stops faster).
+  static const double _friction = 0.015;
 
   @override
   void initState() {
     super.initState();
+    _waveformBloc = SoundWaveformBloc();
+    _flingController = AnimationController.unbounded(vsync: this);
+    _flingController.addListener(_onFlingUpdate);
+    // Delay extraction until after first frame when ref is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _extractWaveform();
+    });
+  }
+
+  @override
+  void dispose() {
+    _flingController
+      ..removeListener(_onFlingUpdate)
+      ..dispose();
+    _waveformBloc.close();
+    super.dispose();
+  }
+
+  void _onFlingUpdate() {
+    setState(() {
+      _startOffset = _flingController.value.clamp(0.0, 1.0);
+    });
+  }
+
+  void _handleFling(double velocity) {
+    // Convert velocity to offset units (normalized 0-1 range)
+    // Positive velocity = moving right/forward in audio
+    final simulation = FrictionSimulation(
+      _friction,
+      _startOffset,
+      velocity,
+    );
+    _flingController.animateWith(simulation);
+  }
+
+  void _handleOffsetChanged(double offset) {
+    _flingController.stop();
+    setState(() {
+      _startOffset = offset;
+    });
+  }
+
+  void _extractWaveform() {
+    final sound = ref.read(selectedSoundProvider);
+    if (sound == null) return;
+
+    if (sound.isBundled && sound.assetPath != null) {
+      _waveformBloc.add(
+        SoundWaveformExtract(
+          path: sound.assetPath!,
+          soundId: sound.id,
+          isAsset: true,
+        ),
+      );
+    } else if (sound.url != null) {
+      _waveformBloc.add(
+        SoundWaveformExtract(
+          path: sound.url!,
+          soundId: sound.id,
+        ),
+      );
+    }
   }
 
   void _deleteAudio() {
@@ -53,48 +126,51 @@ class _VideoAudioEditorTimingScreenState
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-      ),
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Scrim overlay (65% black as per Figma)
-            const ColoredBox(
-              color: Color(0xA6000000), // rgba(0,0,0,0.65)
-            ),
-
-            // Content
-            SafeArea(
-              child: Column(
-                children: [
-                  // Top bar
-                  _TopBar(onDelete: _deleteAudio, onConfirm: _confirmSelection),
-
-                  const Spacer(),
-
-                  // Bottom controls
-                  _BottomControls(
-                    startOffset: _startOffset,
-                    audioDuration: ref.watch(
-                      selectedSoundProvider.select((s) => s?.duration),
-                    ),
-                    onOffsetChanged: (offset) {
-                      setState(() {
-                        _startOffset = offset;
-                      });
-                    },
-                  ),
-                ],
+    return BlocProvider.value(
+      value: _waveformBloc,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          systemNavigationBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+          statusBarBrightness: Brightness.dark,
+        ),
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Scrim overlay (65% black as per Figma)
+              const ColoredBox(
+                color: Color(0xA6000000), // rgba(0,0,0,0.65)
               ),
-            ),
-          ],
+
+              // Content
+              SafeArea(
+                child: Column(
+                  children: [
+                    // Top bar
+                    _TopBar(
+                      onDelete: _deleteAudio,
+                      onConfirm: _confirmSelection,
+                    ),
+
+                    const Spacer(),
+
+                    // Bottom controls
+                    _BottomControls(
+                      startOffset: _startOffset,
+                      audioDuration: ref.watch(
+                        selectedSoundProvider.select((s) => s?.duration),
+                      ),
+                      onOffsetChanged: _handleOffsetChanged,
+                      onFling: _handleFling,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -152,6 +228,7 @@ class _BottomControls extends StatelessWidget {
     required this.startOffset,
     required this.audioDuration,
     required this.onOffsetChanged,
+    required this.onFling,
   });
 
   final double startOffset;
@@ -159,6 +236,7 @@ class _BottomControls extends StatelessWidget {
   /// Audio duration in seconds, or null if unknown.
   final double? audioDuration;
   final ValueChanged<double> onOffsetChanged;
+  final ValueChanged<double> onFling;
 
   /// Calculates the selection width ratio based on video maxDuration vs audio duration.
   ///
@@ -202,21 +280,25 @@ class _BottomControls extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 48),
+        const SizedBox(height: 28),
 
         // Video duration timeline (top bar with green segment)
         _VideoDurationTimeline(
           startOffset: startOffset,
           selectionWidthRatio: selectionRatio,
+          onOffsetChanged: onOffsetChanged,
+          onFling: onFling,
         ),
 
-        const SizedBox(height: 38),
+        const SizedBox(height: 18),
 
         // Audio waveform with draggable selection
         _AudioWaveformSelector(
           startOffset: startOffset,
           selectionWidthRatio: selectionRatio,
+          audioDuration: audioDuration,
           onOffsetChanged: onOffsetChanged,
+          onFling: onFling,
         ),
       ],
     );
@@ -228,6 +310,8 @@ class _VideoDurationTimeline extends StatelessWidget {
   const _VideoDurationTimeline({
     required this.startOffset,
     required this.selectionWidthRatio,
+    required this.onOffsetChanged,
+    required this.onFling,
   });
 
   final double startOffset;
@@ -235,37 +319,70 @@ class _VideoDurationTimeline extends StatelessWidget {
   /// The ratio of the segment width to the total timeline width.
   final double selectionWidthRatio;
 
+  final ValueChanged<double> onOffsetChanged;
+  final ValueChanged<double> onFling;
+
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width - 32;
     final segmentWidth = screenWidth * selectionWidthRatio;
+    final maxScrollableDistance = screenWidth - segmentWidth;
 
-    return Container(
-      margin: const .symmetric(horizontal: 16),
-      height: 8,
-      decoration: BoxDecoration(
-        color: VineTheme.scrim65,
-        borderRadius: .circular(4),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            left: startOffset * (screenWidth - segmentWidth),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (details) {
+        // Don't allow scrolling if selection fills the timeline
+        if (maxScrollableDistance < 1) return;
+
+        final delta = details.delta.dx;
+        // Dragging right increases offset (moves segment right)
+        final newOffset = (startOffset + delta / maxScrollableDistance).clamp(
+          0.0,
+          1.0,
+        );
+        onOffsetChanged(newOffset);
+      },
+      onHorizontalDragEnd: (details) {
+        if (maxScrollableDistance < 1) return;
+        // Convert velocity from pixels to normalized offset units
+        final velocityInOffset =
+            details.primaryVelocity! / maxScrollableDistance / 1000;
+        onFling(velocityInOffset);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SizedBox(
+          height: kMinInteractiveDimension,
+          child: Center(
             child: Container(
-              width: segmentWidth,
               height: 8,
               decoration: BoxDecoration(
-                color: VineTheme.vineGreen,
-                borderRadius: BorderRadius.circular(4),
-                border: .all(
-                  color: VineTheme.accentYellow,
-                  width: 4,
-                  strokeAlign: BorderSide.strokeAlignOutside,
-                ),
+                color: VineTheme.scrim65,
+                borderRadius: .circular(4),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: startOffset * maxScrollableDistance,
+                    child: Container(
+                      width: segmentWidth,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: VineTheme.vineGreen,
+                        borderRadius: BorderRadius.circular(4),
+                        border: .all(
+                          color: VineTheme.accentYellow,
+                          width: 4,
+                          strokeAlign: BorderSide.strokeAlignOutside,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -276,14 +393,20 @@ class _AudioWaveformSelector extends StatelessWidget {
   const _AudioWaveformSelector({
     required this.startOffset,
     required this.selectionWidthRatio,
+    required this.audioDuration,
     required this.onOffsetChanged,
+    required this.onFling,
   });
 
   final double startOffset;
 
   /// The ratio of the selection width to the total waveform width.
   final double selectionWidthRatio;
+
+  /// Audio duration in seconds, or null if unknown.
+  final double? audioDuration;
   final ValueChanged<double> onOffsetChanged;
+  final ValueChanged<double> onFling;
 
   @override
   Widget build(BuildContext context) {
@@ -302,6 +425,7 @@ class _AudioWaveformSelector extends StatelessWidget {
     final waveformLeft = selectionLeft - startOffset * maxScrollableDistance;
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onHorizontalDragUpdate: (details) {
         // Don't allow scrolling if selection fills the waveform
         if (maxScrollableDistance < 1) return;
@@ -314,112 +438,108 @@ class _AudioWaveformSelector extends StatelessWidget {
         );
         onOffsetChanged(newOffset);
       },
-      onTapDown: (details) {
-        // Tap doesn't change position since selection is fixed in center
+      onHorizontalDragEnd: (details) {
+        if (maxScrollableDistance < 1) return;
+        // Convert velocity from pixels to normalized offset units
+        // Invert velocity to match inverted drag direction
+        final velocityInOffset =
+            -details.primaryVelocity! / maxScrollableDistance / 1000;
+        onFling(velocityInOffset);
       },
       child: Container(
         padding: const .fromLTRB(16, 8, 16, 11),
         height: 85,
         color: VineTheme.backgroundColor,
         child: ClipRect(
-          child: Stack(
-            children: [
-              // Selection background always centered
-              Positioned(
-                left: selectionLeft,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: selectionWidth,
-                  decoration: BoxDecoration(
-                    color: VineTheme.primary,
-                    borderRadius: .circular(24),
-                    border: Border.all(
-                      color: VineTheme.accentYellow,
-                      width: 4,
+          child: BlocBuilder<SoundWaveformBloc, SoundWaveformState>(
+            builder: (context, waveformState) {
+              final (leftChannel, rightChannel) = switch (waveformState) {
+                SoundWaveformLoaded(
+                  :final leftChannel,
+                  :final rightChannel,
+                ) =>
+                  (leftChannel, rightChannel),
+                _ => (null, null),
+              };
+
+              return Stack(
+                children: [
+                  // Selection background always centered
+                  Positioned(
+                    left: selectionLeft,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: selectionWidth,
+                      decoration: BoxDecoration(
+                        color: VineTheme.primary,
+                        borderRadius: .circular(24),
+                        border: Border.all(
+                          color: VineTheme.accentYellow,
+                          width: 4,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-              // Scrollable waveform (white bars) - offset based on selection
-              Positioned(
-                left: waveformLeft,
-                top: 0,
-                bottom: 0,
-                width: fullWaveformWidth,
-                child: CustomPaint(
-                  painter: _WaveformPainter(barColor: VineTheme.whiteText),
-                ),
-              ),
-
-              // Selection overlay - always centered
-              Positioned(
-                left: selectionLeft,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: selectionWidth,
-                  decoration: BoxDecoration(
-                    borderRadius: .circular(24),
-                    border: Border.all(
-                      color: VineTheme.accentYellow,
-                      width: 4,
+                  // Scrollable waveform (stereo bars) - offset based on selection
+                  Positioned(
+                    left: waveformLeft,
+                    top: 10,
+                    bottom: 10,
+                    width: fullWaveformWidth,
+                    child: TweenAnimationBuilder<double>(
+                      key: ValueKey(leftChannel != null),
+                      tween: Tween(begin: 0, end: 1),
+                      duration: WaveformConstants.animationDuration,
+                      curve: WaveformConstants.animationCurve,
+                      builder: (context, heightFactor, child) {
+                        return ClipRRect(
+                          borderRadius: .circular(24),
+                          child: SizedBox.expand(
+                            child: CustomPaint(
+                              painter: StereoWaveformPainter(
+                                leftChannel: leftChannel ?? Float32List(0),
+                                rightChannel: rightChannel,
+                                progress: 1.0, // No progress indicator needed
+                                activeColor: VineTheme.whiteText,
+                                inactiveColor: VineTheme.whiteText,
+                                audioDuration: Duration(
+                                  milliseconds: ((audioDuration ?? 0) * 1000)
+                                      .toInt(),
+                                ),
+                                maxDuration: VideoEditorConstants.maxDuration,
+                                heightFactor: heightFactor,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                ),
-              ),
-            ],
+
+                  // Selection overlay - always centered
+                  Positioned(
+                    left: selectionLeft,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: selectionWidth,
+                      decoration: BoxDecoration(
+                        borderRadius: .circular(24),
+                        border: Border.all(
+                          color: VineTheme.accentYellow,
+                          width: 4,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
-  }
-}
-
-/// Paints audio waveform bars with pseudo-random heights.
-class _WaveformPainter extends CustomPainter {
-  _WaveformPainter({required this.barColor});
-
-  final Color barColor;
-
-  static const _barWidth = 4.0;
-  static const _barSpacing = 3.0;
-  static const _barStep = _barWidth + _barSpacing;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final barCount = (size.width / _barStep).floor();
-    final halfHeight = size.height / 2;
-
-    final paint = Paint()
-      ..color = barColor
-      ..style = PaintingStyle.fill;
-
-    // Generate pseudo-random heights for visual interest
-    for (var i = 0; i < barCount; i++) {
-      final x = i * _barStep;
-      // Create varied waveform pattern
-      final seed = (i * 17 + 7) % 23;
-      final heightFactor = 0.2 + 0.8 * (seed / 23);
-      final barHeight = size.height * 0.45 * heightFactor;
-
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(x + _barWidth / 2, halfHeight),
-            width: _barWidth,
-            height: barHeight.clamp(4.0, size.height * 0.9),
-          ),
-          const Radius.circular(2),
-        ),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_WaveformPainter oldDelegate) {
-    return oldDelegate.barColor != barColor;
   }
 }

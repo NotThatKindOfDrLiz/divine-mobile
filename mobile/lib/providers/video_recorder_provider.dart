@@ -880,6 +880,8 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       name: 'VideoRecorderNotifier',
       category: .video,
     );
+    ref.read(selectedSoundProvider.notifier).clear();
+
     await Future.wait([
       context.push(VideoClipEditorScreen.path),
       // We delay camera dispose so that the screen animation can finish

@@ -65,27 +65,26 @@ class VideoEditorAudioChip extends ConsumerWidget {
           mainAxisAlignment: .center,
 
           children: [
-            const Row(
-              spacing: 1.5,
-              children: [
-                _AudioBar(height: 7),
-                _AudioBar(height: 16),
-                _AudioBar(height: 13),
-                _AudioBar(height: 7),
-                _AudioBar(height: 10),
-              ],
-            ),
+            if (hasSelectedSound)
+              const DivineIcon(
+                icon: .musicNotesSimple,
+              )
+            else
+              const Row(
+                spacing: 1.5,
+                children: [
+                  _AudioBar(height: 7),
+                  _AudioBar(height: 16),
+                  _AudioBar(height: 13),
+                  _AudioBar(height: 7),
+                  _AudioBar(height: 10),
+                ],
+              ),
             Flexible(
               child: Padding(
                 padding: const .symmetric(horizontal: 8),
-                child: !hasSelectedSound
-                    ? Text(
-                        // TODO(l10n): Replace with context.l10n when localization is added.
-                        'Add audio',
-                        textAlign: .center,
-                        style: VineTheme.titleMediumFont(fontSize: 16),
-                      )
-                    : Text.rich(
+                child: hasSelectedSound
+                    ? Text.rich(
                         TextSpan(
                           style: VineTheme.labelLargeFont(),
                           children: [
@@ -103,6 +102,12 @@ class VideoEditorAudioChip extends ConsumerWidget {
                         textAlign: .center,
                         maxLines: 1,
                         overflow: .ellipsis,
+                      )
+                    : Text(
+                        // TODO(l10n): Replace with context.l10n when localization is added.
+                        'Add audio',
+                        textAlign: .center,
+                        style: VineTheme.titleMediumFont(fontSize: 16),
                       ),
               ),
             ),
