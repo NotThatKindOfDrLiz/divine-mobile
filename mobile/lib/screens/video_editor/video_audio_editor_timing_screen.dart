@@ -5,8 +5,8 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
@@ -17,10 +17,7 @@ import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_ch
 /// set the start position of the audio track relative to the video.
 class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
   /// Creates the audio timing screen.
-  const VideoAudioEditorTimingScreen({super.key, required this.audio});
-
-  /// The selected audio to adjust timing for.
-  final AudioEvent audio;
+  const VideoAudioEditorTimingScreen({super.key});
 
   /// Route name for navigation.
   static const routeName = 'video-audio-timing';
@@ -41,10 +38,6 @@ class _VideoAudioEditorTimingScreenState
   @override
   void initState() {
     super.initState();
-    // Temporarily select the audio so the chip displays it
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(selectedSoundProvider.notifier).select(widget.audio);
-    });
   }
 
   void _deleteAudio() {
@@ -54,7 +47,7 @@ class _VideoAudioEditorTimingScreenState
 
   void _confirmSelection() {
     // TODO: Apply the timing offset to the selected sound.
-    ref.read(selectedSoundProvider.notifier).select(widget.audio);
+    // ref.read(selectedSoundProvider.notifier).select(widget.audio);
     context.pop();
   }
 
@@ -89,6 +82,9 @@ class _VideoAudioEditorTimingScreenState
                   // Bottom controls
                   _BottomControls(
                     startOffset: _startOffset,
+                    audioDuration: ref.watch(
+                      selectedSoundProvider.select((s) => s?.duration),
+                    ),
                     onOffsetChanged: (offset) {
                       setState(() {
                         _startOffset = offset;
@@ -117,38 +113,32 @@ class _TopBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
+        mainAxisAlignment: .spaceBetween,
+        spacing: 12,
         children: [
-          // Delete button (red/coral)
-          _CircleButton(
+          // Delete button
+          DivineIconButton(
             // TODO(l10n): Replace with context.l10n when localization is added.
-            semanticsLabel: 'Remove audio',
-            iconPath: 'assets/icon/trash.svg',
-            backgroundColor: const Color(0xFFE53935),
-            iconColor: VineTheme.whiteText,
-            onTap: onDelete,
+            semanticLabel: 'Remove audio',
+            icon: .trash,
+            size: .small,
+            type: .error,
+            onPressed: onDelete,
           ),
-
-          const SizedBox(width: 12),
 
           // Audio chip (centered, flexible)
-          Expanded(
-            child: VideoEditorAudioChip(
-              onTap: () {
-                // TODO: Allow re-selecting audio from this screen.
-              },
-            ),
+          const Flexible(
+            child: VideoEditorAudioChip(),
           ),
 
-          const SizedBox(width: 12),
-
-          // Confirm button (white)
-          _CircleButton(
+          // Confirm button
+          DivineIconButton(
             // TODO(l10n): Replace with context.l10n when localization is added.
-            semanticsLabel: 'Confirm audio selection',
-            iconPath: 'assets/icon/Check.svg',
-            backgroundColor: VineTheme.whiteText,
-            iconColor: VineTheme.backgroundColor,
-            onTap: onConfirm,
+            semanticLabel: 'Confirm audio selection',
+            icon: .check,
+            size: .small,
+            type: .tertiary,
+            onPressed: onConfirm,
           ),
         ],
       ),
@@ -160,37 +150,72 @@ class _TopBar extends StatelessWidget {
 class _BottomControls extends StatelessWidget {
   const _BottomControls({
     required this.startOffset,
+    required this.audioDuration,
     required this.onOffsetChanged,
   });
 
   final double startOffset;
+
+  /// Audio duration in seconds, or null if unknown.
+  final double? audioDuration;
   final ValueChanged<double> onOffsetChanged;
+
+  /// Calculates the selection width ratio based on video maxDuration vs audio duration.
+  ///
+  /// The selection always represents [VideoEditorConstants.maxDuration] (6.3s).
+  /// - If audio is shorter than maxDuration: returns 0.9 (90% width, max allowed)
+  /// - If audio is longer: returns the proportional ratio (e.g., 33% for ~19s audio)
+  /// - Minimum 10% to keep the selection visible and draggable
+  double get _selectionWidthRatio {
+    final audioDurationSecs = audioDuration;
+    if (audioDurationSecs == null || audioDurationSecs <= 0) {
+      return 0.9; // Unknown duration, assume max selection
+    }
+
+    final maxDurationSecs =
+        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
+
+    // If audio is shorter than video max duration, use max width (90%)
+    if (audioDurationSecs <= maxDurationSecs) {
+      return 0.9;
+    }
+
+    // Ratio of video duration to audio duration, clamped to [0.1, 0.9]
+    return (maxDurationSecs / audioDurationSecs).clamp(0.1, 0.9);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final selectionRatio = _selectionWidthRatio;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
-      spacing: 28,
       children: [
         // Instruction text
-        Text(
-          // TODO(l10n): Replace with context.l10n when localization is added.
-          'Select the audio segment for your video',
-          style: VineTheme.bodyMediumFont().copyWith(
-            color: VineTheme.whiteText,
+        Padding(
+          padding: const .symmetric(horizontal: 16),
+          child: Text(
+            // TODO(l10n): Replace with context.l10n when localization is added.
+            'Select the audio segment for your video',
+            style: VineTheme.bodySmallFont(),
+            textAlign: .center,
           ),
-          textAlign: TextAlign.center,
         ),
 
+        const SizedBox(height: 48),
+
         // Video duration timeline (top bar with green segment)
-        Padding(
-          padding: const .symmetric(horizontal: 16.0),
-          child: _VideoDurationTimeline(startOffset: startOffset),
+        _VideoDurationTimeline(
+          startOffset: startOffset,
+          selectionWidthRatio: selectionRatio,
         ),
+
+        const SizedBox(height: 38),
 
         // Audio waveform with draggable selection
         _AudioWaveformSelector(
           startOffset: startOffset,
+          selectionWidthRatio: selectionRatio,
           onOffsetChanged: onOffsetChanged,
         ),
       ],
@@ -200,21 +225,27 @@ class _BottomControls extends StatelessWidget {
 
 /// Video duration timeline showing where the selected segment will play.
 class _VideoDurationTimeline extends StatelessWidget {
-  const _VideoDurationTimeline({required this.startOffset});
+  const _VideoDurationTimeline({
+    required this.startOffset,
+    required this.selectionWidthRatio,
+  });
 
   final double startOffset;
 
+  /// The ratio of the segment width to the total timeline width.
+  final double selectionWidthRatio;
+
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width - 32;
-    const segmentWidthRatio = 0.25;
-    final segmentWidth = screenWidth * segmentWidthRatio;
+    final screenWidth = MediaQuery.sizeOf(context).width - 32;
+    final segmentWidth = screenWidth * selectionWidthRatio;
 
     return Container(
+      margin: const .symmetric(horizontal: 16),
       height: 8,
       decoration: BoxDecoration(
-        color: VineTheme.whiteText.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(4),
+        color: VineTheme.scrim65,
+        borderRadius: .circular(4),
       ),
       child: Stack(
         children: [
@@ -226,6 +257,11 @@ class _VideoDurationTimeline extends StatelessWidget {
               decoration: BoxDecoration(
                 color: VineTheme.vineGreen,
                 borderRadius: BorderRadius.circular(4),
+                border: .all(
+                  color: VineTheme.accentYellow,
+                  width: 4,
+                  strokeAlign: BorderSide.strokeAlignOutside,
+                ),
               ),
             ),
           ),
@@ -239,130 +275,101 @@ class _VideoDurationTimeline extends StatelessWidget {
 class _AudioWaveformSelector extends StatelessWidget {
   const _AudioWaveformSelector({
     required this.startOffset,
+    required this.selectionWidthRatio,
     required this.onOffsetChanged,
   });
 
   final double startOffset;
+
+  /// The ratio of the selection width to the total waveform width.
+  final double selectionWidthRatio;
   final ValueChanged<double> onOffsetChanged;
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width - 32;
     // Selection area represents portion of audio that fits video duration
-    const selectionWidthRatio = 0.35;
     final selectionWidth = screenWidth * selectionWidthRatio;
+    // Selection is always centered
+    final selectionLeft = (screenWidth - selectionWidth) / 2;
+    // Full waveform width represents the entire audio duration
+    // If selection is 33% of screen, full waveform is ~3x the selection width
+    final fullWaveformWidth = selectionWidth / selectionWidthRatio;
+    // Calculate how far the waveform can scroll
+    final maxScrollableDistance = fullWaveformWidth - selectionWidth;
+    // Waveform position: at offset 0, waveform starts at selection left edge
+    // at offset 1, waveform ends at selection right edge
+    final waveformLeft = selectionLeft - startOffset * maxScrollableDistance;
 
     return GestureDetector(
       onHorizontalDragUpdate: (details) {
-        final renderBox = context.findRenderObject()! as RenderBox;
-        final localX = renderBox.globalToLocal(details.globalPosition).dx;
-        final maxOffset = screenWidth - selectionWidth;
-        final newOffset = ((localX - selectionWidth / 2) / maxOffset).clamp(
+        // Don't allow scrolling if selection fills the waveform
+        if (maxScrollableDistance < 1) return;
+
+        final delta = details.delta.dx;
+        // Invert delta: dragging right scrolls waveform left (increases offset)
+        final newOffset = (startOffset - delta / maxScrollableDistance).clamp(
           0.0,
           1.0,
         );
         onOffsetChanged(newOffset);
       },
       onTapDown: (details) {
-        final renderBox = context.findRenderObject()! as RenderBox;
-        final localX = renderBox.globalToLocal(details.globalPosition).dx;
-        final maxOffset = screenWidth - selectionWidth;
-        final newOffset = ((localX - selectionWidth / 2) / maxOffset).clamp(
-          0.0,
-          1.0,
-        );
-        onOffsetChanged(newOffset);
+        // Tap doesn't change position since selection is fixed in center
       },
       child: Container(
-        height: 80,
-        decoration: BoxDecoration(
-          color: VineTheme.backgroundColor,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Stack(
-          children: [
-            // Full waveform (white bars)
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _WaveformPainter(barColor: VineTheme.whiteText),
-              ),
-            ),
-
-            // Green selection overlay with yellow border
-            Positioned(
-              left: startOffset * (screenWidth - selectionWidth),
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: selectionWidth,
-                decoration: BoxDecoration(
-                  color: VineTheme.vineGreen,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: const Color(0xFFFFEB3B), // Yellow border
-                    width: 3,
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: CustomPaint(
-                    painter: _WaveformPainter(
-                      barColor: VineTheme.whiteText.withValues(alpha: 0.9),
+        padding: const .fromLTRB(16, 8, 16, 11),
+        height: 85,
+        color: VineTheme.backgroundColor,
+        child: ClipRect(
+          child: Stack(
+            children: [
+              // Selection background always centered
+              Positioned(
+                left: selectionLeft,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: selectionWidth,
+                  decoration: BoxDecoration(
+                    color: VineTheme.primary,
+                    borderRadius: .circular(24),
+                    border: Border.all(
+                      color: VineTheme.accentYellow,
+                      width: 4,
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
-/// Circular icon button with customizable colors.
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({
-    required this.semanticsLabel,
-    required this.iconPath,
-    required this.backgroundColor,
-    required this.iconColor,
-    required this.onTap,
-  });
-
-  final String semanticsLabel;
-  final String iconPath;
-  final Color backgroundColor;
-  final Color iconColor;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final isEnabled = onTap != null;
-
-    return Semantics(
-      label: semanticsLabel,
-      button: true,
-      enabled: isEnabled,
-      child: Opacity(
-        opacity: isEnabled ? 1 : 0.32,
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: SvgPicture.asset(
-                iconPath,
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+              // Scrollable waveform (white bars) - offset based on selection
+              Positioned(
+                left: waveformLeft,
+                top: 0,
+                bottom: 0,
+                width: fullWaveformWidth,
+                child: CustomPaint(
+                  painter: _WaveformPainter(barColor: VineTheme.whiteText),
+                ),
               ),
-            ),
+
+              // Selection overlay - always centered
+              Positioned(
+                left: selectionLeft,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: selectionWidth,
+                  decoration: BoxDecoration(
+                    borderRadius: .circular(24),
+                    border: Border.all(
+                      color: VineTheme.accentYellow,
+                      width: 4,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

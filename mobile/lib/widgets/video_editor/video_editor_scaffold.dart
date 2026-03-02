@@ -71,6 +71,9 @@ class _OverlayControls extends StatelessWidget {
                 const VideoEditorFilterOverlayControls(
                   key: ValueKey('Filter-Overlay-Controls'),
                 ),
+              // Audio-Editor (hide controls, timing screen overlays editor)
+              VideoEditorMainState(openSubEditor: .music) =>
+                const SizedBox.shrink(),
               // Fallback
               _ => const VideoEditorMainTopBar(),
             };
@@ -148,6 +151,8 @@ class _BottomActions extends StatelessWidget {
                           .filter => const VideoEditorFilterBottomBar(
                             key: ValueKey('Filter-Editor-Bottom-Bar'),
                           ),
+                          // Audio-Bar (no bottom bar, timing screen has its own)
+                          .music => const SizedBox(),
                           // Main-Bar
                           _ => const VideoEditorMainBottomBar(),
                         },

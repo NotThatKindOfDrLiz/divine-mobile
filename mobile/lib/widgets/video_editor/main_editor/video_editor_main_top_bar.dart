@@ -5,12 +5,8 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.dart';
-import 'package:openvine/models/audio_event.dart';
-import 'package:openvine/screens/video_editor/video_audio_editor_timing_screen.dart';
-import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_bottom_sheet.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_layer_reorder_sheet.dart';
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_scope.dart';
@@ -22,30 +18,6 @@ import 'package:pro_image_editor/pro_image_editor.dart';
 /// reactively enable/disable undo and redo based on editor state.
 class VideoEditorMainTopBar extends ConsumerWidget {
   const VideoEditorMainTopBar({super.key});
-
-  Future<void> _selectAudio(BuildContext context, WidgetRef ref) async {
-    final result = await VineBottomSheet.show<AudioEvent>(
-      context: context,
-      maxChildSize: 1,
-      initialChildSize: 1,
-      minChildSize: 0.8,
-      buildScrollBody: (scrollController) =>
-          AudioSelectionBottomSheet(scrollController: scrollController),
-    );
-
-    if (result != null && context.mounted) {
-      // Navigate to timing screen to adjust audio start position
-      // Use transparent PageRouteBuilder so editor is visible behind
-      await Navigator.of(context).push<void>(
-        PageRouteBuilder(
-          opaque: false,
-          barrierColor: Colors.transparent,
-          pageBuilder: (_, __, ___) =>
-              VideoAudioEditorTimingScreen(audio: result),
-        ),
-      );
-    }
-  }
 
   Future<void> _reorderLayers(BuildContext context, List<Layer> layers) async {
     await VineBottomSheet.show<void>(
@@ -92,14 +64,6 @@ class VideoEditorMainTopBar extends ConsumerWidget {
                     size: .small,
                     type: .ghostSecondary,
                     // TODO(l10n): Replace with context.l10n when localization is added.
-                    semanticLabel: 'Done',
-                    icon: .check,
-                    onPressed: () => scope.editor?.doneEditing(),
-                  ),
-                  DivineIconButton(
-                    size: .small,
-                    type: .ghostSecondary,
-                    // TODO(l10n): Replace with context.l10n when localization is added.
                     semanticLabel: 'Close',
                     icon: .caretLeft,
                     onPressed: () {
@@ -112,10 +76,8 @@ class VideoEditorMainTopBar extends ConsumerWidget {
                     },
                   ),
 
-                  Flexible(
-                    child: VideoEditorAudioChip(
-                      onTap: () => _selectAudio(context, ref),
-                    ),
+                  const Flexible(
+                    child: VideoEditorAudioChip(),
                   ),
 
                   DivineIconButton(
