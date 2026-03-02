@@ -504,7 +504,7 @@ class CommentsRepository {
       for (final event in events) {
         // Extract root event ID from uppercase E tag
         String? rootEventId;
-        int rootEventKind = _commentKind;
+        var rootEventKind = _commentKind;
         for (final rawTag in event.tags) {
           final tag = rawTag as List<dynamic>;
           if (tag.length < 2) continue;
