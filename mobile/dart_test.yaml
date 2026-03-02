@@ -8,6 +8,11 @@ exclude:
   - test/**/*.mocks.dart  # Mock files are generated, not run
   - test/**/*.g.dart      # Generated files
 
+# Tags
+tags:
+  integration:
+    description: "Tests that hit real APIs or external services. Excluded from CI."
+
 # Test timeouts (in seconds)
 # Default timeout for all tests
 timeout: 10m

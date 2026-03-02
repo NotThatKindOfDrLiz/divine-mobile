@@ -1,6 +1,9 @@
 // ABOUTME: Integration tests for new analytics API endpoints
 // ABOUTME: Tests real API endpoints for trending, hashtags, creators, and related videos
 
+@Tags(['integration'])
+library;
+
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
