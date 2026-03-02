@@ -199,7 +199,6 @@ class VideoEditorRenderService {
     bool usePersistentStorage = false,
     model.AspectRatio? aspectRatio,
     bool enableAudio = true,
-    bool streamable = false,
     CompleteParameters? parameters,
     String? taskId,
   }) async {
@@ -228,7 +227,6 @@ class VideoEditorRenderService {
         enableAudio: enableAudio,
         cacheDir: cacheDir,
         parameters: parameters,
-        shouldOptimizeForNetworkUse: streamable,
       );
       tempFilePaths = result.tempFilePaths;
 
@@ -243,7 +241,6 @@ class VideoEditorRenderService {
         customAudioVolume: customAudioVolume,
         imageBytes: imageBytes,
         parameters: parameters,
-        shouldOptimizeForNetworkUse: streamable,
       );
 
       // Fire-and-forget: temp cleanup is non-critical and handles
@@ -332,7 +329,6 @@ class VideoEditorRenderService {
   static Future<String> cropToAspectRatio({
     required EditorVideo video,
     required model.AspectRatio aspectRatio,
-    required bool shouldOptimizeForNetworkUse,
     bool enableAudio = true,
     VideoMetadata? metadata,
   }) async {
@@ -369,7 +365,7 @@ class VideoEditorRenderService {
     final task = VideoRenderData(
       video: video,
       enableAudio: enableAudio,
-      shouldOptimizeForNetworkUse: shouldOptimizeForNetworkUse,
+      shouldOptimizeForNetworkUse: true,
       transform: cropParams.toExportTransform(),
     );
 
@@ -397,7 +393,6 @@ class VideoEditorRenderService {
     required bool enableAudio,
     required Directory cacheDir,
     required CompleteParameters? parameters,
-    required bool shouldOptimizeForNetworkUse,
   }) async {
     // Analyze all clips first to determine the optimal rendering strategy
     final clipAnalysis = await _analyzeClips(clips, aspectRatio);
@@ -452,7 +447,6 @@ class VideoEditorRenderService {
           enableAudio: enableAudio,
           tempDir: cacheDir,
           parameters: parameters,
-          shouldOptimizeForNetworkUse: shouldOptimizeForNetworkUse,
         );
         tempFilePaths.add(normalizedPath);
         segments.add(
@@ -501,7 +495,6 @@ class VideoEditorRenderService {
     required bool enableAudio,
     required Directory tempDir,
     required CompleteParameters? parameters,
-    required bool shouldOptimizeForNetworkUse,
   }) async {
     final outputPath = path.join(
       tempDir.path,
@@ -512,7 +505,7 @@ class VideoEditorRenderService {
       id: '${clip.id}_normalized',
       video: clip.video,
       enableAudio: enableAudio,
-      shouldOptimizeForNetworkUse: shouldOptimizeForNetworkUse,
+      shouldOptimizeForNetworkUse: true,
       imageBytes: parameters?.layers.isNotEmpty == true
           ? parameters?.image
           : null,
@@ -557,7 +550,6 @@ class VideoEditorRenderService {
     required bool enableAudio,
     required Directory outputDir,
     required CompleteParameters? parameters,
-    required bool shouldOptimizeForNetworkUse,
     _CropParameters? globalTransform,
     String? customAudioPath,
     double? originalAudioVolume,
@@ -574,7 +566,7 @@ class VideoEditorRenderService {
       videoSegments: segments,
       endTime: VideoEditorConstants.maxDuration,
       enableAudio: enableAudio,
-      shouldOptimizeForNetworkUse: shouldOptimizeForNetworkUse,
+      shouldOptimizeForNetworkUse: true,
       customAudioPath: customAudioPath,
       originalAudioVolume: originalAudioVolume,
       customAudioVolume: customAudioVolume,

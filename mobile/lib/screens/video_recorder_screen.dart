@@ -11,10 +11,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
+import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/video_clip_editor/sheets/video_editor_restore_autosave_sheet.dart';
@@ -25,6 +27,8 @@ import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay
 import 'package:openvine/widgets/video_recorder/video_recorder_record_button.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
+import 'package:pro_video_editor/core/models/video/editor_video_model.dart';
+import 'package:pro_video_editor/pro_video_editor.dart';
 
 /// Video recorder screen with camera preview and recording controls.
 class VideoRecorderScreen extends ConsumerStatefulWidget {
@@ -245,8 +249,8 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
 
         return bloc;
       },
-      child: const AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
           statusBarColor: backgroundColor,
           statusBarIconBrightness: .light,
           statusBarBrightness: .dark,
@@ -265,29 +269,99 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
                       fit: .expand,
                       children: [
                         // Camera preview
-                        VideoRecorderCameraPreview(),
+                        const VideoRecorderCameraPreview(),
 
                         // Audio progress bar (shows during recording with sound)
-                        VideoRecorderAudioProgressBar(),
+                        const VideoRecorderAudioProgressBar(),
 
                         // Segment bar
-                        VideoRecorderSegmentBar(),
+                        const VideoRecorderSegmentBar(),
 
                         // Top bar with close-button and confirm-button
-                        VideoRecorderTopBar(),
+                        const VideoRecorderTopBar(),
 
                         /// Record button
-                        RecordButton(),
+                        const RecordButton(),
+
+                        Align(
+                          child: FilledButton(
+                            onPressed: () async {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Loading test clips...'),
+                                  duration: Duration(milliseconds: 500),
+                                ),
+                              );
+
+                              final video1 = EditorVideo.asset(
+                                'assets/videos/test1.mov',
+                              );
+                              final video2 = EditorVideo.asset(
+                                'assets/videos/test2.mov',
+                              );
+
+                              // Parallel thumbnail extraction
+                              final [path1, path2] = await Future.wait([
+                                video1.safeFilePath(),
+                                video2.safeFilePath(),
+                              ]);
+                              final [thumb1, thumb2] = await Future.wait([
+                                VideoThumbnailService.extractThumbnail(
+                                  videoPath: path1,
+                                ),
+                                VideoThumbnailService.extractThumbnail(
+                                  videoPath: path2,
+                                ),
+                              ]);
+
+                              final clip1 = RecordingClip(
+                                id: 'video-1',
+                                video: video1,
+                                duration: const Duration(seconds: 1),
+                                recordedAt: DateTime.now(),
+                                targetAspectRatio: .vertical,
+                                originalAspectRatio: 9 / 16,
+                                thumbnailPath: thumb1?.path,
+                              );
+
+                              final clip2 = RecordingClip(
+                                id: 'video-2',
+                                video: video2,
+                                duration: const Duration(seconds: 4),
+                                recordedAt: DateTime.now(),
+                                targetAspectRatio: .vertical,
+                                originalAspectRatio: 9 / 16,
+                                thumbnailPath: thumb2?.path,
+                              );
+
+                              final notifier = ref.read(
+                                clipManagerProvider.notifier,
+                              );
+                              await notifier.clearAll();
+                              notifier.addMultipleClips([clip2, clip1]);
+
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Old clips loaded'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text('Reload clips'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   // Bottom controls
-                  VideoRecorderBottomBar(),
+                  const VideoRecorderBottomBar(),
                 ],
               ),
 
               // Countdown overlay
-              VideoRecorderCountdownOverlay(),
+              const VideoRecorderCountdownOverlay(),
             ],
           ),
         ),
