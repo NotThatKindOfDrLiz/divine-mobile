@@ -170,16 +170,6 @@ class _VideoAudioEditorTimingScreenState
     await _audioPlayer.setAudioSource(audioSource);
   }
 
-  /// Updates the clipped audio source when offset changes.
-  /// Debounced to avoid too frequent updates during scrolling.
-  Future<void> _updateClippedAudioSource() async {
-    final wasPlaying = _audioPlayer.playing;
-    await _setClippedAudioSource();
-    if (wasPlaying) {
-      await _audioPlayer.play();
-    }
-  }
-
   void _onFlingUpdate() {
     setState(() {
       _startOffset = _flingController.value.clamp(0.0, 1.0);
@@ -261,8 +251,18 @@ class _VideoAudioEditorTimingScreenState
 
   Future<void> _confirmSelection() async {
     await _audioPlayer.stop();
-    // TODO: Apply the timing offset to the selected sound.
-    // ref.read(selectedSoundProvider.notifier).select(widget.audio);
+    // Calculate the actual start time from the normalized offset
+    final audioDurationSecs = _audioDuration ?? 0;
+    final maxDurationSecs =
+        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
+    final scrollableAudioSecs = (audioDurationSecs - maxDurationSecs).clamp(
+      0.0,
+      double.infinity,
+    );
+    final startTimeMs = (_startOffset * scrollableAudioSecs * 1000).toInt();
+    ref
+        .read(selectedSoundProvider.notifier)
+        .setStartOffset(Duration(milliseconds: startTimeMs));
     if (mounted) context.pop();
   }
 

@@ -974,14 +974,17 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       // Load the audio from the sound's Blossom URL
       await _audioPlaybackService!.loadAudio(selectedSound.url!);
 
-      // Seek to correct position based on existing clips
+      // Seek to correct position based on existing clips + audio start offset
       final clipManager = ref.read(clipManagerProvider.notifier);
-      final startPosition = clipManager.totalDuration;
+      final startPosition =
+          clipManager.totalDuration + selectedSound.startOffset;
       if (startPosition > Duration.zero) {
         await _audioPlaybackService!.seek(startPosition);
         Log.debug(
           'Seeking sound to position: '
-          '${startPosition.inMilliseconds}ms',
+          '${startPosition.inMilliseconds}ms '
+          '(clips: ${clipManager.totalDuration.inMilliseconds}ms, '
+          'offset: ${selectedSound.startOffset.inMilliseconds}ms)',
           name: 'VideoRecorderNotifier',
           category: LogCategory.video,
         );

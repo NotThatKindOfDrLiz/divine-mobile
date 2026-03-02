@@ -41,13 +41,14 @@ abstract final class WaveformConstants {
 /// Custom painter for stereo waveform with progress overlay.
 ///
 /// The waveform is scaled to show only [maxDuration] worth of audio:
-/// - If audio is longer than maxDuration, only the first maxDuration is shown
+/// - If audio is longer than maxDuration, only maxDuration is shown starting from [startOffset]
 /// - If audio is shorter than maxDuration, waveform fills proportionally
 ///
 /// Supports:
 /// - Active/inactive colors based on progress position
 /// - Height animation via [heightFactor]
 /// - Automatic sample-to-bar mapping
+/// - Start offset for displaying a specific audio segment
 class StereoWaveformPainter extends CustomPainter {
   /// Creates a waveform progress painter.
   StereoWaveformPainter({
@@ -60,6 +61,7 @@ class StereoWaveformPainter extends CustomPainter {
     this.rightChannel,
     this.activeBackgroundColor,
     this.heightFactor = 1.0,
+    this.startOffset = Duration.zero,
   });
 
   /// Left channel amplitude data.
@@ -86,6 +88,10 @@ class StereoWaveformPainter extends CustomPainter {
   /// Maximum duration to display.
   final Duration maxDuration;
 
+  /// Offset within the audio where display starts.
+  /// Default is [Duration.zero] (start from beginning).
+  final Duration startOffset;
+
   /// Multiplier for bar heights (0.0 to 1.0) used for entrance animation.
   final double heightFactor;
 
@@ -109,6 +115,7 @@ class StereoWaveformPainter extends CustomPainter {
     // Calculate visible duration and ratios
     final audioMs = audioDuration.inMilliseconds.toDouble();
     final maxMs = maxDuration.inMilliseconds.toDouble();
+    final offsetMs = startOffset.inMilliseconds.toDouble();
 
     // Guard against invalid audio duration
     if (audioMs <= 0 || maxMs <= 0) {
@@ -122,18 +129,20 @@ class StereoWaveformPainter extends CustomPainter {
       return;
     }
 
-    final visibleMs = audioMs.clamp(0.0, maxMs);
+    // Calculate available audio after offset
+    final availableMs = (audioMs - offsetMs).clamp(0.0, audioMs);
+    final visibleMs = availableMs.clamp(0.0, maxMs);
 
     // How much of the bar should be filled with waveform
-    // (1.0 if audio >= maxDuration, less if audio is shorter)
+    // (1.0 if available audio >= maxDuration, less if shorter)
     final barFillRatio = visibleMs / maxMs;
 
-    // How much of the samples we need to display
-    // (1.0 if audio <= maxDuration, less if audio is longer)
-    final sampleRatio = visibleMs / audioMs;
+    // Calculate sample offset and visible sample count
+    final sampleOffset = ((offsetMs / audioMs) * leftChannel.length).floor();
+    final visibleSampleCount =
+        ((visibleMs / audioMs) * leftChannel.length).ceil();
 
     final waveformWidth = size.width * barFillRatio;
-    final visibleSampleCount = (leftChannel.length * sampleRatio).ceil();
 
     // Draw active background if provided
     if (activeBackgroundColor != null && progressX > 0) {
@@ -153,6 +162,7 @@ class StereoWaveformPainter extends CustomPainter {
       halfHeight: halfHeight,
       waveformWidth: waveformWidth,
       visibleSampleCount: visibleSampleCount,
+      sampleOffset: sampleOffset,
       progressX: progressX,
     );
 
@@ -214,6 +224,7 @@ class StereoWaveformPainter extends CustomPainter {
     required double halfHeight,
     required double waveformWidth,
     required int visibleSampleCount,
+    required int sampleOffset,
     required double progressX,
   }) {
     final barCount = (waveformWidth / WaveformConstants.barStep).floor();
@@ -226,8 +237,9 @@ class StereoWaveformPainter extends CustomPainter {
     for (var i = 0; i < barCount; i++) {
       final x = i * WaveformConstants.barStep;
 
-      // Map bar position to sample index within visible samples
-      final sampleIndex = ((i / barCount) * visibleSampleCount).floor();
+      // Map bar position to sample index within visible samples, offset by startOffset
+      final sampleIndex =
+          sampleOffset + ((i / barCount) * visibleSampleCount).floor();
 
       // Get amplitudes (0.0-1.0)
       final leftAmp = sampleIndex < leftSamples.length
@@ -277,6 +289,7 @@ class StereoWaveformPainter extends CustomPainter {
         oldDelegate.rightChannel != rightChannel ||
         oldDelegate.audioDuration != audioDuration ||
         oldDelegate.maxDuration != maxDuration ||
-        oldDelegate.heightFactor != heightFactor;
+        oldDelegate.heightFactor != heightFactor ||
+        oldDelegate.startOffset != startOffset;
   }
 }

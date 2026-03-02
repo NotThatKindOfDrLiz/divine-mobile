@@ -151,6 +151,9 @@ class _AudioWaveformProgress extends ConsumerWidget {
         (s) => (clips: s.clips, activeRecording: s.activeRecordingDuration),
       ),
     );
+    final startOffset =
+        ref.watch(selectedSoundProvider.select((s) => s?.startOffset)) ??
+        Duration.zero;
 
     // Calculate total recorded duration
     var recordedDuration = Duration.zero;
@@ -189,6 +192,7 @@ class _AudioWaveformProgress extends ConsumerWidget {
               audioDuration: audioDuration,
               maxDuration: _maxDuration,
               heightFactor: heightFactor,
+              startOffset: startOffset,
             ),
           ),
         );

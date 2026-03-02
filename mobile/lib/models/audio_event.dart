@@ -33,6 +33,7 @@ class AudioEvent {
     this.source,
     this.sourceVideoReference,
     this.sourceVideoRelay,
+    this.startOffset = Duration.zero,
   });
 
   /// Parse an AudioEvent from a Nostr Event.
@@ -181,6 +182,11 @@ class AudioEvent {
   /// Optional relay hint for the source video.
   final String? sourceVideoRelay;
 
+  /// Start offset within the audio track.
+  /// This is the point from which the audio will start playing during video playback.
+  /// Default is [Duration.zero] (start from beginning). Only used locally, not published to Nostr.
+  final Duration startOffset;
+
   /// Get the kind number from the source video reference.
   /// Returns null if no source video reference is set.
   int? get sourceVideoKind {
@@ -284,6 +290,7 @@ class AudioEvent {
     String? source,
     String? sourceVideoReference,
     String? sourceVideoRelay,
+    Duration? startOffset,
   }) {
     return AudioEvent(
       id: id ?? this.id,
@@ -298,6 +305,7 @@ class AudioEvent {
       source: source ?? this.source,
       sourceVideoReference: sourceVideoReference ?? this.sourceVideoReference,
       sourceVideoRelay: sourceVideoRelay ?? this.sourceVideoRelay,
+      startOffset: startOffset ?? this.startOffset,
     );
   }
 
