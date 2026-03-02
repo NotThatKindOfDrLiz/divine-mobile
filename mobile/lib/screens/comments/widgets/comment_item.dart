@@ -292,7 +292,7 @@ class _CommentHeader extends ConsumerWidget {
                     ? Text(
                         UserProfile.generatedNameFor(authorPubkey),
                         style: const TextStyle(
-                          color: VineTheme.onSurface, // rgba(255,255,255,0.95)
+                          color: VineTheme.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.1,

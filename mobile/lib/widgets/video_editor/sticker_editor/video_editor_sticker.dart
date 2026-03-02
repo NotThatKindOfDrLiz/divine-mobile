@@ -98,7 +98,7 @@ class _ErrorImage extends StatelessWidget {
     return const Icon(
       Icons.broken_image_outlined,
       size: 48,
-      color: VineTheme.secondaryText,
+      color: VineTheme.lightText,
     );
   }
 }
