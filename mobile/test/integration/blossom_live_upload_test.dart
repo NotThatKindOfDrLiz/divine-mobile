@@ -1,6 +1,9 @@
 // ABOUTME: Live integration test for Blossom upload against cf-stream-service-prod.protestnet.workers.dev
 // ABOUTME: Tests actual upload with real server to verify complete flow works
 
+@Tags(['integration'])
+library;
+
 import 'dart:convert';
 import 'dart:io';
 
