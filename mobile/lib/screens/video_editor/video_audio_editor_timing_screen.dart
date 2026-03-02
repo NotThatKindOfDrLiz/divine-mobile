@@ -1,6 +1,7 @@
 // ABOUTME: Screen for adjusting audio timing/offset for video editor.
 // ABOUTME: Displays video preview with audio segment selector overlay.
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:divine_ui/divine_ui.dart';
@@ -10,9 +11,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/providers/sounds_providers.dart';
+import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/stereo_waveform_painter.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
 
@@ -38,10 +41,14 @@ class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
 class _VideoAudioEditorTimingScreenState
     extends ConsumerState<VideoAudioEditorTimingScreen>
     with SingleTickerProviderStateMixin {
-  // TODO: Implement actual audio playback and timing adjustment.
   double _startOffset = 0;
   late final SoundWaveformBloc _waveformBloc;
   late final AnimationController _flingController;
+  late final AudioPlayer _audioPlayer;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+
+  /// Cached audio duration (read once on init to avoid visual jump on clear).
+  double? _audioDuration;
 
   /// Friction for momentum scrolling (higher = stops faster).
   static const double _friction = 0.015;
@@ -52,14 +59,29 @@ class _VideoAudioEditorTimingScreenState
     _waveformBloc = SoundWaveformBloc();
     _flingController = AnimationController.unbounded(vsync: this);
     _flingController.addListener(_onFlingUpdate);
+    _audioPlayer = AudioPlayer();
+
+    // Listen for audio completion to restart loop
+    _playerStateSubscription = _audioPlayer.playerStateStream.listen(
+      _onPlayerStateChanged,
+    );
+
     // Delay extraction until after first frame when ref is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Cache audio duration from provider (won't change during screen lifetime)
+      setState(() {
+        _audioDuration = ref.read(selectedSoundProvider)?.duration;
+      });
       _extractWaveform();
+      _loadAndPlayAudio();
     });
   }
 
   @override
   void dispose() {
+    _playerStateSubscription?.cancel();
+    _audioPlayer.dispose();
     _flingController
       ..removeListener(_onFlingUpdate)
       ..dispose();
@@ -67,13 +89,114 @@ class _VideoAudioEditorTimingScreenState
     super.dispose();
   }
 
+  /// Called when player state changes - handles looping.
+  void _onPlayerStateChanged(PlayerState state) {
+    // When playback completes, restart from the beginning
+    if (state.processingState == ProcessingState.completed) {
+      _audioPlayer.seek(Duration.zero);
+      _audioPlayer.play();
+    }
+  }
+
+  /// Loads the selected audio and starts looped playback.
+  Future<void> _loadAndPlayAudio() async {
+    final sound = ref.read(selectedSoundProvider);
+    if (sound == null) return;
+
+    try {
+      await _setClippedAudioSource();
+      // Manual looping via _onPlayerStateChanged instead of LoopMode
+      // because ClippingAudioSource + LoopMode.one can be unreliable
+      await _audioPlayer.play();
+    } catch (e, s) {
+      Log.error(
+        'Failed to load audio: $e',
+        name: 'VideoAudioEditorTimingScreen',
+        error: e,
+        stackTrace: s,
+      );
+    }
+  }
+
+  /// Creates a clipped audio source for the current selection.
+  Future<void> _setClippedAudioSource() async {
+    final sound = ref.read(selectedSoundProvider);
+    if (sound == null) return;
+
+    final audioDurationSecs = _audioDuration ?? 0;
+    if (audioDurationSecs <= 0) return;
+
+    final maxDurationSecs =
+        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
+    final scrollableAudioSecs = (audioDurationSecs - maxDurationSecs).clamp(
+      0.0,
+      double.infinity,
+    );
+    final startPositionSecs = _startOffset * scrollableAudioSecs;
+
+    // Calculate clip boundaries
+    final clipStart = Duration(
+      milliseconds: (startPositionSecs * 1000).toInt(),
+    );
+    // End is either maxDuration after start, or end of audio
+    final clipEndSecs = (startPositionSecs + maxDurationSecs).clamp(
+      0.0,
+      audioDurationSecs,
+    );
+    final clipEnd = Duration(milliseconds: (clipEndSecs * 1000).toInt());
+
+    // Create the appropriate audio source
+    AudioSource audioSource;
+    if (sound.isBundled && sound.assetPath != null) {
+      audioSource = ClippingAudioSource(
+        child: AudioSource.asset(sound.assetPath!),
+        start: clipStart,
+        end: clipEnd,
+      );
+    } else if (sound.url != null) {
+      audioSource = ClippingAudioSource(
+        child: AudioSource.uri(Uri.parse(sound.url!)),
+        start: clipStart,
+        end: clipEnd,
+      );
+    } else {
+      Log.warning(
+        'No audio source available for sound: ${sound.id}',
+        name: 'VideoAudioEditorTimingScreen',
+      );
+      return;
+    }
+
+    await _audioPlayer.setAudioSource(audioSource);
+  }
+
+  /// Updates the clipped audio source when offset changes.
+  /// Debounced to avoid too frequent updates during scrolling.
+  Future<void> _updateClippedAudioSource() async {
+    final wasPlaying = _audioPlayer.playing;
+    await _setClippedAudioSource();
+    if (wasPlaying) {
+      await _audioPlayer.play();
+    }
+  }
+
   void _onFlingUpdate() {
     setState(() {
       _startOffset = _flingController.value.clamp(0.0, 1.0);
     });
+    // Play audio at end of fling (when velocity approaches 0)
+    if (_flingController.velocity.abs() < 0.001) {
+      _resumeAudioAfterDrag();
+    }
   }
 
   void _handleFling(double velocity) {
+    // If velocity is too low, just play audio immediately
+    if (velocity.abs() < 0.01) {
+      _resumeAudioAfterDrag();
+      return;
+    }
+
     // Convert velocity to offset units (normalized 0-1 range)
     // Positive velocity = moving right/forward in audio
     final simulation = FrictionSimulation(
@@ -89,6 +212,23 @@ class _VideoAudioEditorTimingScreenState
     setState(() {
       _startOffset = offset;
     });
+  }
+
+  /// Pauses audio playback when dragging starts.
+  void _handleDragStart() {
+    _audioPlayer.pause();
+  }
+
+  /// Resumes audio playback after dragging ends.
+  /// Called from onDragEnd - actual resume happens in _handleFling.
+  void _handleDragEnd() {
+    // Audio resume is handled by _handleFling / _onFlingUpdate
+  }
+
+  /// Resumes audio after drag/fling is complete.
+  Future<void> _resumeAudioAfterDrag() async {
+    await _setClippedAudioSource();
+    await _audioPlayer.play();
   }
 
   void _extractWaveform() {
@@ -113,15 +253,17 @@ class _VideoAudioEditorTimingScreenState
     }
   }
 
-  void _deleteAudio() {
+  Future<void> _deleteAudio() async {
+    await _audioPlayer.stop();
     ref.read(selectedSoundProvider.notifier).clear();
-    context.pop();
+    if (mounted) context.pop();
   }
 
-  void _confirmSelection() {
+  Future<void> _confirmSelection() async {
+    await _audioPlayer.stop();
     // TODO: Apply the timing offset to the selected sound.
     // ref.read(selectedSoundProvider.notifier).select(widget.audio);
-    context.pop();
+    if (mounted) context.pop();
   }
 
   @override
@@ -160,11 +302,11 @@ class _VideoAudioEditorTimingScreenState
                     // Bottom controls
                     _BottomControls(
                       startOffset: _startOffset,
-                      audioDuration: ref.watch(
-                        selectedSoundProvider.select((s) => s?.duration),
-                      ),
+                      audioDuration: _audioDuration,
                       onOffsetChanged: _handleOffsetChanged,
                       onFling: _handleFling,
+                      onDragStart: _handleDragStart,
+                      onDragEnd: _handleDragEnd,
                     ),
                   ],
                 ),
@@ -204,7 +346,7 @@ class _TopBar extends StatelessWidget {
 
           // Audio chip (centered, flexible)
           const Flexible(
-            child: VideoEditorAudioChip(),
+            child: IgnorePointer(child: VideoEditorAudioChip()),
           ),
 
           // Confirm button
@@ -229,6 +371,8 @@ class _BottomControls extends StatelessWidget {
     required this.audioDuration,
     required this.onOffsetChanged,
     required this.onFling,
+    required this.onDragStart,
+    required this.onDragEnd,
   });
 
   final double startOffset;
@@ -237,29 +381,31 @@ class _BottomControls extends StatelessWidget {
   final double? audioDuration;
   final ValueChanged<double> onOffsetChanged;
   final ValueChanged<double> onFling;
+  final VoidCallback onDragStart;
+  final VoidCallback onDragEnd;
 
   /// Calculates the selection width ratio based on video maxDuration vs audio duration.
   ///
   /// The selection always represents [VideoEditorConstants.maxDuration] (6.3s).
-  /// - If audio is shorter than maxDuration: returns 0.9 (90% width, max allowed)
+  /// - If audio is shorter than maxDuration: returns 1.0 (100% width, fills entire area)
   /// - If audio is longer: returns the proportional ratio (e.g., 33% for ~19s audio)
   /// - Minimum 10% to keep the selection visible and draggable
   double get _selectionWidthRatio {
     final audioDurationSecs = audioDuration;
     if (audioDurationSecs == null || audioDurationSecs <= 0) {
-      return 0.9; // Unknown duration, assume max selection
+      return 1.0; // Unknown duration, assume full width
     }
 
     final maxDurationSecs =
         VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
 
-    // If audio is shorter than video max duration, use max width (90%)
+    // If audio is shorter than video max duration, use full width (100%)
     if (audioDurationSecs <= maxDurationSecs) {
-      return 0.9;
+      return 1.0;
     }
 
-    // Ratio of video duration to audio duration, clamped to [0.1, 0.9]
-    return (maxDurationSecs / audioDurationSecs).clamp(0.1, 0.9);
+    // Ratio of video duration to audio duration, clamped to [0.1, 1.0]
+    return (maxDurationSecs / audioDurationSecs).clamp(0.1, 1.0);
   }
 
   @override
@@ -286,8 +432,11 @@ class _BottomControls extends StatelessWidget {
         _VideoDurationTimeline(
           startOffset: startOffset,
           selectionWidthRatio: selectionRatio,
+          audioDuration: audioDuration,
           onOffsetChanged: onOffsetChanged,
           onFling: onFling,
+          onDragStart: onDragStart,
+          onDragEnd: onDragEnd,
         ),
 
         const SizedBox(height: 18),
@@ -299,6 +448,8 @@ class _BottomControls extends StatelessWidget {
           audioDuration: audioDuration,
           onOffsetChanged: onOffsetChanged,
           onFling: onFling,
+          onDragStart: onDragStart,
+          onDragEnd: onDragEnd,
         ),
       ],
     );
@@ -310,8 +461,11 @@ class _VideoDurationTimeline extends StatelessWidget {
   const _VideoDurationTimeline({
     required this.startOffset,
     required this.selectionWidthRatio,
+    required this.audioDuration,
     required this.onOffsetChanged,
     required this.onFling,
+    required this.onDragStart,
+    required this.onDragEnd,
   });
 
   final double startOffset;
@@ -319,17 +473,36 @@ class _VideoDurationTimeline extends StatelessWidget {
   /// The ratio of the segment width to the total timeline width.
   final double selectionWidthRatio;
 
+  /// Audio duration in seconds, or null if unknown.
+  final double? audioDuration;
+
   final ValueChanged<double> onOffsetChanged;
   final ValueChanged<double> onFling;
+  final VoidCallback onDragStart;
+  final VoidCallback onDragEnd;
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.sizeOf(context).width - 32;
     final segmentWidth = screenWidth * selectionWidthRatio;
-    final maxScrollableDistance = screenWidth - segmentWidth;
+
+    // Calculate scrollable distance based on audio duration
+    final maxDurationSecs =
+        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
+    final audioDurationSecs = audioDuration ?? 0;
+
+    // Short audio: no scrolling (segment fills timeline relative to audio)
+    // Long audio: scrollable distance proportional to excess audio
+    final double maxScrollableDistance;
+    if (audioDurationSecs <= 0 || audioDurationSecs <= maxDurationSecs) {
+      maxScrollableDistance = 0;
+    } else {
+      maxScrollableDistance = screenWidth - segmentWidth;
+    }
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (_) => onDragStart(),
       onHorizontalDragUpdate: (details) {
         // Don't allow scrolling if selection fills the timeline
         if (maxScrollableDistance < 1) return;
@@ -343,6 +516,7 @@ class _VideoDurationTimeline extends StatelessWidget {
         onOffsetChanged(newOffset);
       },
       onHorizontalDragEnd: (details) {
+        onDragEnd();
         if (maxScrollableDistance < 1) return;
         // Convert velocity from pixels to normalized offset units
         final velocityInOffset =
@@ -396,6 +570,8 @@ class _AudioWaveformSelector extends StatelessWidget {
     required this.audioDuration,
     required this.onOffsetChanged,
     required this.onFling,
+    required this.onDragStart,
+    required this.onDragEnd,
   });
 
   final double startOffset;
@@ -407,6 +583,8 @@ class _AudioWaveformSelector extends StatelessWidget {
   final double? audioDuration;
   final ValueChanged<double> onOffsetChanged;
   final ValueChanged<double> onFling;
+  final VoidCallback onDragStart;
+  final VoidCallback onDragEnd;
 
   @override
   Widget build(BuildContext context) {
@@ -415,17 +593,34 @@ class _AudioWaveformSelector extends StatelessWidget {
     final selectionWidth = screenWidth * selectionWidthRatio;
     // Selection is always centered
     final selectionLeft = (screenWidth - selectionWidth) / 2;
-    // Full waveform width represents the entire audio duration
-    // If selection is 33% of screen, full waveform is ~3x the selection width
-    final fullWaveformWidth = selectionWidth / selectionWidthRatio;
+
+    // Calculate actual waveform width based on audio duration
+    final double fullWaveformWidth;
+    final maxDurationSecs =
+        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
+    final audioDurationSecs = audioDuration ?? 0;
+
+    if (audioDurationSecs <= 0 || audioDurationSecs <= maxDurationSecs) {
+      // Short audio: waveform fits exactly within selection
+      fullWaveformWidth = selectionWidth;
+    } else {
+      // Long audio: waveform extends beyond selection proportionally
+      fullWaveformWidth =
+          selectionWidth * (audioDurationSecs / maxDurationSecs);
+    }
+
     // Calculate how far the waveform can scroll
-    final maxScrollableDistance = fullWaveformWidth - selectionWidth;
+    final maxScrollableDistance = (fullWaveformWidth - selectionWidth).clamp(
+      0.0,
+      double.infinity,
+    );
     // Waveform position: at offset 0, waveform starts at selection left edge
     // at offset 1, waveform ends at selection right edge
     final waveformLeft = selectionLeft - startOffset * maxScrollableDistance;
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (_) => onDragStart(),
       onHorizontalDragUpdate: (details) {
         // Don't allow scrolling if selection fills the waveform
         if (maxScrollableDistance < 1) return;
@@ -439,6 +634,7 @@ class _AudioWaveformSelector extends StatelessWidget {
         onOffsetChanged(newOffset);
       },
       onHorizontalDragEnd: (details) {
+        onDragEnd();
         if (maxScrollableDistance < 1) return;
         // Convert velocity from pixels to normalized offset units
         // Invert velocity to match inverted drag direction
