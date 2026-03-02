@@ -333,8 +333,8 @@ bool _isEmojiOnly(String text) {
   // Check each grapheme is emoji (no ASCII text, no nostr: mentions).
   // Includes Emoji_Component for keycap (\u20e3) and tag sequences,
   // and Regional_Indicator for flag emojis.
-  // ignore: valid_regexps
   final emojiRegex = RegExp(
+    // ignore: valid_regexps
     r'^[\p{Emoji_Presentation}\p{Emoji}'
     r'\u200d\ufe0f\u20e3\p{Regional_Indicator}]+$',
     unicode: true,
