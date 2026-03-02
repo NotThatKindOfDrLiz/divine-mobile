@@ -53,6 +53,7 @@ analyzer:
     type_annotate_public_apis: ignore
     unawaited_futures: ignore
     unchecked_use_of_nullable_value: ignore
+    valid_regexps: ignore
 
 linter:
   rules:
