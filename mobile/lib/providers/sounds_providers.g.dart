@@ -691,7 +691,7 @@ final class SelectedSoundProvider
   }
 }
 
-String _$selectedSoundHash() => r'8df91d1dd788e279d67801e2496afd9dbbdfa3ab';
+String _$selectedSoundHash() => r'75c107010b725ac76d22b89d040db38b1376eee0';
 
 /// State provider for the currently selected sound.
 ///
