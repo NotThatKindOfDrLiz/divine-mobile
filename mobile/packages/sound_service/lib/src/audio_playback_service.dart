@@ -361,6 +361,47 @@ class AudioPlaybackService {
     }
   }
 
+  /// Configures the audio session for mixed playback.
+  ///
+  /// This allows audio to play simultaneously with other audio sources
+  /// (e.g., video player). Use this in the video editor to prevent
+  /// the audio from pausing the video.
+  Future<void> configureForMixedPlayback() async {
+    try {
+      await _audioSessionWrapper.configure(
+        const audio_session.AudioSessionConfiguration(
+          avAudioSessionCategory: audio_session.AVAudioSessionCategory.playback,
+          avAudioSessionCategoryOptions:
+              audio_session.AVAudioSessionCategoryOptions.mixWithOthers,
+          avAudioSessionMode: audio_session.AVAudioSessionMode.defaultMode,
+          avAudioSessionRouteSharingPolicy:
+              audio_session.AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions:
+              audio_session.AVAudioSessionSetActiveOptions.none,
+          androidAudioAttributes: audio_session.AndroidAudioAttributes(
+            contentType: audio_session.AndroidAudioContentType.music,
+            usage: audio_session.AndroidAudioUsage.media,
+          ),
+          androidAudioFocusGainType:
+              audio_session.AndroidAudioFocusGainType.gainTransientMayDuck,
+          androidWillPauseWhenDucked: false,
+        ),
+      );
+
+      log(
+        'Configured audio session for mixed playback',
+        name: 'AudioPlaybackService',
+      );
+    } on Exception catch (e) {
+      log(
+        'Failed to configure audio session for mixed playback: $e',
+        name: 'AudioPlaybackService',
+        level: 900,
+      );
+      // Don't rethrow - allow playback to continue even if session config fails
+    }
+  }
+
   /// Resets the audio session to default configuration.
   ///
   /// Call this when exiting recording mode.
@@ -374,6 +415,8 @@ class AudioPlaybackService {
           avAudioSessionMode: audio_session.AVAudioSessionMode.defaultMode,
           avAudioSessionRouteSharingPolicy:
               audio_session.AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          androidAudioFocusGainType:
+              audio_session.AndroidAudioFocusGainType.gainTransientMayDuck,
           avAudioSessionSetActiveOptions:
               audio_session.AVAudioSessionSetActiveOptions.none,
           androidAudioAttributes: audio_session.AndroidAudioAttributes(

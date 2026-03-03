@@ -176,10 +176,9 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   void _onPlaybackRestartRequested() {
     if (!_isPlayerReadyNotifier.value) return;
 
-    // Restart video and audio from beginning
+    // Restart video from beginning - audio sync handled by listener
     _videoPlayer?.seekTo(Duration.zero);
     _videoPlayer?.play();
-    _initializeAudio();
   }
 
   /// Handles playback toggle requests from the scope.
@@ -189,14 +188,17 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     final isPlaying = _videoPlayer?.value.isPlaying ?? false;
     if (isPlaying) {
       _videoPlayer?.pause();
-      _audioService?.pause();
+      // Audio pause handled by _onVideoPositionChange listener
     } else {
       _videoPlayer?.play();
-      _audioService?.play();
+      // Audio play handled by _onVideoPositionChange listener
     }
   }
 
-  /// Handles video position changes to sync audio on loop.
+  /// Handles video position changes to sync audio.
+  ///
+  /// This is the single source of truth for audio synchronization.
+  /// The video player is the "master" and audio follows automatically.
   void _onVideoPositionChange() {
     final position = _videoPlayer?.value.position ?? Duration.zero;
     final isPlaying = _videoPlayer?.value.isPlaying ?? false;
@@ -207,12 +209,21 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
       context.read<VideoEditorMainBloc>().add(
         VideoEditorPlaybackChanged(isPlaying: isPlaying),
       );
+
+      // Sync audio play/pause state with video
+      if (_audioService != null) {
+        if (isPlaying) {
+          unawaited(_syncAudioToVideo());
+        } else {
+          unawaited(_audioService!.pause());
+        }
+      }
     }
 
     // Detect loop: position jumped backwards significantly
     // (Video looped from end to start)
     if (_lastVideoPosition.inMilliseconds - position.inMilliseconds > 500) {
-      _syncAudioToVideo();
+      unawaited(_syncAudioToVideo());
     }
 
     _lastVideoPosition = position;
@@ -223,8 +234,9 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     final selectedSound = ref.read(selectedSoundProvider);
     if (selectedSound == null || _audioService == null) return;
 
-    final startOffset = selectedSound.startOffset;
-    await _audioService!.seek(startOffset);
+    final videoPosition = _videoPlayer?.value.position ?? Duration.zero;
+    final audioPosition = selectedSound.startOffset + videoPosition;
+    await _audioService!.seek(audioPosition);
     await _audioService!.play();
   }
 
@@ -306,6 +318,9 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     _audioService = ref.read(audioPlaybackServiceProvider);
 
     try {
+      // Configure audio session to mix with video (prevents video pause)
+      await _audioService!.configureForMixedPlayback();
+
       // Load audio from URL or asset
       await _audioService!.loadAudio(selectedSound.url!);
 
@@ -398,7 +413,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   /// Handles the done action from the main editor.
   ///
   /// Pauses video, marks processing state, navigates to metadata screen,
-  /// and resumes video when returning.
+  /// and resumes video when returning. Audio sync handled by listener.
   Future<void> _handleDone() async {
     Log.info(
       '🎬 Done pressed - navigating to metadata screen',
@@ -406,7 +421,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
       category: LogCategory.video,
     );
     _videoPlayer?.pause();
-    _audioService?.pause();
+    // Audio pause handled automatically by _onVideoPositionChange listener
     // IMPORTANT: Don't start video rendering here. We must await
     // `_handleEditorComplete` which generate the layer image before we start
     // rendering! However, we can navigate to the metadata screen immediately
@@ -415,7 +430,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     await context.push(VideoMetadataScreen.path);
     if (mounted) {
       _videoPlayer?.play();
-      _syncAudioToVideo();
+      // Audio resume handled automatically by _onVideoPositionChange listener
     }
   }
 
