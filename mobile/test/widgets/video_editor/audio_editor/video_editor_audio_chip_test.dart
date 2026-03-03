@@ -1,9 +1,9 @@
 // ABOUTME: Tests for VideoEditorAudioChip widget
-// ABOUTME: Validates rendering states, tap callbacks, and clear functionality
+// ABOUTME: Validates rendering states and visual elements
 
+import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/sounds_providers.dart';
@@ -34,12 +34,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group(VideoEditorAudioChip, () {
-    late bool onTapCalled;
-
-    setUp(() {
-      onTapCalled = false;
-    });
-
     Widget buildWidget({AudioEvent? selectedSound}) {
       return ProviderScope(
         overrides: [
@@ -65,21 +59,12 @@ void main() {
         expect(find.text('Add audio'), findsOneWidget);
       });
 
-      testWidgets('does not show close button', (tester) async {
+      testWidgets('does not show music icon', (tester) async {
         await tester.pumpWidget(buildWidget());
         await tester.pumpAndSettle();
 
-        expect(find.byType(SvgPicture), findsNothing);
-      });
-
-      testWidgets('calls onTap when tapped', (tester) async {
-        await tester.pumpWidget(buildWidget());
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byType(VideoEditorAudioChip));
-        await tester.pumpAndSettle();
-
-        expect(onTapCalled, isTrue);
+        // When no sound selected, shows audio bars instead of music icon
+        expect(find.byType(DivineIcon), findsNothing);
       });
 
       testWidgets('renders audio bars', (tester) async {
@@ -88,6 +73,13 @@ void main() {
 
         // There should be 5 audio bars (AnimatedContainer)
         expect(find.byType(AnimatedContainer), findsNWidgets(5));
+      });
+
+      testWidgets('has tappable InkWell', (tester) async {
+        await tester.pumpWidget(buildWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.byType(InkWell), findsOneWidget);
       });
     });
 
@@ -122,55 +114,23 @@ void main() {
         expect(find.textContaining('Artist Name'), findsOneWidget);
       });
 
-      testWidgets('shows close button', (tester) async {
+      testWidgets('shows music icon when sound selected', (tester) async {
         final sound = _createTestAudioEvent(title: 'Test Sound');
         await tester.pumpWidget(buildWidget(selectedSound: sound));
         await tester.pumpAndSettle();
 
-        expect(find.byType(SvgPicture), findsOneWidget);
+        expect(find.byType(DivineIcon), findsOneWidget);
       });
 
-      testWidgets('calls onTap when chip is tapped', (tester) async {
+      testWidgets('does not show audio bars when sound selected', (
+        tester,
+      ) async {
         final sound = _createTestAudioEvent(title: 'Test Sound');
         await tester.pumpWidget(buildWidget(selectedSound: sound));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.byType(InkWell));
-        await tester.pumpAndSettle();
-
-        expect(onTapCalled, isTrue);
-      });
-    });
-
-    group('Clear functionality', () {
-      testWidgets('clears sound when close button is tapped', (tester) async {
-        final sound = _createTestAudioEvent(title: 'Test Sound');
-        await tester.pumpWidget(buildWidget(selectedSound: sound));
-        await tester.pumpAndSettle();
-
-        // Find and tap the close button (GestureDetector wrapping SvgPicture)
-        final closeButton = find.byType(SvgPicture);
-        expect(closeButton, findsOneWidget);
-
-        await tester.tap(closeButton);
-        await tester.pumpAndSettle();
-
-        // After clearing, should show "Add audio" again
-        expect(find.text('Add audio'), findsOneWidget);
-        expect(find.text('Test Sound'), findsNothing);
-      });
-
-      testWidgets('close button does not trigger onTap', (tester) async {
-        final sound = _createTestAudioEvent(title: 'Test Sound');
-        await tester.pumpWidget(buildWidget(selectedSound: sound));
-        await tester.pumpAndSettle();
-
-        // Tap specifically on the close button
-        await tester.tap(find.byType(SvgPicture));
-        await tester.pumpAndSettle();
-
-        // onTap should not be called when tapping close button
-        expect(onTapCalled, isFalse);
+        // Audio bars should not be visible when a sound is selected
+        expect(find.byType(AnimatedContainer), findsNothing);
       });
     });
 
