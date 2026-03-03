@@ -218,21 +218,21 @@ void main() {
     });
 
     test('setVolume clamps volume above 1.0', () async {
-      when(() => mockPlayer.setVolume(1.0)).thenAnswer((_) async {});
+      when(() => mockPlayer.setVolume(1)).thenAnswer((_) async {});
 
       service = AudioPlaybackService(audioPlayer: mockPlayer);
       await service.setVolume(1.5);
 
-      verify(() => mockPlayer.setVolume(1.0)).called(1);
+      verify(() => mockPlayer.setVolume(1)).called(1);
     });
 
     test('setVolume clamps volume below 0.0', () async {
-      when(() => mockPlayer.setVolume(0.0)).thenAnswer((_) async {});
+      when(() => mockPlayer.setVolume(0)).thenAnswer((_) async {});
 
       service = AudioPlaybackService(audioPlayer: mockPlayer);
       await service.setVolume(-0.5);
 
-      verify(() => mockPlayer.setVolume(0.0)).called(1);
+      verify(() => mockPlayer.setVolume(0)).called(1);
     });
 
     test('dispose does nothing if already disposed', () async {
