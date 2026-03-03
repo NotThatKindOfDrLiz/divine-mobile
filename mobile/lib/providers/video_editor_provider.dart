@@ -605,8 +605,11 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   ///
   /// This updates the editor's local state. The sound is persisted
   /// in drafts and used for audio playback during editing.
-  void selectSound(AudioEvent sound) {
-    state = state.copyWith(selectedSound: sound);
+  void selectSound(AudioEvent? sound) {
+    state = state.copyWith(
+      selectedSound: sound,
+      clearSelectedSound: sound == null,
+    );
     invalidateFinalRenderedClip();
     triggerAutosave();
   }

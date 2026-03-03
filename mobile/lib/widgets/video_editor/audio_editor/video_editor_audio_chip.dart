@@ -131,11 +131,11 @@ class VideoEditorAudioChip extends ConsumerWidget {
                           style: VineTheme.labelLargeFont(),
                           children: [
                             // TODO(l10n): Replace with context.l10n when localization is added.
-                            TextSpan(text: selectedSound.title ?? 'Untitled'),
-                            if (selectedSound.source != null) ...[
+                            TextSpan(text: selectedSound?.title ?? 'Untitled'),
+                            if (selectedSound?.source != null) ...[
                               const TextSpan(text: ' ∙ '),
                               TextSpan(
-                                text: selectedSound.source,
+                                text: selectedSound!.source,
                                 style: VineTheme.bodyMediumFont(),
                               ),
                             ],

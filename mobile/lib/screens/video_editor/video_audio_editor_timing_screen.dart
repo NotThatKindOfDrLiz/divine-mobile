@@ -313,8 +313,9 @@ class _VideoAudioEditorTimingScreenState
     final updatedSound = widget.sound.copyWith(
       startOffset: Duration(milliseconds: startTimeMs),
     );
-    if (mounted)
+    if (mounted) {
       context.pop<AudioTimingResult>(AudioTimingConfirmed(updatedSound));
+    }
   }
 
   @override
