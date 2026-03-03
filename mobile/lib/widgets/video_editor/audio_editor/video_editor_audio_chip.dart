@@ -26,48 +26,46 @@ class VideoEditorAudioChip extends ConsumerWidget {
     final bloc = context.read<VideoEditorMainBloc?>();
     bloc?.add(const VideoEditorExternalPauseRequested(isPaused: true));
 
-    if (previousSound == null) {
-      final result = await VineBottomSheet.show<AudioEvent>(
-        context: context,
-        maxChildSize: 1,
-        initialChildSize: 1,
-        minChildSize: 0.8,
-        buildScrollBody: (scrollController) =>
-            AudioSelectionBottomSheet(scrollController: scrollController),
-      );
-      if (result == null) {
-        videoRecorderNotifier.resumeRemoteRecordControl();
-        bloc?.add(const VideoEditorExternalPauseRequested(isPaused: false));
-        return;
-      } else {
+    try {
+      if (previousSound == null) {
+        final result = await VineBottomSheet.show<AudioEvent>(
+          context: context,
+          maxChildSize: 1,
+          initialChildSize: 1,
+          minChildSize: 0.8,
+          buildScrollBody: (scrollController) =>
+              AudioSelectionBottomSheet(scrollController: scrollController),
+        );
+        if (result == null) {
+          return;
+        }
         ref.read(selectedSoundProvider.notifier).select(result);
       }
+
+      if (!context.mounted) return;
+
+      await Navigator.of(context).push<void>(
+        PageRouteBuilder(
+          opaque: false,
+          barrierColor: Colors.transparent,
+          pageBuilder: (_, _, _) => const VideoAudioEditorTimingScreen(),
+        ),
+      );
+
+      // Only restart playback if sound actually changed
+      final newSound = ref.read(selectedSoundProvider);
+      final soundChanged =
+          previousSound?.url != newSound?.url ||
+          previousSound?.startOffset != newSound?.startOffset;
+
+      if (soundChanged) {
+        onSelectedSoundChanged?.call();
+      }
+    } finally {
+      // Always restore pause state and remote control
+      bloc?.add(const VideoEditorExternalPauseRequested(isPaused: false));
+      videoRecorderNotifier.resumeRemoteRecordControl();
     }
-
-    if (!context.mounted) return;
-
-    await Navigator.of(context).push<void>(
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.transparent,
-        pageBuilder: (_, _, _) => const VideoAudioEditorTimingScreen(),
-      ),
-    );
-
-    // Only restart playback if sound actually changed
-    final newSound = ref.read(selectedSoundProvider);
-    final soundChanged =
-        previousSound?.url != newSound?.url ||
-        previousSound?.startOffset != newSound?.startOffset;
-
-    // Reset external pause state before restart/resume
-    bloc?.add(const VideoEditorExternalPauseRequested(isPaused: false));
-
-    if (soundChanged) {
-      onSelectedSoundChanged?.call();
-    }
-
-    videoRecorderNotifier.resumeRemoteRecordControl();
   }
 
   @override
