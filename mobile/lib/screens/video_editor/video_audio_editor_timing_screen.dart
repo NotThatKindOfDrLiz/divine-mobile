@@ -69,10 +69,33 @@ class _VideoAudioEditorTimingScreenState
     // Delay extraction until after first frame when ref is available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Cache audio duration from provider (won't change during screen lifetime)
+
+      final sound = ref.read(selectedSoundProvider);
+      if (sound == null) return;
+
+      // Cache audio duration (won't change during screen lifetime)
+      final audioDuration = sound.duration ?? 0;
+      final maxDurationSecs =
+          VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
+      final scrollableAudioSecs = (audioDuration - maxDurationSecs).clamp(
+        0.0,
+        double.infinity,
+      );
+
+      // Restore previous selection offset (normalized 0-1)
+      var initialOffset = 0.0;
+      if (scrollableAudioSecs > 0) {
+        final startTimeSecs = sound.startOffset.inMilliseconds / 1000.0;
+        initialOffset = (startTimeSecs / scrollableAudioSecs).clamp(0.0, 1.0);
+      }
+
       setState(() {
-        _audioDuration = ref.read(selectedSoundProvider)?.duration;
+        _audioDuration = audioDuration;
+        _startOffset = initialOffset;
       });
+      // Sync fling controller with initial offset
+      _flingController.value = initialOffset;
+
       _extractWaveform();
       _loadAndPlayAudio();
     });
