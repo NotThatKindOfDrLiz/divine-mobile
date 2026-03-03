@@ -173,13 +173,13 @@ dependencies:
   sensors_plus: ^7.0.0
   media_kit: ^1.2.6
   media_kit_libs_video: ^1.0.7
-  # Temporary override to include texture rotation fix
-  # https://github.com/media-kit/media-kit/issues/627
+  # Temporary override to fix iOS simulator crash
+  # https://github.com/divinevideo/divine-mobile/issues/1578
   # Will be removed once the fix is merged and released
   media_kit_video:
     git:
       url: https://github.com/divinevideo/media-kit
-      ref: fix/texture-rotation
+      ref: worktree-ios_simulator_video_crash
       path: media_kit_video
   stream_transform: ^2.1.1
   flutter_staggered_grid_view: ^0.7.0
