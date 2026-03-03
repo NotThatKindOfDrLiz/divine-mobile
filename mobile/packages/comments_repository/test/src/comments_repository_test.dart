@@ -33,6 +33,8 @@ void main() {
 
     setUpAll(() {
       registerFallbackValue(<Filter>[]);
+      registerFallbackValue(<String>[]);
+      registerFallbackValue(const Duration(seconds: 3));
       registerFallbackValue(FakeEvent());
     });
 
@@ -52,7 +54,11 @@ void main() {
     group('loadComments', () {
       test('returns empty thread when no comments', () async {
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => []);
 
         final result = await repository.loadComments(
@@ -77,7 +83,11 @@ void main() {
         );
 
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => [commentEvent]);
 
         final result = await repository.loadComments(
@@ -115,7 +125,11 @@ void main() {
         );
 
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => [rootComment, replyComment]);
 
         final result = await repository.loadComments(
@@ -152,7 +166,11 @@ void main() {
         );
 
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => [oldComment, newComment]);
 
         final result = await repository.loadComments(
@@ -199,7 +217,11 @@ void main() {
         );
 
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => [parentComment, newReply, oldReply]);
 
         final result = await repository.loadComments(
@@ -231,7 +253,11 @@ void main() {
           );
 
           when(
-            () => mockNostrClient.queryEvents(any()),
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).thenAnswer((_) async => [orphanReply]);
 
           final result = await repository.loadComments(
@@ -252,7 +278,11 @@ void main() {
           const testAddressableId = '34236:$testRootAuthorPubkey:video-dtag';
 
           when(
-            () => mockNostrClient.queryEvents(any()),
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).thenAnswer((_) async => []);
 
           await repository.loadComments(
@@ -263,7 +293,11 @@ void main() {
 
           // Should make 2 calls: one for E tag, one for A tag
           final captured = verify(
-            () => mockNostrClient.queryEvents(captureAny()),
+            () => mockNostrClient.queryEvents(
+              captureAny(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).captured;
 
           expect(captured.length, equals(2));
@@ -298,7 +332,11 @@ void main() {
 
           // Both queries return the same event
           when(
-            () => mockNostrClient.queryEvents(any()),
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).thenAnswer((_) async => [commentEvent]);
 
           final result = await repository.loadComments(
@@ -343,7 +381,11 @@ void main() {
           )..id = 'a_tag_comment';
 
           when(
-            () => mockNostrClient.queryEvents(any()),
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).thenAnswer((_) async => [aTagOnlyComment]);
 
           final result = await repository.loadComments(
@@ -390,7 +432,11 @@ void main() {
             );
 
             when(
-              () => mockNostrClient.queryEvents(any()),
+              () => mockNostrClient.queryEvents(
+                any(),
+                tempRelays: any(named: 'tempRelays'),
+                timeout: any(named: 'timeout'),
+              ),
             ).thenAnswer(
               (_) async => [matchingComment, nonMatchingComment],
             );
@@ -431,7 +477,11 @@ void main() {
             )..id = 'a_tag_only';
 
             when(
-              () => mockNostrClient.queryEvents(any()),
+              () => mockNostrClient.queryEvents(
+                any(),
+                tempRelays: any(named: 'tempRelays'),
+                timeout: any(named: 'timeout'),
+              ),
             ).thenAnswer((_) async => [aTagComment]);
 
             final result = await repository.loadComments(
@@ -471,7 +521,11 @@ void main() {
             )..id = 'unrelated';
 
             when(
-              () => mockNostrClient.queryEvents(any()),
+              () => mockNostrClient.queryEvents(
+                any(),
+                tempRelays: any(named: 'tempRelays'),
+                timeout: any(named: 'timeout'),
+              ),
             ).thenAnswer((_) async => [unrelatedComment]);
 
             final result = await repository.loadComments(
@@ -517,7 +571,11 @@ void main() {
             );
 
             when(
-              () => mockNostrClient.queryEvents(any()),
+              () => mockNostrClient.queryEvents(
+                any(),
+                tempRelays: any(named: 'tempRelays'),
+                timeout: any(named: 'timeout'),
+              ),
             ).thenAnswer(
               (_) async => [
                 matchingComment,
@@ -542,7 +600,11 @@ void main() {
 
       test('throws LoadCommentsFailedException on error', () async {
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenThrow(Exception('Network error'));
 
         expect(
@@ -554,9 +616,34 @@ void main() {
         );
       });
 
+      test(
+        'wraps non-Exception errors as LoadCommentsFailedException',
+        () async {
+          when(
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenThrow(AssertionError('Unexpected failure'));
+
+          expect(
+            () => repository.loadComments(
+              rootEventId: testRootEventId,
+              rootEventKind: _testRootEventKind,
+            ),
+            throwsA(isA<LoadCommentsFailedException>()),
+          );
+        },
+      );
+
       test('respects limit parameter', () async {
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => []);
 
         await repository.loadComments(
@@ -566,7 +653,11 @@ void main() {
         );
 
         final captured = verify(
-          () => mockNostrClient.queryEvents(captureAny()),
+          () => mockNostrClient.queryEvents(
+            captureAny(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).captured;
 
         final filters = captured.first as List<Filter>;
@@ -575,7 +666,11 @@ void main() {
 
       test('passes before parameter as until filter for pagination', () async {
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => []);
 
         final beforeTime = DateTime.fromMillisecondsSinceEpoch(2000000000);
@@ -586,7 +681,11 @@ void main() {
         );
 
         final captured = verify(
-          () => mockNostrClient.queryEvents(captureAny()),
+          () => mockNostrClient.queryEvents(
+            captureAny(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).captured;
 
         final filters = captured.first as List<Filter>;
@@ -596,7 +695,11 @@ void main() {
 
       test('does not include until filter when before is null', () async {
         when(
-          () => mockNostrClient.queryEvents(any()),
+          () => mockNostrClient.queryEvents(
+            any(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).thenAnswer((_) async => []);
 
         await repository.loadComments(
@@ -605,7 +708,11 @@ void main() {
         );
 
         final captured = verify(
-          () => mockNostrClient.queryEvents(captureAny()),
+          () => mockNostrClient.queryEvents(
+            captureAny(),
+            tempRelays: any(named: 'tempRelays'),
+            timeout: any(named: 'timeout'),
+          ),
         ).captured;
 
         final filters = captured.first as List<Filter>;
@@ -633,7 +740,11 @@ void main() {
           );
 
           when(
-            () => mockNostrClient.queryEvents(any()),
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).thenAnswer((_) async => [videoCommentEvent]);
 
           final result = await repository.loadComments(
@@ -677,7 +788,11 @@ void main() {
           );
 
           when(
-            () => mockNostrClient.queryEvents(any()),
+            () => mockNostrClient.queryEvents(
+              any(),
+              tempRelays: any(named: 'tempRelays'),
+              timeout: any(named: 'timeout'),
+            ),
           ).thenAnswer((_) async => [textCommentEvent]);
 
           final result = await repository.loadComments(
