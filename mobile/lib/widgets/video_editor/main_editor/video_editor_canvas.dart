@@ -16,9 +16,12 @@ import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.d
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/extensions/aspect_ratio_extensions.dart';
 import 'package:openvine/platform_io.dart';
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
+import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
+import 'package:openvine/services/audio_playback_service.dart';
 import 'package:openvine/services/haptic_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -98,6 +101,27 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   /// Used to deduplicate haptic feedback so it only fires once on entry.
   bool _wasOverRemoveArea = false;
 
+  /// Audio playback service for syncing audio with video.
+  AudioPlaybackService? _audioService;
+
+  /// Tracks last video position to detect loops.
+  Duration _lastVideoPosition = Duration.zero;
+
+  /// Tracks last playback state to detect changes.
+  bool _lastIsPlaying = false;
+
+  /// Listener for playback restart requests.
+  VoidCallback? _playbackRestartListener;
+
+  /// Cached reference to playback restart notifier for cleanup.
+  ValueNotifier<int>? _playbackRestartNotifier;
+
+  /// Listener for playback toggle requests.
+  VoidCallback? _playbackToggleListener;
+
+  /// Cached reference to playback toggle notifier for cleanup.
+  ValueNotifier<int>? _playbackToggleNotifier;
+
   @override
   void initState() {
     super.initState();
@@ -110,16 +134,98 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Setup playback restart listener from scope
+    final scope = VideoEditorScope.of(context);
+    if (_playbackRestartListener == null) {
+      _playbackRestartListener = _onPlaybackRestartRequested;
+      _playbackRestartNotifier = scope.playbackRestartNotifier;
+      _playbackRestartNotifier!.addListener(_playbackRestartListener!);
+    }
+    if (_playbackToggleListener == null) {
+      _playbackToggleListener = _onPlaybackToggleRequested;
+      _playbackToggleNotifier = scope.playbackToggleNotifier;
+      _playbackToggleNotifier!.addListener(_playbackToggleListener!);
+    }
+  }
+
+  @override
   void dispose() {
     Log.info(
       '🎬 Canvas disposed',
       name: 'VideoEditorCanvas',
       category: LogCategory.video,
     );
+    if (_playbackRestartListener != null) {
+      _playbackRestartNotifier?.removeListener(_playbackRestartListener!);
+    }
+    if (_playbackToggleListener != null) {
+      _playbackToggleNotifier?.removeListener(_playbackToggleListener!);
+    }
+    _videoPlayer?.removeListener(_onVideoPositionChange);
     _videoPlayer?.dispose();
+    _audioService?.stop();
     _isPlayerReadyNotifier.dispose();
     ProVideoEditor.instance.cancel(_renderTaskId);
     super.dispose();
+  }
+
+  /// Handles playback restart requests from the scope.
+  void _onPlaybackRestartRequested() {
+    if (!_isPlayerReadyNotifier.value) return;
+
+    // Restart video and audio from beginning
+    _videoPlayer?.seekTo(Duration.zero);
+    _videoPlayer?.play();
+    _initializeAudio();
+  }
+
+  /// Handles playback toggle requests from the scope.
+  void _onPlaybackToggleRequested() {
+    if (!_isPlayerReadyNotifier.value) return;
+
+    final isPlaying = _videoPlayer?.value.isPlaying ?? false;
+    if (isPlaying) {
+      _videoPlayer?.pause();
+      _audioService?.pause();
+    } else {
+      _videoPlayer?.play();
+      _audioService?.play();
+    }
+  }
+
+  /// Handles video position changes to sync audio on loop.
+  void _onVideoPositionChange() {
+    final position = _videoPlayer?.value.position ?? Duration.zero;
+    final isPlaying = _videoPlayer?.value.isPlaying ?? false;
+
+    // Dispatch playback state change if it changed
+    if (isPlaying != _lastIsPlaying) {
+      _lastIsPlaying = isPlaying;
+      context.read<VideoEditorMainBloc>().add(
+        VideoEditorPlaybackChanged(isPlaying: isPlaying),
+      );
+    }
+
+    // Detect loop: position jumped backwards significantly
+    // (Video looped from end to start)
+    if (_lastVideoPosition.inMilliseconds - position.inMilliseconds > 500) {
+      _syncAudioToVideo();
+    }
+
+    _lastVideoPosition = position;
+  }
+
+  /// Syncs audio playback to video position.
+  Future<void> _syncAudioToVideo() async {
+    final selectedSound = ref.read(selectedSoundProvider);
+    if (selectedSound == null || _audioService == null) return;
+
+    final startOffset = selectedSound.startOffset;
+    await _audioService!.seek(startOffset);
+    await _audioService!.play();
   }
 
   Future<void> _initializePlayer() async {
@@ -171,11 +277,54 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     await _videoPlayer!.play();
     if (!mounted) return;
     _isPlayerReadyNotifier.value = true;
+
+    // Notify BLoC that player is ready
+    if (mounted) {
+      context.read<VideoEditorMainBloc>().add(
+        const VideoEditorPlayerReady(),
+      );
+    }
+
+    // Setup audio sync listener
+    _videoPlayer!.addListener(_onVideoPositionChange);
+
+    // Initialize audio if selected
+    await _initializeAudio();
+
     Log.info(
       '🎬 Video player ready',
       name: 'VideoEditorCanvas',
       category: LogCategory.video,
     );
+  }
+
+  /// Initializes audio playback synced with video.
+  Future<void> _initializeAudio() async {
+    final selectedSound = ref.read(selectedSoundProvider);
+    if (selectedSound == null || selectedSound.url == null) return;
+
+    _audioService = ref.read(audioPlaybackServiceProvider);
+
+    try {
+      // Load audio from URL or asset
+      await _audioService!.loadAudio(selectedSound.url!);
+
+      // Seek to start offset and play
+      await _audioService!.seek(selectedSound.startOffset);
+      await _audioService!.play();
+
+      Log.info(
+        '🎵 Audio synced with video (startOffset: ${selectedSound.startOffset.inMilliseconds}ms)',
+        name: 'VideoEditorCanvas',
+        category: LogCategory.video,
+      );
+    } catch (e) {
+      Log.error(
+        '🎵 Failed to initialize audio: $e',
+        name: 'VideoEditorCanvas',
+        category: LogCategory.video,
+      );
+    }
   }
 
   /// Syncs the main-editor capabilities from the main editor to the bloc.
@@ -257,13 +406,17 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
       category: LogCategory.video,
     );
     _videoPlayer?.pause();
+    _audioService?.pause();
     // IMPORTANT: Don't start video rendering here. We must await
     // `_handleEditorComplete` which generate the layer image before we start
     // rendering! However, we can navigate to the metadata screen immediately
     // since it shows a progress spinner anyway (~200ms task).
     ref.read(videoEditorProvider.notifier).setProcessing(true);
     await context.push(VideoMetadataScreen.path);
-    if (mounted) _videoPlayer?.play();
+    if (mounted) {
+      _videoPlayer?.play();
+      _syncAudioToVideo();
+    }
   }
 
   @override

@@ -8,7 +8,9 @@ import 'package:openvine/screens/video_editor/video_audio_editor_timing_screen.d
 import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_bottom_sheet.dart';
 
 class VideoEditorAudioChip extends ConsumerWidget {
-  const VideoEditorAudioChip({super.key});
+  const VideoEditorAudioChip({this.onSelectionDone, super.key});
+
+  final VoidCallback? onSelectionDone;
 
   Future<void> _selectAudio(BuildContext context, WidgetRef ref) async {
     final selectedSound = ref.read(selectedSoundProvider);
@@ -41,6 +43,8 @@ class VideoEditorAudioChip extends ConsumerWidget {
         pageBuilder: (_, _, _) => const VideoAudioEditorTimingScreen(),
       ),
     );
+
+    onSelectionDone?.call();
 
     videoRecorderNotifier.resumeRemoteRecordControl();
   }

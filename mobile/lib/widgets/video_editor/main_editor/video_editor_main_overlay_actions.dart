@@ -16,8 +16,8 @@ import 'package:pro_image_editor/pro_image_editor.dart';
 ///
 /// Displays close, undo, redo, audio, and done buttons. Uses [BlocSelector] to
 /// reactively enable/disable undo and redo based on editor state.
-class VideoEditorMainTopBar extends ConsumerWidget {
-  const VideoEditorMainTopBar({super.key});
+class VideoEditorMainOverlayActions extends ConsumerWidget {
+  const VideoEditorMainOverlayActions({super.key});
 
   Future<void> _reorderLayers(BuildContext context, List<Layer> layers) async {
     await VineBottomSheet.show<void>(
@@ -76,8 +76,10 @@ class VideoEditorMainTopBar extends ConsumerWidget {
                     },
                   ),
 
-                  const Flexible(
-                    child: VideoEditorAudioChip(),
+                  Flexible(
+                    child: VideoEditorAudioChip(
+                      onSelectionDone: scope.requestPlaybackRestart,
+                    ),
                   ),
 
                   DivineIconButton(
@@ -97,12 +99,20 @@ class VideoEditorMainTopBar extends ConsumerWidget {
                   BlocSelector<
                     VideoEditorMainBloc,
                     VideoEditorMainState,
-                    ({bool canUndo, bool canRedo, List<Layer> layers})
+                    ({
+                      bool canUndo,
+                      bool canRedo,
+                      List<Layer> layers,
+                      bool isPlaying,
+                      bool isPlayerReady,
+                    })
                   >(
                     selector: (state) => (
                       canUndo: state.canUndo,
                       canRedo: state.canRedo,
                       layers: state.layers,
+                      isPlaying: state.isPlaying,
+                      isPlayerReady: state.isPlayerReady,
                     ),
                     builder: (context, state) {
                       return Row(
@@ -141,6 +151,39 @@ class VideoEditorMainTopBar extends ConsumerWidget {
                                     scope.editor?.activeLayers ?? state.layers,
                                   )
                                 : null,
+                          ),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: !state.isPlayerReady
+                                ? Container(
+                                    width: 40,
+                                    height: 40,
+                                    padding: const .all(10),
+                                    decoration: BoxDecoration(
+                                      color: VineTheme.scrim15,
+                                      borderRadius: .circular(16),
+                                    ),
+                                    child: const CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation(
+                                        VineTheme.whiteText,
+                                      ),
+                                    ),
+                                  )
+                                : DivineIconButton(
+                                    size: .small,
+                                    type: .ghostSecondary,
+                                    // TODO(l10n): Replace with context.l10n when localization is added.
+                                    semanticLabel: state.isPlaying
+                                        ? 'Pause'
+                                        : 'Play',
+                                    icon: state.isPlaying ? .pause : .play,
+                                    onPressed: () {
+                                      VideoEditorScope.of(
+                                        context,
+                                      ).requestPlaybackToggle();
+                                    },
+                                  ),
                           ),
                         ],
                       );

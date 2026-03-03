@@ -47,10 +47,10 @@ void main() {
             () => _TestSelectedSoundNotifier(initialSound: selectedSound),
           ),
         ],
-        child: MaterialApp(
+        child: const MaterialApp(
           home: Scaffold(
             body: Center(
-              child: VideoEditorAudioChip(onTap: () => onTapCalled = true),
+              child: VideoEditorAudioChip(),
             ),
           ),
         ),

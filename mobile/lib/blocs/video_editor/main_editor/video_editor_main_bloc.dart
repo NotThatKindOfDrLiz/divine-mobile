@@ -23,6 +23,8 @@ class VideoEditorMainBloc
     on<VideoEditorMainSubEditorClosed>(_onSubEditorClosed);
     on<VideoEditorLayerAdded>(_onLayerAdded);
     on<VideoEditorLayerRemoved>(_onLayerRemoved);
+    on<VideoEditorPlaybackChanged>(_onPlaybackChanged);
+    on<VideoEditorPlayerReady>(_onPlayerReady);
   }
 
   /// Updates undo/redo/subEditor state based on editor capabilities.
@@ -97,5 +99,19 @@ class VideoEditorMainBloc
         layers: state.layers.where((l) => l != event.layer).toList(),
       ),
     );
+  }
+
+  void _onPlaybackChanged(
+    VideoEditorPlaybackChanged event,
+    Emitter<VideoEditorMainState> emit,
+  ) {
+    emit(state.copyWith(isPlaying: event.isPlaying));
+  }
+
+  void _onPlayerReady(
+    VideoEditorPlayerReady event,
+    Emitter<VideoEditorMainState> emit,
+  ) {
+    emit(state.copyWith(isPlayerReady: true));
   }
 }

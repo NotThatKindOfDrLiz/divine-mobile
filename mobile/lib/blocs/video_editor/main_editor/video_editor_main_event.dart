@@ -84,5 +84,20 @@ class VideoEditorLayerRemoved extends VideoEditorMainEvent {
   List<Object?> get props => [layer];
 }
 
+/// Triggered when the video playback state changes.
+class VideoEditorPlaybackChanged extends VideoEditorMainEvent {
+  const VideoEditorPlaybackChanged({required this.isPlaying});
+
+  final bool isPlaying;
+
+  @override
+  List<Object?> get props => [isPlaying];
+}
+
+/// Triggered when the video player is ready for playback.
+class VideoEditorPlayerReady extends VideoEditorMainEvent {
+  const VideoEditorPlayerReady();
+}
+
 /// Types of sub-editors that can be opened.
 enum SubEditorType { text, draw, filter, stickers, music }
