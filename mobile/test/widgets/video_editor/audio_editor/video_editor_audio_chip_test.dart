@@ -153,6 +153,37 @@ void main() {
         expect(find.byType(Row), findsWidgets);
       });
     });
+
+    group('Callback behavior', () {
+      testWidgets('accepts onSelectedSoundChanged callback', (tester) async {
+        var callbackInvoked = false;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              selectedSoundProvider.overrideWith(
+                _TestSelectedSoundNotifier.new,
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: Center(
+                  child: VideoEditorAudioChip(
+                    onSelectedSoundChanged: () => callbackInvoked = true,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Verify widget renders with callback prop
+        expect(find.byType(VideoEditorAudioChip), findsOneWidget);
+        // Callback is not invoked just by rendering
+        expect(callbackInvoked, isFalse);
+      });
+    });
   });
 }
 
