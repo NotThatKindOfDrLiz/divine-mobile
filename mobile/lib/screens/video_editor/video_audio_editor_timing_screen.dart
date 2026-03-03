@@ -540,7 +540,11 @@ class _VideoDurationTimeline extends StatelessWidget {
       },
       onHorizontalDragEnd: (details) {
         onDragEnd();
-        if (maxScrollableDistance < 1) return;
+        if (maxScrollableDistance < 1) {
+          // No scrolling possible, but still resume audio
+          onFling(0);
+          return;
+        }
         // Convert velocity from pixels to normalized offset units
         final velocityInOffset =
             details.primaryVelocity! / maxScrollableDistance / 1000;
@@ -658,7 +662,11 @@ class _AudioWaveformSelector extends StatelessWidget {
       },
       onHorizontalDragEnd: (details) {
         onDragEnd();
-        if (maxScrollableDistance < 1) return;
+        if (maxScrollableDistance < 1) {
+          // No scrolling possible, but still resume audio
+          onFling(0);
+          return;
+        }
         // Convert velocity from pixels to normalized offset units
         // Invert velocity to match inverted drag direction
         final velocityInOffset =
