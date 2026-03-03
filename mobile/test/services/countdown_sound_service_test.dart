@@ -3,7 +3,6 @@
 // ABOUTME: and error/edge-case handling using mocktail AudioPlayer mocks.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:sound_service/sound_service.dart';
 

@@ -8,12 +8,12 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:just_audio/just_audio.dart';
 import 'package:openvine/models/vine_sound.dart';
 import 'package:openvine/providers/sound_library_service_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/sound_picker/sound_list_item.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:sound_service/sound_service.dart';
 import 'package:uuid/uuid.dart';
 
 class SoundPickerModal extends ConsumerStatefulWidget {
@@ -202,7 +202,6 @@ class _SoundPickerModalState extends ConsumerState<SoundPickerModal> {
       final sourcePath = file.path;
       final fileName = file.name;
 
-      // Get audio duration using just_audio
       final player = AudioPlayer();
       Duration? duration;
       try {
