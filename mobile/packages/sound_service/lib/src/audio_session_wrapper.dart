@@ -37,7 +37,7 @@ class DefaultAudioSessionWrapper implements AudioSessionWrapper {
 
   @override
   Stream<audio_session.AudioDevicesChangedEvent>
-      get devicesChangedEventStream async* {
+  get devicesChangedEventStream async* {
     final session = await _getSession();
     yield* session.devicesChangedEventStream;
   }
