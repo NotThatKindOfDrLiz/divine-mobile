@@ -1,6 +1,12 @@
 // ABOUTME: Tests for AudioPlaybackService audio playback/ headphone detection
 // ABOUTME: Validates playback controls, position streams, audio session config
 
+// Reason: audio_session (AudioDeviceType, getDevices) is marked experimental
+// but no stable alternative exists. Tracked: github.com/ryanheise/audio_session
+// ignore_for_file: experimental_member_use
+import 'dart:async';
+
+import 'package:audio_session/audio_session.dart' as audio_session;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rxdart/rxdart.dart';
@@ -8,7 +14,18 @@ import 'package:sound_service/sound_service.dart';
 
 class _MockAudioPlayer extends Mock implements AudioPlayer {}
 
+class _MockAudioSessionWrapper extends Mock implements AudioSessionWrapper {}
+
 class _FakeAudioSource extends Fake implements AudioSource {}
+
+class _FakeAudioSessionConfig extends Fake
+    implements audio_session.AudioSessionConfiguration {}
+
+class _FakeAudioDevice extends Fake implements audio_session.AudioDevice {
+  _FakeAudioDevice(this.type);
+  @override
+  final audio_session.AudioDeviceType type;
+}
 
 void main() {
   setUpAll(() {
@@ -17,14 +34,17 @@ void main() {
     registerFallbackValue(Duration.zero);
     registerFallbackValue('');
     registerFallbackValue(0.0);
+    registerFallbackValue(_FakeAudioSessionConfig());
   });
 
   group(AudioPlaybackService, () {
     late AudioPlaybackService service;
     late _MockAudioPlayer mockPlayer;
+    late _MockAudioSessionWrapper mockSessionWrapper;
 
     setUp(() {
       mockPlayer = _MockAudioPlayer();
+      mockSessionWrapper = _MockAudioSessionWrapper();
 
       // Set up default mock behaviors for just_audio API
       when(
@@ -39,6 +59,15 @@ void main() {
       when(() => mockPlayer.playing).thenReturn(false);
       when(() => mockPlayer.duration).thenReturn(null);
       when(() => mockPlayer.dispose()).thenAnswer((_) async {});
+
+      // Set up default mock behaviors for audio session wrapper
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => const Stream.empty());
+      when(() => mockSessionWrapper.configure(any())).thenAnswer((_) async {});
     });
 
     tearDown(() async {
@@ -46,7 +75,10 @@ void main() {
     });
 
     test('creates with audio player dependency', () {
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       expect(service, isNotNull);
     });
 
@@ -56,7 +88,10 @@ void main() {
         () => mockPlayer.setUrl(testUrl),
       ).thenAnswer((_) async => const Duration(seconds: 10));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       final duration = await service.loadAudio(testUrl);
 
       verify(() => mockPlayer.setUrl(testUrl)).called(1);
@@ -70,7 +105,10 @@ void main() {
         () => mockPlayer.setAsset(expectedAssetPath),
       ).thenAnswer((_) async => const Duration(seconds: 5));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       final duration = await service.loadAudio(assetUrl);
 
       verify(() => mockPlayer.setAsset(expectedAssetPath)).called(1);
@@ -83,7 +121,10 @@ void main() {
         () => mockPlayer.setFilePath(testPath),
       ).thenAnswer((_) async => const Duration(seconds: 15));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       final duration = await service.loadAudioFromFile(testPath);
 
       verify(() => mockPlayer.setFilePath(testPath)).called(1);
@@ -96,7 +137,10 @@ void main() {
         () => mockPlayer.setAudioSource(source),
       ).thenAnswer((_) async => const Duration(seconds: 20));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       final duration = await service.setAudioSource(source);
 
       verify(() => mockPlayer.setAudioSource(source)).called(1);
@@ -106,7 +150,10 @@ void main() {
     test('play starts playback', () async {
       when(() => mockPlayer.play()).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.play();
 
       verify(() => mockPlayer.play()).called(1);
@@ -115,7 +162,10 @@ void main() {
     test('pause pauses playback', () async {
       when(() => mockPlayer.pause()).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.pause();
 
       verify(() => mockPlayer.pause()).called(1);
@@ -124,7 +174,10 @@ void main() {
     test('stop stops playback', () async {
       when(() => mockPlayer.stop()).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.stop();
 
       verify(() => mockPlayer.stop()).called(1);
@@ -134,7 +187,10 @@ void main() {
       const position = Duration(seconds: 5);
       when(() => mockPlayer.seek(position)).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.seek(position);
 
       verify(() => mockPlayer.seek(position)).called(1);
@@ -148,7 +204,10 @@ void main() {
         () => mockPlayer.positionStream,
       ).thenAnswer((_) => positionController.stream);
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(service.positionStream, emits(Duration.zero));
 
@@ -163,7 +222,10 @@ void main() {
         () => mockPlayer.durationStream,
       ).thenAnswer((_) => durationController.stream);
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(service.durationStream, emits(const Duration(seconds: 10)));
 
@@ -176,7 +238,10 @@ void main() {
         () => mockPlayer.playingStream,
       ).thenAnswer((_) => playingController.stream);
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(service.playingStream, emits(false));
 
@@ -186,7 +251,10 @@ void main() {
     test('duration returns current duration from player', () {
       when(() => mockPlayer.duration).thenReturn(const Duration(seconds: 10));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(service.duration, const Duration(seconds: 10));
     });
@@ -194,7 +262,10 @@ void main() {
     test('dispose cleans up resources', () async {
       when(() => mockPlayer.dispose()).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.dispose();
 
       verify(() => mockPlayer.dispose()).called(1);
@@ -203,7 +274,10 @@ void main() {
     test('isPlaying returns current playing state', () {
       when(() => mockPlayer.playing).thenReturn(true);
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(service.isPlaying, isTrue);
     });
@@ -211,7 +285,10 @@ void main() {
     test('setVolume sets the volume', () async {
       when(() => mockPlayer.setVolume(0.5)).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.setVolume(0.5);
 
       verify(() => mockPlayer.setVolume(0.5)).called(1);
@@ -220,7 +297,10 @@ void main() {
     test('setVolume clamps volume above 1.0', () async {
       when(() => mockPlayer.setVolume(1)).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.setVolume(1.5);
 
       verify(() => mockPlayer.setVolume(1)).called(1);
@@ -229,7 +309,10 @@ void main() {
     test('setVolume clamps volume below 0.0', () async {
       when(() => mockPlayer.setVolume(0)).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.setVolume(-0.5);
 
       verify(() => mockPlayer.setVolume(0)).called(1);
@@ -238,7 +321,10 @@ void main() {
     test('dispose does nothing if already disposed', () async {
       when(() => mockPlayer.dispose()).thenAnswer((_) async {});
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
       await service.dispose();
       await service.dispose(); // Second call should be no-op
 
@@ -249,9 +335,12 @@ void main() {
   group('$AudioPlaybackService error handling', () {
     late AudioPlaybackService service;
     late _MockAudioPlayer mockPlayer;
+    late _MockAudioSessionWrapper mockSessionWrapper;
 
     setUp(() {
       mockPlayer = _MockAudioPlayer();
+      mockSessionWrapper = _MockAudioSessionWrapper();
+
       when(
         () => mockPlayer.positionStream,
       ).thenAnswer((_) => const Stream<Duration>.empty());
@@ -264,6 +353,15 @@ void main() {
       when(() => mockPlayer.playing).thenReturn(false);
       when(() => mockPlayer.duration).thenReturn(null);
       when(() => mockPlayer.dispose()).thenAnswer((_) async {});
+
+      // Set up default mock behaviors for audio session wrapper
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => const Stream.empty());
+      when(() => mockSessionWrapper.configure(any())).thenAnswer((_) async {});
     });
 
     tearDown(() async {
@@ -275,7 +373,10 @@ void main() {
         () => mockPlayer.setUrl(any()),
       ).thenThrow(Exception('Network error'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(
         () => service.loadAudio('https://example.com/audio.mp3'),
@@ -288,7 +389,10 @@ void main() {
         () => mockPlayer.setFilePath(any()),
       ).thenThrow(Exception('File not found'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(
         () => service.loadAudioFromFile('/path/to/file.mp3'),
@@ -301,7 +405,10 @@ void main() {
         () => mockPlayer.setAudioSource(any()),
       ).thenThrow(Exception('Invalid source'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(
         () => service.setAudioSource(_FakeAudioSource()),
@@ -312,7 +419,10 @@ void main() {
     test('play rethrows on error', () async {
       when(() => mockPlayer.play()).thenThrow(Exception('Playback failed'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(() => service.play(), throwsException);
     });
@@ -320,7 +430,10 @@ void main() {
     test('pause rethrows on error', () async {
       when(() => mockPlayer.pause()).thenThrow(Exception('Pause failed'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(() => service.pause(), throwsException);
     });
@@ -328,7 +441,10 @@ void main() {
     test('stop rethrows on error', () async {
       when(() => mockPlayer.stop()).thenThrow(Exception('Stop failed'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(() => service.stop(), throwsException);
     });
@@ -338,7 +454,10 @@ void main() {
         () => mockPlayer.seek(any()),
       ).thenThrow(Exception('Seek failed'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(() => service.seek(Duration.zero), throwsException);
     });
@@ -348,7 +467,10 @@ void main() {
         () => mockPlayer.setVolume(any()),
       ).thenThrow(Exception('Volume failed'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(() => service.setVolume(0.5), throwsException);
     });
@@ -358,7 +480,10 @@ void main() {
         () => mockPlayer.setAsset(any()),
       ).thenThrow(Exception('Asset not found'));
 
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       expect(
         () => service.loadAudio('asset://assets/sounds/test.mp3'),
@@ -370,9 +495,12 @@ void main() {
   group('AudioPlaybackService headphone detection', () {
     late AudioPlaybackService service;
     late _MockAudioPlayer mockPlayer;
+    late _MockAudioSessionWrapper mockSessionWrapper;
 
     setUp(() {
       mockPlayer = _MockAudioPlayer();
+      mockSessionWrapper = _MockAudioSessionWrapper();
+
       when(
         () => mockPlayer.positionStream,
       ).thenAnswer((_) => const Stream<Duration>.empty());
@@ -385,6 +513,15 @@ void main() {
       when(() => mockPlayer.playing).thenReturn(false);
       when(() => mockPlayer.duration).thenReturn(null);
       when(() => mockPlayer.dispose()).thenAnswer((_) async {});
+
+      // Set up default mock behaviors for audio session wrapper
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => const Stream.empty());
+      when(() => mockSessionWrapper.configure(any())).thenAnswer((_) async {});
     });
 
     tearDown(() async {
@@ -392,26 +529,207 @@ void main() {
     });
 
     test('headphonesConnectedStream emits headphone state', () async {
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       // The service should expose a stream for headphone state
       expect(service.headphonesConnectedStream, isA<Stream<bool>>());
     });
 
     test('areHeadphonesConnected returns current state', () {
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       // Should return a boolean indicating current headphone state
       expect(service.areHeadphonesConnected, isA<bool>());
+    });
+
+    test('detects wired headphones', () async {
+      when(() => mockSessionWrapper.getDevices()).thenAnswer(
+        (_) async => {
+          _FakeAudioDevice(audio_session.AudioDeviceType.wiredHeadphones),
+        },
+      );
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      // Allow async initialization to complete
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.areHeadphonesConnected, isTrue);
+    });
+
+    test('detects wired headset', () async {
+      when(() => mockSessionWrapper.getDevices()).thenAnswer(
+        (_) async => {
+          _FakeAudioDevice(audio_session.AudioDeviceType.wiredHeadset),
+        },
+      );
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.areHeadphonesConnected, isTrue);
+    });
+
+    test('detects Bluetooth A2DP devices', () async {
+      when(() => mockSessionWrapper.getDevices()).thenAnswer(
+        (_) async => {
+          _FakeAudioDevice(audio_session.AudioDeviceType.bluetoothA2dp),
+        },
+      );
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.areHeadphonesConnected, isTrue);
+    });
+
+    test('detects Bluetooth SCO devices', () async {
+      when(() => mockSessionWrapper.getDevices()).thenAnswer(
+        (_) async => {
+          _FakeAudioDevice(audio_session.AudioDeviceType.bluetoothSco),
+        },
+      );
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.areHeadphonesConnected, isTrue);
+    });
+
+    test('returns false when no headphones connected', () async {
+      when(() => mockSessionWrapper.getDevices()).thenAnswer(
+        (_) async => {
+          _FakeAudioDevice(audio_session.AudioDeviceType.builtInSpeaker),
+        },
+      );
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.areHeadphonesConnected, isFalse);
+    });
+
+    test('handles getDevices exception gracefully', () async {
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenThrow(Exception('Device error'));
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      // Should default to false on error
+      expect(service.areHeadphonesConnected, isFalse);
+    });
+
+    test('handles device change stream events', () async {
+      final deviceChangeController =
+          StreamController<audio_session.AudioDevicesChangedEvent>.broadcast();
+
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => deviceChangeController.stream);
+
+      // First call returns no headphones
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(service.areHeadphonesConnected, isFalse);
+
+      // Update mock to return headphones
+      when(() => mockSessionWrapper.getDevices()).thenAnswer(
+        (_) async => {
+          _FakeAudioDevice(audio_session.AudioDeviceType.wiredHeadphones),
+        },
+      );
+
+      // Simulate device change event
+      deviceChangeController.add(
+        audio_session.AudioDevicesChangedEvent(
+          devicesAdded: {
+            _FakeAudioDevice(audio_session.AudioDeviceType.wiredHeadphones),
+          },
+          devicesRemoved: {},
+        ),
+      );
+
+      await Future<void>.delayed(Duration.zero);
+      expect(service.areHeadphonesConnected, isTrue);
+
+      await deviceChangeController.close();
+    });
+
+    test('handles device change stream errors', () async {
+      final deviceChangeController =
+          StreamController<audio_session.AudioDevicesChangedEvent>.broadcast();
+
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => deviceChangeController.stream);
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await Future<void>.delayed(Duration.zero);
+
+      // Simulate error in stream
+      deviceChangeController.addError(Exception('Stream error'));
+
+      await Future<void>.delayed(Duration.zero);
+
+      // Service should still be functional
+      expect(service.areHeadphonesConnected, isA<bool>());
+
+      await deviceChangeController.close();
     });
   });
 
   group('AudioPlaybackService audio session configuration', () {
     late AudioPlaybackService service;
     late _MockAudioPlayer mockPlayer;
+    late _MockAudioSessionWrapper mockSessionWrapper;
 
     setUp(() {
       mockPlayer = _MockAudioPlayer();
+      mockSessionWrapper = _MockAudioSessionWrapper();
+
       when(
         () => mockPlayer.positionStream,
       ).thenAnswer((_) => const Stream<Duration>.empty());
@@ -424,6 +742,15 @@ void main() {
       when(() => mockPlayer.playing).thenReturn(false);
       when(() => mockPlayer.duration).thenReturn(null);
       when(() => mockPlayer.dispose()).thenAnswer((_) async {});
+
+      // Set up default mock behaviors for audio session wrapper
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => const Stream.empty());
+      when(() => mockSessionWrapper.configure(any())).thenAnswer((_) async {});
     });
 
     tearDown(() async {
@@ -433,7 +760,10 @@ void main() {
     test(
       'configureForRecording sets up audio session for recording mode',
       () async {
-        service = AudioPlaybackService(audioPlayer: mockPlayer);
+        service = AudioPlaybackService(
+          audioPlayer: mockPlayer,
+          audioSessionWrapper: mockSessionWrapper,
+        );
 
         // Should not throw
         await expectLater(service.configureForRecording(), completes);
@@ -441,10 +771,66 @@ void main() {
     );
 
     test('resetAudioSession resets to default configuration', () async {
-      service = AudioPlaybackService(audioPlayer: mockPlayer);
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
 
       // Should not throw
       await expectLater(service.resetAudioSession(), completes);
+    });
+
+    test('configureForRecording handles errors gracefully', () async {
+      when(
+        () => mockSessionWrapper.configure(any()),
+      ).thenThrow(Exception('Configure error'));
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      // Should not throw - errors are caught internally
+      await expectLater(service.configureForRecording(), completes);
+    });
+
+    test('resetAudioSession handles errors gracefully', () async {
+      when(
+        () => mockSessionWrapper.configure(any()),
+      ).thenThrow(Exception('Reset error'));
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      // Should not throw - errors are caught internally
+      await expectLater(service.resetAudioSession(), completes);
+    });
+
+    test(
+      'configureForRecording calls configure with correct parameters',
+      () async {
+        service = AudioPlaybackService(
+          audioPlayer: mockPlayer,
+          audioSessionWrapper: mockSessionWrapper,
+        );
+
+        await service.configureForRecording();
+
+        verify(() => mockSessionWrapper.configure(any())).called(1);
+      },
+    );
+
+    test('resetAudioSession calls configure with correct parameters', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      await service.resetAudioSession();
+
+      verify(() => mockSessionWrapper.configure(any())).called(1);
     });
   });
 }

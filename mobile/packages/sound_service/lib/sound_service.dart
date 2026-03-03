@@ -9,4 +9,5 @@ export 'package:just_audio/just_audio.dart'
         PlayerState,
         ProcessingState;
 export 'src/audio_playback_service.dart';
+export 'src/audio_session_wrapper.dart';
 export 'src/countdown_sound_service.dart';

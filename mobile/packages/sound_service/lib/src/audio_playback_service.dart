@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:audio_session/audio_session.dart' as audio_session;
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:sound_service/src/audio_session_wrapper.dart';
 
 /// Service for managing audio playback during lip sync recording mode.
 ///
@@ -23,12 +24,20 @@ class AudioPlaybackService {
   /// Creates an AudioPlaybackService with an optional custom AudioPlayer.
   ///
   /// The [audioPlayer] parameter allows for dependency injection in tests.
-  AudioPlaybackService({AudioPlayer? audioPlayer})
-    : _audioPlayer = audioPlayer ?? AudioPlayer() {
+  /// The [audioSessionWrapper] parameter allows for mocking audio session.
+  // coverage:ignore-start
+  AudioPlaybackService({
+    AudioPlayer? audioPlayer,
+    AudioSessionWrapper? audioSessionWrapper,
+  }) : _audioPlayer = audioPlayer ?? AudioPlayer(),
+       _audioSessionWrapper =
+           audioSessionWrapper ?? DefaultAudioSessionWrapper() {
     unawaited(_initializeHeadphoneDetection());
   }
+  // coverage:ignore-end
 
   final AudioPlayer _audioPlayer;
+  final AudioSessionWrapper _audioSessionWrapper;
 
   /// BehaviorSubject for headphone connection state.
   /// Starts with false (no headphones) until actual state is determined.
@@ -65,38 +74,38 @@ class AudioPlaybackService {
     if (_isDisposed) return;
 
     try {
-      final session = await audio_session.AudioSession.instance;
-
       // Check initial headphone state
-      final devices = await session.getDevices();
+      final devices = await _audioSessionWrapper.getDevices();
       final hasHeadphones = _checkForHeadphones(devices);
       if (!_isDisposed) {
         _headphonesConnectedSubject.add(hasHeadphones);
       }
 
       // Listen for device changes
-      _deviceChangeSubscription = session.devicesChangedEventStream.listen(
-        (event) {
-          if (_isDisposed) return;
+      _deviceChangeSubscription = _audioSessionWrapper.devicesChangedEventStream
+          .listen(
+            (event) {
+              if (_isDisposed) return;
 
-          // Re-check all connected devices for accuracy when any device changes
-          unawaited(
-            session.getDevices().then((allDevices) {
-              if (!_isDisposed) {
-                final hasHeadphones = _checkForHeadphones(allDevices);
-                _headphonesConnectedSubject.add(hasHeadphones);
-              }
-            }),
+              // Re-check all connected devices for accuracy when any device
+              // changes
+              unawaited(
+                _audioSessionWrapper.getDevices().then((allDevices) {
+                  if (!_isDisposed) {
+                    final hasHeadphones = _checkForHeadphones(allDevices);
+                    _headphonesConnectedSubject.add(hasHeadphones);
+                  }
+                }),
+              );
+            },
+            onError: (Object error) {
+              log(
+                'Error in device change stream: $error',
+                name: 'AudioPlaybackService',
+                level: 900,
+              );
+            },
           );
-        },
-        onError: (Object error) {
-          log(
-            'Error in device change stream: $error',
-            name: 'AudioPlaybackService',
-            level: 900,
-          );
-        },
-      );
 
       log(
         'Headphone detection initialized. Connected: $hasHeadphones',
@@ -131,10 +140,12 @@ class AudioPlaybackService {
       }
 
       // iOS-specific: Check for Bluetooth HFP
+      // coverage:ignore-start
       if (Platform.isIOS &&
           device.type == audio_session.AudioDeviceType.bluetoothLe) {
         return true;
       }
+      // coverage:ignore-end
     }
     return false;
   }
@@ -314,9 +325,7 @@ class AudioPlaybackService {
   /// "call started/ended" sounds on Bluetooth headsets.
   Future<void> configureForRecording() async {
     try {
-      final session = await audio_session.AudioSession.instance;
-
-      await session.configure(
+      await _audioSessionWrapper.configure(
         audio_session.AudioSessionConfiguration(
           avAudioSessionCategory:
               audio_session.AVAudioSessionCategory.playAndRecord,
@@ -357,9 +366,7 @@ class AudioPlaybackService {
   /// Call this when exiting recording mode.
   Future<void> resetAudioSession() async {
     try {
-      final session = await audio_session.AudioSession.instance;
-
-      await session.configure(
+      await _audioSessionWrapper.configure(
         const audio_session.AudioSessionConfiguration(
           avAudioSessionCategory: audio_session.AVAudioSessionCategory.playback,
           avAudioSessionCategoryOptions:
