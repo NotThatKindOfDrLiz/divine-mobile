@@ -36,22 +36,10 @@ class DefaultAudioSessionWrapper implements AudioSessionWrapper {
   }
 
   @override
-  Stream<audio_session.AudioDevicesChangedEvent> get devicesChangedEventStream {
-    // Create a StreamController that will be populated once session is ready
-    final controller =
-        StreamController<audio_session.AudioDevicesChangedEvent>.broadcast();
-
-    unawaited(
-      _getSession().then((session) {
-        session.devicesChangedEventStream.listen(
-          controller.add,
-          onError: controller.addError,
-          onDone: controller.close,
-        );
-      }),
-    );
-
-    return controller.stream;
+  Stream<audio_session.AudioDevicesChangedEvent>
+      get devicesChangedEventStream async* {
+    final session = await _getSession();
+    yield* session.devicesChangedEventStream;
   }
 
   @override
