@@ -78,7 +78,11 @@ class VideoEditorMainOverlayActions extends ConsumerWidget {
 
                   Flexible(
                     child: VideoEditorAudioChip(
-                      onSelectionDone: scope.requestPlaybackRestart,
+                      onSelectionDone: () {
+                        context.read<VideoEditorMainBloc>().add(
+                          const VideoEditorPlaybackRestartRequested(),
+                        );
+                      },
                     ),
                   ),
 
@@ -179,9 +183,9 @@ class VideoEditorMainOverlayActions extends ConsumerWidget {
                                         : 'Play',
                                     icon: state.isPlaying ? .pause : .play,
                                     onPressed: () {
-                                      VideoEditorScope.of(
-                                        context,
-                                      ).requestPlaybackToggle();
+                                      context.read<VideoEditorMainBloc>().add(
+                                        const VideoEditorPlaybackToggleRequested(),
+                                      );
                                     },
                                   ),
                           ),

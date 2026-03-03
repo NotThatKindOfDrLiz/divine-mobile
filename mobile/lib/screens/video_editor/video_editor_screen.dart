@@ -53,12 +53,6 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
   /// Body size notifier, updated by [_CanvasFitter].
   final _bodySizeNotifier = ValueNotifier<Size>(Size.zero);
 
-  /// Notifier to trigger playback restart (video + audio sync).
-  final _playbackRestartNotifier = ValueNotifier<int>(0);
-
-  /// Notifier to trigger playback toggle (play/pause).
-  final _playbackToggleNotifier = ValueNotifier<int>(0);
-
   ProImageEditorState? get _editor => _editorKey.currentState;
 
   RecordingClip get _clip =>
@@ -96,8 +90,6 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
     );
     _stickerBloc.close();
     _bodySizeNotifier.dispose();
-    _playbackRestartNotifier.dispose();
-    _playbackToggleNotifier.dispose();
     super.dispose();
   }
 
@@ -235,8 +227,6 @@ class _VideoEditorScreenState extends ConsumerState<VideoEditorScreen> {
             removeAreaKey: _removeAreaKey,
             originalClipAspectRatio: _clip.originalAspectRatio,
             bodySizeNotifier: _bodySizeNotifier,
-            playbackRestartNotifier: _playbackRestartNotifier,
-            playbackToggleNotifier: _playbackToggleNotifier,
             onAddStickers: _addStickers,
             onAddEditTextLayer: ([layer]) {
               final mainBloc = context.read<VideoEditorMainBloc>();

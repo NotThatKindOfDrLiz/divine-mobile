@@ -24,8 +24,6 @@ class VideoEditorScope extends InheritedWidget {
     required this.onAddEditTextLayer,
     required this.originalClipAspectRatio,
     required this.bodySizeNotifier,
-    required this.playbackRestartNotifier,
-    required this.playbackToggleNotifier,
     super.child = const SizedBox.shrink(),
     super.key,
   });
@@ -44,14 +42,6 @@ class VideoEditorScope extends InheritedWidget {
 
   /// Notifier for the body size, updated by [_CanvasFitter].
   final ValueNotifier<Size> bodySizeNotifier;
-
-  /// Notifier to trigger playback restart (video + audio sync).
-  /// Increments when playback should restart from the beginning.
-  final ValueNotifier<int> playbackRestartNotifier;
-
-  /// Notifier to trigger playback toggle (play/pause).
-  /// Increments when playback should toggle.
-  final ValueNotifier<int> playbackToggleNotifier;
 
   /// Callback to open the text editor.
   final Future<TextLayer?> Function([TextLayer? layer]) onAddEditTextLayer;
@@ -79,18 +69,6 @@ class VideoEditorScope extends InheritedWidget {
 
   /// Returns the [PaintEditorState] if available.
   PaintEditorState? get paintEditor => editor?.paintEditor.currentState;
-
-  /// Requests a playback restart (video + audio sync).
-  ///
-  /// Called after audio selection changes to restart synchronized playback.
-  void requestPlaybackRestart() {
-    playbackRestartNotifier.value++;
-  }
-
-  /// Requests a playback toggle (play/pause).
-  void requestPlaybackToggle() {
-    playbackToggleNotifier.value++;
-  }
 
   /// Gets the nearest [VideoEditorScope] from the widget tree.
   ///

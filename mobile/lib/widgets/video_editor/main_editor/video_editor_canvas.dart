@@ -110,18 +110,6 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   /// Tracks last playback state to detect changes.
   bool _lastIsPlaying = false;
 
-  /// Listener for playback restart requests.
-  VoidCallback? _playbackRestartListener;
-
-  /// Cached reference to playback restart notifier for cleanup.
-  ValueNotifier<int>? _playbackRestartNotifier;
-
-  /// Listener for playback toggle requests.
-  VoidCallback? _playbackToggleListener;
-
-  /// Cached reference to playback toggle notifier for cleanup.
-  ValueNotifier<int>? _playbackToggleNotifier;
-
   @override
   void initState() {
     super.initState();
@@ -134,36 +122,12 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    // Setup playback restart listener from scope
-    final scope = VideoEditorScope.of(context);
-    if (_playbackRestartListener == null) {
-      _playbackRestartListener = _onPlaybackRestartRequested;
-      _playbackRestartNotifier = scope.playbackRestartNotifier;
-      _playbackRestartNotifier!.addListener(_playbackRestartListener!);
-    }
-    if (_playbackToggleListener == null) {
-      _playbackToggleListener = _onPlaybackToggleRequested;
-      _playbackToggleNotifier = scope.playbackToggleNotifier;
-      _playbackToggleNotifier!.addListener(_playbackToggleListener!);
-    }
-  }
-
-  @override
   void dispose() {
     Log.info(
       '🎬 Canvas disposed',
       name: 'VideoEditorCanvas',
       category: LogCategory.video,
     );
-    if (_playbackRestartListener != null) {
-      _playbackRestartNotifier?.removeListener(_playbackRestartListener!);
-    }
-    if (_playbackToggleListener != null) {
-      _playbackToggleNotifier?.removeListener(_playbackToggleListener!);
-    }
     _videoPlayer?.removeListener(_onVideoPositionChange);
     _videoPlayer?.dispose();
     _audioService?.stop();
@@ -172,7 +136,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     super.dispose();
   }
 
-  /// Handles playback restart requests from the scope.
+  /// Handles playback restart requests from BLoC.
   void _onPlaybackRestartRequested() {
     if (!_isPlayerReadyNotifier.value) return;
 
@@ -181,7 +145,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     _videoPlayer?.play();
   }
 
-  /// Handles playback toggle requests from the scope.
+  /// Handles playback toggle requests from BLoC.
   void _onPlaybackToggleRequested() {
     if (!_isPlayerReadyNotifier.value) return;
 
@@ -192,6 +156,17 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     } else {
       _videoPlayer?.play();
       // Audio play handled by _onVideoPositionChange listener
+    }
+  }
+
+  /// Handles external pause requests from BLoC.
+  void _onExternalPauseChanged({required bool isPaused}) {
+    if (!_isPlayerReadyNotifier.value) return;
+
+    if (isPaused) {
+      _videoPlayer?.pause();
+    } else {
+      _videoPlayer?.play();
     }
   }
 
@@ -449,7 +424,34 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     final targetAspectRatio = ref.read(
       clipManagerProvider.select((s) => s.clips.first.targetAspectRatio),
     );
-    return ProImageEditor.video(
+
+    // Listen for playback control requests from BLoC
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<VideoEditorMainBloc, VideoEditorMainState>(
+          listenWhen: (previous, current) =>
+              previous.isExternalPauseRequested !=
+              current.isExternalPauseRequested,
+          listener: (context, state) {
+            _onExternalPauseChanged(isPaused: state.isExternalPauseRequested);
+          },
+        ),
+        BlocListener<VideoEditorMainBloc, VideoEditorMainState>(
+          listenWhen: (previous, current) =>
+              previous.playbackRestartCounter != current.playbackRestartCounter,
+          listener: (context, state) {
+            _onPlaybackRestartRequested();
+          },
+        ),
+        BlocListener<VideoEditorMainBloc, VideoEditorMainState>(
+          listenWhen: (previous, current) =>
+              previous.playbackToggleCounter != current.playbackToggleCounter,
+          listener: (context, state) {
+            _onPlaybackToggleRequested();
+          },
+        ),
+      ],
+      child: ProImageEditor.video(
       _proVideoController,
       key: scope.editorKey,
 
@@ -675,6 +677,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
             filterEditor?.setFilterOpacity(filterState.opacity);
           },
         ),
+      ),
       ),
     );
   }

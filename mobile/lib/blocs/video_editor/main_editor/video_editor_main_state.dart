@@ -11,6 +11,9 @@ class VideoEditorMainState extends Equatable {
     this.layers = const [],
     this.isPlaying = false,
     this.isPlayerReady = false,
+    this.isExternalPauseRequested = false,
+    this.playbackRestartCounter = 0,
+    this.playbackToggleCounter = 0,
   });
 
   /// Whether the undo action is available.
@@ -40,6 +43,21 @@ class VideoEditorMainState extends Equatable {
   /// Whether the video player is ready for playback.
   final bool isPlayerReady;
 
+  /// Whether an external component has requested playback pause.
+  ///
+  /// Used by audio selection to pause video while browsing sounds.
+  final bool isExternalPauseRequested;
+
+  /// Counter that increments when playback restart is requested.
+  ///
+  /// Used by BlocListener to trigger video restart from beginning.
+  final int playbackRestartCounter;
+
+  /// Counter that increments when playback toggle is requested.
+  ///
+  /// Used by BlocListener to trigger play/pause toggle.
+  final int playbackToggleCounter;
+
   /// Creates a copy with the given fields replaced.
   ///
   /// Use [clearOpenSubEditor] to explicitly close the sub-editor.
@@ -53,6 +71,9 @@ class VideoEditorMainState extends Equatable {
     List<Layer>? layers,
     bool? isPlaying,
     bool? isPlayerReady,
+    bool? isExternalPauseRequested,
+    int? playbackRestartCounter,
+    int? playbackToggleCounter,
   }) {
     return VideoEditorMainState(
       canUndo: canUndo ?? this.canUndo,
@@ -67,6 +88,12 @@ class VideoEditorMainState extends Equatable {
       layers: layers ?? this.layers,
       isPlaying: isPlaying ?? this.isPlaying,
       isPlayerReady: isPlayerReady ?? this.isPlayerReady,
+      isExternalPauseRequested:
+          isExternalPauseRequested ?? this.isExternalPauseRequested,
+      playbackRestartCounter:
+          playbackRestartCounter ?? this.playbackRestartCounter,
+      playbackToggleCounter:
+          playbackToggleCounter ?? this.playbackToggleCounter,
     );
   }
 
@@ -80,5 +107,8 @@ class VideoEditorMainState extends Equatable {
     layers,
     isPlaying,
     isPlayerReady,
+    isExternalPauseRequested,
+    playbackRestartCounter,
+    playbackToggleCounter,
   ];
 }

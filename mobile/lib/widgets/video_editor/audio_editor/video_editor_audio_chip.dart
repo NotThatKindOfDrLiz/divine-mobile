@@ -1,6 +1,8 @@
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
@@ -8,7 +10,10 @@ import 'package:openvine/screens/video_editor/video_audio_editor_timing_screen.d
 import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_bottom_sheet.dart';
 
 class VideoEditorAudioChip extends ConsumerWidget {
-  const VideoEditorAudioChip({this.onSelectionDone, super.key});
+  const VideoEditorAudioChip({
+    this.onSelectionDone,
+    super.key,
+  });
 
   final VoidCallback? onSelectionDone;
 
@@ -16,6 +21,10 @@ class VideoEditorAudioChip extends ConsumerWidget {
     final selectedSound = ref.read(selectedSoundProvider);
     final videoRecorderNotifier = ref.read(videoRecorderProvider.notifier);
     videoRecorderNotifier.pauseRemoteRecordControl();
+
+    // Pause video playback while selecting audio (if BLoC is available)
+    final bloc = context.read<VideoEditorMainBloc?>();
+    bloc?.add(const VideoEditorExternalPauseRequested(isPaused: true));
 
     if (selectedSound == null) {
       final result = await VineBottomSheet.show<AudioEvent>(
@@ -28,6 +37,7 @@ class VideoEditorAudioChip extends ConsumerWidget {
       );
       if (result == null) {
         videoRecorderNotifier.resumeRemoteRecordControl();
+        bloc?.add(const VideoEditorExternalPauseRequested(isPaused: false));
         return;
       } else {
         ref.read(selectedSoundProvider.notifier).select(result);

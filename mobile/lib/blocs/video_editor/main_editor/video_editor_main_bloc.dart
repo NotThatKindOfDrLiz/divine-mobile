@@ -25,6 +25,9 @@ class VideoEditorMainBloc
     on<VideoEditorLayerRemoved>(_onLayerRemoved);
     on<VideoEditorPlaybackChanged>(_onPlaybackChanged);
     on<VideoEditorPlayerReady>(_onPlayerReady);
+    on<VideoEditorExternalPauseRequested>(_onExternalPauseRequested);
+    on<VideoEditorPlaybackRestartRequested>(_onPlaybackRestartRequested);
+    on<VideoEditorPlaybackToggleRequested>(_onPlaybackToggleRequested);
   }
 
   /// Updates undo/redo/subEditor state based on editor capabilities.
@@ -113,5 +116,26 @@ class VideoEditorMainBloc
     Emitter<VideoEditorMainState> emit,
   ) {
     emit(state.copyWith(isPlayerReady: true));
+  }
+
+  void _onExternalPauseRequested(
+    VideoEditorExternalPauseRequested event,
+    Emitter<VideoEditorMainState> emit,
+  ) {
+    emit(state.copyWith(isExternalPauseRequested: event.isPaused));
+  }
+
+  void _onPlaybackRestartRequested(
+    VideoEditorPlaybackRestartRequested event,
+    Emitter<VideoEditorMainState> emit,
+  ) {
+    emit(state.copyWith(playbackRestartCounter: state.playbackRestartCounter + 1));
+  }
+
+  void _onPlaybackToggleRequested(
+    VideoEditorPlaybackToggleRequested event,
+    Emitter<VideoEditorMainState> emit,
+  ) {
+    emit(state.copyWith(playbackToggleCounter: state.playbackToggleCounter + 1));
   }
 }
