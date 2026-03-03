@@ -78,7 +78,7 @@ class VideoEditorMainOverlayActions extends ConsumerWidget {
 
                   Flexible(
                     child: VideoEditorAudioChip(
-                      onSelectionDone: () {
+                      onSelectedSoundChanged: () {
                         context.read<VideoEditorMainBloc>().add(
                           const VideoEditorPlaybackRestartRequested(),
                         );

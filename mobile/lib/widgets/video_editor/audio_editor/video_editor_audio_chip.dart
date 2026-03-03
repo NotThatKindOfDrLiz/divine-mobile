@@ -11,14 +11,14 @@ import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_botto
 
 class VideoEditorAudioChip extends ConsumerWidget {
   const VideoEditorAudioChip({
-    this.onSelectionDone,
+    this.onSelectedSoundChanged,
     super.key,
   });
 
-  final VoidCallback? onSelectionDone;
+  final VoidCallback? onSelectedSoundChanged;
 
   Future<void> _selectAudio(BuildContext context, WidgetRef ref) async {
-    final selectedSound = ref.read(selectedSoundProvider);
+    final previousSound = ref.read(selectedSoundProvider);
     final videoRecorderNotifier = ref.read(videoRecorderProvider.notifier);
     videoRecorderNotifier.pauseRemoteRecordControl();
 
@@ -26,7 +26,7 @@ class VideoEditorAudioChip extends ConsumerWidget {
     final bloc = context.read<VideoEditorMainBloc?>();
     bloc?.add(const VideoEditorExternalPauseRequested(isPaused: true));
 
-    if (selectedSound == null) {
+    if (previousSound == null) {
       final result = await VineBottomSheet.show<AudioEvent>(
         context: context,
         maxChildSize: 1,
@@ -54,7 +54,18 @@ class VideoEditorAudioChip extends ConsumerWidget {
       ),
     );
 
-    onSelectionDone?.call();
+    // Only restart playback if sound actually changed
+    final newSound = ref.read(selectedSoundProvider);
+    final soundChanged =
+        previousSound?.url != newSound?.url ||
+        previousSound?.startOffset != newSound?.startOffset;
+
+    // Reset external pause state before restart/resume
+    bloc?.add(const VideoEditorExternalPauseRequested(isPaused: false));
+
+    if (soundChanged) {
+      onSelectedSoundChanged?.call();
+    }
 
     videoRecorderNotifier.resumeRemoteRecordControl();
   }
