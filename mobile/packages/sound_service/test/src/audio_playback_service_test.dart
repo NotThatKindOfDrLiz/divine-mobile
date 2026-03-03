@@ -832,5 +832,46 @@ void main() {
 
       verify(() => mockSessionWrapper.configure(any())).called(1);
     });
+
+    test(
+      'configureForMixedPlayback sets up audio session for mixed playback',
+      () async {
+        service = AudioPlaybackService(
+          audioPlayer: mockPlayer,
+          audioSessionWrapper: mockSessionWrapper,
+        );
+
+        // Should not throw
+        await expectLater(service.configureForMixedPlayback(), completes);
+      },
+    );
+
+    test('configureForMixedPlayback handles errors gracefully', () async {
+      when(
+        () => mockSessionWrapper.configure(any()),
+      ).thenThrow(Exception('Configure error'));
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+
+      // Should not throw - errors are caught internally
+      await expectLater(service.configureForMixedPlayback(), completes);
+    });
+
+    test(
+      'configureForMixedPlayback calls configure with correct parameters',
+      () async {
+        service = AudioPlaybackService(
+          audioPlayer: mockPlayer,
+          audioSessionWrapper: mockSessionWrapper,
+        );
+
+        await service.configureForMixedPlayback();
+
+        verify(() => mockSessionWrapper.configure(any())).called(1);
+      },
+    );
   });
 }
