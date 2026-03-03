@@ -129,13 +129,17 @@ class VideoEditorMainBloc
     VideoEditorPlaybackRestartRequested event,
     Emitter<VideoEditorMainState> emit,
   ) {
-    emit(state.copyWith(playbackRestartCounter: state.playbackRestartCounter + 1));
+    emit(
+      state.copyWith(playbackRestartCounter: state.playbackRestartCounter + 1),
+    );
   }
 
   void _onPlaybackToggleRequested(
     VideoEditorPlaybackToggleRequested event,
     Emitter<VideoEditorMainState> emit,
   ) {
-    emit(state.copyWith(playbackToggleCounter: state.playbackToggleCounter + 1));
+    emit(
+      state.copyWith(playbackToggleCounter: state.playbackToggleCounter + 1),
+    );
   }
 }

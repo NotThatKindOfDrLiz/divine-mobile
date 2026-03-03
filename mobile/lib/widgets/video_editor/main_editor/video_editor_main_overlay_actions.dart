@@ -16,8 +16,78 @@ import 'package:pro_image_editor/pro_image_editor.dart';
 ///
 /// Displays close, undo, redo, audio, and done buttons. Uses [BlocSelector] to
 /// reactively enable/disable undo and redo based on editor state.
-class VideoEditorMainOverlayActions extends ConsumerWidget {
+class VideoEditorMainOverlayActions extends StatelessWidget {
   const VideoEditorMainOverlayActions({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      child: Padding(
+        padding: .fromLTRB(16, 12, 16, 16),
+        child: Stack(
+          fit: .expand,
+          children: [
+            Align(alignment: .topCenter, child: _TopActions()),
+            Align(alignment: .bottomCenter, child: _BottomActions()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Top row actions: close, audio chip, and done buttons.
+class _TopActions extends ConsumerWidget {
+  const _TopActions();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scope = VideoEditorScope.of(context);
+
+    return Row(
+      spacing: 8,
+      mainAxisAlignment: .spaceBetween,
+      children: [
+        DivineIconButton(
+          size: .small,
+          type: .ghostSecondary,
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          semanticLabel: 'Close',
+          icon: .caretLeft,
+          onPressed: () {
+            final bloc = context.read<VideoEditorMainBloc>();
+            if (bloc.state.isSubEditorOpen) {
+              scope.editor?.closeSubEditor();
+            } else {
+              context.pop();
+            }
+          },
+        ),
+        Flexible(
+          child: VideoEditorAudioChip(
+            onSelectedSoundChanged: () {
+              context.read<VideoEditorMainBloc>().add(
+                const VideoEditorPlaybackRestartRequested(),
+              );
+            },
+          ),
+        ),
+        DivineIconButton(
+          size: .small,
+          type: .ghostSecondary,
+          // TODO(l10n): Replace with context.l10n when localization is added.
+          semanticLabel: 'Done',
+          icon: .check,
+          onPressed: () => scope.editor?.doneEditing(),
+        ),
+      ],
+    );
+  }
+}
+
+/// Bottom row actions: reorder, undo, redo, and play/pause buttons.
+class _BottomActions extends StatelessWidget {
+  const _BottomActions();
 
   Future<void> _reorderLayers(BuildContext context, List<Layer> layers) async {
     await VineBottomSheet.show<void>(
@@ -45,158 +115,100 @@ class VideoEditorMainOverlayActions extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final scope = VideoEditorScope.of(context);
 
-    return SafeArea(
-      child: Padding(
-        padding: const .fromLTRB(16, 12, 16, 16),
-        child: Stack(
-          fit: .expand,
+    return BlocSelector<
+      VideoEditorMainBloc,
+      VideoEditorMainState,
+      ({
+        bool canUndo,
+        bool canRedo,
+        List<Layer> layers,
+        bool isPlaying,
+        bool isPlayerReady,
+      })
+    >(
+      selector: (state) => (
+        canUndo: state.canUndo,
+        canRedo: state.canRedo,
+        layers: state.layers,
+        isPlaying: state.isPlaying,
+        isPlayerReady: state.isPlayerReady,
+      ),
+      builder: (context, state) {
+        return Row(
+          spacing: 8,
           children: [
-            Align(
-              alignment: Alignment.topCenter,
-              child: Row(
-                spacing: 8,
-                mainAxisAlignment: .spaceBetween,
-                children: [
-                  DivineIconButton(
-                    size: .small,
-                    type: .ghostSecondary,
-                    // TODO(l10n): Replace with context.l10n when localization is added.
-                    semanticLabel: 'Close',
-                    icon: .caretLeft,
-                    onPressed: () {
-                      final bloc = context.read<VideoEditorMainBloc>();
-                      if (bloc.state.isSubEditorOpen) {
-                        scope.editor?.closeSubEditor();
-                      } else {
-                        context.pop();
-                      }
-                    },
-                  ),
-
-                  Flexible(
-                    child: VideoEditorAudioChip(
-                      onSelectedSoundChanged: () {
+            DivineIconButton(
+              size: .small,
+              type: .ghostSecondary,
+              // TODO(l10n): Replace with context.l10n when localization is added.
+              semanticLabel: 'Reorder',
+              icon: .stackSimple,
+              onPressed: state.layers.length > 1
+                  ? () => _reorderLayers(
+                      context,
+                      scope.editor?.activeLayers ?? state.layers,
+                    )
+                  : null,
+            ),
+            const Spacer(),
+            DivineIconButton(
+              size: .small,
+              type: .ghostSecondary,
+              // TODO(l10n): Replace with context.l10n when localization is added.
+              semanticLabel: 'Undo',
+              icon: .arrowArcLeft,
+              onPressed: state.canUndo
+                  ? () => scope.editor?.undoAction()
+                  : null,
+            ),
+            DivineIconButton(
+              size: .small,
+              type: .ghostSecondary,
+              // TODO(l10n): Replace with context.l10n when localization is added.
+              semanticLabel: 'Redo',
+              icon: .arrowArcRight,
+              onPressed: state.canRedo
+                  ? () => scope.editor?.redoAction()
+                  : null,
+            ),
+            const Spacer(),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: !state.isPlayerReady
+                  ? Container(
+                      width: 40,
+                      height: 40,
+                      padding: const .all(10),
+                      decoration: BoxDecoration(
+                        color: VineTheme.scrim15,
+                        borderRadius: .circular(16),
+                      ),
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(
+                          VineTheme.whiteText,
+                        ),
+                      ),
+                    )
+                  : DivineIconButton(
+                      size: .small,
+                      type: .ghostSecondary,
+                      // TODO(l10n): Replace with context.l10n when localization is added.
+                      semanticLabel: state.isPlaying ? 'Pause' : 'Play',
+                      icon: state.isPlaying ? .pause : .play,
+                      onPressed: () {
                         context.read<VideoEditorMainBloc>().add(
-                          const VideoEditorPlaybackRestartRequested(),
+                          const VideoEditorPlaybackToggleRequested(),
                         );
                       },
                     ),
-                  ),
-
-                  DivineIconButton(
-                    size: .small,
-                    type: .ghostSecondary,
-                    // TODO(l10n): Replace with context.l10n when localization is added.
-                    semanticLabel: 'Done',
-                    icon: .check,
-                    onPressed: () => scope.editor?.doneEditing(),
-                  ),
-                ],
-              ),
-            ),
-            Align(
-              alignment: .bottomCenter,
-              child:
-                  BlocSelector<
-                    VideoEditorMainBloc,
-                    VideoEditorMainState,
-                    ({
-                      bool canUndo,
-                      bool canRedo,
-                      List<Layer> layers,
-                      bool isPlaying,
-                      bool isPlayerReady,
-                    })
-                  >(
-                    selector: (state) => (
-                      canUndo: state.canUndo,
-                      canRedo: state.canRedo,
-                      layers: state.layers,
-                      isPlaying: state.isPlaying,
-                      isPlayerReady: state.isPlayerReady,
-                    ),
-                    builder: (context, state) {
-                      return Row(
-                        spacing: 8,
-                        children: [
-                          DivineIconButton(
-                            size: .small,
-                            type: .ghostSecondary,
-                            // TODO(l10n): Replace with context.l10n when localization is added.
-                            semanticLabel: 'Undo',
-                            icon: .arrowArcLeft,
-                            onPressed: state.canUndo
-                                ? () => scope.editor?.undoAction()
-                                : null,
-                          ),
-                          DivineIconButton(
-                            size: .small,
-                            type: .ghostSecondary,
-                            // TODO(l10n): Replace with context.l10n when localization is added.
-                            semanticLabel: 'Redo',
-                            icon: .arrowArcRight,
-                            onPressed: state.canRedo
-                                ? () => scope.editor?.redoAction()
-                                : null,
-                          ),
-                          const Spacer(),
-                          DivineIconButton(
-                            size: .small,
-                            type: .ghostSecondary,
-                            // TODO(l10n): Replace with context.l10n when localization is added.
-                            semanticLabel: 'Reorder',
-                            icon: .stackSimple,
-                            onPressed: state.layers.length > 1
-                                ? () => _reorderLayers(
-                                    context,
-                                    scope.editor?.activeLayers ?? state.layers,
-                                  )
-                                : null,
-                          ),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            child: !state.isPlayerReady
-                                ? Container(
-                                    width: 40,
-                                    height: 40,
-                                    padding: const .all(10),
-                                    decoration: BoxDecoration(
-                                      color: VineTheme.scrim15,
-                                      borderRadius: .circular(16),
-                                    ),
-                                    child: const CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation(
-                                        VineTheme.whiteText,
-                                      ),
-                                    ),
-                                  )
-                                : DivineIconButton(
-                                    size: .small,
-                                    type: .ghostSecondary,
-                                    // TODO(l10n): Replace with context.l10n when localization is added.
-                                    semanticLabel: state.isPlaying
-                                        ? 'Pause'
-                                        : 'Play',
-                                    icon: state.isPlaying ? .pause : .play,
-                                    onPressed: () {
-                                      context.read<VideoEditorMainBloc>().add(
-                                        const VideoEditorPlaybackToggleRequested(),
-                                      );
-                                    },
-                                  ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -139,8 +139,8 @@ class StereoWaveformPainter extends CustomPainter {
 
     // Calculate sample offset and visible sample count
     final sampleOffset = ((offsetMs / audioMs) * leftChannel.length).floor();
-    final visibleSampleCount =
-        ((visibleMs / audioMs) * leftChannel.length).ceil();
+    final visibleSampleCount = ((visibleMs / audioMs) * leftChannel.length)
+        .ceil();
 
     final waveformWidth = size.width * barFillRatio;
 
