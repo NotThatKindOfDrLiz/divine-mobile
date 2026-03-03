@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:models/models.dart' show InspiredByInfo;
 import 'package:models/models.dart' show NativeProofData;
+import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/utils/path_resolver.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -34,8 +35,7 @@ class VineDraft {
     this.collaboratorPubkeys = const [],
     this.inspiredByVideo,
     this.inspiredByNpub,
-    this.selectedAudioEventId,
-    this.selectedAudioRelay,
+    this.selectedSound,
   });
 
   factory VineDraft.create({
@@ -54,8 +54,7 @@ class VineDraft {
     List<String> collaboratorPubkeys = const [],
     InspiredByInfo? inspiredByVideo,
     String? inspiredByNpub,
-    String? selectedAudioEventId,
-    String? selectedAudioRelay,
+    AudioEvent? selectedSound,
   }) {
     final now = DateTime.now();
     return VineDraft(
@@ -78,8 +77,7 @@ class VineDraft {
       collaboratorPubkeys: collaboratorPubkeys,
       inspiredByVideo: inspiredByVideo,
       inspiredByNpub: inspiredByNpub,
-      selectedAudioEventId: selectedAudioEventId,
-      selectedAudioRelay: selectedAudioRelay,
+      selectedSound: selectedSound,
     );
   }
 
@@ -167,8 +165,12 @@ class VineDraft {
             )
           : null,
       inspiredByNpub: json['inspiredByNpub'] as String?,
-      selectedAudioEventId: json['selectedAudioEventId'] as String?,
-      selectedAudioRelay: json['selectedAudioRelay'] as String?,
+      // New format: full AudioEvent object
+      // Old format (selectedAudioEventId/selectedAudioRelay) is ignored -
+      // user must re-select sound if loading old draft
+      selectedSound: json['selectedSound'] != null
+          ? AudioEvent.fromJson(json['selectedSound'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -203,11 +205,10 @@ class VineDraft {
   /// NIP-27 npub reference for general "Inspired By" a creator.
   final String? inspiredByNpub;
 
-  /// Event ID of a selected existing audio event to reference.
-  final String? selectedAudioEventId;
-
-  /// Relay hint for the selected audio event.
-  final String? selectedAudioRelay;
+  /// Currently selected audio event for the video.
+  /// Contains the full AudioEvent data including URL, title, and start offset.
+  /// Persisted to drafts so the sound selection survives app restarts.
+  final AudioEvent? selectedSound;
 
   /// Check if this draft has ProofMode data
   bool get hasProofMode => proofManifestJson != null;
@@ -233,6 +234,14 @@ class VineDraft {
     }
   }
 
+  /// Creates a copy of this draft with updated fields.
+  ///
+  /// Use [clearPublishError] = true to explicitly set [publishError] to null.
+  /// Use [clearProofManifestJson] = true to explicitly set
+  /// [proofManifestJson] to null.
+  /// Use [clearFinalRenderedClip] = true to explicitly set
+  /// [finalRenderedClip] to null.
+  /// Use [clearSelectedSound] = true to explicitly set [selectedSound] to null.
   VineDraft copyWith({
     List<RecordingClip>? clips,
     String? id,
@@ -240,19 +249,22 @@ class VineDraft {
     String? description,
     Set<String>? hashtags,
     PublishStatus? publishStatus,
-    Object? publishError = _sentinel,
+    String? publishError,
+    bool clearPublishError = false,
     Duration? expireTime,
     bool? allowAudioReuse,
     int? publishAttempts,
-    Object? proofManifestJson = _sentinel,
+    String? proofManifestJson,
+    bool clearProofManifestJson = false,
     Map<String, dynamic>? editorStateHistory,
     Map<String, dynamic>? editorEditingParameters,
-    Object? finalRenderedClip = _sentinel,
+    RecordingClip? finalRenderedClip,
+    bool clearFinalRenderedClip = false,
     List<String>? collaboratorPubkeys,
     InspiredByInfo? inspiredByVideo,
     String? inspiredByNpub,
-    Object? selectedAudioEventId = _sentinel,
-    Object? selectedAudioRelay = _sentinel,
+    AudioEvent? selectedSound,
+    bool clearSelectedSound = false,
   }) => VineDraft(
     id: id ?? this.id,
     clips: clips ?? this.clips,
@@ -265,31 +277,26 @@ class VineDraft {
     expireTime: expireTime ?? this.expireTime,
     allowAudioReuse: allowAudioReuse ?? this.allowAudioReuse,
     publishStatus: publishStatus ?? this.publishStatus,
-    publishError: publishError == _sentinel
-        ? this.publishError
-        : publishError as String?,
+    publishError: clearPublishError
+        ? null
+        : (publishError ?? this.publishError),
     publishAttempts: publishAttempts ?? this.publishAttempts,
-    proofManifestJson: proofManifestJson == _sentinel
-        ? this.proofManifestJson
-        : proofManifestJson as String?,
+    proofManifestJson: clearProofManifestJson
+        ? null
+        : (proofManifestJson ?? this.proofManifestJson),
     editorStateHistory: editorStateHistory ?? this.editorStateHistory,
     editorEditingParameters:
         editorEditingParameters ?? this.editorEditingParameters,
-    finalRenderedClip: finalRenderedClip == _sentinel
-        ? this.finalRenderedClip
-        : finalRenderedClip as RecordingClip?,
+    finalRenderedClip: clearFinalRenderedClip
+        ? null
+        : (finalRenderedClip ?? this.finalRenderedClip),
     collaboratorPubkeys: collaboratorPubkeys ?? this.collaboratorPubkeys,
     inspiredByVideo: inspiredByVideo ?? this.inspiredByVideo,
     inspiredByNpub: inspiredByNpub ?? this.inspiredByNpub,
-    selectedAudioEventId: selectedAudioEventId == _sentinel
-        ? this.selectedAudioEventId
-        : selectedAudioEventId as String?,
-    selectedAudioRelay: selectedAudioRelay == _sentinel
-        ? this.selectedAudioRelay
-        : selectedAudioRelay as String?,
+    selectedSound: clearSelectedSound
+        ? null
+        : (selectedSound ?? this.selectedSound),
   );
-
-  static const _sentinel = Object();
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -315,9 +322,7 @@ class VineDraft {
       'collaboratorPubkeys': collaboratorPubkeys,
     if (inspiredByVideo != null) 'inspiredByVideo': inspiredByVideo!.toJson(),
     if (inspiredByNpub != null) 'inspiredByNpub': inspiredByNpub,
-    if (selectedAudioEventId != null)
-      'selectedAudioEventId': selectedAudioEventId,
-    if (selectedAudioRelay != null) 'selectedAudioRelay': selectedAudioRelay,
+    if (selectedSound != null) 'selectedSound': selectedSound!.toJson(),
   };
 
   String get displayDuration {

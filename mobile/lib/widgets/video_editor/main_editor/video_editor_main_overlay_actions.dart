@@ -7,6 +7,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.dart';
+import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_layer_reorder_sheet.dart';
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_scope.dart';
@@ -40,9 +42,20 @@ class VideoEditorMainOverlayActions extends StatelessWidget {
 class _TopActions extends ConsumerWidget {
   const _TopActions();
 
+  void onSoundChanged(BuildContext context, WidgetRef ref, AudioEvent? sound) {
+    ref.read(videoEditorProvider.notifier).selectSound(sound);
+    // Restart playback when sound changes
+    context.read<VideoEditorMainBloc>().add(
+      const VideoEditorPlaybackRestartRequested(),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scope = VideoEditorScope.of(context);
+    final selectedSound = ref.watch(
+      videoEditorProvider.select((s) => s.selectedSound),
+    );
 
     return Row(
       spacing: 8,
@@ -65,11 +78,8 @@ class _TopActions extends ConsumerWidget {
         ),
         Flexible(
           child: VideoEditorAudioChip(
-            onSelectedSoundChanged: () {
-              context.read<VideoEditorMainBloc>().add(
-                const VideoEditorPlaybackRestartRequested(),
-              );
-            },
+            selectedSound: selectedSound,
+            onSoundChanged: (sound) => onSoundChanged(context, ref, sound),
           ),
         ),
         DivineIconButton(

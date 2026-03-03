@@ -3,6 +3,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:models/models.dart' show InspiredByInfo;
+import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
@@ -41,8 +42,7 @@ class VideoEditorProviderState {
     this.collaboratorPubkeys = const [],
     this.inspiredByVideo,
     this.inspiredByNpub,
-    this.selectedAudioEventId,
-    this.selectedAudioRelay,
+    this.selectedSound,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
@@ -125,11 +125,10 @@ class VideoEditorProviderState {
   /// NIP-27 npub reference for general "Inspired By" a creator.
   final String? inspiredByNpub;
 
-  /// Event ID of a selected existing audio event (Kind 1063) to reference.
-  final String? selectedAudioEventId;
-
-  /// Relay hint for the selected audio event.
-  final String? selectedAudioRelay;
+  /// Currently selected sound for the video.
+  /// Contains the full AudioEvent data including URL, title, and start offset.
+  /// This is persisted in drafts and used for audio playback during editing.
+  final AudioEvent? selectedSound;
 
   /// Whether the video is valid and ready to be posted.
   ///
@@ -150,6 +149,8 @@ class VideoEditorProviderState {
   /// [inspiredByVideo] to null.
   /// Use [clearInspiredByNpub] = true to explicitly set
   /// [inspiredByNpub] to null.
+  /// Use [clearSelectedSound] = true to explicitly set
+  /// [selectedSound] to null.
   VideoEditorProviderState copyWith({
     int? currentClipIndex,
     Duration? currentPosition,
@@ -179,8 +180,8 @@ class VideoEditorProviderState {
     bool clearInspiredByVideo = false,
     String? inspiredByNpub,
     bool clearInspiredByNpub = false,
-    Object? selectedAudioEventId = _sentinel,
-    Object? selectedAudioRelay = _sentinel,
+    AudioEvent? selectedSound,
+    bool clearSelectedSound = false,
   }) {
     return VideoEditorProviderState(
       currentClipIndex: currentClipIndex ?? this.currentClipIndex,
@@ -215,14 +216,9 @@ class VideoEditorProviderState {
       inspiredByNpub: clearInspiredByNpub
           ? null
           : (inspiredByNpub ?? this.inspiredByNpub),
-      selectedAudioEventId: selectedAudioEventId == _sentinel
-          ? this.selectedAudioEventId
-          : selectedAudioEventId as String?,
-      selectedAudioRelay: selectedAudioRelay == _sentinel
-          ? this.selectedAudioRelay
-          : selectedAudioRelay as String?,
+      selectedSound: clearSelectedSound
+          ? null
+          : (selectedSound ?? this.selectedSound),
     );
   }
-
-  static const _sentinel = Object();
 }

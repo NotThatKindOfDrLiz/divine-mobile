@@ -19,7 +19,6 @@ import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
 import 'package:openvine/services/audio_playback_service.dart';
@@ -207,7 +206,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
 
   /// Syncs audio playback to video position.
   Future<void> _syncAudioToVideo() async {
-    final selectedSound = ref.read(selectedSoundProvider);
+    final selectedSound = ref.read(videoEditorProvider).selectedSound;
     if (selectedSound == null || _audioService == null) return;
 
     final videoPosition = _videoPlayer?.value.position ?? Duration.zero;
@@ -288,7 +287,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
 
   /// Initializes audio playback synced with video.
   Future<void> _initializeAudio() async {
-    final selectedSound = ref.read(selectedSoundProvider);
+    final selectedSound = ref.read(videoEditorProvider).selectedSound;
     await _loadAudio(selectedSound);
   }
 
@@ -453,12 +452,15 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     );
 
     // Listen for sound changes to reload audio
-    ref.listen<AudioEvent?>(selectedSoundProvider, (previous, next) {
-      if (previous?.url != next?.url ||
-          previous?.startOffset != next?.startOffset) {
-        _loadAudio(next);
-      }
-    });
+    ref.listen<AudioEvent?>(
+      videoEditorProvider.select((s) => s.selectedSound),
+      (previous, next) {
+        if (previous?.url != next?.url ||
+            previous?.startOffset != next?.startOffset) {
+          _loadAudio(next);
+        }
+      },
+    );
 
     // Listen for playback control requests from BLoC
     return MultiBlocListener(

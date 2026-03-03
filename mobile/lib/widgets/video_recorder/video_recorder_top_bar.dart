@@ -17,11 +17,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifier = ref.read(videoRecorderProvider.notifier);
+    final recorderState = ref.watch(videoRecorderProvider);
     final clipCount = ref.watch(clipManagerProvider.select((s) => s.clipCount));
     final hasClips = clipCount > 0;
-    final isRecording = ref.watch(
-      videoRecorderProvider.select((s) => s.isRecording),
-    );
+    final isRecording = recorderState.isRecording;
+    final selectedSound = recorderState.selectedSound;
 
     // Debug logging for Next button visibility
     Log.debug(
@@ -54,8 +54,11 @@ class VideoRecorderTopBar extends ConsumerWidget {
                         onPressed: () => notifier.closeVideoRecorder(context),
                       ),
 
-                      const Flexible(
-                        child: VideoEditorAudioChip(),
+                      Flexible(
+                        child: VideoEditorAudioChip(
+                          selectedSound: selectedSound,
+                          onSoundChanged: notifier.selectSound,
+                        ),
                       ),
 
                       // Next button

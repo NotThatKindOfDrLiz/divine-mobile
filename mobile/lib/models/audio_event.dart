@@ -326,4 +326,44 @@ class AudioEvent {
         'duration: $duration'
         ')';
   }
+
+  /// Serialize to JSON for draft persistence.
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'pubkey': pubkey,
+    'createdAt': createdAt,
+    if (url != null) 'url': url,
+    if (mimeType != null) 'mimeType': mimeType,
+    if (sha256 != null) 'sha256': sha256,
+    if (fileSize != null) 'fileSize': fileSize,
+    if (duration != null) 'duration': ?duration,
+    if (title != null) 'title': title,
+    if (source != null) 'source': source,
+    if (sourceVideoReference != null)
+      'sourceVideoReference': sourceVideoReference,
+    if (sourceVideoRelay != null) 'sourceVideoRelay': sourceVideoRelay,
+    if (startOffset != Duration.zero)
+      'startOffsetMs': startOffset.inMilliseconds,
+  };
+
+  /// Deserialize from JSON for draft restoration.
+  static AudioEvent fromJson(Map<String, dynamic> json) {
+    return AudioEvent(
+      id: json['id'] as String,
+      pubkey: json['pubkey'] as String,
+      createdAt: json['createdAt'] as int,
+      url: json['url'] as String?,
+      mimeType: json['mimeType'] as String?,
+      sha256: json['sha256'] as String?,
+      fileSize: json['fileSize'] as int?,
+      duration: json['duration'] as double?,
+      title: json['title'] as String?,
+      source: json['source'] as String?,
+      sourceVideoReference: json['sourceVideoReference'] as String?,
+      sourceVideoRelay: json['sourceVideoRelay'] as String?,
+      startOffset: json['startOffsetMs'] != null
+          ? Duration(milliseconds: json['startOffsetMs'] as int)
+          : Duration.zero,
+    );
+  }
 }

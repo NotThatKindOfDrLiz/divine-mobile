@@ -8,13 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:models/models.dart' show InspiredByInfo;
 import 'package:openvine/constants/video_editor_constants.dart';
+import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/recording_clip.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/models/vine_draft.dart';
 import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
@@ -126,6 +126,18 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         name: 'VideoEditorNotifier',
         category: .video,
       );
+
+      // When not loading a draft, copy the sound from the recorder
+      // (if one was selected during recording)
+      final recorderSound = ref.read(videoRecorderProvider).selectedSound;
+      if (recorderSound != null) {
+        state = state.copyWith(selectedSound: recorderSound);
+        Log.debug(
+          '🎵 Copied sound from recorder: ${recorderSound.title}',
+          name: 'VideoEditorNotifier',
+          category: .video,
+        );
+      }
     }
     this.draftId = draftId ?? 'Draft_${DateTime.now().microsecondsSinceEpoch}';
   }
@@ -587,19 +599,46 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     triggerAutosave();
   }
 
+  // === SOUND MANAGEMENT ===
+
+  /// Select a sound for the video.
+  ///
+  /// This updates the editor's local state. The sound is persisted
+  /// in drafts and used for audio playback during editing.
+  void selectSound(AudioEvent sound) {
+    state = state.copyWith(selectedSound: sound);
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
+  /// Clear the currently selected sound.
+  void clearSound() {
+    state = state.copyWith(clearSelectedSound: true);
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
+  /// Update the start offset of the currently selected sound.
+  void updateSoundStartOffset(Duration offset) {
+    if (state.selectedSound != null) {
+      state = state.copyWith(
+        selectedSound: state.selectedSound!.copyWith(startOffset: offset),
+      );
+      invalidateFinalRenderedClip();
+      triggerAutosave();
+    }
+  }
+
   /// Create a VineDraft from the rendered clip with metadata.
   ///
-  /// When a sound is selected via [selectedSoundProvider], automatically
-  /// populates [selectedAudioEventId] and [selectedAudioRelay] for the
-  /// publisher to add an `["e", ..., "audio"]` tag. Also auto-populates
-  /// [inspiredByVideo] from the sound's [sourceVideoReference] if not
-  /// already set.
+  /// When a sound is selected, auto-populates [inspiredByVideo] from
+  /// the sound's [sourceVideoReference] if not already set.
   VineDraft getActiveDraft({
     bool isAutosave = false,
     bool enforceSeparatedClips = false,
   }) {
-    // Read selected sound for audio reference and auto-attribution
-    final selectedSound = ref.read(selectedSoundProvider);
+    // Read selected sound from local state
+    final selectedSound = state.selectedSound;
 
     // Auto-populate inspired-by from selected sound's source video
     var inspiredByVideo = state.inspiredByVideo;
@@ -628,8 +667,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       collaboratorPubkeys: state.collaboratorPubkeys,
       inspiredByVideo: inspiredByVideo,
       inspiredByNpub: state.inspiredByNpub,
-      selectedAudioEventId: selectedSound?.id,
-      selectedAudioRelay: selectedSound?.sourceVideoRelay,
+      selectedSound: selectedSound,
       finalRenderedClip: isAutosave ? state.finalRenderedClip : null,
     );
   }
@@ -877,8 +915,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       collaboratorPubkeys: draft.collaboratorPubkeys,
       inspiredByVideo: draft.inspiredByVideo,
       inspiredByNpub: draft.inspiredByNpub,
-      selectedAudioEventId: draft.selectedAudioEventId,
-      selectedAudioRelay: draft.selectedAudioRelay,
+      selectedSound: draft.selectedSound,
       finalRenderedClip: validFinalRenderedClip,
       clearFinalRenderedClip: validFinalRenderedClip == null,
     );

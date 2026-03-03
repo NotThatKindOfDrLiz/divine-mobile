@@ -13,19 +13,53 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
-import 'package:openvine/providers/sounds_providers.dart';
+import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/stereo_waveform_painter.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
 import 'package:sound_service/sound_service.dart';
 
+/// Result of the audio timing screen.
+///
+/// Returned via [Navigator.pop] to indicate whether the user confirmed
+/// the timing selection or deleted the audio.
+sealed class AudioTimingResult {
+  const AudioTimingResult();
+}
+
+/// User confirmed the audio timing selection.
+class AudioTimingConfirmed extends AudioTimingResult {
+  /// Creates a confirmed result with the updated sound.
+  const AudioTimingConfirmed(this.sound);
+
+  /// The sound with updated [AudioEvent.startOffset].
+  final AudioEvent sound;
+}
+
+/// User deleted the audio.
+class AudioTimingDeleted extends AudioTimingResult {
+  /// Creates a deleted result.
+  const AudioTimingDeleted();
+}
+
 /// Screen for adjusting audio timing/offset in the video editor.
 ///
 /// This screen is shown after selecting audio, allowing users to
 /// set the start position of the audio track relative to the video.
+///
+/// Returns an [AudioTimingResult] via [Navigator.pop]:
+/// - [AudioTimingConfirmed] with the updated sound when confirmed
+/// - [AudioTimingDeleted] when the user deletes the audio
+/// - `null` when cancelled (back navigation)
 class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
   /// Creates the audio timing screen.
-  const VideoAudioEditorTimingScreen({super.key});
+  const VideoAudioEditorTimingScreen({
+    required this.sound,
+    super.key,
+  });
+
+  /// The sound to edit timing for.
+  final AudioEvent sound;
 
   /// Route name for navigation.
   static const routeName = 'video-audio-timing';
@@ -66,12 +100,11 @@ class _VideoAudioEditorTimingScreenState
       _onPlayerStateChanged,
     );
 
-    // Delay extraction until after first frame when ref is available
+    // Delay extraction until after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      final sound = ref.read(selectedSoundProvider);
-      if (sound == null) return;
+      final sound = widget.sound;
 
       // Cache audio duration (won't change during screen lifetime)
       final audioDuration = sound.duration ?? 0;
@@ -123,9 +156,6 @@ class _VideoAudioEditorTimingScreenState
 
   /// Loads the selected audio and starts looped playback.
   Future<void> _loadAndPlayAudio() async {
-    final sound = ref.read(selectedSoundProvider);
-    if (sound == null) return;
-
     try {
       await _setClippedAudioSource();
       // Manual looping via _onPlayerStateChanged instead of LoopMode
@@ -143,8 +173,7 @@ class _VideoAudioEditorTimingScreenState
 
   /// Creates a clipped audio source for the current selection.
   Future<void> _setClippedAudioSource() async {
-    final sound = ref.read(selectedSoundProvider);
-    if (sound == null) return;
+    final sound = widget.sound;
 
     final audioDurationSecs = _audioDuration ?? 0;
     if (audioDurationSecs <= 0) return;
@@ -245,8 +274,7 @@ class _VideoAudioEditorTimingScreenState
   }
 
   void _extractWaveform() {
-    final sound = ref.read(selectedSoundProvider);
-    if (sound == null) return;
+    final sound = widget.sound;
 
     if (sound.isBundled && sound.assetPath != null) {
       _waveformBloc.add(
@@ -268,8 +296,7 @@ class _VideoAudioEditorTimingScreenState
 
   Future<void> _deleteAudio() async {
     await _audioPlayer.stop();
-    ref.read(selectedSoundProvider.notifier).clear();
-    if (mounted) context.pop();
+    if (mounted) context.pop<AudioTimingResult>(const AudioTimingDeleted());
   }
 
   Future<void> _confirmSelection() async {
@@ -283,10 +310,11 @@ class _VideoAudioEditorTimingScreenState
       double.infinity,
     );
     final startTimeMs = (_startOffset * scrollableAudioSecs * 1000).toInt();
-    ref
-        .read(selectedSoundProvider.notifier)
-        .setStartOffset(Duration(milliseconds: startTimeMs));
-    if (mounted) context.pop();
+    final updatedSound = widget.sound.copyWith(
+      startOffset: Duration(milliseconds: startTimeMs),
+    );
+    if (mounted)
+      context.pop<AudioTimingResult>(AudioTimingConfirmed(updatedSound));
   }
 
   @override
@@ -316,6 +344,7 @@ class _VideoAudioEditorTimingScreenState
                   children: [
                     // Top bar
                     _TopBar(
+                      sound: widget.sound,
                       onDelete: _deleteAudio,
                       onConfirm: _confirmSelection,
                     ),
@@ -344,8 +373,13 @@ class _VideoAudioEditorTimingScreenState
 
 /// Top navigation bar with delete button, audio chip, and confirm button.
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onDelete, required this.onConfirm});
+  const _TopBar({
+    required this.sound,
+    required this.onDelete,
+    required this.onConfirm,
+  });
 
+  final AudioEvent sound;
   final VoidCallback onDelete;
   final VoidCallback onConfirm;
 
@@ -367,9 +401,14 @@ class _TopBar extends StatelessWidget {
             onPressed: onDelete,
           ),
 
-          // Audio chip (centered, flexible)
-          const Flexible(
-            child: IgnorePointer(child: VideoEditorAudioChip()),
+          // Audio chip (centered, flexible) - display only, not interactive
+          Flexible(
+            child: IgnorePointer(
+              child: VideoEditorAudioChip(
+                selectedSound: sound,
+                onSoundChanged: (_) {},
+              ),
+            ),
           ),
 
           // Confirm button

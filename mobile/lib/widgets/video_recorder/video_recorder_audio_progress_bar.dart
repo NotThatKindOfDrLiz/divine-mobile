@@ -11,7 +11,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/widgets/stereo_waveform_painter.dart';
 
@@ -31,7 +30,9 @@ class VideoRecorderAudioProgressBar extends ConsumerWidget {
     final isRecording = ref.watch(
       videoRecorderProvider.select((s) => s.isRecording),
     );
-    final selectedSound = ref.watch(selectedSoundProvider);
+    final selectedSound = ref.watch(
+      videoRecorderProvider.select((s) => s.selectedSound),
+    );
 
     return Positioned(
       top: 24,
@@ -152,7 +153,9 @@ class _AudioWaveformProgress extends ConsumerWidget {
       ),
     );
     final startOffset =
-        ref.watch(selectedSoundProvider.select((s) => s?.startOffset)) ??
+        ref.watch(
+          videoRecorderProvider.select((s) => s.selectedSound?.startOffset),
+        ) ??
         Duration.zero;
 
     // Calculate total recorded duration

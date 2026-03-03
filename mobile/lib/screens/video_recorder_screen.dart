@@ -12,7 +12,6 @@ import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
-import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -153,7 +152,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     );
 
     // Handle initial sound if already selected
-    final initialSound = ref.read(selectedSoundProvider);
+    final initialSound = ref.read(videoRecorderProvider).selectedSound;
     Log.info(
       '🎵 initialSound: ${initialSound?.id ?? 'null'}',
       name: 'VideoRecorderScreen',
@@ -162,17 +161,20 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
     _triggerWaveformExtraction(bloc, initialSound);
 
     // Listen for future changes using listenManual (works outside build phase)
-    _soundSubscription = ref.listenManual<AudioEvent?>(selectedSoundProvider, (
-      previous,
-      next,
-    ) {
-      Log.info(
-        '🎵 Sound changed: ${previous?.id ?? 'null'} → ${next?.id ?? 'null'}',
-        name: 'VideoRecorderScreen',
-        category: LogCategory.video,
-      );
-      _triggerWaveformExtraction(bloc, next);
-    });
+    _soundSubscription = ref.listenManual<AudioEvent?>(
+      videoRecorderProvider.select((s) => s.selectedSound),
+      (
+        previous,
+        next,
+      ) {
+        Log.info(
+          '🎵 Sound changed: ${previous?.id ?? 'null'} → ${next?.id ?? 'null'}',
+          name: 'VideoRecorderScreen',
+          category: LogCategory.video,
+        );
+        _triggerWaveformExtraction(bloc, next);
+      },
+    );
   }
 
   /// Triggers waveform extraction for the given sound.

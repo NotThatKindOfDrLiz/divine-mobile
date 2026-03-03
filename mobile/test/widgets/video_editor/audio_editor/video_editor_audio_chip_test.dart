@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/models/audio_event.dart';
-import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
 
 /// Helper to create test AudioEvent instances
@@ -34,17 +33,18 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group(VideoEditorAudioChip, () {
-    Widget buildWidget({AudioEvent? selectedSound}) {
+    Widget buildWidget({
+      AudioEvent? selectedSound,
+      ValueChanged<AudioEvent?>? onSoundChanged,
+    }) {
       return ProviderScope(
-        overrides: [
-          selectedSoundProvider.overrideWith(
-            () => _TestSelectedSoundNotifier(initialSound: selectedSound),
-          ),
-        ],
-        child: const MaterialApp(
+        child: MaterialApp(
           home: Scaffold(
             body: Center(
-              child: VideoEditorAudioChip(),
+              child: VideoEditorAudioChip(
+                selectedSound: selectedSound,
+                onSoundChanged: onSoundChanged ?? (_) {},
+              ),
             ),
           ),
         ),
@@ -155,25 +155,12 @@ void main() {
     });
 
     group('Callback behavior', () {
-      testWidgets('accepts onSelectedSoundChanged callback', (tester) async {
-        var callbackInvoked = false;
+      testWidgets('accepts onSoundChanged callback', (tester) async {
+        AudioEvent? receivedSound;
 
         await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              selectedSoundProvider.overrideWith(
-                _TestSelectedSoundNotifier.new,
-              ),
-            ],
-            child: MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: VideoEditorAudioChip(
-                    onSelectedSoundChanged: () => callbackInvoked = true,
-                  ),
-                ),
-              ),
-            ),
+          buildWidget(
+            onSoundChanged: (sound) => receivedSound = sound,
           ),
         );
         await tester.pumpAndSettle();
@@ -181,20 +168,8 @@ void main() {
         // Verify widget renders with callback prop
         expect(find.byType(VideoEditorAudioChip), findsOneWidget);
         // Callback is not invoked just by rendering
-        expect(callbackInvoked, isFalse);
+        expect(receivedSound, isNull);
       });
     });
   });
-}
-
-/// Test notifier for SelectedSoundProvider
-class _TestSelectedSoundNotifier extends SelectedSound {
-  _TestSelectedSoundNotifier({this.initialSound});
-
-  final AudioEvent? initialSound;
-
-  @override
-  AudioEvent? build() => initialSound;
-
-  // Use inherited select and clear methods - they properly set state
 }

@@ -4,21 +4,33 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.dart';
 import 'package:openvine/models/audio_event.dart';
-import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/screens/video_editor/video_audio_editor_timing_screen.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_bottom_sheet.dart';
 
+/// Audio chip widget for selecting and displaying audio in video recording/editing.
+///
+/// This widget is provider-agnostic - it receives the current sound as input
+/// and reports changes via callbacks. The parent widget is responsible for
+/// updating the appropriate provider (recorder or editor).
 class VideoEditorAudioChip extends ConsumerWidget {
   const VideoEditorAudioChip({
-    this.onSelectedSoundChanged,
+    required this.selectedSound,
+    required this.onSoundChanged,
     super.key,
   });
 
-  final VoidCallback? onSelectedSoundChanged;
+  /// The currently selected sound, or null if none selected.
+  final AudioEvent? selectedSound;
+
+  /// Called when the sound selection changes.
+  ///
+  /// Called with the new [AudioEvent] when a sound is selected or its
+  /// start offset is changed. Called with `null` when the sound is cleared.
+  final ValueChanged<AudioEvent?> onSoundChanged;
 
   Future<void> _selectAudio(BuildContext context, WidgetRef ref) async {
-    final previousSound = ref.read(selectedSoundProvider);
+    final previousSound = selectedSound;
     final videoRecorderNotifier = ref.read(videoRecorderProvider.notifier);
     videoRecorderNotifier.pauseRemoteRecordControl();
 
@@ -27,7 +39,10 @@ class VideoEditorAudioChip extends ConsumerWidget {
     bloc?.add(const VideoEditorExternalPauseRequested(isPaused: true));
 
     try {
-      if (previousSound == null) {
+      AudioEvent? soundToEdit = previousSound;
+
+      // If no sound selected, show selection sheet first
+      if (soundToEdit == null) {
         final result = await VineBottomSheet.show<AudioEvent>(
           context: context,
           maxChildSize: 1,
@@ -39,27 +54,32 @@ class VideoEditorAudioChip extends ConsumerWidget {
         if (result == null) {
           return;
         }
-        ref.read(selectedSoundProvider.notifier).select(result);
+        soundToEdit = result;
+        // Notify parent about initial selection
+        onSoundChanged(soundToEdit);
       }
 
       if (!context.mounted) return;
 
-      await Navigator.of(context).push<void>(
+      // Open timing screen and wait for result
+      final timingResult = await Navigator.of(context).push<AudioTimingResult>(
         PageRouteBuilder(
           opaque: false,
           barrierColor: Colors.transparent,
-          pageBuilder: (_, _, _) => const VideoAudioEditorTimingScreen(),
+          pageBuilder: (_, _, _) => VideoAudioEditorTimingScreen(
+            sound: soundToEdit!,
+          ),
         ),
       );
 
-      // Only restart playback if sound actually changed
-      final newSound = ref.read(selectedSoundProvider);
-      final soundChanged =
-          previousSound?.url != newSound?.url ||
-          previousSound?.startOffset != newSound?.startOffset;
-
-      if (soundChanged) {
-        onSelectedSoundChanged?.call();
+      // Handle timing screen result
+      if (timingResult != null) {
+        switch (timingResult) {
+          case AudioTimingConfirmed(:final sound):
+            onSoundChanged(sound);
+          case AudioTimingDeleted():
+            onSoundChanged(null);
+        }
       }
     } finally {
       // Always restore pause state and remote control
@@ -70,7 +90,6 @@ class VideoEditorAudioChip extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedSound = ref.watch(selectedSoundProvider);
     final hasSelectedSound = selectedSound != null;
 
     return InkWell(
