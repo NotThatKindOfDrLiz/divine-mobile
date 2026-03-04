@@ -1,6 +1,8 @@
 // ABOUTME: Tests for VideoCommentPublishService.
 // ABOUTME: Validates video upload → imeta tag build → comment posting flow.
 
+import 'dart:io';
+
 import 'package:comments_repository/comments_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -11,7 +13,12 @@ class _MockBlossomUploadService extends Mock implements BlossomUploadService {}
 
 class _MockCommentsRepository extends Mock implements CommentsRepository {}
 
+class _FakeFile extends Fake implements File {}
+
 void main() {
+  setUpAll(() {
+    registerFallbackValue(_FakeFile());
+  });
   group(VideoCommentPublishService, () {
     late _MockBlossomUploadService mockBlossomService;
     late _MockCommentsRepository mockCommentsRepo;

@@ -11,8 +11,10 @@ import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/blocs/comments/comments_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/comments/comments.dart';
 import 'package:openvine/services/user_profile_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../builders/comment_builder.dart';
 
@@ -34,12 +36,15 @@ void main() {
     late MockUserProfileService mockUserProfileService;
     late MockNostrClient mockNostrClient;
     late MockCommentsBloc mockCommentsBloc;
+    late SharedPreferences sharedPreferences;
 
     setUpAll(() {
       registerFallbackValue(const CommentsLoadRequested());
     });
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      sharedPreferences = await SharedPreferences.getInstance();
       mockUserProfileService = MockUserProfileService();
       mockNostrClient = MockNostrClient();
       mockCommentsBloc = MockCommentsBloc();
@@ -65,6 +70,7 @@ void main() {
 
       return ProviderScope(
         overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           userProfileServiceProvider.overrideWithValue(mockUserProfileService),
           nostrServiceProvider.overrideWithValue(mockNostrClient),
         ],
