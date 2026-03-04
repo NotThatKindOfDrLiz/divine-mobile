@@ -1,7 +1,6 @@
 // ABOUTME: Screen for adjusting audio timing/offset for video editor.
 // ABOUTME: Displays video preview with audio segment selector overlay.
 
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:divine_ui/divine_ui.dart';
@@ -12,12 +11,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
+import 'package:openvine/blocs/video_editor/audio_timing/audio_timing_cubit.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/audio_event.dart';
-import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/stereo_waveform_painter.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
-import 'package:sound_service/sound_service.dart';
 
 /// Result of the audio timing screen.
 ///
@@ -75,14 +73,9 @@ class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
 class _VideoAudioEditorTimingScreenState
     extends ConsumerState<VideoAudioEditorTimingScreen>
     with SingleTickerProviderStateMixin {
-  double _startOffset = 0;
   late final SoundWaveformBloc _waveformBloc;
   late final AnimationController _flingController;
-  late final AudioPlayer _audioPlayer;
-  StreamSubscription<PlayerState>? _playerStateSubscription;
-
-  /// Cached audio duration (read once on init to avoid visual jump on clear).
-  double? _audioDuration;
+  late final AudioTimingCubit _audioTimingCubit;
 
   /// Friction for momentum scrolling (higher = stops faster).
   static const double _friction = 0.015;
@@ -93,149 +86,46 @@ class _VideoAudioEditorTimingScreenState
     _waveformBloc = SoundWaveformBloc();
     _flingController = AnimationController.unbounded(vsync: this);
     _flingController.addListener(_onFlingUpdate);
-    _audioPlayer = AudioPlayer();
+    _audioTimingCubit = AudioTimingCubit(sound: widget.sound);
 
-    // Listen for audio completion to restart loop
-    _playerStateSubscription = _audioPlayer.playerStateStream.listen(
-      _onPlayerStateChanged,
-    );
-
-    // Delay extraction until after first frame
+    // Delay initialization until after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      final sound = widget.sound;
-
-      // Cache audio duration (won't change during screen lifetime)
-      final audioDuration = sound.duration ?? 0;
-      final maxDurationSecs =
-          VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
-      final scrollableAudioSecs = (audioDuration - maxDurationSecs).clamp(
-        0.0,
-        double.infinity,
-      );
-
-      // Restore previous selection offset (normalized 0-1)
-      var initialOffset = 0.0;
-      if (scrollableAudioSecs > 0) {
-        final startTimeSecs = sound.startOffset.inMilliseconds / 1000.0;
-        initialOffset = (startTimeSecs / scrollableAudioSecs).clamp(0.0, 1.0);
-      }
-
-      setState(() {
-        _audioDuration = audioDuration;
-        _startOffset = initialOffset;
+      // Sync fling controller with initial offset after cubit initializes
+      _audioTimingCubit.initialize().then((_) {
+        if (mounted) {
+          _flingController.value = _audioTimingCubit.state.startOffset;
+        }
       });
-      // Sync fling controller with initial offset
-      _flingController.value = initialOffset;
 
       _extractWaveform();
-      _loadAndPlayAudio();
     });
   }
 
   @override
   void dispose() {
-    _playerStateSubscription?.cancel();
-    _audioPlayer.dispose();
     _flingController
       ..removeListener(_onFlingUpdate)
       ..dispose();
     _waveformBloc.close();
+    _audioTimingCubit.close();
     super.dispose();
   }
 
-  /// Called when player state changes - handles looping.
-  void _onPlayerStateChanged(PlayerState state) {
-    // When playback completes, restart from the beginning
-    if (state.processingState == ProcessingState.completed) {
-      _audioPlayer.seek(Duration.zero);
-      _audioPlayer.play();
-    }
-  }
-
-  /// Loads the selected audio and starts looped playback.
-  Future<void> _loadAndPlayAudio() async {
-    try {
-      await _setClippedAudioSource();
-      // Manual looping via _onPlayerStateChanged instead of LoopMode
-      // because ClippingAudioSource + LoopMode.one can be unreliable
-      await _audioPlayer.play();
-    } catch (e, s) {
-      Log.error(
-        'Failed to load audio: $e',
-        name: 'VideoAudioEditorTimingScreen',
-        error: e,
-        stackTrace: s,
-      );
-    }
-  }
-
-  /// Creates a clipped audio source for the current selection.
-  Future<void> _setClippedAudioSource() async {
-    final sound = widget.sound;
-
-    final audioDurationSecs = _audioDuration ?? 0;
-    if (audioDurationSecs <= 0) return;
-
-    final maxDurationSecs =
-        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
-    final scrollableAudioSecs = (audioDurationSecs - maxDurationSecs).clamp(
-      0.0,
-      double.infinity,
-    );
-    final startPositionSecs = _startOffset * scrollableAudioSecs;
-
-    // Calculate clip boundaries
-    final clipStart = Duration(
-      milliseconds: (startPositionSecs * 1000).toInt(),
-    );
-    // End is either maxDuration after start, or end of audio
-    final clipEndSecs = (startPositionSecs + maxDurationSecs).clamp(
-      0.0,
-      audioDurationSecs,
-    );
-    final clipEnd = Duration(milliseconds: (clipEndSecs * 1000).toInt());
-
-    // Create the appropriate audio source
-    AudioSource audioSource;
-    if (sound.isBundled && sound.assetPath != null) {
-      audioSource = ClippingAudioSource(
-        child: AudioSource.asset(sound.assetPath!),
-        start: clipStart,
-        end: clipEnd,
-      );
-    } else if (sound.url != null) {
-      audioSource = ClippingAudioSource(
-        child: AudioSource.uri(Uri.parse(sound.url!)),
-        start: clipStart,
-        end: clipEnd,
-      );
-    } else {
-      Log.warning(
-        'No audio source available for sound: ${sound.id}',
-        name: 'VideoAudioEditorTimingScreen',
-      );
-      return;
-    }
-
-    await _audioPlayer.setAudioSource(audioSource);
-  }
-
   void _onFlingUpdate() {
-    setState(() {
-      _startOffset = _flingController.value.clamp(0.0, 1.0);
-    });
-    // Play audio at end of fling (when velocity approaches 0)
+    final offset = _flingController.value.clamp(0.0, 1.0);
+    _audioTimingCubit.updateOffset(offset);
+    // Resume audio at end of fling (when velocity approaches 0)
     if (_flingController.velocity.abs() < 0.001) {
-      _resumeAudioAfterDrag();
+      _audioTimingCubit.resumePlayback();
     }
   }
 
   void _handleFling(double velocity) {
-    // If velocity is too low, just play audio immediately
+    // If velocity is too low, just resume audio immediately
     if (velocity.abs() < 0.01) {
-      _resumeAudioAfterDrag();
+      _audioTimingCubit.resumePlayback();
       return;
     }
 
@@ -243,7 +133,7 @@ class _VideoAudioEditorTimingScreenState
     // Positive velocity = moving right/forward in audio
     final simulation = FrictionSimulation(
       _friction,
-      _startOffset,
+      _audioTimingCubit.state.startOffset,
       velocity,
     );
     _flingController.animateWith(simulation);
@@ -251,26 +141,17 @@ class _VideoAudioEditorTimingScreenState
 
   void _handleOffsetChanged(double offset) {
     _flingController.stop();
-    setState(() {
-      _startOffset = offset;
-    });
+    _audioTimingCubit.updateOffset(offset);
   }
 
   /// Pauses audio playback when dragging starts.
   void _handleDragStart() {
-    _audioPlayer.pause();
+    _audioTimingCubit.pausePlayback();
   }
 
-  /// Resumes audio playback after dragging ends.
-  /// Called from onDragEnd - actual resume happens in _handleFling.
+  /// Called from onDragEnd — audio resume is handled by _handleFling.
   void _handleDragEnd() {
     // Audio resume is handled by _handleFling / _onFlingUpdate
-  }
-
-  /// Resumes audio after drag/fling is complete.
-  Future<void> _resumeAudioAfterDrag() async {
-    await _setClippedAudioSource();
-    await _audioPlayer.play();
   }
 
   void _extractWaveform() {
@@ -295,23 +176,15 @@ class _VideoAudioEditorTimingScreenState
   }
 
   Future<void> _deleteAudio() async {
-    await _audioPlayer.stop();
+    await _audioTimingCubit.stopPlayback();
     if (mounted) context.pop<AudioTimingResult>(const AudioTimingDeleted());
   }
 
   Future<void> _confirmSelection() async {
-    await _audioPlayer.stop();
-    // Calculate the actual start time from the normalized offset
-    final audioDurationSecs = _audioDuration ?? 0;
-    final maxDurationSecs =
-        VideoEditorConstants.maxDuration.inMilliseconds / 1000.0;
-    final scrollableAudioSecs = (audioDurationSecs - maxDurationSecs).clamp(
-      0.0,
-      double.infinity,
-    );
-    final startTimeMs = (_startOffset * scrollableAudioSecs * 1000).toInt();
+    await _audioTimingCubit.stopPlayback();
+    final startOffset = _audioTimingCubit.calculateStartOffset();
     final updatedSound = widget.sound.copyWith(
-      startOffset: Duration(milliseconds: startTimeMs),
+      startOffset: startOffset,
     );
     if (mounted) {
       context.pop<AudioTimingResult>(AudioTimingConfirmed(updatedSound));
@@ -320,8 +193,11 @@ class _VideoAudioEditorTimingScreenState
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _waveformBloc,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _waveformBloc),
+        BlocProvider.value(value: _audioTimingCubit),
+      ],
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
@@ -353,13 +229,17 @@ class _VideoAudioEditorTimingScreenState
                     const Spacer(),
 
                     // Bottom controls
-                    _BottomControls(
-                      startOffset: _startOffset,
-                      audioDuration: _audioDuration,
-                      onOffsetChanged: _handleOffsetChanged,
-                      onFling: _handleFling,
-                      onDragStart: _handleDragStart,
-                      onDragEnd: _handleDragEnd,
+                    BlocBuilder<AudioTimingCubit, AudioTimingState>(
+                      builder: (context, timingState) {
+                        return _BottomControls(
+                          startOffset: timingState.startOffset,
+                          audioDuration: timingState.audioDuration,
+                          onOffsetChanged: _handleOffsetChanged,
+                          onFling: _handleFling,
+                          onDragStart: _handleDragStart,
+                          onDragEnd: _handleDragEnd,
+                        );
+                      },
                     ),
                   ],
                 ),
