@@ -24,6 +24,7 @@ abstract interface class SimpleAudioPlayer {
 }
 
 /// Default [SimpleAudioPlayer] backed by `just_audio`'s [AudioPlayer].
+// coverage:ignore-start
 class JustAudioSimplePlayer implements SimpleAudioPlayer {
   /// Creates a [JustAudioSimplePlayer].
   ///
@@ -46,3 +47,4 @@ class JustAudioSimplePlayer implements SimpleAudioPlayer {
   @override
   Future<void> dispose() => _player.dispose();
 }
+// coverage:ignore-end

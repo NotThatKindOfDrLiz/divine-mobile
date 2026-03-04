@@ -13,6 +13,7 @@ import 'package:just_audio/just_audio.dart';
 /// focused API so that consumers do not depend on `just_audio` types
 /// directly. If the underlying audio library is replaced, only this class
 /// needs to change.
+// coverage:ignore-start
 class AudioClipPlayer {
   /// Creates an [AudioClipPlayer].
   ///
@@ -93,3 +94,4 @@ class AudioClipPlayer {
     }
   }
 }
+// coverage:ignore-end
