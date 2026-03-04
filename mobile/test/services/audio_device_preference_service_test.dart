@@ -31,6 +31,26 @@ void main() {
 
         expect(service.preferredDeviceId, equals('usb-mic-001'));
       });
+
+      test('is idempotent when called multiple times', () async {
+        SharedPreferences.setMockInitialValues({
+          AudioDevicePreferenceService.prefsKey: 'mic-1',
+        });
+
+        await service.initialize();
+        expect(service.preferredDeviceId, equals('mic-1'));
+
+        // Change underlying prefs after first init
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          AudioDevicePreferenceService.prefsKey,
+          'mic-2',
+        );
+
+        // Second call is a no-op — value stays the same
+        await service.initialize();
+        expect(service.preferredDeviceId, equals('mic-1'));
+      });
     });
 
     group('setPreferredDeviceId', () {
