@@ -1746,7 +1746,8 @@ void main() {
                 'ok': true,
                 'available': false,
                 'status': 'active',
-                'pubkey': 'different_pubkey_000000000000000000000000000000000000000000',
+                'pubkey':
+                    'different_pubkey_000000000000000000000000000000000000000000',
                 'reason': 'Username is already taken',
               }),
               200,
