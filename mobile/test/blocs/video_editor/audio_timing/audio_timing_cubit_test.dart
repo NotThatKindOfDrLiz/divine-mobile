@@ -1,6 +1,6 @@
 // ABOUTME: Tests for AudioTimingCubit - audio timing state and playback.
 // ABOUTME: Covers initialization, offset updates, playback lifecycle,
-// ABOUTME: and start offset calculation using mocktail AudioPlayer mocks.
+// ABOUTME: and start offset calculation using mocktail AudioClipPlayer mocks.
 
 import 'dart:async';
 
@@ -11,9 +11,7 @@ import 'package:openvine/blocs/video_editor/audio_timing/audio_timing_cubit.dart
 import 'package:openvine/models/audio_event.dart';
 import 'package:sound_service/sound_service.dart';
 
-class _MockAudioPlayer extends Mock implements AudioPlayer {}
-
-class _FakeAudioSource extends Fake implements AudioSource {}
+class _MockAudioClipPlayer extends Mock implements AudioClipPlayer {}
 
 /// Creates a test [AudioEvent] with optional overrides.
 AudioEvent _createTestSound({
@@ -51,26 +49,30 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    registerFallbackValue(_FakeAudioSource());
     registerFallbackValue(Duration.zero);
   });
 
   group(AudioTimingCubit, () {
-    late _MockAudioPlayer mockPlayer;
+    late _MockAudioClipPlayer mockClipPlayer;
 
     setUp(() {
-      mockPlayer = _MockAudioPlayer();
-      when(() => mockPlayer.playerStateStream).thenAnswer(
+      mockClipPlayer = _MockAudioClipPlayer();
+      when(() => mockClipPlayer.completionStream).thenAnswer(
         (_) => const Stream.empty(),
       );
       when(
-        () => mockPlayer.setAudioSource(any()),
-      ).thenAnswer((_) async => Duration.zero);
-      when(() => mockPlayer.play()).thenAnswer((_) async {});
-      when(() => mockPlayer.pause()).thenAnswer((_) async {});
-      when(() => mockPlayer.stop()).thenAnswer((_) async {});
-      when(() => mockPlayer.seek(any())).thenAnswer((_) async {});
-      when(() => mockPlayer.dispose()).thenAnswer((_) async {});
+        () => mockClipPlayer.setClip(
+          uri: any(named: 'uri'),
+          isAsset: any(named: 'isAsset'),
+          start: any(named: 'start'),
+          end: any(named: 'end'),
+        ),
+      ).thenAnswer((_) async {});
+      when(() => mockClipPlayer.play()).thenAnswer((_) async {});
+      when(() => mockClipPlayer.pause()).thenAnswer((_) async {});
+      when(() => mockClipPlayer.stop()).thenAnswer((_) async {});
+      when(() => mockClipPlayer.seek(any())).thenAnswer((_) async {});
+      when(() => mockClipPlayer.dispose()).thenAnswer((_) async {});
     });
 
     AudioTimingCubit buildCubit({
@@ -78,7 +80,7 @@ void main() {
     }) {
       return AudioTimingCubit(
         sound: sound ?? _createTestSound(),
-        audioPlayer: mockPlayer,
+        clipPlayer: mockClipPlayer,
       );
     }
 
@@ -108,8 +110,15 @@ void main() {
           ),
         ],
         verify: (_) {
-          verify(() => mockPlayer.setAudioSource(any())).called(1);
-          verify(() => mockPlayer.play()).called(1);
+          verify(
+            () => mockClipPlayer.setClip(
+              uri: any(named: 'uri'),
+              isAsset: any(named: 'isAsset'),
+              start: any(named: 'start'),
+              end: any(named: 'end'),
+            ),
+          ).called(1);
+          verify(() => mockClipPlayer.play()).called(1);
         },
       );
 
@@ -196,8 +205,15 @@ void main() {
           ),
         ],
         verify: (_) {
-          verify(() => mockPlayer.setAudioSource(any())).called(1);
-          verify(() => mockPlayer.play()).called(1);
+          verify(
+            () => mockClipPlayer.setClip(
+              uri: any(named: 'uri'),
+              isAsset: any(named: 'isAsset'),
+              start: any(named: 'start'),
+              end: any(named: 'end'),
+            ),
+          ).called(1);
+          verify(() => mockClipPlayer.play()).called(1);
         },
       );
     });
@@ -257,7 +273,7 @@ void main() {
           ),
         ],
         verify: (_) {
-          verify(() => mockPlayer.pause()).called(1);
+          verify(() => mockClipPlayer.pause()).called(1);
         },
       );
     });
@@ -279,8 +295,15 @@ void main() {
           ),
         ],
         verify: (_) {
-          verify(() => mockPlayer.setAudioSource(any())).called(1);
-          verify(() => mockPlayer.play()).called(1);
+          verify(
+            () => mockClipPlayer.setClip(
+              uri: any(named: 'uri'),
+              isAsset: any(named: 'isAsset'),
+              start: any(named: 'start'),
+              end: any(named: 'end'),
+            ),
+          ).called(1);
+          verify(() => mockClipPlayer.play()).called(1);
         },
       );
     });
@@ -299,7 +322,7 @@ void main() {
           ),
         ],
         verify: (_) {
-          verify(() => mockPlayer.stop()).called(1);
+          verify(() => mockClipPlayer.stop()).called(1);
         },
       );
     });
@@ -359,10 +382,10 @@ void main() {
 
     group('player state changes', () {
       test('restarts playback when audio completes', () async {
-        final playerStateController = StreamController<PlayerState>();
+        final completionController = StreamController<void>();
 
-        when(() => mockPlayer.playerStateStream).thenAnswer(
-          (_) => playerStateController.stream,
+        when(() => mockClipPlayer.completionStream).thenAnswer(
+          (_) => completionController.stream,
         );
 
         final cubit = buildCubit(
@@ -371,28 +394,26 @@ void main() {
         await cubit.initialize();
 
         // Simulate audio completion
-        playerStateController.add(
-          PlayerState(false, ProcessingState.completed),
-        );
+        completionController.add(null);
 
         // Allow the stream listener to process
         await Future<void>.delayed(Duration.zero);
 
-        verify(() => mockPlayer.seek(Duration.zero)).called(1);
+        verify(() => mockClipPlayer.seek(Duration.zero)).called(1);
         // Initial play + restart play
-        verify(() => mockPlayer.play()).called(2);
+        verify(() => mockClipPlayer.play()).called(2);
 
-        await playerStateController.close();
+        await completionController.close();
         await cubit.close();
       });
     });
 
     group('close', () {
-      test('disposes audio player', () async {
+      test('disposes audio clip player', () async {
         final cubit = buildCubit();
         await cubit.close();
 
-        verify(() => mockPlayer.dispose()).called(1);
+        verify(() => mockClipPlayer.dispose()).called(1);
       });
     });
   });

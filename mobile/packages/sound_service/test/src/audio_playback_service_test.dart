@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:audio_session/audio_session.dart' as audio_session;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sound_service/sound_service.dart';
@@ -735,8 +736,9 @@ void main() {
         devicesAdded: <audio_session.AudioDevice>{},
         devicesRemoved: <audio_session.AudioDevice>{},
       );
-      deviceChangeController.add(dummyEvent);
-      deviceChangeController.add(dummyEvent);
+      deviceChangeController
+        ..add(dummyEvent)
+        ..add(dummyEvent);
 
       // Let the second (fast) call resolve
       await Future<void>.delayed(Duration.zero);

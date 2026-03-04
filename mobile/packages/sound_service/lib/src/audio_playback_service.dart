@@ -47,7 +47,7 @@ class AudioPlaybackService {
   StreamSubscription<dynamic>? _deviceChangeSubscription;
   bool _isDisposed = false;
 
-  /// Monotonic counter to discard stale [getDevices] results.
+  /// Monotonic counter to discard stale `getDevices` results.
   /// Incremented before every device query; only the response whose
   /// captured epoch still equals [_deviceCheckEpoch] may update the subject.
   int _deviceCheckEpoch = 0;

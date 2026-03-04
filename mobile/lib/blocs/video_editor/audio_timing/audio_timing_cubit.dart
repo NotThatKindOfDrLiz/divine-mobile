@@ -26,17 +26,17 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
   /// Creates an [AudioTimingCubit].
   ///
   /// The [sound] is the audio event to edit timing for.
-  /// An optional [audioPlayer] can be injected for testing.
+  /// An optional [clipPlayer] can be injected for testing.
   AudioTimingCubit({
     required AudioEvent sound,
-    AudioPlayer? audioPlayer,
+    AudioClipPlayer? clipPlayer,
   }) : _sound = sound,
-       _audioPlayer = audioPlayer ?? AudioPlayer(),
+       _clipPlayer = clipPlayer ?? AudioClipPlayer(),
        super(const AudioTimingState());
 
   final AudioEvent _sound;
-  final AudioPlayer _audioPlayer;
-  StreamSubscription<PlayerState>? _playerStateSubscription;
+  final AudioClipPlayer _clipPlayer;
+  StreamSubscription<void>? _completionSubscription;
 
   static const _logName = 'AudioTimingCubit';
 
@@ -79,8 +79,8 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
     );
 
     // Listen for audio completion to restart loop
-    _playerStateSubscription = _audioPlayer.playerStateStream.listen(
-      _onPlayerStateChanged,
+    _completionSubscription = _clipPlayer.completionStream.listen(
+      (_) => _onPlaybackCompleted(),
     );
 
     await _loadAndPlayAudio();
@@ -93,7 +93,7 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
 
   /// Pauses audio playback (e.g. when drag starts).
   Future<void> pausePlayback() async {
-    await _audioPlayer.pause();
+    await _clipPlayer.pause();
     emit(state.copyWith(isPlaying: false));
   }
 
@@ -103,13 +103,13 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
   /// and starts playback.
   Future<void> resumePlayback() async {
     await _setClippedAudioSource();
-    await _audioPlayer.play();
+    await _clipPlayer.play();
     emit(state.copyWith(isPlaying: true));
   }
 
   /// Stops audio playback completely.
   Future<void> stopPlayback() async {
-    await _audioPlayer.stop();
+    await _clipPlayer.stop();
     emit(state.copyWith(isPlaying: false));
   }
 
@@ -123,22 +123,20 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
     return Duration(milliseconds: startTimeMs);
   }
 
-  /// Called when player state changes — handles looping.
-  void _onPlayerStateChanged(PlayerState playerState) {
-    // When playback completes, restart from the beginning
-    if (playerState.processingState == ProcessingState.completed) {
-      _audioPlayer.seek(Duration.zero);
-      _audioPlayer.play();
-    }
+  /// Called when playback completes — restarts from the beginning
+  /// to implement manual looping.
+  void _onPlaybackCompleted() {
+    _clipPlayer.seek(Duration.zero);
+    _clipPlayer.play();
   }
 
   /// Loads the selected audio and starts looped playback.
   Future<void> _loadAndPlayAudio() async {
     try {
       await _setClippedAudioSource();
-      // Manual looping via _onPlayerStateChanged instead of LoopMode
+      // Manual looping via _onPlaybackCompleted instead of LoopMode
       // because ClippingAudioSource + LoopMode.one can be unreliable
-      await _audioPlayer.play();
+      await _clipPlayer.play();
       emit(state.copyWith(isPlaying: true));
     } catch (e, s) {
       Log.error(
@@ -168,20 +166,15 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
     );
     final clipEnd = Duration(milliseconds: (clipEndSecs * 1000).toInt());
 
-    // Create the appropriate audio source
-    AudioSource audioSource;
+    // Determine URI and whether it's an asset
+    final String uri;
+    final bool isAsset;
     if (_sound.isBundled && _sound.assetPath != null) {
-      audioSource = ClippingAudioSource(
-        child: AudioSource.asset(_sound.assetPath!),
-        start: clipStart,
-        end: clipEnd,
-      );
+      uri = _sound.assetPath!;
+      isAsset = true;
     } else if (_sound.url != null) {
-      audioSource = ClippingAudioSource(
-        child: AudioSource.uri(Uri.parse(_sound.url!)),
-        start: clipStart,
-        end: clipEnd,
-      );
+      uri = _sound.url!;
+      isAsset = false;
     } else {
       Log.warning(
         'No audio source available for sound: ${_sound.id}',
@@ -190,13 +183,18 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
       return;
     }
 
-    await _audioPlayer.setAudioSource(audioSource);
+    await _clipPlayer.setClip(
+      uri: uri,
+      isAsset: isAsset,
+      start: clipStart,
+      end: clipEnd,
+    );
   }
 
   @override
   Future<void> close() async {
-    await _playerStateSubscription?.cancel();
-    await _audioPlayer.dispose();
+    await _completionSubscription?.cancel();
+    await _clipPlayer.dispose();
     return super.close();
   }
 }
