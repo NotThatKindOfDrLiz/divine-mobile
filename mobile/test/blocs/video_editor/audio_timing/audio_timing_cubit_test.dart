@@ -21,7 +21,6 @@ AudioEvent _createTestSound({
   double? duration = 20,
   Duration startOffset = Duration.zero,
   String? url = 'https://example.com/audio.mp3',
-  String? assetPath,
 }) {
   return AudioEvent(
     id: id,
@@ -96,14 +95,17 @@ void main() {
       blocTest<AudioTimingCubit, AudioTimingState>(
         'emits state with audio duration and starts playback '
         'for network audio',
-        build: () => buildCubit(),
+        build: buildCubit,
         act: (cubit) => cubit.initialize(),
         expect: () => [
           isA<AudioTimingState>()
               .having((s) => s.audioDuration, 'audioDuration', 20)
               .having((s) => s.startOffset, 'startOffset', 0),
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isTrue),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isTrue,
+          ),
         ],
         verify: (_) {
           verify(() => mockPlayer.setAudioSource(any())).called(1);
@@ -115,7 +117,6 @@ void main() {
         'restores previous offset from sound startOffset',
         build: () => buildCubit(
           sound: _createTestSound(
-            duration: 20,
             // maxDuration = 6.3s, scrollable = 20 - 6.3 = 13.7s
             // For offset 0.5: startTime = 0.5 * 13.7 = 6.85s
             startOffset: const Duration(milliseconds: 6850),
@@ -130,8 +131,11 @@ void main() {
                 'startOffset',
                 closeTo(0.5, 0.01),
               ),
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isTrue),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isTrue,
+          ),
         ],
       );
 
@@ -145,8 +149,11 @@ void main() {
           isA<AudioTimingState>()
               .having((s) => s.audioDuration, 'audioDuration', 3)
               .having((s) => s.startOffset, 'startOffset', 0),
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isTrue),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isTrue,
+          ),
         ],
       );
 
@@ -162,8 +169,11 @@ void main() {
               .having((s) => s.startOffset, 'startOffset', 0),
           // Still emits isPlaying since play() is called even though
           // setClippedAudioSource bails early for zero duration
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isTrue),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isTrue,
+          ),
         ],
       );
 
@@ -174,10 +184,16 @@ void main() {
         ),
         act: (cubit) => cubit.initialize(),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.audioDuration, 'audioDuration', 20),
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isTrue),
+          isA<AudioTimingState>().having(
+            (s) => s.audioDuration,
+            'audioDuration',
+            20,
+          ),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isTrue,
+          ),
         ],
         verify: (_) {
           verify(() => mockPlayer.setAudioSource(any())).called(1);
@@ -192,8 +208,11 @@ void main() {
         build: buildCubit,
         act: (cubit) => cubit.updateOffset(0.75),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.startOffset, 'startOffset', 0.75),
+          isA<AudioTimingState>().having(
+            (s) => s.startOffset,
+            'startOffset',
+            0.75,
+          ),
         ],
       );
 
@@ -202,8 +221,11 @@ void main() {
         build: buildCubit,
         act: (cubit) => cubit.updateOffset(-0.5),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.startOffset, 'startOffset', 0),
+          isA<AudioTimingState>().having(
+            (s) => s.startOffset,
+            'startOffset',
+            0,
+          ),
         ],
       );
 
@@ -212,8 +234,11 @@ void main() {
         build: buildCubit,
         act: (cubit) => cubit.updateOffset(1.5),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.startOffset, 'startOffset', 1.0),
+          isA<AudioTimingState>().having(
+            (s) => s.startOffset,
+            'startOffset',
+            1.0,
+          ),
         ],
       );
     });
@@ -225,8 +250,11 @@ void main() {
         seed: () => const AudioTimingState(isPlaying: true),
         act: (cubit) => cubit.pausePlayback(),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isFalse),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isFalse,
+          ),
         ],
         verify: (_) {
           verify(() => mockPlayer.pause()).called(1);
@@ -244,8 +272,11 @@ void main() {
         ),
         act: (cubit) => cubit.resumePlayback(),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isTrue),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isTrue,
+          ),
         ],
         verify: (_) {
           verify(() => mockPlayer.setAudioSource(any())).called(1);
@@ -261,8 +292,11 @@ void main() {
         seed: () => const AudioTimingState(isPlaying: true),
         act: (cubit) => cubit.stopPlayback(),
         expect: () => [
-          isA<AudioTimingState>()
-              .having((s) => s.isPlaying, 'isPlaying', isFalse),
+          isA<AudioTimingState>().having(
+            (s) => s.isPlaying,
+            'isPlaying',
+            isFalse,
+          ),
         ],
         verify: (_) {
           verify(() => mockPlayer.stop()).called(1);
@@ -285,7 +319,7 @@ void main() {
 
       test('returns correct offset for 20s audio at midpoint', () {
         final cubit = buildCubit(
-          sound: _createTestSound(duration: 20),
+          sound: _createTestSound(),
         );
         // maxDuration = 6.3s, scrollable = 20 - 6.3 = 13.7s
         // At offset 0.5: startTime = 0.5 * 13.7 = 6.85s = 6850ms
@@ -300,7 +334,7 @@ void main() {
 
       test('returns Duration.zero at offset 0', () {
         final cubit = buildCubit(
-          sound: _createTestSound(duration: 20),
+          sound: _createTestSound(),
         );
         cubit.emit(const AudioTimingState(audioDuration: 20));
 
@@ -310,7 +344,7 @@ void main() {
 
       test('returns maximum offset at 1.0', () {
         final cubit = buildCubit(
-          sound: _createTestSound(duration: 20),
+          sound: _createTestSound(),
         );
         // scrollable = 20 - 6.3 = 13.7s
         cubit.emit(const AudioTimingState(audioDuration: 20, startOffset: 1.0));
