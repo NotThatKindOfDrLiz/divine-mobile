@@ -694,6 +694,66 @@ void main() {
       await deviceChangeController.close();
     });
 
+    test('discards stale getDevices result from earlier event', () async {
+      final deviceChangeController =
+          StreamController<audio_session.AudioDevicesChangedEvent>.broadcast();
+
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => deviceChangeController.stream);
+
+      // Initial call: no headphones
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(service.areHeadphonesConnected, isFalse);
+
+      // Simulate race: first event triggers a slow getDevices call,
+      // second event triggers a fast one. The slow (stale) result
+      // must be discarded so the fast (latest) result wins.
+      final slowCompleter = Completer<Set<audio_session.AudioDevice>>();
+      var callCount = 0;
+
+      when(() => mockSessionWrapper.getDevices()).thenAnswer((_) {
+        callCount++;
+        if (callCount == 1) {
+          // First call is slow — returns headphones eventually
+          return slowCompleter.future;
+        }
+        // Second call resolves immediately — no headphones
+        return Future.value(<audio_session.AudioDevice>{});
+      });
+
+      // Fire two device change events in rapid succession
+      final dummyEvent = audio_session.AudioDevicesChangedEvent(
+        devicesAdded: <audio_session.AudioDevice>{},
+        devicesRemoved: <audio_session.AudioDevice>{},
+      );
+      deviceChangeController.add(dummyEvent);
+      deviceChangeController.add(dummyEvent);
+
+      // Let the second (fast) call resolve
+      await Future<void>.delayed(Duration.zero);
+      expect(service.areHeadphonesConnected, isFalse);
+
+      // Now the slow first call resolves with headphones attached
+      slowCompleter.complete({
+        _FakeAudioDevice(audio_session.AudioDeviceType.wiredHeadphones),
+      });
+      await Future<void>.delayed(Duration.zero);
+
+      // Stale result must be discarded — state must still be false
+      expect(service.areHeadphonesConnected, isFalse);
+
+      await deviceChangeController.close();
+    });
+
     test('handles device change stream errors', () async {
       final deviceChangeController =
           StreamController<audio_session.AudioDevicesChangedEvent>.broadcast();

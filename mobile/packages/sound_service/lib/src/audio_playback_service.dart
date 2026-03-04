@@ -47,6 +47,11 @@ class AudioPlaybackService {
   StreamSubscription<dynamic>? _deviceChangeSubscription;
   bool _isDisposed = false;
 
+  /// Monotonic counter to discard stale [getDevices] results.
+  /// Incremented before every device query; only the response whose
+  /// captured epoch still equals [_deviceCheckEpoch] may update the subject.
+  int _deviceCheckEpoch = 0;
+
   /// Stream of playback position updates.
   Stream<Duration> get positionStream => _audioPlayer.positionStream;
 
@@ -87,14 +92,15 @@ class AudioPlaybackService {
             (event) {
               if (_isDisposed) return;
 
-              // Re-check all connected devices for accuracy when any device
-              // changes
+              // Bump epoch so any in-flight getDevices() call becomes stale.
+              final epoch = ++_deviceCheckEpoch;
+
               unawaited(
                 _audioSessionWrapper.getDevices().then((allDevices) {
-                  if (!_isDisposed) {
-                    final hasHeadphones = _checkForHeadphones(allDevices);
-                    _headphonesConnectedSubject.add(hasHeadphones);
-                  }
+                  // Discard if a newer event arrived while we were waiting.
+                  if (_isDisposed || epoch != _deviceCheckEpoch) return;
+                  final hasHeadphones = _checkForHeadphones(allDevices);
+                  _headphonesConnectedSubject.add(hasHeadphones);
                 }),
               );
             },
