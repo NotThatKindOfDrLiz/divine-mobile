@@ -922,6 +922,51 @@ void main() {
       );
 
       blocTest<ProfileEditorBloc, ProfileEditorState>(
+        'emits [checking, available] when username is admin-assigned to '
+        'current user',
+        setUp: () {
+          when(
+            () => mockProfileRepository.checkUsernameAvailability(
+              username: testUsername,
+              currentUserPubkey: testPubkey,
+            ),
+          ).thenAnswer((_) async => const UsernameAvailable());
+        },
+        build: () => ProfileEditorBloc(
+          profileRepository: mockProfileRepository,
+          userProfileService: mockUserProfileService,
+          hasExistingProfile: true,
+          currentUserPubkey: testPubkey,
+        ),
+        act: (bloc) => bloc.add(const UsernameChanged(testUsername)),
+        wait: debounceDuration,
+        expect: () => [
+          isA<ProfileEditorState>()
+              .having((s) => s.username, 'username', testUsername)
+              .having(
+                (s) => s.usernameStatus,
+                'usernameStatus',
+                UsernameStatus.checking,
+              ),
+          isA<ProfileEditorState>()
+              .having((s) => s.username, 'username', testUsername)
+              .having(
+                (s) => s.usernameStatus,
+                'usernameStatus',
+                UsernameStatus.available,
+              ),
+        ],
+        verify: (_) {
+          verify(
+            () => mockProfileRepository.checkUsernameAvailability(
+              username: testUsername,
+              currentUserPubkey: testPubkey,
+            ),
+          ).called(1);
+        },
+      );
+
+      blocTest<ProfileEditorBloc, ProfileEditorState>(
         'emits [checking, error] when check fails',
         setUp: () {
           when(
