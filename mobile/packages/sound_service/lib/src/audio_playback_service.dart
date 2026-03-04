@@ -164,6 +164,7 @@ class AudioPlaybackService {
   ///
   /// Returns the duration of the loaded audio.
   Future<Duration?> loadAudio(String url) async {
+    if (_isDisposed) return null;
     try {
       Duration? loadedDuration;
 
@@ -198,6 +199,7 @@ class AudioPlaybackService {
   ///
   /// Returns the duration of the loaded audio.
   Future<Duration?> loadAudioFromFile(String filePath) async {
+    if (_isDisposed) return null;
     try {
       final loadedDuration = await _audioPlayer.setFilePath(filePath);
       log(
@@ -219,6 +221,7 @@ class AudioPlaybackService {
   ///
   /// This allows using advanced audio sources like [ClippingAudioSource].
   Future<Duration?> setAudioSource(AudioSource source) async {
+    if (_isDisposed) return null;
     try {
       final loadedDuration = await _audioPlayer.setAudioSource(source);
       log(
@@ -238,6 +241,7 @@ class AudioPlaybackService {
 
   /// Starts audio playback.
   Future<void> play() async {
+    if (_isDisposed) return;
     try {
       await _audioPlayer.play();
       log('Started audio playback', name: 'AudioPlaybackService');
@@ -253,6 +257,7 @@ class AudioPlaybackService {
 
   /// Pauses audio playback.
   Future<void> pause() async {
+    if (_isDisposed) return;
     try {
       await _audioPlayer.pause();
       log('Paused audio playback', name: 'AudioPlaybackService');
@@ -268,6 +273,7 @@ class AudioPlaybackService {
 
   /// Stops audio playback and resets position to the beginning.
   Future<void> stop() async {
+    if (_isDisposed) return;
     try {
       await _audioPlayer.stop();
       log('Stopped audio playback', name: 'AudioPlaybackService');
@@ -283,6 +289,7 @@ class AudioPlaybackService {
 
   /// Seeks to a specific position in the audio.
   Future<void> seek(Duration position) async {
+    if (_isDisposed) return;
     try {
       await _audioPlayer.seek(position);
       log(
@@ -303,6 +310,7 @@ class AudioPlaybackService {
   ///
   /// [volume] should be between 0.0 (muted) and 1.0 (full volume).
   Future<void> setVolume(double volume) async {
+    if (_isDisposed) return;
     try {
       await _audioPlayer.setVolume(volume.clamp(0.0, 1.0));
       log(
@@ -330,6 +338,7 @@ class AudioPlaybackService {
   /// allowBluetooth enables HFP (phone call mode) which causes
   /// "call started/ended" sounds on Bluetooth headsets.
   Future<void> configureForRecording() async {
+    if (_isDisposed) return;
     try {
       await _audioSessionWrapper.configure(
         audio_session.AudioSessionConfiguration(
@@ -373,6 +382,7 @@ class AudioPlaybackService {
   /// (e.g., video player). Use this in the video editor to prevent
   /// the audio from pausing the video.
   Future<void> configureForMixedPlayback() async {
+    if (_isDisposed) return;
     try {
       await _audioSessionWrapper.configure(
         const audio_session.AudioSessionConfiguration(
@@ -412,6 +422,7 @@ class AudioPlaybackService {
   ///
   /// Call this when exiting recording mode.
   Future<void> resetAudioSession() async {
+    if (_isDisposed) return;
     try {
       await _audioSessionWrapper.configure(
         const audio_session.AudioSessionConfiguration(

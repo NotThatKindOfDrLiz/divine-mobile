@@ -936,4 +936,170 @@ void main() {
       },
     );
   });
+
+  group('$AudioPlaybackService after dispose', () {
+    late AudioPlaybackService service;
+    late _MockAudioPlayer mockPlayer;
+    late _MockAudioSessionWrapper mockSessionWrapper;
+
+    setUp(() {
+      mockPlayer = _MockAudioPlayer();
+      mockSessionWrapper = _MockAudioSessionWrapper();
+
+      when(
+        () => mockPlayer.positionStream,
+      ).thenAnswer((_) => const Stream<Duration>.empty());
+      when(
+        () => mockPlayer.durationStream,
+      ).thenAnswer((_) => const Stream<Duration?>.empty());
+      when(
+        () => mockPlayer.playingStream,
+      ).thenAnswer((_) => const Stream<bool>.empty());
+      when(() => mockPlayer.playing).thenReturn(false);
+      when(() => mockPlayer.duration).thenReturn(null);
+      when(() => mockPlayer.dispose()).thenAnswer((_) async {});
+      when(
+        () => mockSessionWrapper.getDevices(),
+      ).thenAnswer((_) async => <audio_session.AudioDevice>{});
+      when(
+        () => mockSessionWrapper.devicesChangedEventStream,
+      ).thenAnswer((_) => const Stream.empty());
+      when(() => mockSessionWrapper.configure(any())).thenAnswer((_) async {});
+    });
+
+    test('loadAudio returns null after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      final result = await service.loadAudio('https://example.com/audio.aac');
+
+      expect(result, isNull);
+      verifyNever(() => mockPlayer.setUrl(any()));
+    });
+
+    test('loadAudioFromFile returns null after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      final result = await service.loadAudioFromFile('/path/to/file.aac');
+
+      expect(result, isNull);
+      verifyNever(() => mockPlayer.setFilePath(any()));
+    });
+
+    test('setAudioSource returns null after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      final result = await service.setAudioSource(_FakeAudioSource());
+
+      expect(result, isNull);
+      verifyNever(() => mockPlayer.setAudioSource(any()));
+    });
+
+    test('play does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.play();
+
+      verifyNever(() => mockPlayer.play());
+    });
+
+    test('pause does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.pause();
+
+      verifyNever(() => mockPlayer.pause());
+    });
+
+    test('stop does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.stop();
+
+      verifyNever(() => mockPlayer.stop());
+    });
+
+    test('seek does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.seek(const Duration(seconds: 5));
+
+      verifyNever(() => mockPlayer.seek(any()));
+    });
+
+    test('setVolume does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.setVolume(0.5);
+
+      verifyNever(() => mockPlayer.setVolume(any()));
+    });
+
+    test('configureForRecording does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.configureForRecording();
+
+      verifyNever(() => mockSessionWrapper.configure(any()));
+    });
+
+    test('configureForMixedPlayback does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.configureForMixedPlayback();
+
+      verifyNever(() => mockSessionWrapper.configure(any()));
+    });
+
+    test('resetAudioSession does nothing after dispose', () async {
+      service = AudioPlaybackService(
+        audioPlayer: mockPlayer,
+        audioSessionWrapper: mockSessionWrapper,
+      );
+      await service.dispose();
+
+      await service.resetAudioSession();
+
+      verifyNever(() => mockSessionWrapper.configure(any()));
+    });
+  });
 }
