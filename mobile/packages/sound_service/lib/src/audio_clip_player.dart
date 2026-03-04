@@ -94,4 +94,5 @@ class AudioClipPlayer {
     }
   }
 }
+
 // coverage:ignore-end

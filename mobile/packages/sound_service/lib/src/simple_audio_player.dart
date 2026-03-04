@@ -47,4 +47,5 @@ class JustAudioSimplePlayer implements SimpleAudioPlayer {
   @override
   Future<void> dispose() => _player.dispose();
 }
+
 // coverage:ignore-end
