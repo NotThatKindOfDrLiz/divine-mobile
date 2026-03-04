@@ -41,6 +41,11 @@ class CameraController: NSObject {
     // Whether to mirror front camera video output
     private var mirrorFrontCameraOutput: Bool = true
     
+    // Auto lens switching via zoom
+    // When true, uses a virtual multi-camera device (builtInTripleCamera,
+    // builtInDualWideCamera, etc.) for smooth cross-fade between lenses.
+    private var autoLensSwitchRequested: Bool = true
+    
     // Auto flash mode - checks brightness once when recording starts
     private var isAutoFlashMode: Bool = false
     private var autoFlashTorchEnabled: Bool = false
@@ -57,6 +62,11 @@ class CameraController: NSObject {
     private var minZoom: CGFloat = 1.0
     private var maxZoom: CGFloat = 1.0
     private var currentZoom: CGFloat = 1.0
+    // Scale factor to convert native videoZoomFactor to user-facing zoom.
+    // Virtual multi-camera devices (builtInTripleCamera, builtInDualWideCamera)
+    // start at ultra-wide where native 1.0 = 0.5x user. Wide angle = native 2.0 = 1.0x user.
+    // So scale = 0.5 for those devices, 1.0 for single-lens cameras.
+    private var nativeToUserZoomScale: CGFloat = 1.0
     // Portrait-Modus: 9:16, e.g: 1080x1920
     private var aspectRatio: CGFloat = 9.0 / 16.0
     
@@ -171,6 +181,21 @@ class CameraController: NSObject {
         print("[DivineCameraController] Camera availability: front=\(hasFrontCamera), " +
               "frontUltraWide=\(hasFrontUltraWideCamera), back=\(hasBackCamera), " +
               "ultraWide=\(hasUltraWideCamera), telephoto=\(hasTelephotoCamera), macro=\(hasMacroCamera)")
+        
+        // Log virtual multi-camera device availability
+        if #available(iOS 13.0, *) {
+            let hasTriple = AVCaptureDevice.default(
+                .builtInTripleCamera, for: .video, position: .back
+            ) != nil
+            let hasDualWide = AVCaptureDevice.default(
+                .builtInDualWideCamera, for: .video, position: .back
+            ) != nil
+            let hasDual = AVCaptureDevice.default(
+                .builtInDualCamera, for: .video, position: .back
+            ) != nil
+            print("[DivineCameraController] Virtual devices: " +
+                  "triple=\(hasTriple), dualWide=\(hasDualWide), dual=\(hasDual)")
+        }
     }
     
     /// Configures the audio session for video recording with proper Bluetooth headphone routing.
@@ -338,6 +363,27 @@ class CameraController: NSObject {
             }
             return nil
         case "back":
+            // When auto lens switch is enabled, use virtual multi-camera
+            // devices for smooth cross-fade transitions between lenses.
+            if autoLensSwitchRequested {
+                if #available(iOS 13.0, *) {
+                    if let device = AVCaptureDevice.default(
+                        .builtInTripleCamera, for: .video, position: .back
+                    ) {
+                        return device
+                    }
+                    if let device = AVCaptureDevice.default(
+                        .builtInDualWideCamera, for: .video, position: .back
+                    ) {
+                        return device
+                    }
+                }
+                if let device = AVCaptureDevice.default(
+                    .builtInDualCamera, for: .video, position: .back
+                ) {
+                    return device
+                }
+            }
             return AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back)
         case "ultraWide":
             if #available(iOS 13.0, *) {
@@ -371,7 +417,8 @@ class CameraController: NSObject {
     private var videoQualityPreset: AVCaptureSession.Preset = .high
     
     /// Initializes the camera with the specified lens and video quality.
-    func initialize(lens: String, videoQuality: String, enableScreenFlash: Bool = true, mirrorFrontCameraOutput: Bool = true, completion: @escaping ([String: Any]?, String?) -> Void) {
+    func initialize(lens: String, videoQuality: String, enableScreenFlash: Bool = true, mirrorFrontCameraOutput: Bool = true, enableAutoLensSwitch: Bool = true, completion: @escaping ([String: Any]?, String?) -> Void) {
+        self.autoLensSwitchRequested = enableAutoLensSwitch
         currentLensType = lens
         currentLens = getPositionForLensType(lens)
         screenFlashFeatureEnabled = enableScreenFlash
@@ -567,6 +614,20 @@ class CameraController: NSObject {
         // Get camera properties
         updateCameraProperties(device: videoDevice)
         
+        // Set initial zoom to 1.0x (wide angle) for virtual multi-camera devices.
+        // Without this, the camera starts at native 1.0 which is the ultra-wide (0.5x).
+        if nativeToUserZoomScale < 1.0 {
+            let nativeWideZoom = 1.0 / nativeToUserZoomScale  // 2.0 for triple/dualWide
+            do {
+                try videoDevice.lockForConfiguration()
+                videoDevice.videoZoomFactor = nativeWideZoom
+                videoDevice.unlockForConfiguration()
+                currentZoom = 1.0
+            } catch {
+                print("DivineCamera: Failed to set initial zoom to 1.0x: \(error.localizedDescription)")
+            }
+        }
+        
         // Start session first so frames start flowing
         session.startRunning()
         self.captureSession = session
@@ -689,9 +750,34 @@ class CameraController: NSObject {
     
     /// Updates camera properties from the device.
     private func updateCameraProperties(device: AVCaptureDevice) {
-        minZoom = 1.0
-        maxZoom = min(device.activeFormat.videoMaxZoomFactor, 10.0)
-        currentZoom = device.videoZoomFactor
+        if autoLensSwitchRequested {
+            // Determine scale factor for virtual multi-camera devices.
+            // builtInTripleCamera and builtInDualWideCamera include ultra-wide
+            // where native videoZoomFactor 1.0 = ultra-wide (0.5x in iOS Camera app)
+            // and native 2.0 = wide angle (1.0x).
+            if #available(iOS 13.0, *) {
+                if device.deviceType == .builtInTripleCamera ||
+                   device.deviceType == .builtInDualWideCamera {
+                    nativeToUserZoomScale = 0.5
+                } else {
+                    nativeToUserZoomScale = 1.0
+                }
+            } else {
+                nativeToUserZoomScale = 1.0
+            }
+            // Use full zoom range including ultra-wide on virtual
+            // multi-camera devices (e.g. builtInTripleCamera).
+            // Convert native zoom values to user-facing values.
+            minZoom = device.minAvailableVideoZoomFactor * nativeToUserZoomScale
+            maxZoom = min(device.maxAvailableVideoZoomFactor * nativeToUserZoomScale, 10.0)
+        } else {
+            // No auto lens switch - clamp to 1.0 to prevent native
+            // lens switching on virtual multi-camera devices.
+            nativeToUserZoomScale = 1.0
+            minZoom = 1.0
+            maxZoom = min(device.activeFormat.videoMaxZoomFactor, 10.0)
+        }
+        currentZoom = device.videoZoomFactor * nativeToUserZoomScale
         // Front camera has "flash" via screen brightness when feature is enabled
         hasFlash = device.hasFlash || (screenFlashFeatureEnabled && currentLens == .front)
         isFocusPointSupported = device.isFocusPointOfInterestSupported
@@ -806,6 +892,20 @@ class CameraController: NSObject {
             }
             
             session.commitConfiguration()
+            
+            // Set zoom to 1.0x (wide angle) for virtual multi-camera devices
+            // after switching cameras, so it matches the Dart side expectation.
+            if self.nativeToUserZoomScale < 1.0 {
+                let nativeWideZoom = 1.0 / self.nativeToUserZoomScale
+                do {
+                    try newDevice.lockForConfiguration()
+                    newDevice.videoZoomFactor = nativeWideZoom
+                    newDevice.unlockForConfiguration()
+                    self.currentZoom = 1.0
+                } catch {
+                    print("DivineCamera: Failed to set zoom after camera switch: \(error.localizedDescription)")
+                }
+            }
             
             // Store completion to be called when first frame arrives from new camera.
             // This ensures Flutter gets the new lens state only after the texture
@@ -1161,15 +1261,18 @@ class CameraController: NSObject {
         }
     }
     
-    /// Sets the zoom level.
+    /// Sets the zoom level (user-facing value, e.g. 0.5x, 1.0x, 2.0x).
+    /// Internally converts to native videoZoomFactor using nativeToUserZoomScale.
     func setZoomLevel(level: CGFloat) -> Bool {
         guard let device = videoDevice else { return false }
         
         let clampedLevel = max(minZoom, min(level, maxZoom))
+        // Convert user-facing zoom to native videoZoomFactor
+        let nativeZoom = clampedLevel / nativeToUserZoomScale
         
         do {
             try device.lockForConfiguration()
-            device.videoZoomFactor = clampedLevel
+            device.videoZoomFactor = nativeZoom
             device.unlockForConfiguration()
             currentZoom = clampedLevel
             return true
