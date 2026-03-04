@@ -332,18 +332,16 @@ class AudioEvent {
     'id': id,
     'pubkey': pubkey,
     'createdAt': createdAt,
-    if (url != null) 'url': url,
-    if (mimeType != null) 'mimeType': mimeType,
-    if (sha256 != null) 'sha256': sha256,
-    if (fileSize != null) 'fileSize': fileSize,
-    if (duration != null) 'duration': ?duration,
-    if (title != null) 'title': title,
-    if (source != null) 'source': source,
-    if (sourceVideoReference != null)
-      'sourceVideoReference': sourceVideoReference,
-    if (sourceVideoRelay != null) 'sourceVideoRelay': sourceVideoRelay,
-    if (startOffset != Duration.zero)
-      'startOffsetMs': startOffset.inMilliseconds,
+    'url': ?url,
+    'mimeType': ?mimeType,
+    'sha256': ?sha256,
+    'fileSize': ?fileSize,
+    'duration': ?duration,
+    'title': ?title,
+    'source': ?source,
+    'sourceVideoReference': ?sourceVideoReference,
+    'sourceVideoRelay': ?sourceVideoRelay,
+    if (startOffset != .zero) 'startOffsetMs': startOffset.inMilliseconds,
   };
 
   /// Deserialize from JSON for draft restoration.

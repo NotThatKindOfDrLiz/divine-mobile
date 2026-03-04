@@ -47,8 +47,9 @@ class AudioClipPlayer {
     required Duration start,
     required Duration end,
   }) async {
-    final child =
-        isAsset ? AudioSource.asset(uri) : AudioSource.uri(Uri.parse(uri));
+    final child = isAsset
+        ? AudioSource.asset(uri)
+        : AudioSource.uri(Uri.parse(uri));
 
     final source = ClippingAudioSource(
       child: child,
@@ -83,7 +84,7 @@ class AudioClipPlayer {
   Future<void> dispose() async {
     try {
       await _audioPlayer.dispose();
-    } catch (e) {
+    } on Exception catch (e) {
       log(
         'Error disposing AudioClipPlayer: $e',
         name: 'AudioClipPlayer',
