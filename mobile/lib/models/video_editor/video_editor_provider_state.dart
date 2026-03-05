@@ -43,6 +43,7 @@ class VideoEditorProviderState {
     this.inspiredByVideo,
     this.inspiredByNpub,
     this.selectedSound,
+    this.proofManifestJson,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
@@ -130,6 +131,9 @@ class VideoEditorProviderState {
   /// This is persisted in drafts and used for audio playback during editing.
   final AudioEvent? selectedSound;
 
+  /// ProofMode attestation manifest JSON for the final rendered clip.
+  final String? proofManifestJson;
+
   /// Whether the video is valid and ready to be posted.
   ///
   /// Returns true if:
@@ -173,6 +177,8 @@ class VideoEditorProviderState {
     bool? metadataLimitReached,
     DivineVideoClip? finalRenderedClip,
     bool clearFinalRenderedClip = false,
+    String? proofManifestJson,
+    bool clearProofManifestJson = false,
     Map<String, dynamic>? editorStateHistory,
     CompleteParameters? editorEditingParameters,
     List<String>? collaboratorPubkeys,
@@ -219,6 +225,9 @@ class VideoEditorProviderState {
       selectedSound: clearSelectedSound
           ? null
           : (selectedSound ?? this.selectedSound),
+      proofManifestJson: clearProofManifestJson || clearFinalRenderedClip
+          ? null
+          : proofManifestJson ?? this.proofManifestJson,
     );
   }
 }

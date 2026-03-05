@@ -7,7 +7,7 @@ import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
-import 'package:openvine/screens/clip_library_screen.dart';
+import 'package:openvine/screens/library_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_editor_icon_button.dart';
 
@@ -196,7 +196,7 @@ class _VideoEditorMoreButtonState
       scrollable: false,
       isScrollControlled: true,
       showHeaderDivider: false,
-      body: const ClipLibraryScreen(selectionMode: true),
+      body: const LibraryScreen(selectionMode: true),
     );
 
     Log.info(
