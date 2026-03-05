@@ -6,6 +6,7 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:models/models.dart';
+import 'package:openvine/services/feed_performance_tracker.dart';
 import 'package:profile_repository/profile_repository.dart';
 import 'package:stream_transform/stream_transform.dart';
 
@@ -30,7 +31,9 @@ class UserSearchBloc extends Bloc<UserSearchEvent, UserSearchState> {
   UserSearchBloc({
     required ProfileRepository profileRepository,
     this.hasVideos = true,
+    FeedPerformanceTracker? feedTracker,
   }) : _profileRepository = profileRepository,
+       _feedTracker = feedTracker,
        super(const UserSearchState()) {
     on<UserSearchQueryChanged>(
       _onQueryChanged,
@@ -41,6 +44,7 @@ class UserSearchBloc extends Bloc<UserSearchEvent, UserSearchState> {
   }
 
   final ProfileRepository _profileRepository;
+  final FeedPerformanceTracker? _feedTracker;
 
   /// Whether to filter results to users who have uploaded videos.
   final bool hasVideos;
@@ -57,7 +61,11 @@ class UserSearchBloc extends Bloc<UserSearchEvent, UserSearchState> {
       return;
     }
 
+    if (query == state.query) return;
+
     emit(state.copyWith(status: UserSearchStatus.loading, query: query));
+
+    _feedTracker?.startFeedLoad('user_search');
 
     try {
       final results = await _profileRepository.searchUsers(
@@ -74,6 +82,11 @@ class UserSearchBloc extends Bloc<UserSearchEvent, UserSearchState> {
         name: 'UserSearchBloc',
       );
 
+      _feedTracker?.markFirstVideosReceived(
+        'user_search',
+        results.length,
+      );
+
       emit(
         state.copyWith(
           status: UserSearchStatus.success,
@@ -83,7 +96,14 @@ class UserSearchBloc extends Bloc<UserSearchEvent, UserSearchState> {
           isLoadingMore: false,
         ),
       );
-    } on Exception {
+
+      _feedTracker?.markFeedDisplayed('user_search', results.length);
+    } on Exception catch (e) {
+      _feedTracker?.trackFeedError(
+        'user_search',
+        errorType: 'search_failed',
+        errorMessage: e.toString(),
+      );
       emit(state.copyWith(status: UserSearchStatus.failure));
     }
   }

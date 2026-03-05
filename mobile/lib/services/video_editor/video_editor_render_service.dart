@@ -2,14 +2,16 @@
 // ABOUTME: Handles aspect ratio cropping, clip concatenation, and export transformation
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:models/models.dart' as model show AspectRatio;
 import 'package:openvine/constants/video_editor_constants.dart';
-import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/services/crash_reporting_service.dart';
+import 'package:openvine/services/native_proofmode_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -42,7 +44,7 @@ class _ClipAnalysisEntry {
     required this.cropParams,
   });
 
-  final RecordingClip clip;
+  final DivineVideoClip clip;
   final Size resolution;
   final _CropParameters cropParams;
 }
@@ -174,6 +176,78 @@ class VideoEditorRenderService {
   // Public API
   // ─────────────────────────────────────────────────────────────────────────
 
+  /// Renders multiple clips into a [DivineVideoClip] ready for publishing.
+  ///
+  /// This is a convenience wrapper around [renderVideo] that also extracts
+  /// metadata, generates ProofMode attestation, and creates a [DivineVideoClip].
+  ///
+  /// Returns a record containing:
+  /// - The rendered [DivineVideoClip]
+  /// - The proofManifestJson (or null if ProofMode unavailable)
+  ///
+  /// Returns null if rendering failed/cancelled.
+  static Future<(DivineVideoClip, String? proofManifestJson)?>
+  renderVideoToClip({
+    required List<DivineVideoClip> clips,
+    bool enableAudio = true,
+    CompleteParameters? parameters,
+  }) async {
+    if (clips.isEmpty) return null;
+
+    final outputPath = await renderVideo(
+      clips: clips,
+      aspectRatio: clips.first.targetAspectRatio,
+      enableAudio: enableAudio,
+      usePersistentStorage: true,
+      parameters: parameters,
+    );
+
+    if (outputPath == null) return null;
+
+    final metaData = await ProVideoEditor.instance.getMetadata(
+      EditorVideo.file(outputPath),
+    );
+
+    // Generate ProofMode attestation
+    Log.debug(
+      '🔐 Generating proofmode attestation for video',
+      name: _logName,
+      category: LogCategory.video,
+    );
+    final proofData = await NativeProofModeService.proofFile(
+      File(outputPath),
+    );
+    final String? proofManifestJson = proofData != null
+        ? jsonEncode(proofData)
+        : null;
+
+    if (proofManifestJson != null) {
+      Log.info(
+        '✅ Proofmode attestation generated',
+        name: _logName,
+        category: LogCategory.video,
+      );
+    } else {
+      Log.warning(
+        '⚠️ No proofmode data available',
+        name: _logName,
+        category: LogCategory.video,
+      );
+    }
+
+    final clip = DivineVideoClip(
+      id: 'clip-${DateTime.now()}',
+      video: EditorVideo.file(outputPath),
+      duration: metaData.duration,
+      recordedAt: DateTime.now(),
+      originalAspectRatio: clips.first.originalAspectRatio,
+      targetAspectRatio: clips.first.targetAspectRatio,
+      thumbnailPath: clips.first.thumbnailPath,
+    );
+
+    return (clip, proofManifestJson);
+  }
+
   /// Renders multiple clips into a single video file with aspect ratio cropping.
   ///
   /// When [customAudioPath] is provided, the custom audio track is mixed into
@@ -191,7 +265,7 @@ class VideoEditorRenderService {
   /// documents directory instead of the temporary directory. Use this when
   /// the rendered video should persist across app restarts.
   static Future<String?> renderVideo({
-    required List<RecordingClip> clips,
+    required List<DivineVideoClip> clips,
     String? customAudioPath,
     double? originalAudioVolume,
     double? customAudioVolume,
@@ -271,7 +345,7 @@ class VideoEditorRenderService {
 
   /// Limits a clip's duration to a specified length.
   static Future limitClipDuration({
-    required RecordingClip clip,
+    required DivineVideoClip clip,
     required Duration duration,
     required ValueChanged<bool> onComplete,
   }) async {
@@ -388,7 +462,7 @@ class VideoEditorRenderService {
   ///
   /// Returns video segments ready for concatenation and temp file paths for cleanup.
   static Future<_NormalizationResult> _normalizeClipsToAspectRatio({
-    required List<RecordingClip> clips,
+    required List<DivineVideoClip> clips,
     required model.AspectRatio aspectRatio,
     required bool enableAudio,
     required Directory cacheDir,
@@ -463,7 +537,7 @@ class VideoEditorRenderService {
 
   /// Analyzes all clips to determine their crop parameters.
   static Future<_ClipAnalysis> _analyzeClips(
-    List<RecordingClip> clips,
+    List<DivineVideoClip> clips,
     model.AspectRatio aspectRatio,
   ) async {
     final entries = <_ClipAnalysisEntry>[];
@@ -489,7 +563,7 @@ class VideoEditorRenderService {
 
   /// Renders a single clip with crop transform to normalize its aspect ratio.
   static Future<String> _renderNormalizedClip({
-    required RecordingClip clip,
+    required DivineVideoClip clip,
     required int index,
     required _CropParameters cropParams,
     required bool enableAudio,

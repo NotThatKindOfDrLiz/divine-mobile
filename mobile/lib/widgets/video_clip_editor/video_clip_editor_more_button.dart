@@ -2,13 +2,13 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
-import 'package:openvine/screens/clip_library_screen.dart';
+import 'package:openvine/screens/library_screen.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/video_editor_icon_button.dart';
 
@@ -26,7 +26,7 @@ class _VideoEditorMoreButtonState
   int get _currentClipIndex => ref.read(videoEditorProvider).currentClipIndex;
 
   /// Gets the current clip from the clip manager.
-  RecordingClip get _currentClip {
+  DivineVideoClip get _currentClip {
     final clipManager = ref.read(clipManagerProvider.notifier);
     return clipManager.clips[_currentClipIndex];
   }
@@ -198,7 +198,7 @@ class _VideoEditorMoreButtonState
       scrollable: false,
       isScrollControlled: true,
       showHeaderDivider: false,
-      body: const ClipLibraryScreen(selectionMode: true),
+      body: const LibraryScreen(selectionMode: true),
     );
 
     Log.info(

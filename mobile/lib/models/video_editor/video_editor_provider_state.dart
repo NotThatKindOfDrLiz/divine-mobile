@@ -3,7 +3,7 @@
 
 import 'package:flutter/widgets.dart';
 import 'package:models/models.dart' show InspiredByInfo;
-import 'package:openvine/models/recording_clip.dart';
+import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 
@@ -43,6 +43,7 @@ class VideoEditorProviderState {
     this.inspiredByNpub,
     this.selectedAudioEventId,
     this.selectedAudioRelay,
+    this.proofManifestJson,
     GlobalKey? deleteButtonKey,
   }) : deleteButtonKey = deleteButtonKey ?? GlobalKey();
 
@@ -108,7 +109,7 @@ class VideoEditorProviderState {
   /// The final rendered clip after all editing and processing operations are
   /// complete.
   /// This represents the video output ready for publishing.
-  final RecordingClip? finalRenderedClip;
+  final DivineVideoClip? finalRenderedClip;
 
   /// Serialized state history from ProImageEditor for undo/redo restoration.
   final Map<String, dynamic> editorStateHistory;
@@ -131,6 +132,9 @@ class VideoEditorProviderState {
   /// Relay hint for the selected audio event.
   final String? selectedAudioRelay;
 
+  /// ProofMode attestation manifest JSON for the final rendered clip.
+  final String? proofManifestJson;
+
   /// Whether the video is valid and ready to be posted.
   ///
   /// Returns true if:
@@ -150,6 +154,8 @@ class VideoEditorProviderState {
   /// [inspiredByVideo] to null.
   /// Use [clearInspiredByNpub] = true to explicitly set
   /// [inspiredByNpub] to null.
+  /// Use [clearProofManifestJson] = true to explicitly set
+  /// [proofManifestJson] to null independently of [clearFinalRenderedClip].
   VideoEditorProviderState copyWith({
     int? currentClipIndex,
     Duration? currentPosition,
@@ -170,8 +176,10 @@ class VideoEditorProviderState {
     Set<String>? tags,
     VideoMetadataExpiration? expiration,
     bool? metadataLimitReached,
-    RecordingClip? finalRenderedClip,
+    DivineVideoClip? finalRenderedClip,
     bool clearFinalRenderedClip = false,
+    String? proofManifestJson,
+    bool clearProofManifestJson = false,
     Map<String, dynamic>? editorStateHistory,
     CompleteParameters? editorEditingParameters,
     List<String>? collaboratorPubkeys,
@@ -221,6 +229,9 @@ class VideoEditorProviderState {
       selectedAudioRelay: selectedAudioRelay == _sentinel
           ? this.selectedAudioRelay
           : selectedAudioRelay as String?,
+      proofManifestJson: clearProofManifestJson || clearFinalRenderedClip
+          ? null
+          : proofManifestJson ?? this.proofManifestJson,
     );
   }
 
