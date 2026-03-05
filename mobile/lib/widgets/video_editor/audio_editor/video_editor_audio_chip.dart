@@ -1,10 +1,6 @@
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.dart';
 import 'package:openvine/models/audio_event.dart';
-import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/screens/video_editor/video_audio_editor_timing_screen.dart';
 import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_bottom_sheet.dart';
 
@@ -13,10 +9,12 @@ import 'package:openvine/widgets/video_editor/audio_editor/audio_selection_botto
 /// This widget is provider-agnostic - it receives the current sound as input
 /// and reports changes via callbacks. The parent widget is responsible for
 /// updating the appropriate provider (recorder or editor).
-class VideoEditorAudioChip extends ConsumerWidget {
+class VideoEditorAudioChip extends StatelessWidget {
   const VideoEditorAudioChip({
     required this.selectedSound,
     required this.onSoundChanged,
+    this.onSelectionStarted,
+    this.onSelectionEnded,
     super.key,
   });
 
@@ -29,14 +27,15 @@ class VideoEditorAudioChip extends ConsumerWidget {
   /// start offset is changed. Called with `null` when the sound is cleared.
   final ValueChanged<AudioEvent?> onSoundChanged;
 
-  Future<void> _selectAudio(BuildContext context, WidgetRef ref) async {
-    final previousSound = selectedSound;
-    final videoRecorderNotifier = ref.read(videoRecorderProvider.notifier);
-    videoRecorderNotifier.pauseRemoteRecordControl();
+  /// Called when audio selection begins (e.g. to pause playback).
+  final VoidCallback? onSelectionStarted;
 
-    // Pause video playback while selecting audio (if BLoC is available)
-    final bloc = context.read<VideoEditorMainBloc?>();
-    bloc?.add(const VideoEditorExternalPauseRequested(isPaused: true));
+  /// Called when audio selection ends (e.g. to resume playback).
+  final VoidCallback? onSelectionEnded;
+
+  Future<void> _selectAudio(BuildContext context) async {
+    final previousSound = selectedSound;
+    onSelectionStarted?.call();
 
     try {
       AudioEvent? soundToEdit = previousSound;
@@ -52,11 +51,11 @@ class VideoEditorAudioChip extends ConsumerWidget {
               AudioSelectionBottomSheet(scrollController: scrollController),
         );
         if (result == null) {
+          onSoundChanged(null);
           return;
         }
         soundToEdit = result;
         // Notify parent about initial selection
-        onSoundChanged(soundToEdit);
       }
 
       if (!context.mounted) return;
@@ -82,18 +81,16 @@ class VideoEditorAudioChip extends ConsumerWidget {
         }
       }
     } finally {
-      // Always restore pause state and remote control
-      bloc?.add(const VideoEditorExternalPauseRequested(isPaused: false));
-      videoRecorderNotifier.resumeRemoteRecordControl();
+      onSelectionEnded?.call();
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final hasSelectedSound = selectedSound != null;
 
     return InkWell(
-      onTap: () => _selectAudio(context, ref),
+      onTap: () => _selectAudio(context),
       radius: 16,
       child: Container(
         constraints: const BoxConstraints(minHeight: 40),

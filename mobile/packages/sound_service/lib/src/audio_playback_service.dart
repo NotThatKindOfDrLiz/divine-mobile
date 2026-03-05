@@ -47,6 +47,15 @@ class AudioPlaybackService {
   StreamSubscription<dynamic>? _deviceChangeSubscription;
   bool _isDisposed = false;
 
+  /// Completer that gates operations while audio is loading.
+  /// When non-null, a load operation is in progress. [seek] and [play]
+  /// will await this completer before forwarding to the player.
+  Completer<void>? _loadCompleter;
+
+  /// The last successfully loaded audio source identifier.
+  /// Used to reload the source when a "Loading interrupted" error occurs.
+  ({_SourceType type, Object value})? _lastSource;
+
   /// Monotonic counter to discard stale `getDevices` results.
   /// Incremented before every device query; only the response whose
   /// captured epoch still equals [_deviceCheckEpoch] may update the subject.
@@ -165,6 +174,7 @@ class AudioPlaybackService {
   /// Returns the duration of the loaded audio.
   Future<Duration?> loadAudio(String url) async {
     if (_isDisposed) return null;
+    _loadCompleter = Completer<void>();
     try {
       Duration? loadedDuration;
 
@@ -184,6 +194,7 @@ class AudioPlaybackService {
         );
       }
 
+      _lastSource = (type: _SourceType.url, value: url);
       return loadedDuration;
     } catch (e) {
       log(
@@ -192,6 +203,9 @@ class AudioPlaybackService {
         level: 900,
       );
       rethrow;
+    } finally {
+      _loadCompleter?.complete();
+      _loadCompleter = null;
     }
   }
 
@@ -200,12 +214,14 @@ class AudioPlaybackService {
   /// Returns the duration of the loaded audio.
   Future<Duration?> loadAudioFromFile(String filePath) async {
     if (_isDisposed) return null;
+    _loadCompleter = Completer<void>();
     try {
       final loadedDuration = await _audioPlayer.setFilePath(filePath);
       log(
         'Loaded audio from file: $filePath',
         name: 'AudioPlaybackService',
       );
+      _lastSource = (type: _SourceType.file, value: filePath);
       return loadedDuration;
     } catch (e) {
       log(
@@ -214,6 +230,9 @@ class AudioPlaybackService {
         level: 900,
       );
       rethrow;
+    } finally {
+      _loadCompleter?.complete();
+      _loadCompleter = null;
     }
   }
 
@@ -222,12 +241,14 @@ class AudioPlaybackService {
   /// This allows using advanced audio sources like [ClippingAudioSource].
   Future<Duration?> setAudioSource(AudioSource source) async {
     if (_isDisposed) return null;
+    _loadCompleter = Completer<void>();
     try {
       final loadedDuration = await _audioPlayer.setAudioSource(source);
       log(
         'Set audio source: ${source.runtimeType}',
         name: 'AudioPlaybackService',
       );
+      _lastSource = (type: _SourceType.audioSource, value: source);
       return loadedDuration;
     } catch (e) {
       log(
@@ -236,16 +257,36 @@ class AudioPlaybackService {
         level: 900,
       );
       rethrow;
+    } finally {
+      _loadCompleter?.complete();
+      _loadCompleter = null;
     }
   }
 
   /// Starts audio playback.
+  ///
+  /// If audio is currently loading, waits for the load to complete first.
+  /// On transient "Loading interrupted" errors, reloads the source and
+  /// retries once.
   Future<void> play() async {
+    if (_isDisposed) return;
+    await _loadCompleter?.future;
     if (_isDisposed) return;
     try {
       await _audioPlayer.play();
       log('Started audio playback', name: 'AudioPlaybackService');
     } catch (e) {
+      if (_isLoadingInterrupted(e)) {
+        log(
+          'Play interrupted, reloading source and retrying',
+          name: 'AudioPlaybackService',
+          level: 800,
+        );
+        if (await _reloadLastSource()) {
+          await _audioPlayer.play();
+          return;
+        }
+      }
       log(
         'Failed to start playback: $e',
         name: 'AudioPlaybackService',
@@ -288,7 +329,13 @@ class AudioPlaybackService {
   }
 
   /// Seeks to a specific position in the audio.
+  ///
+  /// If audio is currently loading, waits for the load to complete first.
+  /// On transient "Loading interrupted" errors, reloads the source and
+  /// retries once.
   Future<void> seek(Duration position) async {
+    if (_isDisposed) return;
+    await _loadCompleter?.future;
     if (_isDisposed) return;
     try {
       await _audioPlayer.seek(position);
@@ -297,6 +344,17 @@ class AudioPlaybackService {
         name: 'AudioPlaybackService',
       );
     } catch (e) {
+      if (_isLoadingInterrupted(e)) {
+        log(
+          'Seek interrupted, reloading source and retrying',
+          name: 'AudioPlaybackService',
+          level: 800,
+        );
+        if (await _reloadLastSource()) {
+          await _audioPlayer.seek(position);
+          return;
+        }
+      }
       log(
         'Failed to seek: $e',
         name: 'AudioPlaybackService',
@@ -474,4 +532,43 @@ class AudioPlaybackService {
       name: 'AudioPlaybackService',
     );
   }
+
+  /// Returns `true` if the error is a transient "Loading interrupted" error
+  /// from just_audio that can be recovered by reloading the source.
+  bool _isLoadingInterrupted(Object error) =>
+      error.toString().contains('Loading interrupted');
+
+  /// Reloads the last audio source that was successfully set.
+  ///
+  /// Returns `true` if the reload succeeded, `false` otherwise.
+  Future<bool> _reloadLastSource() async {
+    final source = _lastSource;
+    if (source == null || _isDisposed) return false;
+
+    try {
+      switch (source.type) {
+        case _SourceType.url:
+          await loadAudio(source.value as String);
+        case _SourceType.file:
+          await loadAudioFromFile(source.value as String);
+        case _SourceType.audioSource:
+          await _audioPlayer.setAudioSource(source.value as AudioSource);
+      }
+      log(
+        'Reloaded audio source after interruption',
+        name: 'AudioPlaybackService',
+      );
+      return true;
+    } on Exception catch (e) {
+      log(
+        'Failed to reload audio source: $e',
+        name: 'AudioPlaybackService',
+        level: 900,
+      );
+      return false;
+    }
+  }
 }
+
+/// The type of audio source last loaded into the player.
+enum _SourceType { url, file, audioSource }

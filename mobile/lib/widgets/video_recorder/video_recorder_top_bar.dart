@@ -58,6 +58,10 @@ class VideoRecorderTopBar extends ConsumerWidget {
                         child: VideoEditorAudioChip(
                           selectedSound: selectedSound,
                           onSoundChanged: notifier.selectSound,
+                          onSelectionStarted:
+                              notifier.pauseRemoteRecordControl,
+                          onSelectionEnded:
+                              notifier.resumeRemoteRecordControl,
                         ),
                       ),
 

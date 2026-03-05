@@ -80,6 +80,16 @@ class _TopActions extends ConsumerWidget {
           child: VideoEditorAudioChip(
             selectedSound: selectedSound,
             onSoundChanged: (sound) => _onSoundChanged(context, ref, sound),
+            onSelectionStarted: () {
+              context.read<VideoEditorMainBloc>().add(
+                const VideoEditorExternalPauseRequested(isPaused: true),
+              );
+            },
+            onSelectionEnded: () {
+              context.read<VideoEditorMainBloc>().add(
+                const VideoEditorExternalPauseRequested(isPaused: false),
+              );
+            },
           ),
         ),
         DivineIconButton(

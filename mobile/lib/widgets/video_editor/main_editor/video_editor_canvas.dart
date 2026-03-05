@@ -17,7 +17,6 @@ import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/extensions/aspect_ratio_extensions.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/platform_io.dart';
-import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
@@ -110,6 +109,9 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
   /// Tracks last playback state to detect changes.
   bool _lastIsPlaying = false;
 
+  /// Guards against seek/play calls while audio is loading.
+  bool _isAudioLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -130,7 +132,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     );
     _videoPlayer?.removeListener(_onVideoPositionChange);
     _videoPlayer?.dispose();
-    _audioService?.stop();
+    _audioService?.dispose();
     _isPlayerReadyNotifier.dispose();
     ProVideoEditor.instance.cancel(_renderTaskId);
     super.dispose();
@@ -209,6 +211,9 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     final selectedSound = ref.read(videoEditorProvider).selectedSound;
     if (selectedSound == null || _audioService == null) return;
 
+    // Skip sync while audio is still loading to avoid "Loading interrupted".
+    if (_isAudioLoading) return;
+
     final videoPosition = _videoPlayer?.value.position ?? Duration.zero;
     final audioPosition = selectedSound.startOffset + videoPosition;
     await _audioService!.seek(audioPosition);
@@ -276,19 +281,13 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     _videoPlayer!.addListener(_onVideoPositionChange);
 
     // Initialize audio if selected
-    await _initializeAudio();
-
+    final selectedSound = ref.read(videoEditorProvider).selectedSound;
+    await _loadAudio(selectedSound);
     Log.info(
       '🎬 Video player ready',
       name: 'VideoEditorCanvas',
       category: LogCategory.video,
     );
-  }
-
-  /// Initializes audio playback synced with video.
-  Future<void> _initializeAudio() async {
-    final selectedSound = ref.read(videoEditorProvider).selectedSound;
-    await _loadAudio(selectedSound);
   }
 
   /// Loads audio for the given sound event.
@@ -300,7 +299,6 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     await _audioService?.stop();
 
     if (sound == null || sound.url == null) {
-      _audioService = null;
       Log.info(
         '🎵 Audio cleared',
         name: 'VideoEditorCanvas',
@@ -310,14 +308,16 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
     }
 
     // Initialize service if needed
-    _audioService ??= ref.read(audioPlaybackServiceProvider);
+    _audioService ??= AudioPlaybackService();
 
+    _isAudioLoading = true;
     try {
       // Configure audio session to mix with video (prevents video pause)
       await _audioService!.configureForMixedPlayback();
 
       // Load audio from URL
       await _audioService!.loadAudio(sound.url!);
+      _isAudioLoading = false;
 
       // Sync to current video position
       final videoPosition = _videoPlayer?.value.position ?? Duration.zero;
@@ -335,6 +335,7 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
         category: LogCategory.video,
       );
     } catch (e) {
+      _isAudioLoading = false;
       Log.error(
         '🎵 Failed to load audio: $e',
         name: 'VideoEditorCanvas',
