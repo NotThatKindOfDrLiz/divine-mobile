@@ -1062,7 +1062,11 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
   /// Failures are logged but do not prevent recording from continuing.
   Future<void> _prepareSoundForPlayback() async {
     final selectedSound = state.selectedSound;
-    if (selectedSound == null || selectedSound.url == null) return;
+    if (selectedSound == null || selectedSound.url == null) {
+      _audioPlaybackService?.dispose();
+      _audioPlaybackService = null;
+      return;
+    }
 
     try {
       _audioPlaybackService ??= AudioPlaybackService();

@@ -42,7 +42,7 @@ class VideoEditorMainOverlayActions extends StatelessWidget {
 class _TopActions extends ConsumerWidget {
   const _TopActions();
 
-  void onSoundChanged(BuildContext context, WidgetRef ref, AudioEvent? sound) {
+  void _onSoundChanged(BuildContext context, WidgetRef ref, AudioEvent? sound) {
     ref.read(videoEditorProvider.notifier).selectSound(sound);
     // Restart playback when sound changes
     context.read<VideoEditorMainBloc>().add(
@@ -79,7 +79,7 @@ class _TopActions extends ConsumerWidget {
         Flexible(
           child: VideoEditorAudioChip(
             selectedSound: selectedSound,
-            onSoundChanged: (sound) => onSoundChanged(context, ref, sound),
+            onSoundChanged: (sound) => _onSoundChanged(context, ref, sound),
           ),
         ),
         DivineIconButton(

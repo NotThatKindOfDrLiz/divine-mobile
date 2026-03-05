@@ -154,57 +154,61 @@ class _AudioSelectionBottomSheetState
         ) ??
         <AudioEvent>[];
 
-    return nostrSoundsAsync.when(
-      data: (nostrSounds) {
-        final allSounds = [...bundledSounds, ...nostrSounds];
-        final filteredBundled = _filterSounds(bundledSounds);
-        final filteredNostr = _filterSounds(nostrSounds);
-        final filteredAll = [...filteredBundled, ...filteredNostr];
+    return SafeArea(
+      child: nostrSoundsAsync.when(
+        data: (nostrSounds) {
+          final allSounds = [...bundledSounds, ...nostrSounds];
+          final filteredBundled = _filterSounds(bundledSounds);
+          final filteredNostr = _filterSounds(nostrSounds);
+          final filteredAll = [...filteredBundled, ...filteredNostr];
 
-        final soundsToShow = _searchQuery.isNotEmpty ? filteredAll : allSounds;
-        final sortedSounds = _sortSounds(soundsToShow);
+          final soundsToShow = _searchQuery.isNotEmpty
+              ? filteredAll
+              : allSounds;
+          final sortedSounds = _sortSounds(soundsToShow);
 
-        return _SoundsContent(
-          scrollController: widget.scrollController,
-          allSounds: allSounds,
-          filteredSounds: sortedSounds,
-          searchQuery: _searchQuery,
-          hasSearchResults: filteredAll.isNotEmpty,
-          sortOption: _sortOption,
-          onSortChanged: (option) => setState(() => _sortOption = option),
-          playingSoundId: _playingSoundId,
-          onPlayPause: _togglePlayPause,
-          onSelect: _selectSound,
-        );
-      },
-      loading: () => bundledSounds.isNotEmpty
-          ? _SoundsContent(
-              scrollController: widget.scrollController,
-              allSounds: bundledSounds,
-              filteredSounds: _sortSounds(bundledSounds),
-              searchQuery: _searchQuery,
-              hasSearchResults: true,
-              sortOption: _sortOption,
-              onSortChanged: (option) => setState(() => _sortOption = option),
-              playingSoundId: _playingSoundId,
-              onPlayPause: _togglePlayPause,
-              onSelect: _selectSound,
-            )
-          : const Center(child: BrandedLoadingIndicator()),
-      error: (error, stack) => bundledSounds.isNotEmpty
-          ? _SoundsContent(
-              scrollController: widget.scrollController,
-              allSounds: bundledSounds,
-              filteredSounds: _sortSounds(bundledSounds),
-              searchQuery: _searchQuery,
-              hasSearchResults: true,
-              sortOption: _sortOption,
-              onSortChanged: (option) => setState(() => _sortOption = option),
-              playingSoundId: _playingSoundId,
-              onPlayPause: _togglePlayPause,
-              onSelect: _selectSound,
-            )
-          : _ErrorState(error: error),
+          return _SoundsContent(
+            scrollController: widget.scrollController,
+            allSounds: allSounds,
+            filteredSounds: sortedSounds,
+            searchQuery: _searchQuery,
+            hasSearchResults: filteredAll.isNotEmpty,
+            sortOption: _sortOption,
+            onSortChanged: (option) => setState(() => _sortOption = option),
+            playingSoundId: _playingSoundId,
+            onPlayPause: _togglePlayPause,
+            onSelect: _selectSound,
+          );
+        },
+        loading: () => bundledSounds.isNotEmpty
+            ? _SoundsContent(
+                scrollController: widget.scrollController,
+                allSounds: bundledSounds,
+                filteredSounds: _sortSounds(bundledSounds),
+                searchQuery: _searchQuery,
+                hasSearchResults: true,
+                sortOption: _sortOption,
+                onSortChanged: (option) => setState(() => _sortOption = option),
+                playingSoundId: _playingSoundId,
+                onPlayPause: _togglePlayPause,
+                onSelect: _selectSound,
+              )
+            : const Center(child: BrandedLoadingIndicator()),
+        error: (error, stack) => bundledSounds.isNotEmpty
+            ? _SoundsContent(
+                scrollController: widget.scrollController,
+                allSounds: bundledSounds,
+                filteredSounds: _sortSounds(bundledSounds),
+                searchQuery: _searchQuery,
+                hasSearchResults: true,
+                sortOption: _sortOption,
+                onSortChanged: (option) => setState(() => _sortOption = option),
+                playingSoundId: _playingSoundId,
+                onPlayPause: _togglePlayPause,
+                onSelect: _selectSound,
+              )
+            : _ErrorState(error: error),
+      ),
     );
   }
 }
