@@ -1023,6 +1023,7 @@ class VideoRecorderNotifier extends Notifier<VideoRecorderProviderState> {
       isCameraInitialized: _cameraService.isInitialized,
       hasFlash: _cameraService.hasFlash,
       canSwitchCamera: _cameraService.canSwitchCamera,
+      selectedSound: state.selectedSound,
     );
   }
 

@@ -129,18 +129,6 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         name: 'VideoEditorNotifier',
         category: .video,
       );
-
-      // When not loading a draft, copy the sound from the recorder
-      // (if one was selected during recording)
-      final recorderSound = ref.read(videoRecorderProvider).selectedSound;
-      if (recorderSound != null) {
-        state = state.copyWith(selectedSound: recorderSound);
-        Log.debug(
-          '🎵 Copied sound from recorder: ${recorderSound.title}',
-          name: 'VideoEditorNotifier',
-          category: .video,
-        );
-      }
     }
     this.draftId = draftId ?? 'Draft_${DateTime.now().microsecondsSinceEpoch}';
   }
