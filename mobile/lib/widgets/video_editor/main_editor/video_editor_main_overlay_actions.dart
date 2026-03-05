@@ -23,15 +23,26 @@ class VideoEditorMainOverlayActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
-      child: Padding(
-        padding: .fromLTRB(16, 12, 16, 16),
-        child: Stack(
-          fit: .expand,
-          children: [
-            Align(alignment: .topCenter, child: _TopActions()),
-            Align(alignment: .bottomCenter, child: _BottomActions()),
-          ],
+    final isHidden = context.select(
+      (VideoEditorMainBloc b) => b.state.openSubEditor == .music,
+    );
+
+    return IgnorePointer(
+      ignoring: isHidden,
+      child: AnimatedOpacity(
+        opacity: isHidden ? 0 : 1,
+        duration: const Duration(milliseconds: 200),
+        child: const SafeArea(
+          child: Padding(
+            padding: .fromLTRB(16, 12, 16, 16),
+            child: Stack(
+              fit: .expand,
+              children: [
+                Align(alignment: .topCenter, child: _TopActions()),
+                Align(alignment: .bottomCenter, child: _BottomActions()),
+              ],
+            ),
+          ),
         ),
       ),
     );

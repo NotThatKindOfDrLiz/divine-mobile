@@ -71,9 +71,6 @@ class _OverlayControls extends StatelessWidget {
                 const VideoEditorFilterOverlayControls(
                   key: ValueKey('Filter-Overlay-Controls'),
                 ),
-              // Audio-Editor (hide controls, timing screen overlays editor)
-              VideoEditorMainState(openSubEditor: .music) =>
-                const SizedBox.shrink(),
               // Fallback
               _ => const VideoEditorMainOverlayActions(),
             };
