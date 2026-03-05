@@ -47,8 +47,9 @@ class CountdownSoundService {
 
   /// Buffer added after long beep playback to ensure audio fully completes.
   ///
-  /// On iOS, [AudioPlayer.play] may return slightly before the audio hardware
-  /// finishes output, which can cause the beep to bleed into recorded video.
+  /// On iOS, [SimpleAudioPlayer.play] may return slightly before the audio
+  /// hardware finishes output, which can cause the beep to bleed into
+  /// recorded video.
   static const postPlaybackBuffer = Duration(milliseconds: 150);
 
   /// Default asset path for the short countdown beep.

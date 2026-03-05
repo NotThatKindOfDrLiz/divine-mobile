@@ -21,7 +21,6 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/screens/video_metadata/video_metadata_screen.dart';
-import 'package:openvine/services/audio_playback_service.dart';
 import 'package:openvine/services/haptic_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -30,6 +29,7 @@ import 'package:openvine/widgets/video_editor/main_editor/video_editor_scope.dar
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_thumbnail.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
+import 'package:sound_service/sound_service.dart';
 import 'package:video_player/video_player.dart';
 
 /// The main canvas area for the video editor.
