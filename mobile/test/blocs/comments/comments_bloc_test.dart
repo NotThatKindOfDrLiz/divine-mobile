@@ -3108,7 +3108,6 @@ void main() {
               rootEventAuthorPubkey: validId('author'),
               nostrPubkey: validId('currentuser'),
               content: 'Nice!',
-              rootAddressableId: null,
               parentCommentId: validId('parent'),
               parentAuthorPubkey: validId('parentauthor'),
               onProgress: any(named: 'onProgress'),

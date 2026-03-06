@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/blocs/comments/comments_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
-import 'package:openvine/screens/comments/widgets/comment_item.dart';
 import 'package:openvine/screens/comments/widgets/widgets.dart';
 
 class CommentsList extends ConsumerStatefulWidget {

@@ -397,8 +397,8 @@ class _VideoReplyButton extends StatelessWidget {
       label: 'Record video reply',
       child: GestureDetector(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 12, bottom: 12),
+        child: const Padding(
+          padding: EdgeInsets.only(left: 12, bottom: 12),
           child: Icon(
             Icons.videocam_outlined,
             color: VineTheme.onSurfaceVariant,

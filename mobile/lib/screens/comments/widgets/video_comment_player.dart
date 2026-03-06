@@ -175,7 +175,7 @@ class _VideoCommentPlayerState extends State<VideoCommentPlayer> {
                           Image.network(
                             widget.thumbnailUrl!,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
+                            errorBuilder: (_, _, _) =>
                                 const _VideoPlaceholder(),
                           )
                         else
@@ -261,9 +261,9 @@ class _VideoPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return const ColoredBox(
       color: VineTheme.containerLow,
-      child: const Center(
+      child: Center(
         child: Icon(Icons.videocam, color: VineTheme.onSurfaceMuted, size: 32),
       ),
     );

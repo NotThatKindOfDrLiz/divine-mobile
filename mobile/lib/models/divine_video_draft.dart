@@ -2,9 +2,11 @@
 // ABOUTME: Includes video file path, metadata, publish status, and timestamps
 
 import 'dart:convert';
+import 'package:db_client/db_client.dart';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:models/models.dart' show InspiredByInfo;
 import 'package:models/models.dart' show NativeProofData;
+import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/utils/path_resolver.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -35,8 +37,7 @@ class DivineVideoDraft {
     this.inspiredByVideo,
     this.inspiredByNpub,
     this.contentWarningLabels = const [],
-    this.selectedAudioEventId,
-    this.selectedAudioRelay,
+    this.selectedSound,
   });
 
   factory DivineVideoDraft.create({
@@ -56,8 +57,7 @@ class DivineVideoDraft {
     InspiredByInfo? inspiredByVideo,
     String? inspiredByNpub,
     List<String> contentWarningLabels = const [],
-    String? selectedAudioEventId,
-    String? selectedAudioRelay,
+    AudioEvent? selectedSound,
   }) {
     final now = DateTime.now();
     return DivineVideoDraft(
@@ -81,8 +81,7 @@ class DivineVideoDraft {
       contentWarningLabels: contentWarningLabels,
       inspiredByVideo: inspiredByVideo,
       inspiredByNpub: inspiredByNpub,
-      selectedAudioEventId: selectedAudioEventId,
-      selectedAudioRelay: selectedAudioRelay,
+      selectedSound: selectedSound,
     );
   }
 
@@ -173,9 +172,26 @@ class DivineVideoDraft {
             )
           : null,
       inspiredByNpub: json['inspiredByNpub'] as String?,
-      selectedAudioEventId: json['selectedAudioEventId'] as String?,
-      selectedAudioRelay: json['selectedAudioRelay'] as String?,
+      selectedSound: json['selectedSound'] != null
+          ? AudioEvent.fromJson(json['selectedSound'] as Map<String, dynamic>)
+          : null,
     );
+  }
+
+  factory DivineVideoDraft.fromDriftRow({
+    required DraftRow row,
+    required List<ClipRow> clipRows,
+    required String documentsPath,
+  }) {
+    final draftJson = json.decode(row.data) as Map<String, dynamic>;
+
+    final clips = clipRows.map((clipRow) {
+      final clipJson = json.decode(clipRow.data) as Map<String, dynamic>;
+      return DivineVideoClip.fromJson(clipJson, documentsPath);
+    }).toList();
+
+    final draft = DivineVideoDraft.fromJson(draftJson, documentsPath);
+    return draft.copyWith(clips: clips, skipUpdateLastModified: true);
   }
 
   final List<DivineVideoClip> clips;
@@ -209,14 +225,11 @@ class DivineVideoDraft {
   /// NIP-27 npub reference for general "Inspired By" a creator.
   final String? inspiredByNpub;
 
-  /// Event ID of a selected existing audio event to reference.
-  final String? selectedAudioEventId;
-
-  /// Relay hint for the selected audio event.
-  final String? selectedAudioRelay;
-
   /// NIP-32 content warning labels selected by the creator.
   final List<String> contentWarningLabels;
+
+  /// Currently selected audio event for the video.
+  final AudioEvent? selectedSound;
 
   /// Check if this draft has ProofMode data
   bool get hasProofMode => proofManifestJson != null;
@@ -250,10 +263,12 @@ class DivineVideoDraft {
     Set<String>? hashtags,
     PublishStatus? publishStatus,
     Object? publishError = _sentinel,
+    bool clearPublishError = false,
     Duration? expireTime,
     bool? allowAudioReuse,
     int? publishAttempts,
     Object? proofManifestJson = _sentinel,
+    bool clearProofManifestJson = false,
     Map<String, dynamic>? editorStateHistory,
     Map<String, dynamic>? editorEditingParameters,
     Object? finalRenderedClip = _sentinel,
@@ -261,8 +276,9 @@ class DivineVideoDraft {
     List<String>? contentWarningLabels,
     InspiredByInfo? inspiredByVideo,
     String? inspiredByNpub,
-    Object? selectedAudioEventId = _sentinel,
-    Object? selectedAudioRelay = _sentinel,
+    AudioEvent? selectedSound,
+    bool clearSelectedSound = false,
+    bool skipUpdateLastModified = false,
   }) => DivineVideoDraft(
     id: id ?? this.id,
     clips: clips ?? this.clips,
@@ -271,15 +287,19 @@ class DivineVideoDraft {
     hashtags: hashtags ?? this.hashtags,
     selectedApproach: selectedApproach,
     createdAt: createdAt,
-    lastModified: DateTime.now(),
+    lastModified: skipUpdateLastModified ? lastModified : DateTime.now(),
     expireTime: expireTime ?? this.expireTime,
     allowAudioReuse: allowAudioReuse ?? this.allowAudioReuse,
     publishStatus: publishStatus ?? this.publishStatus,
-    publishError: publishError == _sentinel
+    publishError: clearPublishError
+        ? null
+        : publishError == _sentinel
         ? this.publishError
         : publishError as String?,
     publishAttempts: publishAttempts ?? this.publishAttempts,
-    proofManifestJson: proofManifestJson == _sentinel
+    proofManifestJson: clearProofManifestJson
+        ? null
+        : proofManifestJson == _sentinel
         ? this.proofManifestJson
         : proofManifestJson as String?,
     editorStateHistory: editorStateHistory ?? this.editorStateHistory,
@@ -292,12 +312,9 @@ class DivineVideoDraft {
     contentWarningLabels: contentWarningLabels ?? this.contentWarningLabels,
     inspiredByVideo: inspiredByVideo ?? this.inspiredByVideo,
     inspiredByNpub: inspiredByNpub ?? this.inspiredByNpub,
-    selectedAudioEventId: selectedAudioEventId == _sentinel
-        ? this.selectedAudioEventId
-        : selectedAudioEventId as String?,
-    selectedAudioRelay: selectedAudioRelay == _sentinel
-        ? this.selectedAudioRelay
-        : selectedAudioRelay as String?,
+    selectedSound: clearSelectedSound
+        ? null
+        : (selectedSound ?? this.selectedSound),
   );
 
   static const _sentinel = Object();
@@ -328,9 +345,7 @@ class DivineVideoDraft {
       'contentWarningLabels': contentWarningLabels,
     if (inspiredByVideo != null) 'inspiredByVideo': inspiredByVideo!.toJson(),
     if (inspiredByNpub != null) 'inspiredByNpub': inspiredByNpub,
-    if (selectedAudioEventId != null)
-      'selectedAudioEventId': selectedAudioEventId,
-    if (selectedAudioRelay != null) 'selectedAudioRelay': selectedAudioRelay,
+    if (selectedSound != null) 'selectedSound': selectedSound!.toJson(),
   };
 
   String get displayDuration {

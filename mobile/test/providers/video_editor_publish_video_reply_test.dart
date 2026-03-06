@@ -239,9 +239,6 @@ void main() {
             rootEventKind: 34236,
             rootEventAuthorPubkey: _rootAuthorPubkey,
             nostrPubkey: _testUserPubkey,
-            rootAddressableId: null,
-            parentCommentId: null,
-            parentAuthorPubkey: null,
           ),
         ).called(1);
       });

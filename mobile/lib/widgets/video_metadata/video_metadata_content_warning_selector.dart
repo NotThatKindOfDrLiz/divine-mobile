@@ -215,7 +215,6 @@ class _ContentWarningMultiSelectState
                     'Content Warnings',
                     style: VineTheme.titleFont(
                       fontSize: 18,
-                      color: VineTheme.whiteText,
                     ),
                   ),
                   if (_selected.isNotEmpty)
@@ -229,11 +228,14 @@ class _ContentWarningMultiSelectState
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'Select all that apply to your content',
-                style: TextStyle(color: VineTheme.secondaryText, fontSize: 13),
+                style: TextStyle(
+                  color: VineTheme.secondaryText,
+                  fontSize: 13,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -250,7 +252,7 @@ class _ContentWarningMultiSelectState
                     onChanged: (_) => _toggle(label),
                     title: Text(
                       label.displayName,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: VineTheme.whiteText,
                         fontSize: 15,
                       ),
