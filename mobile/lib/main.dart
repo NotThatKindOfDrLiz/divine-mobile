@@ -37,7 +37,6 @@ import 'package:openvine/services/back_button_handler.dart';
 import 'package:openvine/services/bandwidth_tracker_service.dart';
 import 'package:openvine/services/crash_reporting_service.dart';
 import 'package:openvine/services/deep_link_service.dart';
-import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/logging_config_service.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/services/performance_monitoring_service.dart';
@@ -511,7 +510,7 @@ Future<void> _startOpenVineApp() async {
   await _initializeCoreServices(container);
   StartupPerformanceService.instance.completePhase('core_services');
 
-  Log.info('divine starting...', name: 'Main');
+  Log.info('Divine starting...', name: 'Main');
   Log.info('Log level: ${UnifiedLogger.currentLevel.name}', name: 'Main');
   // Configure audio session for media playback
   // This ensures audio plays even when iOS mute switch is on
@@ -669,7 +668,19 @@ class _DivineAppState extends ConsumerState<DivineApp> {
             keyManager.publicKey!,
           );
           Log.info(
-            '[INIT] ✅ Mutual mute list sync started (background)',
+            '[INIT] Mutual mute list sync started (background)',
+            name: 'Main',
+            category: LogCategory.system,
+          );
+
+          final authService = ref.read(authServiceProvider);
+          await blocklistService.syncBlockListsInBackground(
+            nostrService,
+            authService,
+            keyManager.publicKey!,
+          );
+          Log.info(
+            '[INIT] Block list sync started (background)',
             name: 'Main',
             category: LogCategory.system,
           );
@@ -1030,7 +1041,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
     // On iOS/macOS/Windows, use PopScope. On Android, platform channel handles it
     final app = (!kIsWeb && io.Platform.isAndroid)
         ? MaterialApp.router(
-            title: 'divine',
+            title: 'Divine',
             debugShowCheckedModeBanner: false,
             theme: VineTheme.theme,
             routerConfig: router,
@@ -1042,7 +1053,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
               await handleBackNavigation(router, ref);
             },
             child: MaterialApp.router(
-              title: 'divine',
+              title: 'Divine',
               debugShowCheckedModeBanner: false,
               theme: VineTheme.theme,
               routerConfig: router,
@@ -1058,7 +1069,7 @@ class _DivineAppState extends ConsumerState<DivineApp> {
         authService: ref.read(authServiceProvider),
         videoEventPublisher: ref.read(videoEventPublisherProvider),
         blossomService: ref.read(blossomUploadServiceProvider),
-        draftService: DraftStorageService(),
+        draftService: ref.read(draftStorageServiceProvider),
         onProgressChanged:
             ({required String draftId, required double progress}) {
               onProgress(draftId: draftId, progress: progress);

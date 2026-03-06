@@ -430,7 +430,6 @@ class _ViewSourceDialog extends StatelessWidget {
   const _ViewSourceDialog({required this.video});
   final VideoEvent video;
 
-  // Warning color for the explainer note
   static const Color _warningColor = VineTheme.accentOrange;
 
   @override

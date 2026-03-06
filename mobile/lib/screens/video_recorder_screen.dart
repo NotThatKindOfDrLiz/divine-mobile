@@ -15,7 +15,6 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
-import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/video_clip_editor/sheets/video_editor_restore_autosave_sheet.dart';
@@ -100,7 +99,7 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
       category: LogCategory.video,
     );
 
-    final draftService = DraftStorageService();
+    final draftService = ref.read(draftStorageServiceProvider);
     final draft = await draftService.getDraftById(
       VideoEditorConstants.autoSaveId,
     );
