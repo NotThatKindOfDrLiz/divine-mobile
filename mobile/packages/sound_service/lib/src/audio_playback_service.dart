@@ -91,9 +91,8 @@ class AudioPlaybackService {
       // Check initial headphone state
       final devices = await _audioSessionWrapper.getDevices();
       final hasHeadphones = _checkForHeadphones(devices);
-      if (!_isDisposed) {
-        _headphonesConnectedSubject.add(hasHeadphones);
-      }
+      if (_isDisposed) return;
+      _headphonesConnectedSubject.add(hasHeadphones);
 
       // Listen for device changes
       _deviceChangeSubscription = _audioSessionWrapper.devicesChangedEventStream
@@ -348,18 +347,12 @@ class AudioPlaybackService {
         log(
           'Seek interrupted, reloading source and retrying',
           name: 'AudioPlaybackService',
-          level: 800,
         );
         if (await _reloadLastSource()) {
           await _audioPlayer.seek(position);
           return;
         }
       }
-      log(
-        'Failed to seek: $e',
-        name: 'AudioPlaybackService',
-        level: 900,
-      );
       rethrow;
     }
   }
