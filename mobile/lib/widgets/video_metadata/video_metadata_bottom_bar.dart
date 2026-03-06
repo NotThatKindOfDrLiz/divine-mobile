@@ -21,19 +21,48 @@ class VideoMetadataBottomBar extends ConsumerWidget {
   const VideoMetadataBottomBar({super.key});
 
   /// Saves the final rendered video to the device gallery.
-  Future<void> _saveToGallery(WidgetRef ref) async {
+  Future<GallerySaveResult?> _saveToGallery(WidgetRef ref) async {
     final finalRenderedClip = ref.read(videoEditorProvider).finalRenderedClip;
-    if (finalRenderedClip == null) return;
+    if (finalRenderedClip == null) return null;
 
     final gallerySaveService = ref.read(gallerySaveServiceProvider);
-    await gallerySaveService.saveVideoToGallery(finalRenderedClip.video);
+    return gallerySaveService.saveVideoToGallery(finalRenderedClip.video);
+  }
+
+  String? _gallerySaveErrorLabel(GallerySaveResult? result) {
+    final destination = GallerySaveService.destinationName;
+    return switch (result) {
+      null || GallerySaveSuccess() => null,
+      GallerySavePermissionDenied() => '$destination permission denied',
+      GallerySaveFailure(:final reason) =>
+        'Failed to save to $destination: $reason',
+    };
+  }
+
+  void _showGallerySaveErrorSnackBar(
+    ScaffoldMessengerState scaffoldMessenger,
+    GallerySaveResult? result,
+  ) {
+    final label = _gallerySaveErrorLabel(result);
+    if (label == null) return;
+
+    scaffoldMessenger.showSnackBar(
+      SnackBar(
+        padding: EdgeInsets.zero,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        content: DivineSnackbarContainer(label: label, error: true),
+      ),
+    );
   }
 
   Future<void> _onSaveForLater(BuildContext context, WidgetRef ref) async {
+    final router = GoRouter.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final gallerySaveFuture = _saveToGallery(ref);
     var saveSuccess = true;
-
-    // Save the final rendered video to the gallery (non-blocking).
-    unawaited(_saveToGallery(ref));
 
     try {
       // Save the draft to the library.
@@ -56,13 +85,16 @@ class VideoMetadataBottomBar extends ConsumerWidget {
 
     if (!context.mounted) return;
 
-    // Store router reference before showing SnackBar
-    final router = GoRouter.of(context);
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final gallerySaveResult = await gallerySaveFuture;
 
     // Build the status message
     // TODO(l10n): Replace with context.l10n when localization is added.
-    final label = saveSuccess ? 'Saved to library' : 'Failed to save';
+    final gallerySaveErrorLabel = _gallerySaveErrorLabel(gallerySaveResult);
+    final label = switch ((saveSuccess, gallerySaveErrorLabel)) {
+      (false, _) => 'Failed to save',
+      (true, final error?) => error,
+      (true, null) => 'Saved to library',
+    };
 
     scaffoldMessenger.showSnackBar(
       SnackBar(
@@ -73,7 +105,7 @@ class VideoMetadataBottomBar extends ConsumerWidget {
         duration: const Duration(seconds: 5),
         content: DivineSnackbarContainer(
           label: label,
-          error: !saveSuccess,
+          error: !saveSuccess || gallerySaveErrorLabel != null,
           // TODO(l10n): Replace with context.l10n when localization is added.
           actionLabel: 'Go to Library',
           onActionPressed: () {
@@ -95,10 +127,15 @@ class VideoMetadataBottomBar extends ConsumerWidget {
   }
 
   Future<void> _onPost(BuildContext context, WidgetRef ref) async {
-    // Save the final rendered video to the gallery (non-blocking).
-    unawaited(_saveToGallery(ref));
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final gallerySaveFuture = _saveToGallery(ref);
 
     await ref.read(videoEditorProvider.notifier).postVideo(context);
+
+    _showGallerySaveErrorSnackBar(
+      scaffoldMessenger,
+      await gallerySaveFuture,
+    );
   }
 
   @override
