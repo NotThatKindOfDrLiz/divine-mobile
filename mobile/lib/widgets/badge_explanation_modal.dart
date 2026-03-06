@@ -120,15 +120,24 @@ class _VineArchiveExplanation extends StatelessWidget {
 }
 
 /// Explanation content for ProofMode verified videos
-class _ProofModeExplanation extends ConsumerWidget {
+class _ProofModeExplanation extends ConsumerStatefulWidget {
   const _ProofModeExplanation({required this.video});
 
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProofModeExplanation> createState() =>
+      _ProofModeExplanationState();
+}
+
+class _ProofModeExplanationState extends ConsumerState<_ProofModeExplanation> {
+  AIDetectionResult? _manualAiResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final video = widget.video;
     final labelService = ref.read(moderationLabelServiceProvider);
-    var aiResult = _lookupAIDetection(labelService);
+    var aiResult = _manualAiResult ?? _lookupAIDetection(labelService);
 
     if (aiResult == null && video.isFromDivineServer) {
       final statusAsync = ref.watch(
@@ -152,7 +161,7 @@ class _ProofModeExplanation extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _getIntroText(),
+          _getIntroText(aiResult),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -162,7 +171,11 @@ class _ProofModeExplanation extends ConsumerWidget {
         const SizedBox(height: 16),
         _ProofModeDetailsSection(video: video, aiResult: aiResult),
         const SizedBox(height: 16),
-        _AIDetectionSection(video: video, initialResult: aiResult),
+        _AIDetectionSection(
+          video: video,
+          initialResult: aiResult,
+          onResult: (result) => setState(() => _manualAiResult = result),
+        ),
         const SizedBox(height: 12),
         const _ExternalLink(
           url: 'https://divine.video/proofmode',
@@ -180,6 +193,8 @@ class _ProofModeExplanation extends ConsumerWidget {
   AIDetectionResult? _lookupAIDetection(
     ModerationLabelService labelService,
   ) {
+    final video = widget.video;
+
     // Try lookup by event ID first
     final byEventId = labelService.getAIDetectionResult(video.id);
     if (byEventId != null) return byEventId;
@@ -192,10 +207,21 @@ class _ProofModeExplanation extends ConsumerWidget {
     return null;
   }
 
-  String _getIntroText() {
+  String _getIntroText(AIDetectionResult? aiResult) {
+    final video = widget.video;
+
     if (video.hasProofMode) {
       return "This video's authenticity is verified using Proofmode "
           'technology.';
+    }
+    if (aiResult != null && aiResult.score < 0.5) {
+      if (video.isFromDivineServer) {
+        return 'This video is hosted on Divine and AI detection indicates it '
+            'is likely human-made, even though no ProofMode verification data '
+            'is attached.';
+      }
+      return 'AI detection indicates this video is likely human-made, though '
+          'no ProofMode verification data is attached.';
     }
     if (video.isFromDivineServer) {
       return 'This video is hosted on Divine, but no ProofMode verification '
@@ -307,10 +333,12 @@ class _AIDetectionSection extends ConsumerStatefulWidget {
   const _AIDetectionSection({
     required this.video,
     required this.initialResult,
+    this.onResult,
   });
 
   final VideoEvent video;
   final AIDetectionResult? initialResult;
+  final ValueChanged<AIDetectionResult>? onResult;
 
   @override
   ConsumerState<_AIDetectionSection> createState() =>
@@ -360,14 +388,16 @@ class _AIDetectionSectionState extends ConsumerState<_AIDetectionSection> {
       if (!mounted) return;
 
       if (status?.aiScore != null) {
+        final result = AIDetectionResult(
+          score: status!.aiScore!,
+          source: 'moderation-service',
+        );
         setState(() {
-          _result = AIDetectionResult(
-            score: status!.aiScore!,
-            source: 'moderation-service',
-          );
+          _result = result;
           _checkedAndEmpty = false;
           _isLoading = false;
         });
+        widget.onResult?.call(result);
       } else {
         setState(() {
           _isLoading = false;
@@ -641,6 +671,13 @@ class _VerificationLevelCard extends StatelessWidget {
         icon: Icons.verified_outlined,
         color: Color(0xFFCD7F32), // Bronze
         description: 'Bronze: Basic metadata signatures are present.',
+      );
+    } else if (hasHumanAIScan) {
+      return const _VerificationConfig(
+        icon: Icons.verified_outlined,
+        color: Color(0xFFC0C0C0), // Silver
+        description:
+            'Silver: AI scan confirms this video is likely human-created.',
       );
     } else {
       return const _VerificationConfig(

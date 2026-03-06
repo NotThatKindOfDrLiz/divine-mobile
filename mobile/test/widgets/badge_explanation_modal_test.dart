@@ -283,6 +283,16 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
+          find.textContaining('AI detection indicates it is likely human-made'),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Silver: AI scan confirms this video is likely human-created.',
+          ),
+          findsOneWidget,
+        );
+        expect(
           find.text('12% likelihood of being AI-generated'),
           findsOneWidget,
         );

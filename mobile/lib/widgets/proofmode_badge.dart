@@ -10,7 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// Tiers reflect the strength of evidence that a video is authentic:
 /// - [platinum]: Device proof + AI scan confirms human
 /// - [gold]: Device attestation + ProofMode + C2PA (hardware proof)
-/// - [silver]: Web crypto proof
+/// - [silver]: Web crypto proof, or AI scan confirms likely human
 /// - [bronze]: Basic proof data present
 /// - [unverified]: No proof data available
 enum VerificationLevel {

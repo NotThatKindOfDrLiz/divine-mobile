@@ -43,7 +43,7 @@ void main() {
   }
 
   group('ProofModeBadgeRow', () {
-    testWidgets('keeps Hosted on Divine for scan-only human results', (
+    testWidgets('shows Human Made for scan-only human results', (
       tester,
     ) async {
       const sha256 =
@@ -75,8 +75,8 @@ void main() {
       await tester.pumpWidget(buildSubject(video));
       await tester.pumpAndSettle();
 
-      expect(find.text('Hosted on Divine'), findsOneWidget);
-      expect(find.text('Human Made'), findsNothing);
+      expect(find.text('Human Made'), findsOneWidget);
+      expect(find.text('Hosted on Divine'), findsNothing);
     });
 
     testWidgets('still shows Human Made for proof-backed videos', (

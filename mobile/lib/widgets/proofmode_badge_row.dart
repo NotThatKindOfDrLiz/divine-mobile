@@ -59,22 +59,30 @@ class ProofModeBadgeRow extends ConsumerWidget {
     // Determine effective verification level (with platinum upgrade)
     final effectiveLevel = _resolveLevel(aiResult);
 
+    // A video with no proof tags can still earn a badge via AI scan.
+    final hasAIScanBadge =
+        !video.hasProofMode &&
+        aiResult != null &&
+        aiResult.score < 0.5 &&
+        !video.isOriginalVine;
+
     // AI scan indicates possibly AI-generated (score >= 0.5)
     final isPossiblyAI =
         aiResult != null && aiResult.score >= 0.5 && !video.isOriginalVine;
 
-    // Divine-hosted videos without proof keep the hosting badge unless AI
-    // detection suggests they may be generated.
+    // Divine-hosted videos without proof show the hosting badge until an AI
+    // assessment promotes them or warns on them.
     final showDivineBadge =
         video.isFromDivineServer &&
         !video.shouldShowProofModeBadge &&
         !video.shouldShowVineBadge &&
+        !hasAIScanBadge &&
         !isPossiblyAI;
 
     final badges = <Widget>[];
 
-    // Add ProofMode badge only for actual proof-backed content.
-    if (video.shouldShowProofModeBadge) {
+    // Add ProofMode badge for proof-backed content or a clean AI scan.
+    if (video.shouldShowProofModeBadge || hasAIScanBadge) {
       badges.add(ProofModeBadge(level: effectiveLevel, size: size));
     }
 
@@ -84,7 +92,7 @@ class ProofModeBadgeRow extends ConsumerWidget {
     }
 
     // Add "Not Divine Hosted" badge for external content (tappable)
-    if (video.shouldShowNotDivineBadge && !isPossiblyAI) {
+    if (video.shouldShowNotDivineBadge && !hasAIScanBadge && !isPossiblyAI) {
       badges.add(
         GestureDetector(
           onTap: () => _showNotDivineExplanation(
@@ -127,6 +135,11 @@ class ProofModeBadgeRow extends ConsumerWidget {
     // Platinum: device proof + AI scan confirms human
     if (baseLevel == VerificationLevel.verifiedMobile && isLikelyHuman) {
       return VerificationLevel.platinum;
+    }
+
+    // AI scan alone (no proof tags) earns silver for likely-human videos.
+    if (baseLevel == VerificationLevel.unverified && isLikelyHuman) {
+      return VerificationLevel.verifiedWeb;
     }
 
     return baseLevel;
