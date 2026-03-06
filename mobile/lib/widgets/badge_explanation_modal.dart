@@ -162,7 +162,7 @@ class _ProofModeExplanationState extends ConsumerState<_ProofModeExplanation> {
       children: [
         Text(
           _getIntroText(aiResult),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: VineTheme.whiteText,
