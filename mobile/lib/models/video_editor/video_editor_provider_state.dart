@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:models/models.dart' show InspiredByInfo;
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/divine_video_clip.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 
@@ -31,6 +32,7 @@ class VideoEditorProviderState {
     this.isProcessing = false,
     this.isSavingDraft = false,
     this.allowAudioReuse = false,
+    this.originalAudioVolume = 0.2,
     this.title = '',
     this.description = '',
     this.tags = const {},
@@ -42,6 +44,7 @@ class VideoEditorProviderState {
     this.collaboratorPubkeys = const [],
     this.inspiredByVideo,
     this.inspiredByNpub,
+    this.selectedAudioTrack,
     this.selectedSound,
     this.proofManifestJson,
     GlobalKey? deleteButtonKey,
@@ -100,6 +103,9 @@ class VideoEditorProviderState {
   /// Whether the audio from the original video can be reused in other videos.
   final bool allowAudioReuse;
 
+  /// Relative volume of the original audio in the final mixed output.
+  final double originalAudioVolume;
+
   /// Expiration setting determining when the video post expires.
   final VideoMetadataExpiration expiration;
 
@@ -125,6 +131,9 @@ class VideoEditorProviderState {
 
   /// NIP-27 npub reference for general "Inspired By" a creator.
   final String? inspiredByNpub;
+
+  /// Currently selected local audio track for upload-first editor flow.
+  final SelectedAudioTrack? selectedAudioTrack;
 
   /// Currently selected sound for the video.
   /// Contains the full AudioEvent data including URL, title, and start offset.
@@ -153,6 +162,8 @@ class VideoEditorProviderState {
   /// [inspiredByVideo] to null.
   /// Use [clearInspiredByNpub] = true to explicitly set
   /// [inspiredByNpub] to null.
+  /// Use [clearSelectedAudioTrack] = true to explicitly set
+  /// [selectedAudioTrack] to null.
   /// Use [clearSelectedSound] = true to explicitly set
   /// [selectedSound] to null.
   VideoEditorProviderState copyWith({
@@ -169,6 +180,7 @@ class VideoEditorProviderState {
     bool? isProcessing,
     bool? isSavingDraft,
     bool? allowAudioReuse,
+    double? originalAudioVolume,
     GlobalKey? deleteButtonKey,
     String? title,
     String? description,
@@ -186,6 +198,8 @@ class VideoEditorProviderState {
     bool clearInspiredByVideo = false,
     String? inspiredByNpub,
     bool clearInspiredByNpub = false,
+    SelectedAudioTrack? selectedAudioTrack,
+    bool clearSelectedAudioTrack = false,
     AudioEvent? selectedSound,
     bool clearSelectedSound = false,
   }) {
@@ -203,6 +217,7 @@ class VideoEditorProviderState {
       isProcessing: isProcessing ?? this.isProcessing,
       isSavingDraft: isSavingDraft ?? this.isSavingDraft,
       allowAudioReuse: allowAudioReuse ?? this.allowAudioReuse,
+      originalAudioVolume: originalAudioVolume ?? this.originalAudioVolume,
       deleteButtonKey: deleteButtonKey ?? this.deleteButtonKey,
       title: title ?? this.title,
       description: description ?? this.description,
@@ -222,6 +237,9 @@ class VideoEditorProviderState {
       inspiredByNpub: clearInspiredByNpub
           ? null
           : (inspiredByNpub ?? this.inspiredByNpub),
+      selectedAudioTrack: clearSelectedAudioTrack
+          ? null
+          : (selectedAudioTrack ?? this.selectedAudioTrack),
       selectedSound: clearSelectedSound
           ? null
           : (selectedSound ?? this.selectedSound),

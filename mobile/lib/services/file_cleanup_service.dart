@@ -43,6 +43,9 @@ class FileCleanupService {
               paths.add(clip.thumbnailPath!);
             }
           }
+          if (draft.selectedAudioTrack?.localFilePath != null) {
+            paths.add(draft.selectedAudioTrack!.localFilePath);
+          }
         }
       } catch (e) {
         Log.warning(

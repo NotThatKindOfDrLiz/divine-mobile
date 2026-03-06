@@ -2,6 +2,7 @@ package co.openvine.app
 
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -10,13 +11,24 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Log
 import android.window.OnBackInvokedCallback
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.transformer.Composition
+import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.EditedMediaItemSequence
+import androidx.media3.transformer.ExportException
+import androidx.media3.transformer.ExportResult
+import androidx.media3.transformer.Transformer
 import co.openvine.app.proofmode.C2PAIdentityManager
 import co.openvine.app.proofmode.HardwareAttestationNotarizationProvider
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import org.witness.proofmode.ProofMode
 import java.io.File
+import java.util.UUID
 import zendesk.core.Zendesk
 import zendesk.core.Identity
 import zendesk.core.AnonymousIdentity
@@ -40,7 +52,9 @@ import java.security.cert.X509Certificate
 class MainActivity : FlutterActivity() {
     companion object {
         private const val NAVIGATION_CHANNEL = "org.openvine/navigation"
+        private const val AUDIO_PREPARATION_CHANNEL = "org.openvine/audio_preparation"
         private const val NAV_TAG = "OpenVineNavigation"
+        private const val AUDIO_PREP_TAG = "OpenVineAudioPreparation"
     }
 
     private var navigationChannel: MethodChannel? = null
@@ -78,6 +92,9 @@ class MainActivity : FlutterActivity() {
 
         // Set up Zendesk platform channel
         setupZendeskChannel(flutterEngine)
+
+        // Set up audio preparation platform channel
+        setupAudioPreparationChannel(flutterEngine)
 
         // Set up navigation channel for back button handling
         setupNavigationChannel(flutterEngine)
@@ -143,6 +160,204 @@ class MainActivity : FlutterActivity() {
                 android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
                 backCallback!!
             )
+        }
+    }
+
+    private fun setupAudioPreparationChannel(flutterEngine: FlutterEngine) {
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUDIO_PREPARATION_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "prepareForRender" -> handlePrepareAudio(call, result)
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun handlePrepareAudio(call: MethodCall, result: MethodChannel.Result) {
+        val args = call.arguments as? Map<*, *>
+        val sourcePath = args?.get("sourcePath") as? String
+        val sourceStartOffsetMs = (args?.get("sourceStartOffsetMs") as? Number)?.toLong()
+        val videoStartOffsetMs = (args?.get("videoStartOffsetMs") as? Number)?.toLong()
+        val videoDurationMs = (args?.get("videoDurationMs") as? Number)?.toLong()
+
+        if (sourcePath == null ||
+            sourceStartOffsetMs == null ||
+            videoStartOffsetMs == null ||
+            videoDurationMs == null
+        ) {
+            result.error(
+                "INVALID_ARGUMENT",
+                "sourcePath, sourceStartOffsetMs, videoStartOffsetMs, and videoDurationMs are required",
+                null
+            )
+            return
+        }
+
+        if (videoDurationMs <= 0L) {
+            result.error(
+                "INVALID_DURATION",
+                "videoDurationMs must be greater than zero",
+                null
+            )
+            return
+        }
+
+        val sourceFile = File(sourcePath)
+        if (!sourceFile.exists()) {
+            result.error(
+                "FILE_NOT_FOUND",
+                "Audio source file does not exist: $sourcePath",
+                null
+            )
+            return
+        }
+
+        val sourceDurationMs = readAudioDurationMs(sourcePath)
+        if (sourceDurationMs == null) {
+            result.error(
+                "READ_FAILED",
+                "Unable to read audio duration for: $sourcePath",
+                null
+            )
+            return
+        }
+
+        if (sourceStartOffsetMs >= sourceDurationMs) {
+            result.error(
+                "INVALID_SOURCE_OFFSET",
+                "Source start offset is outside the selected audio file",
+                null
+            )
+            return
+        }
+
+        if (videoStartOffsetMs >= videoDurationMs) {
+            result.error(
+                "INVALID_VIDEO_OFFSET",
+                "Video start offset is outside the final video duration",
+                null
+            )
+            return
+        }
+
+        val remainingVideoDurationMs = videoDurationMs - videoStartOffsetMs
+        val availableSourceDurationMs = sourceDurationMs - sourceStartOffsetMs
+        val clipDurationMs = minOf(availableSourceDurationMs, remainingVideoDurationMs)
+
+        if (clipDurationMs <= 0L) {
+            result.error(
+                "INVALID_CLIP_DURATION",
+                "Prepared audio clip duration must be greater than zero",
+                null
+            )
+            return
+        }
+
+        val outputFile = File(
+            cacheDir,
+            "prepared_audio_${System.currentTimeMillis()}_${UUID.randomUUID()}.m4a"
+        )
+        if (outputFile.exists()) {
+            outputFile.delete()
+        }
+
+        val mediaItem = MediaItem.Builder()
+            .setUri(Uri.fromFile(sourceFile))
+            .setClipStartPositionMs(sourceStartOffsetMs)
+            .setClipEndPositionMs(sourceStartOffsetMs + clipDurationMs)
+            .build()
+
+        val editedItem = EditedMediaItem.Builder(mediaItem)
+            .setRemoveVideo(true)
+            .build()
+
+        val sequenceBuilder = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
+            .experimentalSetForceAudioTrack(true)
+
+        if (videoStartOffsetMs > 0L) {
+            sequenceBuilder.addGap(C.msToUs(videoStartOffsetMs))
+        }
+
+        sequenceBuilder.addItem(editedItem)
+
+        val trailingGapMs = videoDurationMs - videoStartOffsetMs - clipDurationMs
+        if (trailingGapMs > 0L) {
+            sequenceBuilder.addGap(C.msToUs(trailingGapMs))
+        }
+
+        val composition = Composition.Builder(sequenceBuilder.build())
+            .experimentalSetForceAudioTrack(true)
+            .build()
+
+        val transformer = Transformer.Builder(applicationContext)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .addListener(
+                object : Transformer.Listener {
+                    override fun onCompleted(
+                        composition: Composition,
+                        exportResult: ExportResult,
+                    ) {
+                        postSuccess(result, outputFile.absolutePath)
+                    }
+
+                    override fun onError(
+                        composition: Composition,
+                        exportResult: ExportResult,
+                        exportException: ExportException,
+                    ) {
+                        if (outputFile.exists()) {
+                            outputFile.delete()
+                        }
+                        postError(
+                            result,
+                            "EXPORT_FAILED",
+                            exportException.message ?: "Audio preparation failed"
+                        )
+                    }
+                }
+            )
+            .build()
+
+        try {
+            transformer.start(composition, outputFile.absolutePath)
+        } catch (e: Exception) {
+            if (outputFile.exists()) {
+                outputFile.delete()
+            }
+            result.error(
+                "PREPARATION_FAILED",
+                e.message ?: "Audio preparation failed",
+                null
+            )
+        }
+    }
+
+    private fun readAudioDurationMs(sourcePath: String): Long? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(sourcePath)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+        } catch (e: Exception) {
+            Log.e(AUDIO_PREP_TAG, "Failed to read audio duration for: $sourcePath", e)
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: RuntimeException) {
+            }
+        }
+    }
+
+    private fun postSuccess(result: MethodChannel.Result, value: String) {
+        Handler(Looper.getMainLooper()).post {
+            result.success(value)
+        }
+    }
+
+    private fun postError(result: MethodChannel.Result, code: String, message: String) {
+        Handler(Looper.getMainLooper()).post {
+            result.error(code, message, null)
         }
     }
 

@@ -81,6 +81,7 @@ class DraftStorageService {
 
     // Check if draft with same ID exists
     final existingIndex = drafts.indexWhere((d) => d.id == draft.id);
+    var orphanedFiles = <String?>[];
 
     if (existingIndex != -1) {
       final existingDraft = drafts[existingIndex];
@@ -94,9 +95,10 @@ class DraftStorageService {
         // Include new finalRenderedClip paths
         draft.finalRenderedClip?.video.file?.path,
         draft.finalRenderedClip?.thumbnailPath,
+        draft.selectedAudioTrack?.localFilePath,
       };
 
-      final orphanedFiles = <String?>[
+      orphanedFiles = <String?>[
         for (final clip in existingDraft.clips) ...[
           if (!newFilePaths.contains(clip.video.file?.path))
             clip.video.file?.path,
@@ -113,10 +115,11 @@ class DraftStorageService {
           ))
             existingDraft.finalRenderedClip?.thumbnailPath,
         ],
+        if (!newFilePaths.contains(
+          existingDraft.selectedAudioTrack?.localFilePath,
+        ))
+          existingDraft.selectedAudioTrack?.localFilePath,
       ];
-
-      // Delete orphaned files (only if not referenced by clip library)
-      await FileCleanupService.deleteFilesIfUnreferenced(orphanedFiles);
 
       // Update existing draft
       drafts[existingIndex] = draft;
@@ -126,6 +129,9 @@ class DraftStorageService {
     }
 
     await _saveDrafts(drafts);
+    if (orphanedFiles.isNotEmpty) {
+      await FileCleanupService.deleteFilesIfUnreferenced(orphanedFiles);
+    }
   }
 
   Future<DivineVideoDraft?> getDraftById(String id) async {

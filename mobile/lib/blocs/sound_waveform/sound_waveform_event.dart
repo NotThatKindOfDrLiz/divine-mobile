@@ -14,6 +14,7 @@ class SoundWaveformExtract extends SoundWaveformEvent {
     required this.path,
     required this.soundId,
     this.isAsset = false,
+    this.isFile = false,
   });
 
   /// The URL or asset path of the sound to extract waveform from.
@@ -25,8 +26,11 @@ class SoundWaveformExtract extends SoundWaveformEvent {
   /// Whether this is an asset path (true) or network URL (false).
   final bool isAsset;
 
+  /// Whether this is a local file path.
+  final bool isFile;
+
   @override
-  List<Object?> get props => [path, soundId, isAsset];
+  List<Object?> get props => [path, soundId, isAsset, isFile];
 }
 
 /// Clear the current waveform data.

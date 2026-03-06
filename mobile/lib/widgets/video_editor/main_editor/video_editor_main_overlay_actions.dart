@@ -7,9 +7,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/video_editor/main_editor/video_editor_main_bloc.dart';
-import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/models/divine_video_clip.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
+import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
-import 'package:openvine/widgets/video_editor/audio_editor/video_editor_audio_chip.dart';
+import 'package:openvine/widgets/video_editor/audio_editor/video_editor_local_audio_chip.dart';
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_layer_reorder_sheet.dart';
 import 'package:openvine/widgets/video_editor/main_editor/video_editor_scope.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
@@ -53,8 +55,12 @@ class VideoEditorMainOverlayActions extends StatelessWidget {
 class _TopActions extends ConsumerWidget {
   const _TopActions();
 
-  void _onSoundChanged(BuildContext context, WidgetRef ref, AudioEvent? sound) {
-    ref.read(videoEditorProvider.notifier).selectSound(sound);
+  void _onTrackChanged(
+    BuildContext context,
+    WidgetRef ref,
+    SelectedAudioTrack? track,
+  ) {
+    ref.read(videoEditorProvider.notifier).setSelectedAudioTrack(track);
     // Restart playback when sound changes
     context.read<VideoEditorMainBloc>().add(
       const VideoEditorPlaybackRestartRequested(),
@@ -64,8 +70,19 @@ class _TopActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scope = VideoEditorScope.of(context);
-    final selectedSound = ref.watch(
-      videoEditorProvider.select((s) => s.selectedSound),
+    final selectedTrack = ref.watch(
+      videoEditorProvider.select((s) => s.selectedAudioTrack),
+    );
+    final originalAudioVolume = ref.watch(
+      videoEditorProvider.select((s) => s.originalAudioVolume),
+    );
+    final videoDuration = ref.watch(
+      clipManagerProvider.select(
+        (s) => s.clips.fold<Duration>(
+          Duration.zero,
+          (total, DivineVideoClip clip) => total + clip.duration,
+        ),
+      ),
     );
 
     return Row(
@@ -88,9 +105,16 @@ class _TopActions extends ConsumerWidget {
           },
         ),
         Flexible(
-          child: VideoEditorAudioChip(
-            selectedSound: selectedSound,
-            onSoundChanged: (sound) => _onSoundChanged(context, ref, sound),
+          child: VideoEditorLocalAudioChip(
+            selectedTrack: selectedTrack,
+            videoDuration: videoDuration,
+            originalAudioVolume: originalAudioVolume,
+            onTrackChanged: (track) => _onTrackChanged(context, ref, track),
+            onOriginalAudioVolumeChanged: (volume) {
+              ref
+                  .read(videoEditorProvider.notifier)
+                  .updateOriginalAudioVolume(volume);
+            },
             onSelectionStarted: () {
               context.read<VideoEditorMainBloc>().add(
                 const VideoEditorExternalPauseRequested(isPaused: true),

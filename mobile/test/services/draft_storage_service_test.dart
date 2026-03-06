@@ -1,11 +1,15 @@
 // ABOUTME: TDD tests for DraftStorageService - persistent storage for vine drafts
 // ABOUTME: Tests save, load, delete, and clear operations using shared_preferences
 
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:models/models.dart' show AspectRatio;
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/divine_video_draft.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
 import 'package:openvine/services/draft_storage_service.dart';
+import 'package:openvine/utils/path_resolver.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -136,6 +140,49 @@ void main() {
         expect(drafts.first.title, 'Updated Title');
         expect(drafts.first.description, 'Updated description');
       });
+
+      test(
+        'should delete orphaned imported audio file when selected track is removed',
+        () async {
+          final documentsPath = await getDocumentsPath();
+          final audioDir = Directory('$documentsPath/audio_tracks')
+            ..createSync(recursive: true);
+          final audioFile = File('${audioDir.path}/uploaded_track.m4a')
+            ..writeAsStringSync('placeholder-audio');
+
+          final draft = DivineVideoDraft.create(
+            clips: [
+              DivineVideoClip(
+                id: 'test_clip',
+                video: EditorVideo.file('/path/to/video.mp4'),
+                duration: const Duration(seconds: 6),
+                recordedAt: DateTime.now(),
+                targetAspectRatio: AspectRatio.square,
+                originalAspectRatio: 9 / 16,
+              ),
+            ],
+            title: 'Original Title',
+            description: 'Original',
+            hashtags: {'original'},
+            selectedApproach: 'hybrid',
+            selectedAudioTrack: SelectedAudioTrack(
+              id: 'track-1',
+              localFilePath: audioFile.path,
+              displayTitle: 'Uploaded Track',
+              duration: const Duration(seconds: 4),
+            ),
+          );
+
+          await service.saveDraft(draft);
+          expect(audioFile.existsSync(), isTrue);
+
+          await service.saveDraft(
+            draft.copyWith(clearSelectedAudioTrack: true),
+          );
+
+          expect(audioFile.existsSync(), isFalse);
+        },
+      );
     });
 
     group('getAllDrafts', () {

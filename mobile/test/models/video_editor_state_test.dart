@@ -2,6 +2,7 @@
 // ABOUTME: Tests immutability, copyWith, computed properties, and state transitions
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 
 void main() {
@@ -17,6 +18,8 @@ void main() {
       expect(state.isPlaying, false);
       expect(state.isMuted, false);
       expect(state.isProcessing, false);
+      expect(state.originalAudioVolume, 0.2);
+      expect(state.selectedAudioTrack, isNull);
     });
 
     test('copyWith updates specified fields only', () {
@@ -56,6 +59,27 @@ void main() {
       expect(copied.isPlaying, state.isPlaying);
       expect(copied.isMuted, state.isMuted);
       expect(copied.isProcessing, state.isProcessing);
+    });
+
+    test('copyWith supports local uploaded audio state', () {
+      const track = SelectedAudioTrack(
+        id: 'track-1',
+        localFilePath: '/documents/audio.m4a',
+        displayTitle: 'audio.m4a',
+        duration: Duration(seconds: 3),
+      );
+
+      final state = VideoEditorProviderState().copyWith(
+        selectedAudioTrack: track,
+        originalAudioVolume: 0.4,
+      );
+
+      expect(state.selectedAudioTrack, equals(track));
+      expect(state.originalAudioVolume, 0.4);
+
+      final cleared = state.copyWith(clearSelectedAudioTrack: true);
+      expect(cleared.selectedAudioTrack, isNull);
+      expect(cleared.originalAudioVolume, 0.4);
     });
   });
 }

@@ -143,6 +143,10 @@ dependencies {
     // AndroidX AppCompat required by Zendesk SDK
     implementation("androidx.appcompat:appcompat:1.6.1")
 
+    // Media3 transformer for preparing local audio tracks before final export
+    implementation("androidx.media3:media3-common:1.9.0")
+    implementation("androidx.media3:media3-transformer:1.9.0")
+
     // BouncyCastle for CSR generation
     implementation("org.bouncycastle:bcprov-jdk18on:1.81")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.81")

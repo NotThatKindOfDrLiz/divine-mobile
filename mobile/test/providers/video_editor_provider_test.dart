@@ -1,13 +1,18 @@
 // ABOUTME: Unit tests for EditorProvider (Riverpod) validating state mutations and provider behavior
 // ABOUTME: Tests all EditorNotifier methods and state transitions using ProviderContainer
 
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/divine_video_clip.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
+import 'package:openvine/services/video_editor/audio_preparation_service.dart';
+import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
 void main() {
@@ -314,6 +319,167 @@ void main() {
         // Second toggle: muted -> unmuted
         container.read(videoEditorProvider.notifier).toggleMute();
         expect(container.read(videoEditorProvider).isMuted, false);
+      });
+
+      test(
+        'startRenderVideo prepares and passes selected local audio into render',
+        () async {
+          container.dispose();
+
+          final tempDir = await Directory.systemTemp.createTemp(
+            'video_editor_provider_render_test_',
+          );
+          addTearDown(() async {
+            if (tempDir.existsSync()) {
+              await tempDir.delete(recursive: true);
+            }
+          });
+
+          final preparedAudioFile = File('${tempDir.path}/prepared_audio.m4a');
+          await preparedAudioFile.writeAsBytes([1, 2, 3]);
+
+          final sourceTrack = SelectedAudioTrack(
+            id: 'local-audio',
+            localFilePath: '${tempDir.path}/source_audio.m4a',
+            displayTitle: 'Uploaded audio',
+            duration: const Duration(seconds: 2),
+            videoStartOffset: const Duration(milliseconds: 750),
+            addedAudioVolume: 0.65,
+          );
+
+          await File(sourceTrack.localFilePath).writeAsBytes([4, 5, 6]);
+
+          late bool capturedEnableAudio;
+          String? capturedCustomAudioPath;
+          double? capturedOriginalAudioVolume;
+          double? capturedCustomAudioVolume;
+
+          final renderedClip = DivineVideoClip(
+            id: 'rendered-clip',
+            video: EditorVideo.file('${tempDir.path}/rendered.mp4'),
+            duration: const Duration(seconds: 4),
+            recordedAt: DateTime(2026),
+            originalAspectRatio: 9 / 16,
+            targetAspectRatio: .square,
+            thumbnailPath: '${tempDir.path}/thumb.jpg',
+          );
+
+          container = ProviderContainer(
+            overrides: [
+              prepareAudioTrackForRenderProvider.overrideWithValue(({
+                required SelectedAudioTrack track,
+                required Duration videoDuration,
+              }) async {
+                expect(track, sourceTrack);
+                expect(videoDuration, const Duration(seconds: 4));
+                return PreparedAudioTrack(
+                  path: preparedAudioFile.path,
+                  deleteAfterUse: true,
+                );
+              }),
+              renderVideoToClipProvider.overrideWithValue(({
+                required List<DivineVideoClip> clips,
+                bool enableAudio = true,
+                String? customAudioPath,
+                double? originalAudioVolume,
+                double? customAudioVolume,
+                CompleteParameters? parameters,
+              }) async {
+                capturedEnableAudio = enableAudio;
+                capturedCustomAudioPath = customAudioPath;
+                capturedOriginalAudioVolume = originalAudioVolume;
+                capturedCustomAudioVolume = customAudioVolume;
+                expect(clips, hasLength(1));
+                return (renderedClip, null);
+              }),
+            ],
+          );
+
+          container
+              .read(clipManagerProvider.notifier)
+              .addClip(
+                video: EditorVideo.file('${tempDir.path}/clip.mp4'),
+                targetAspectRatio: .square,
+                originalAspectRatio: 9 / 16,
+                duration: const Duration(seconds: 4),
+              );
+
+          final notifier = container.read(videoEditorProvider.notifier);
+          notifier.setSelectedAudioTrack(sourceTrack);
+          notifier.updateOriginalAudioVolume(0.25);
+
+          await notifier.startRenderVideo();
+
+          final state = container.read(videoEditorProvider);
+          expect(state.finalRenderedClip, renderedClip);
+          expect(capturedEnableAudio, isTrue);
+          expect(capturedCustomAudioPath, preparedAudioFile.path);
+          expect(capturedOriginalAudioVolume, 0.25);
+          expect(capturedCustomAudioVolume, 0.65);
+          expect(preparedAudioFile.existsSync(), isFalse);
+        },
+      );
+
+      test('startRenderVideo aborts when audio preparation fails', () async {
+        container.dispose();
+
+        final tempDir = await Directory.systemTemp.createTemp(
+          'video_editor_provider_render_failure_test_',
+        );
+        addTearDown(() async {
+          if (tempDir.existsSync()) {
+            await tempDir.delete(recursive: true);
+          }
+        });
+
+        container = ProviderContainer(
+          overrides: [
+            prepareAudioTrackForRenderProvider.overrideWithValue(({
+              required SelectedAudioTrack track,
+              required Duration videoDuration,
+            }) {
+              throw const AudioPreparationException('prep failed');
+            }),
+            renderVideoToClipProvider.overrideWithValue(({
+              required List<DivineVideoClip> clips,
+              bool enableAudio = true,
+              String? customAudioPath,
+              double? originalAudioVolume,
+              double? customAudioVolume,
+              CompleteParameters? parameters,
+            }) async {
+              fail('render should not run when audio preparation fails');
+            }),
+          ],
+        );
+
+        container
+            .read(clipManagerProvider.notifier)
+            .addClip(
+              video: EditorVideo.file('${tempDir.path}/clip.mp4'),
+              targetAspectRatio: .square,
+              originalAspectRatio: 9 / 16,
+              duration: const Duration(seconds: 4),
+            );
+
+        container
+            .read(videoEditorProvider.notifier)
+            .setSelectedAudioTrack(
+              SelectedAudioTrack(
+                id: 'local-audio',
+                localFilePath: '${tempDir.path}/source_audio.m4a',
+                displayTitle: 'Uploaded audio',
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+        await File('${tempDir.path}/source_audio.m4a').writeAsBytes([4, 5, 6]);
+
+        await container.read(videoEditorProvider.notifier).startRenderVideo();
+
+        final state = container.read(videoEditorProvider);
+        expect(state.isProcessing, isFalse);
+        expect(state.finalRenderedClip, isNull);
       });
     });
 

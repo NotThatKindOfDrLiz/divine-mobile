@@ -190,6 +190,9 @@ class VideoEditorRenderService {
   renderVideoToClip({
     required List<DivineVideoClip> clips,
     bool enableAudio = true,
+    String? customAudioPath,
+    double? originalAudioVolume,
+    double? customAudioVolume,
     CompleteParameters? parameters,
   }) async {
     if (clips.isEmpty) return null;
@@ -198,6 +201,9 @@ class VideoEditorRenderService {
       clips: clips,
       aspectRatio: clips.first.targetAspectRatio,
       enableAudio: enableAudio,
+      customAudioPath: customAudioPath,
+      originalAudioVolume: originalAudioVolume,
+      customAudioVolume: customAudioVolume,
       usePersistentStorage: true,
       parameters: parameters,
     );

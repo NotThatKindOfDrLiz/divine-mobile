@@ -11,6 +11,7 @@ import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/divine_video_draft.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
 import 'package:openvine/platform_io.dart';
@@ -19,12 +20,46 @@ import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/file_cleanup_service.dart';
+import 'package:openvine/services/video_editor/audio_preparation_service.dart';
 import 'package:openvine/services/video_editor/video_editor_render_service.dart';
 import 'package:openvine/services/video_editor/video_editor_split_service.dart';
 import 'package:openvine/services/video_thumbnail_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
+
+typedef PrepareAudioTrackForRender =
+    Future<PreparedAudioTrack> Function({
+      required SelectedAudioTrack track,
+      required Duration videoDuration,
+    });
+
+typedef RenderVideoToClip =
+    Future<(DivineVideoClip, String? proofManifestJson)?> Function({
+      required List<DivineVideoClip> clips,
+      bool enableAudio,
+      String? customAudioPath,
+      double? originalAudioVolume,
+      double? customAudioVolume,
+      CompleteParameters? parameters,
+    });
+
+PrepareAudioTrackForRender _buildPrepareAudioTrackForRender(Ref ref) {
+  final service = AudioPreparationService();
+  return service.prepareForRender;
+}
+
+RenderVideoToClip _buildRenderVideoToClip(Ref ref) {
+  return VideoEditorRenderService.renderVideoToClip;
+}
+
+final prepareAudioTrackForRenderProvider = Provider<PrepareAudioTrackForRender>(
+  _buildPrepareAudioTrackForRender,
+);
+
+final renderVideoToClipProvider = Provider<RenderVideoToClip>(
+  _buildRenderVideoToClip,
+);
 
 final videoEditorProvider =
     NotifierProvider<VideoEditorNotifier, VideoEditorProviderState>(
@@ -94,9 +129,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       cancelRenderVideo();
     }
 
-    state = state.copyWith(
-      clearFinalRenderedClip: true,
-    );
+    state = state.copyWith(clearFinalRenderedClip: true);
 
     // Delete the old rendered file from disk to free up space
     unawaited(FileCleanupService.deleteRecordingClipFiles(clip));
@@ -600,6 +633,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(
       selectedSound: sound,
       clearSelectedSound: sound == null,
+      clearSelectedAudioTrack: sound != null,
     );
     invalidateFinalRenderedClip();
     triggerAutosave();
@@ -623,6 +657,67 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     }
   }
 
+  // === LOCAL AUDIO TRACK MANAGEMENT ===
+
+  /// Set the uploaded local audio track for the editor flow.
+  void setSelectedAudioTrack(SelectedAudioTrack? track) {
+    state = state.copyWith(
+      selectedAudioTrack: track,
+      clearSelectedAudioTrack: track == null,
+      clearSelectedSound: track != null,
+    );
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
+  /// Clear the uploaded local audio track.
+  void clearSelectedAudioTrack() {
+    state = state.copyWith(clearSelectedAudioTrack: true);
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
+  /// Update source/video placement offsets for the selected local audio track.
+  void updateSelectedAudioPlacement({
+    Duration? sourceStartOffset,
+    Duration? videoStartOffset,
+  }) {
+    final track = state.selectedAudioTrack;
+    if (track == null) return;
+
+    state = state.copyWith(
+      selectedAudioTrack: track.copyWith(
+        sourceStartOffset: sourceStartOffset,
+        videoStartOffset: videoStartOffset,
+      ),
+    );
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
+  /// Update the added track volume for the selected local audio track.
+  void updateSelectedAudioVolume(double volume) {
+    final track = state.selectedAudioTrack;
+    if (track == null) return;
+
+    state = state.copyWith(
+      selectedAudioTrack: track.copyWith(
+        addedAudioVolume: volume.clamp(0.0, 1.0),
+      ),
+    );
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
+  /// Update the original video audio mix volume.
+  void updateOriginalAudioVolume(double volume) {
+    state = state.copyWith(
+      originalAudioVolume: volume.clamp(0.0, 1.0),
+    );
+    invalidateFinalRenderedClip();
+    triggerAutosave();
+  }
+
   /// Create a VineDraft from the rendered clip with metadata.
   ///
   /// When a sound is selected via [selectedSoundProvider], automatically
@@ -636,6 +731,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   }) {
     // Read selected sound from local state
     final selectedSound = state.selectedSound;
+    final selectedAudioTrack = state.selectedAudioTrack;
 
     // Auto-populate inspired-by from selected sound's source video
     var inspiredByVideo = state.inspiredByVideo;
@@ -657,6 +753,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       description: state.description,
       hashtags: state.tags,
       allowAudioReuse: state.allowAudioReuse,
+      originalAudioVolume: state.originalAudioVolume,
       expireTime: state.expiration.value,
       selectedApproach: 'video',
       editorStateHistory: state.editorStateHistory,
@@ -664,6 +761,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       collaboratorPubkeys: state.collaboratorPubkeys,
       inspiredByVideo: inspiredByVideo,
       inspiredByNpub: state.inspiredByNpub,
+      selectedAudioTrack: selectedAudioTrack,
       selectedSound: selectedSound,
       finalRenderedClip: isAutosave ? state.finalRenderedClip : null,
       proofManifestJson: state.proofManifestJson,
@@ -900,11 +998,19 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       }
     }
 
+    SelectedAudioTrack? validSelectedAudioTrack;
+    final selectedAudioTrack = draft.selectedAudioTrack;
+    if (selectedAudioTrack != null &&
+        File(selectedAudioTrack.localFilePath).existsSync()) {
+      validSelectedAudioTrack = selectedAudioTrack;
+    }
+
     state = state.copyWith(
       title: draft.title,
       description: draft.description,
       tags: draft.hashtags,
       allowAudioReuse: draft.allowAudioReuse,
+      originalAudioVolume: draft.originalAudioVolume,
       expiration: VideoMetadataExpiration.fromDuration(draft.expireTime),
       editorStateHistory: draft.editorStateHistory,
       editorEditingParameters: CompleteParameters.fromMap(
@@ -913,7 +1019,9 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
       collaboratorPubkeys: draft.collaboratorPubkeys,
       inspiredByVideo: draft.inspiredByVideo,
       inspiredByNpub: draft.inspiredByNpub,
+      selectedAudioTrack: validSelectedAudioTrack,
       selectedSound: draft.selectedSound,
+      clearSelectedSound: validSelectedAudioTrack != null,
       finalRenderedClip: validFinalRenderedClip,
       clearFinalRenderedClip: validFinalRenderedClip == null,
     );
@@ -976,37 +1084,88 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
     setProcessing(true);
 
-    final result = await VideoEditorRenderService.renderVideoToClip(
-      clips: _clips,
-      enableAudio: !state.isMuted,
-      parameters: state.editorEditingParameters,
-    );
+    PreparedAudioTrack? preparedAudioTrack;
 
-    if (result == null) {
-      Log.warning(
-        '⚠️ Video render cancelled or failed',
+    try {
+      final selectedAudioTrack = state.selectedAudioTrack;
+      final hasCustomAudio = selectedAudioTrack != null;
+      final totalVideoDuration = _clips.fold(
+        Duration.zero,
+        (sum, clip) => sum + clip.duration,
+      );
+
+      if (selectedAudioTrack != null) {
+        preparedAudioTrack =
+            await ref.read(
+              prepareAudioTrackForRenderProvider,
+            )(
+              track: selectedAudioTrack,
+              videoDuration: totalVideoDuration,
+            );
+      }
+
+      final result = await ref.read(renderVideoToClipProvider)(
+        clips: _clips,
+        enableAudio: !state.isMuted || hasCustomAudio,
+        customAudioPath: preparedAudioTrack?.path,
+        originalAudioVolume: hasCustomAudio
+            ? (state.isMuted ? 0.0 : state.originalAudioVolume)
+            : null,
+        customAudioVolume: selectedAudioTrack?.addedAudioVolume,
+        parameters: state.editorEditingParameters,
+      );
+
+      if (result == null) {
+        Log.warning(
+          '⚠️ Video render cancelled or failed',
+          name: 'VideoEditorNotifier',
+          category: .video,
+        );
+        state = state.copyWith(isProcessing: false);
+        return;
+      }
+
+      final (finalRenderedClip, proofManifestJson) = result;
+
+      Log.info(
+        '✅ Video rendered successfully - duration: '
+        '${finalRenderedClip.duration.inSeconds}s',
         name: 'VideoEditorNotifier',
         category: .video,
       );
+
+      state = state.copyWith(
+        isProcessing: false,
+        finalRenderedClip: finalRenderedClip,
+        proofManifestJson: proofManifestJson,
+      );
+      autosaveChanges();
+    } catch (e, stackTrace) {
+      Log.error(
+        '❌ Video render failed before completion: $e',
+        name: 'VideoEditorNotifier',
+        category: .video,
+        error: e,
+        stackTrace: stackTrace,
+      );
       state = state.copyWith(isProcessing: false);
-      return;
+    } finally {
+      if (preparedAudioTrack?.deleteAfterUse == true) {
+        try {
+          final preparedFile = File(preparedAudioTrack!.path);
+          if (preparedFile.existsSync()) {
+            await preparedFile.delete();
+          }
+        } catch (e) {
+          Log.warning(
+            '⚠️ Failed to delete prepared audio file: '
+            '${preparedAudioTrack?.path} - $e',
+            name: 'VideoEditorNotifier',
+            category: .video,
+          );
+        }
+      }
     }
-
-    final (finalRenderedClip, proofManifestJson) = result;
-
-    Log.info(
-      '✅ Video rendered successfully - duration: '
-      '${finalRenderedClip.duration.inSeconds}s',
-      name: 'VideoEditorNotifier',
-      category: .video,
-    );
-
-    state = state.copyWith(
-      isProcessing: false,
-      finalRenderedClip: finalRenderedClip,
-      proofManifestJson: proofManifestJson,
-    );
-    autosaveChanges();
   }
 
   /// Cancel an ongoing video render operation.

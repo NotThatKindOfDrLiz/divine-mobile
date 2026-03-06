@@ -7,6 +7,7 @@ import 'package:models/models.dart' show InspiredByInfo;
 import 'package:models/models.dart' show NativeProofData;
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/models/divine_video_clip.dart';
+import 'package:openvine/models/video_editor/selected_audio_track.dart';
 import 'package:openvine/utils/path_resolver.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
@@ -27,6 +28,7 @@ class DivineVideoDraft {
     required this.publishAttempts,
     this.publishError,
     this.allowAudioReuse = false,
+    this.originalAudioVolume = 0.2,
     this.expireTime,
     this.proofManifestJson,
     this.editorStateHistory = const {},
@@ -35,6 +37,7 @@ class DivineVideoDraft {
     this.collaboratorPubkeys = const [],
     this.inspiredByVideo,
     this.inspiredByNpub,
+    this.selectedAudioTrack,
     this.selectedSound,
   });
 
@@ -45,6 +48,7 @@ class DivineVideoDraft {
     required Set<String> hashtags,
     required String selectedApproach,
     bool allowAudioReuse = false,
+    double originalAudioVolume = 0.2,
     Duration? expireTime,
     String? id,
     String? proofManifestJson,
@@ -54,6 +58,7 @@ class DivineVideoDraft {
     List<String> collaboratorPubkeys = const [],
     InspiredByInfo? inspiredByVideo,
     String? inspiredByNpub,
+    SelectedAudioTrack? selectedAudioTrack,
     AudioEvent? selectedSound,
   }) {
     final now = DateTime.now();
@@ -67,6 +72,7 @@ class DivineVideoDraft {
       createdAt: now,
       lastModified: now,
       allowAudioReuse: allowAudioReuse,
+      originalAudioVolume: originalAudioVolume,
       expireTime: expireTime,
       publishStatus: PublishStatus.draft,
       publishAttempts: 0,
@@ -77,6 +83,7 @@ class DivineVideoDraft {
       collaboratorPubkeys: collaboratorPubkeys,
       inspiredByVideo: inspiredByVideo,
       inspiredByNpub: inspiredByNpub,
+      selectedAudioTrack: selectedAudioTrack,
       selectedSound: selectedSound,
     );
   }
@@ -141,6 +148,8 @@ class DivineVideoDraft {
           ? PublishStatus.values.byName(json['publishStatus'] as String)
           : PublishStatus.draft, // Migration: default for old drafts
       allowAudioReuse: json['allowAudioReuse'] as bool? ?? false,
+      originalAudioVolume:
+          (json['originalAudioVolume'] as num?)?.toDouble() ?? 0.2,
       publishError: json['publishError'] as String?,
       publishAttempts: json['publishAttempts'] as int? ?? 0,
       proofManifestJson: json['proofManifestJson'] as String?,
@@ -165,6 +174,13 @@ class DivineVideoDraft {
             )
           : null,
       inspiredByNpub: json['inspiredByNpub'] as String?,
+      selectedAudioTrack: json['selectedAudioTrack'] != null
+          ? SelectedAudioTrack.fromJson(
+              json['selectedAudioTrack'] as Map<String, dynamic>,
+              documentsPath,
+              useOriginalPath: useOriginalPath,
+            )
+          : null,
       // New format: full AudioEvent object
       // Old format (selectedAudioEventId/selectedAudioRelay) is ignored -
       // user must re-select sound if loading old draft
@@ -188,6 +204,7 @@ class DivineVideoDraft {
   final String? publishError;
   final int publishAttempts;
   final bool allowAudioReuse;
+  final double originalAudioVolume;
 
   final Map<String, dynamic> editorStateHistory;
   final Map<String, dynamic> editorEditingParameters;
@@ -204,6 +221,9 @@ class DivineVideoDraft {
 
   /// NIP-27 npub reference for general "Inspired By" a creator.
   final String? inspiredByNpub;
+
+  /// Currently selected local uploaded audio track for editor-only workflows.
+  final SelectedAudioTrack? selectedAudioTrack;
 
   /// Currently selected audio event for the video.
   /// Contains the full AudioEvent data including URL, title, and start offset.
@@ -245,6 +265,7 @@ class DivineVideoDraft {
     bool clearPublishError = false,
     Duration? expireTime,
     bool? allowAudioReuse,
+    double? originalAudioVolume,
     int? publishAttempts,
     String? proofManifestJson,
     bool clearProofManifestJson = false,
@@ -255,6 +276,8 @@ class DivineVideoDraft {
     List<String>? collaboratorPubkeys,
     InspiredByInfo? inspiredByVideo,
     String? inspiredByNpub,
+    SelectedAudioTrack? selectedAudioTrack,
+    bool clearSelectedAudioTrack = false,
     AudioEvent? selectedSound,
     bool clearSelectedSound = false,
   }) => DivineVideoDraft(
@@ -268,6 +291,7 @@ class DivineVideoDraft {
     lastModified: DateTime.now(),
     expireTime: expireTime ?? this.expireTime,
     allowAudioReuse: allowAudioReuse ?? this.allowAudioReuse,
+    originalAudioVolume: originalAudioVolume ?? this.originalAudioVolume,
     publishStatus: publishStatus ?? this.publishStatus,
     publishError: clearPublishError
         ? null
@@ -285,6 +309,9 @@ class DivineVideoDraft {
     collaboratorPubkeys: collaboratorPubkeys ?? this.collaboratorPubkeys,
     inspiredByVideo: inspiredByVideo ?? this.inspiredByVideo,
     inspiredByNpub: inspiredByNpub ?? this.inspiredByNpub,
+    selectedAudioTrack: clearSelectedAudioTrack
+        ? null
+        : (selectedAudioTrack ?? this.selectedAudioTrack),
     selectedSound: clearSelectedSound
         ? null
         : (selectedSound ?? this.selectedSound),
@@ -301,6 +328,7 @@ class DivineVideoDraft {
     'lastModified': lastModified.toIso8601String(),
     if (expireTime != null) 'expireTime': expireTime!.inMilliseconds,
     'allowAudioReuse': allowAudioReuse,
+    'originalAudioVolume': originalAudioVolume,
     'publishStatus': publishStatus.name,
     'publishError': publishError,
     'publishAttempts': publishAttempts,
@@ -314,6 +342,8 @@ class DivineVideoDraft {
       'collaboratorPubkeys': collaboratorPubkeys,
     if (inspiredByVideo != null) 'inspiredByVideo': inspiredByVideo!.toJson(),
     if (inspiredByNpub != null) 'inspiredByNpub': inspiredByNpub,
+    if (selectedAudioTrack != null)
+      'selectedAudioTrack': selectedAudioTrack!.toJson(),
     if (selectedSound != null) 'selectedSound': selectedSound!.toJson(),
   };
 
