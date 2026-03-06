@@ -159,14 +159,13 @@ void main() {
   });
 
   group('Original Vine Detection', () {
-    test('detects original vine via platform field from Funnelcake', () {
+    test('detects original vine with loop count', () {
       final video = VideoEvent(
         id: 'vine1',
         pubkey: 'pubkey1',
         createdAt: DateTime.now().millisecondsSinceEpoch,
         content: 'classic vine',
         timestamp: DateTime.now(),
-        rawTags: const {'platform': 'vine'},
         originalLoops: 1000000,
       );
 
@@ -174,7 +173,7 @@ void main() {
       expect(video.shouldShowVineBadge, isTrue);
     });
 
-    test('does not detect as original vine without platform tag', () {
+    test('does not detect as original vine without loop count', () {
       final video = VideoEvent(
         id: 'vine2',
         pubkey: 'pubkey2',
@@ -187,75 +186,54 @@ void main() {
       expect(video.shouldShowVineBadge, isFalse);
     });
 
-    test('does not detect as original vine with engagement loops only', () {
-      // New video with engagement loops from Funnelcake but no
-      // platform: vine — must NOT be classified as archive vine
+    test('does not detect as original vine with zero loops', () {
       final video = VideoEvent(
         id: 'vine3',
         pubkey: 'pubkey3',
         createdAt: DateTime.now().millisecondsSinceEpoch,
-        content: 'new office',
+        content: 'vine with zero loops',
         timestamp: DateTime.now(),
-        rawTags: const {'client': 'diVine'},
-        originalLoops: 10,
+        originalLoops: 0,
       );
 
       expect(video.isOriginalVine, isFalse);
       expect(video.shouldShowVineBadge, isFalse);
     });
 
-    test('does not detect non-vine platform as original vine', () {
+    test('detects original vine with minimal loops', () {
       final video = VideoEvent(
         id: 'vine4',
         pubkey: 'pubkey4',
         createdAt: DateTime.now().millisecondsSinceEpoch,
-        content: 'some video',
+        content: 'vine with one loop',
         timestamp: DateTime.now(),
-        rawTags: const {'platform': 'youtube'},
+        originalLoops: 1,
       );
 
-      expect(video.isOriginalVine, isFalse);
-      expect(video.shouldShowVineBadge, isFalse);
-    });
-
-    test('cannot be spoofed with loops tag alone', () {
-      // Someone publishes a Nostr event with a loops tag but no
-      // server-controlled platform field — must NOT be classified
-      final video = VideoEvent(
-        id: 'vine5',
-        pubkey: 'pubkey5',
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-        content: 'fake vine attempt',
-        timestamp: DateTime.now(),
-        rawTags: const {'loops': '999999'},
-        originalLoops: 999999,
-      );
-
-      expect(video.isOriginalVine, isFalse);
-      expect(video.shouldShowVineBadge, isFalse);
+      expect(video.isOriginalVine, isTrue);
+      expect(video.shouldShowVineBadge, isTrue);
     });
   });
 
   group('Combined Badge Display Logic', () {
-    test('shows Vine badge for original vines with proof tags', () {
+    test('shows only ProofMode badge for vintage vines with verification', () {
       final video = VideoEvent(
         id: 'combo1',
         pubkey: 'pubkey1',
         createdAt: DateTime.now().millisecondsSinceEpoch,
         content: 'verified original vine',
         timestamp: DateTime.now(),
-        rawTags: const {
-          'verification': 'verified_mobile',
-          'platform': 'vine',
-        },
+        rawTags: const {'verification': 'verified_mobile'},
         originalLoops: 500000,
       );
 
-      // Vine badge always wins for original vines
-      expect(video.shouldShowVineBadge, isTrue);
-      expect(video.shouldShowProofModeBadge, isFalse);
+      expect(video.shouldShowProofModeBadge, isTrue);
+      expect(
+        video.shouldShowVineBadge,
+        isFalse,
+      ); // ProofMode takes precedence over Vine badge
+      expect(video.getVerificationLevel(), VerificationLevel.verifiedMobile);
       expect(video.isOriginalVine, isTrue);
-      expect(video.hasProofMode, isTrue);
     });
 
     test('shows only ProofMode badge for new verified videos', () {
@@ -279,7 +257,6 @@ void main() {
         createdAt: DateTime.now().millisecondsSinceEpoch,
         content: 'classic unverified vine',
         timestamp: DateTime.now(),
-        rawTags: const {'platform': 'vine'},
         originalLoops: 1000000,
       );
 
@@ -299,32 +276,5 @@ void main() {
       expect(video.shouldShowProofModeBadge, isFalse);
       expect(video.shouldShowVineBadge, isFalse);
     });
-
-    test(
-      'shows Vine badge even with manifest and fingerprint proof tags',
-      () {
-        final video = VideoEvent(
-          id: 'combo5',
-          pubkey: 'pubkey5',
-          createdAt: DateTime.now().millisecondsSinceEpoch,
-          content: 'vine with all proof tags',
-          timestamp: DateTime.now(),
-          rawTags: const {
-            'verification': 'verified_mobile',
-            'proofmode': '{"test": "data"}',
-            'pgp_fingerprint': 'ABC123',
-            'device_attestation': 'ATTEST',
-            'platform': 'vine',
-          },
-          originalLoops: 42000,
-        );
-
-        // Original vine always gets Vine badge, never ProofMode
-        expect(video.shouldShowVineBadge, isTrue);
-        expect(video.shouldShowProofModeBadge, isFalse);
-        expect(video.hasProofMode, isTrue);
-        expect(video.isOriginalVine, isTrue);
-      },
-    );
   });
 }

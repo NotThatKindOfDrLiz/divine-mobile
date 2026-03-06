@@ -135,14 +135,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location.startsWith(ResetPasswordScreen.path) ||
           location.startsWith(EmailVerificationScreen.path);
 
-      // Non-authenticated users on protected routes → welcome.
-      // awaitingTosAcceptance has no dedicated screen, so treat it like unauthenticated.
-      if (!isAuthRoute &&
-          (authState == AuthState.unauthenticated ||
-              authState == AuthState.awaitingTosAcceptance)) {
+      // Unauthenticated users on non-auth routes → redirect to welcome
+      if (!isAuthRoute && authState == AuthState.unauthenticated) {
         _hasNavigated = false;
         Log.info(
-          'Router redirect: ${authState.name} on $location — '
+          'Router redirect: unauthenticated on $location — '
           'redirecting to ${WelcomeScreen.path}',
           name: 'AppRouter',
           category: LogCategory.auth,

@@ -92,9 +92,7 @@ class VideosRepository {
   ///
   /// Returns a [HomeFeedResult] containing videos sorted by creation time
   /// (newest first) plus attribution metadata mapping videos to their
-  /// source curated lists. Returns empty result if both [authors] is empty
-  /// and [userPubkey] is null. When [userPubkey] is provided, the Funnelcake
-  /// API is attempted even with an empty [authors] list (fast-path startup).
+  /// source curated lists. Returns empty result if [authors] is empty.
   Future<HomeFeedResult> getHomeFeedVideos({
     required List<String> authors,
     Map<String, List<String>> videoRefs = const {},
@@ -102,9 +100,7 @@ class VideosRepository {
     int limit = _defaultLimit,
     int? until,
   }) async {
-    if (authors.isEmpty && userPubkey == null) {
-      return const HomeFeedResult(videos: []);
-    }
+    if (authors.isEmpty) return const HomeFeedResult(videos: []);
 
     // 1. Fetch following videos (Funnelcake API → Nostr relay waterfall)
     final followingVideos = await _fetchFollowingVideos(
@@ -151,10 +147,7 @@ class VideosRepository {
       }
     }
 
-    // Nostr fallback — skip when authors list is empty (fast-path startup
-    // before follow list is ready).
-    if (authors.isEmpty) return [];
-
+    // Nostr fallback
     final filter = Filter(
       kinds: [_videoKind],
       authors: authors,

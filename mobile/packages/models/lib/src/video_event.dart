@@ -837,13 +837,9 @@ class VideoEvent {
     return proofModeVerificationLevel == 'basic_proof';
   }
 
-  /// Original Vine: Check if this is a recovered original vine from the
-  /// Internet Archive.  Uses the server-controlled `platform` field from
-  /// Funnelcake (set to "vine" for genuine archive imports).  This cannot
-  /// be spoofed by publishing a crafted Nostr event because `platform` is
-  /// relay metadata, not a user-settable tag.
+  /// Original Vine: Check if this is a recovered original vine
   bool get isOriginalVine {
-    return rawTags['platform'] == 'vine';
+    return originalLoops != null && originalLoops! > 0;
   }
 
   /// Check if this is original content (not a repost)

@@ -2,7 +2,6 @@
 // ABOUTME: Caches labels in memory and checks content warnings for events
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:nostr_client/nostr_client.dart';
 import 'package:nostr_sdk/filter.dart';
@@ -17,15 +16,12 @@ class ModerationLabel {
     required this.labelValue,
     required this.targetEventId,
     this.targetPubkey,
-    this.confidence,
-    this.source,
-    this.isVerified = false,
   });
 
   /// Pubkey of the labeler who applied this label.
   final String labelerPubkey;
 
-  /// The label value (e.g. "nudity", "sexual", "ai-generated").
+  /// The label value (e.g. "nudity", "sexual").
   final String labelValue;
 
   /// Target event ID this label applies to, if any.
@@ -33,33 +29,6 @@ class ModerationLabel {
 
   /// Target pubkey this label applies to, if any.
   final String? targetPubkey;
-
-  /// Confidence score (0.0 to 1.0) from AI detection, if available.
-  final double? confidence;
-
-  /// Source of the detection (e.g. "hiveai", "human-moderator").
-  final String? source;
-
-  /// Whether the label has been verified by a human moderator.
-  final bool isVerified;
-}
-
-/// Result of AI detection analysis for a video.
-class AIDetectionResult {
-  const AIDetectionResult({
-    required this.score,
-    this.source,
-    this.isVerified = false,
-  });
-
-  /// AI generation likelihood score (0.0 to 1.0).
-  final double score;
-
-  /// Source of the detection (e.g. "hiveai", "human-moderator").
-  final String? source;
-
-  /// Whether the result has been verified by a human moderator.
-  final bool isVerified;
 }
 
 /// Service for subscribing to Kind 1985 label events from labeler pubkeys.
@@ -89,9 +58,6 @@ class ModerationLabelService {
 
   /// Labels keyed by target pubkey.
   final Map<String, List<ModerationLabel>> _labelsByPubkey = {};
-
-  /// Labels keyed by content hash (from `x` tags).
-  final Map<String, List<ModerationLabel>> _labelsByHash = {};
 
   /// Currently subscribed labeler pubkeys.
   final Set<String> _subscribedLabelers = {};
@@ -209,44 +175,6 @@ class ModerationLabelService {
     return _labelsByPubkey[pubkey] ?? const [];
   }
 
-  /// Get AI detection result for a specific event ID, if available.
-  ///
-  /// Looks for `ai-generated` labels from subscribed labelers.
-  AIDetectionResult? getAIDetectionResult(String eventId) {
-    final labels = _labelsByEventId[eventId];
-    if (labels == null) return null;
-
-    for (final label in labels) {
-      if (label.labelValue == 'ai-generated' && label.confidence != null) {
-        return AIDetectionResult(
-          score: label.confidence!,
-          source: label.source,
-          isVerified: label.isVerified,
-        );
-      }
-    }
-    return null;
-  }
-
-  /// Get AI detection result by content hash (sha256).
-  ///
-  /// Useful when matching moderation results to videos via their content hash.
-  AIDetectionResult? getAIDetectionByHash(String sha256) {
-    final labels = _labelsByHash[sha256];
-    if (labels == null) return null;
-
-    for (final label in labels) {
-      if (label.labelValue == 'ai-generated' && label.confidence != null) {
-        return AIDetectionResult(
-          score: label.confidence!,
-          source: label.source,
-          isVerified: label.isVerified,
-        );
-      }
-    }
-    return null;
-  }
-
   /// Check if an event has any content-warning labels from subscribed labelers.
   bool hasContentWarning(String eventId) {
     return _labelsByEventId.containsKey(eventId) &&
@@ -264,10 +192,6 @@ class ModerationLabelService {
       String? labelValue;
       String? targetEventId;
       String? targetPubkey;
-      String? contentHash;
-      double? confidence;
-      String? source;
-      bool isVerified = false;
 
       for (final tag in tags) {
         if (tag is! List || tag.length < 2) continue;
@@ -283,23 +207,11 @@ class ModerationLabelService {
             if (tag.length > 2 && tag[2] == 'content-warning') {
               labelValue = tagValue;
               isContentWarning = true;
-
-              // Parse optional 4th element as JSON metadata
-              if (tag.length > 3 && tag[3] is String) {
-                final parsed = _parseMetadata(tag[3] as String);
-                if (parsed != null) {
-                  confidence = parsed.confidence;
-                  source = parsed.source;
-                  isVerified = parsed.isVerified;
-                }
-              }
             }
           case 'e':
             targetEventId = tagValue;
           case 'p':
             targetPubkey = tagValue;
-          case 'x':
-            contentHash = tagValue;
         }
       }
 
@@ -310,9 +222,6 @@ class ModerationLabelService {
         labelValue: labelValue,
         targetEventId: targetEventId,
         targetPubkey: targetPubkey,
-        confidence: confidence,
-        source: source,
-        isVerified: isVerified,
       );
 
       if (targetEventId != null) {
@@ -321,32 +230,12 @@ class ModerationLabelService {
       if (targetPubkey != null) {
         _labelsByPubkey.putIfAbsent(targetPubkey, () => []).add(label);
       }
-      if (contentHash != null) {
-        _labelsByHash.putIfAbsent(contentHash, () => []).add(label);
-      }
     } catch (e) {
       Log.error(
         'Error processing label event: $e',
         name: 'ModerationLabelService',
         category: LogCategory.system,
       );
-    }
-  }
-
-  /// Parse JSON metadata from the 4th element of an `l` tag.
-  ///
-  /// Expected format:
-  /// `{"confidence": 0.95, "verified": true, "source": "hiveai"}`
-  _LabelMetadata? _parseMetadata(String jsonStr) {
-    try {
-      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return _LabelMetadata(
-        confidence: (data['confidence'] as num?)?.toDouble(),
-        source: data['source'] as String?,
-        isVerified: data['verified'] as bool? ?? false,
-      );
-    } catch (_) {
-      return null;
     }
   }
 
@@ -374,17 +263,4 @@ class ModerationLabelService {
     }
     _subscriptions.clear();
   }
-}
-
-/// Parsed metadata from the 4th element of an `l` tag.
-class _LabelMetadata {
-  const _LabelMetadata({
-    this.confidence,
-    this.source,
-    this.isVerified = false,
-  });
-
-  final double? confidence;
-  final String? source;
-  final bool isVerified;
 }
