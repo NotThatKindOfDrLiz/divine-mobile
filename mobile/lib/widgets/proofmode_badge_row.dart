@@ -59,29 +59,22 @@ class ProofModeBadgeRow extends ConsumerWidget {
     // Determine effective verification level (with platinum upgrade)
     final effectiveLevel = _resolveLevel(aiResult);
 
-    // A video with no proof tags can still earn a badge via AI scan
-    final hasAIScanBadge =
-        !video.hasProofMode &&
-        aiResult != null &&
-        aiResult.score < 0.5 &&
-        !video.isOriginalVine;
-
     // AI scan indicates possibly AI-generated (score >= 0.5)
     final isPossiblyAI =
         aiResult != null && aiResult.score >= 0.5 && !video.isOriginalVine;
 
-    // Divine-hosted but no proof tags and no AI scan results yet
+    // Divine-hosted videos without proof keep the hosting badge unless AI
+    // detection suggests they may be generated.
     final showDivineBadge =
         video.isFromDivineServer &&
         !video.shouldShowProofModeBadge &&
         !video.shouldShowVineBadge &&
-        !hasAIScanBadge &&
         !isPossiblyAI;
 
     final badges = <Widget>[];
 
-    // Add ProofMode badge if applicable (or AI-scan-earned badge)
-    if (video.shouldShowProofModeBadge || hasAIScanBadge) {
+    // Add ProofMode badge only for actual proof-backed content.
+    if (video.shouldShowProofModeBadge) {
       badges.add(ProofModeBadge(level: effectiveLevel, size: size));
     }
 
@@ -91,7 +84,7 @@ class ProofModeBadgeRow extends ConsumerWidget {
     }
 
     // Add "Not Divine Hosted" badge for external content (tappable)
-    if (video.shouldShowNotDivineBadge && !hasAIScanBadge && !isPossiblyAI) {
+    if (video.shouldShowNotDivineBadge && !isPossiblyAI) {
       badges.add(
         GestureDetector(
           onTap: () => _showNotDivineExplanation(
@@ -134,11 +127,6 @@ class ProofModeBadgeRow extends ConsumerWidget {
     // Platinum: device proof + AI scan confirms human
     if (baseLevel == VerificationLevel.verifiedMobile && isLikelyHuman) {
       return VerificationLevel.platinum;
-    }
-
-    // AI scan alone (no proof tags) earns silver for likely-human videos
-    if (baseLevel == VerificationLevel.unverified && isLikelyHuman) {
-      return VerificationLevel.verifiedWeb;
     }
 
     return baseLevel;

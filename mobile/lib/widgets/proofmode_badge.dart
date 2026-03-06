@@ -10,7 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 /// Tiers reflect the strength of evidence that a video is authentic:
 /// - [platinum]: Device proof + AI scan confirms human
 /// - [gold]: Device attestation + ProofMode + C2PA (hardware proof)
-/// - [silver]: Web crypto proof, or AI scan confirms likely human
+/// - [silver]: Web crypto proof
 /// - [bronze]: Basic proof data present
 /// - [unverified]: No proof data available
 enum VerificationLevel {
@@ -98,7 +98,7 @@ class ProofModeBadge extends StatelessWidget {
           textColor: Color(0xFFC0C0C0),
         );
       case VerificationLevel.basicProof:
-        // Bronze — basic proof data or moderation API scan
+        // Bronze — basic proof data
         return const _BadgeConfig(
           label: 'Human Made',
           icon: Icons.verified_outlined,

@@ -8,24 +8,36 @@ import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/moderation_label_service.dart';
+import 'package:openvine/services/video_moderation_status_service.dart';
 import 'package:openvine/widgets/badge_explanation_modal.dart';
 
 class _MockModerationLabelService extends Mock
     implements ModerationLabelService {}
 
+class _MockVideoModerationStatusService extends Mock
+    implements VideoModerationStatusService {}
+
 void main() {
   late _MockModerationLabelService mockLabelService;
+  late _MockVideoModerationStatusService mockVideoModerationStatusService;
 
   setUp(() {
     mockLabelService = _MockModerationLabelService();
+    mockVideoModerationStatusService = _MockVideoModerationStatusService();
     when(() => mockLabelService.getAIDetectionResult(any())).thenReturn(null);
     when(() => mockLabelService.getAIDetectionByHash(any())).thenReturn(null);
+    when(
+      () => mockVideoModerationStatusService.fetchStatus(any()),
+    ).thenAnswer((_) async => null);
   });
 
   Widget buildSubject(VideoEvent video) {
     return ProviderScope(
       overrides: [
         moderationLabelServiceProvider.overrideWithValue(mockLabelService),
+        videoModerationStatusServiceProvider.overrideWithValue(
+          mockVideoModerationStatusService,
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -37,6 +49,9 @@ void main() {
                   overrides: [
                     moderationLabelServiceProvider.overrideWithValue(
                       mockLabelService,
+                    ),
+                    videoModerationStatusServiceProvider.overrideWithValue(
+                      mockVideoModerationStatusService,
                     ),
                   ],
                   child: BadgeExplanationModal(video: video),
@@ -123,7 +138,8 @@ void main() {
         expect(find.text('PGP signature'), findsOneWidget);
         expect(find.text('C2PA Content Credentials'), findsOneWidget);
         expect(find.text('Proof manifest'), findsOneWidget);
-        expect(find.text('Not yet scanned'), findsOneWidget);
+        expect(find.text('AI scan: Not yet scanned'), findsOneWidget);
+        expect(find.text('Check if AI-generated'), findsOneWidget);
       });
 
       testWidgets('shows AI detection results when available', (
@@ -219,6 +235,60 @@ void main() {
           find.text('5% likelihood of being AI-generated'),
           findsOneWidget,
         );
+      });
+
+      testWidgets('checks moderation status from the modal on demand', (
+        tester,
+      ) async {
+        const sha256 =
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+        var lookupCount = 0;
+        when(
+          () => mockVideoModerationStatusService.fetchStatus(sha256),
+        ).thenAnswer(
+          (_) async {
+            lookupCount += 1;
+            if (lookupCount == 1) {
+              return null;
+            }
+            return const VideoModerationStatus(
+              moderated: false,
+              blocked: false,
+              quarantined: false,
+              ageRestricted: false,
+              needsReview: false,
+              aiGenerated: false,
+              aiScore: 0.12,
+            );
+          },
+        );
+
+        final video = VideoEvent(
+          id: 'modal_check_id',
+          pubkey: 'pubkey8',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          content: 'video needing scan',
+          timestamp: DateTime.now(),
+          sha256: sha256,
+          videoUrl: 'https://media.divine.video/$sha256.mp4',
+        );
+
+        await tester.pumpWidget(buildSubject(video));
+        await tester.tap(find.text('Show'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Check if AI-generated'), findsOneWidget);
+        await tester.tap(find.text('Check if AI-generated'));
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('12% likelihood of being AI-generated'),
+          findsOneWidget,
+        );
+        verify(
+          () => mockVideoModerationStatusService.fetchStatus(sha256),
+        ).called(greaterThanOrEqualTo(2));
       });
     });
 

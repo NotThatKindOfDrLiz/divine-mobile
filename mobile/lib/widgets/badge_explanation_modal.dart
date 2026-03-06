@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart';
+import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/moderation_label_service.dart';
+import 'package:openvine/services/video_moderation_status_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Modal dialog explaining the origin and authenticity of video content
@@ -126,15 +128,31 @@ class _ProofModeExplanation extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final labelService = ref.read(moderationLabelServiceProvider);
-    final aiResult = _lookupAIDetection(labelService);
+    var aiResult = _lookupAIDetection(labelService);
+
+    if (aiResult == null && video.isFromDivineServer) {
+      final statusAsync = ref.watch(
+        videoModerationStatusProvider(video.sha256),
+      );
+      aiResult = statusAsync.whenOrNull(
+        data: (status) {
+          if (status?.aiScore != null) {
+            return AIDetectionResult(
+              score: status!.aiScore!,
+              source: 'moderation-service',
+            );
+          }
+          return null;
+        },
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "This video's authenticity is verified using Proofmode "
-          'technology.',
+        Text(
+          _getIntroText(),
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -144,7 +162,7 @@ class _ProofModeExplanation extends ConsumerWidget {
         const SizedBox(height: 16),
         _ProofModeDetailsSection(video: video, aiResult: aiResult),
         const SizedBox(height: 16),
-        _AIDetectionSection(aiResult: aiResult),
+        _AIDetectionSection(video: video, initialResult: aiResult),
         const SizedBox(height: 12),
         const _ExternalLink(
           url: 'https://divine.video/proofmode',
@@ -172,6 +190,19 @@ class _ProofModeExplanation extends ConsumerWidget {
       return labelService.getAIDetectionByHash(hash);
     }
     return null;
+  }
+
+  String _getIntroText() {
+    if (video.hasProofMode) {
+      return "This video's authenticity is verified using Proofmode "
+          'technology.';
+    }
+    if (video.isFromDivineServer) {
+      return 'This video is hosted on Divine, but no ProofMode verification '
+          'data is attached yet.';
+    }
+    return 'This video is hosted outside Divine and does not include '
+        'ProofMode verification data.';
   }
 }
 
@@ -272,30 +303,166 @@ class _ProofCheckItem extends StatelessWidget {
 }
 
 /// Section showing AI detection results from HiveAI
-class _AIDetectionSection extends StatelessWidget {
-  const _AIDetectionSection({required this.aiResult});
+class _AIDetectionSection extends ConsumerStatefulWidget {
+  const _AIDetectionSection({
+    required this.video,
+    required this.initialResult,
+  });
 
-  final AIDetectionResult? aiResult;
+  final VideoEvent video;
+  final AIDetectionResult? initialResult;
+
+  @override
+  ConsumerState<_AIDetectionSection> createState() =>
+      _AIDetectionSectionState();
+}
+
+class _AIDetectionSectionState extends ConsumerState<_AIDetectionSection> {
+  AIDetectionResult? _result;
+  bool _isLoading = false;
+  bool _checkedAndEmpty = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _result = widget.initialResult;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AIDetectionSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_result == null && widget.initialResult != null) {
+      _result = widget.initialResult;
+    }
+  }
+
+  Future<void> _checkForResults() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final sha256 = VideoModerationStatusService.resolveSha256(
+        explicitSha256: widget.video.sha256,
+        videoUrl: widget.video.videoUrl,
+      );
+
+      if (sha256 == null) {
+        setState(() {
+          _isLoading = false;
+          _checkedAndEmpty = true;
+        });
+        return;
+      }
+
+      final status = await ref
+          .read(videoModerationStatusServiceProvider)
+          .fetchStatus(sha256);
+
+      if (!mounted) return;
+
+      if (status?.aiScore != null) {
+        setState(() {
+          _result = AIDetectionResult(
+            score: status!.aiScore!,
+            source: 'moderation-service',
+          );
+          _checkedAndEmpty = false;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _checkedAndEmpty = true;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _checkedAndEmpty = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final result = _result;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionHeader(icon: Icons.psychology, title: 'AI Detection'),
         const SizedBox(height: 8),
-        if (aiResult != null)
-          _AIDetectionResultCard(result: aiResult!)
+        if (result != null)
+          _AIDetectionResultCard(result: result)
         else
+          _buildNotScannedCard(),
+      ],
+    );
+  }
+
+  Widget _buildNotScannedCard() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: VineTheme.backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: VineTheme.onSurfaceMuted),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const Text(
-            'Not yet scanned',
+            'AI scan: Not yet scanned',
             style: TextStyle(
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
               color: VineTheme.onSurfaceMuted,
             ),
           ),
-      ],
+          const SizedBox(height: 8),
+          if (_isLoading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: VineTheme.onSurfaceMuted,
+                  ),
+                ),
+              ),
+            )
+          else if (_checkedAndEmpty)
+            const Text(
+              'No scan results available yet.',
+              style: TextStyle(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: VineTheme.onSurfaceMuted,
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _checkForResults,
+                icon: const Icon(Icons.search, size: 16),
+                label: const Text('Check if AI-generated'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: VineTheme.onSurfaceVariant,
+                  side: const BorderSide(color: VineTheme.onSurfaceMuted),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -474,14 +641,6 @@ class _VerificationLevelCard extends StatelessWidget {
         icon: Icons.verified_outlined,
         color: Color(0xFFCD7F32), // Bronze
         description: 'Bronze: Basic metadata signatures are present.',
-      );
-    } else if (hasHumanAIScan) {
-      return const _VerificationConfig(
-        icon: Icons.verified_outlined,
-        color: Color(0xFFC0C0C0), // Silver
-        description:
-            'Silver: AI scan confirms this video is likely '
-            'human-created.',
       );
     } else {
       return const _VerificationConfig(
