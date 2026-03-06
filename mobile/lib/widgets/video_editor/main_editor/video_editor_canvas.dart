@@ -452,13 +452,14 @@ class _VideoEditorState extends ConsumerState<_VideoEditor> {
       clipManagerProvider.select((s) => s.clips.first.targetAspectRatio),
     );
 
-    // Listen for sound changes to reload audio
+    // Listen for sound changes to reload audio or re-sync offset
     ref.listen<AudioEvent?>(
       videoEditorProvider.select((s) => s.selectedSound),
       (previous, next) {
-        if (previous?.url != next?.url ||
-            previous?.startOffset != next?.startOffset) {
+        if (previous?.url != next?.url) {
           _loadAudio(next);
+        } else if (previous?.startOffset != next?.startOffset) {
+          unawaited(_syncAudioToVideo());
         }
       },
     );

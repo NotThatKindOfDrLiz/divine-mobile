@@ -305,6 +305,7 @@ class AudioPlaybackService {
           level: 800,
         );
         if (await _reloadLastSource()) {
+          if (_isDisposed) return;
           await _audioPlayer.play();
           return;
         }
@@ -372,6 +373,7 @@ class AudioPlaybackService {
           name: 'AudioPlaybackService',
         );
         if (await _reloadLastSource()) {
+          if (_isDisposed) return;
           await _audioPlayer.seek(position);
           return;
         }

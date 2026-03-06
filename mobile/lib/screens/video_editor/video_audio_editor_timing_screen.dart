@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/blocs/video_editor/audio_timing/audio_timing_cubit.dart';
@@ -49,7 +48,7 @@ class AudioTimingDeleted extends AudioTimingResult {
 /// - [AudioTimingConfirmed] with the updated sound when confirmed
 /// - [AudioTimingDeleted] when the user deletes the audio
 /// - `null` when cancelled (back navigation)
-class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
+class VideoAudioEditorTimingScreen extends StatefulWidget {
   /// Creates the audio timing screen.
   const VideoAudioEditorTimingScreen({
     required this.sound,
@@ -66,12 +65,12 @@ class VideoAudioEditorTimingScreen extends ConsumerStatefulWidget {
   static const path = '/video-audio-timing';
 
   @override
-  ConsumerState<VideoAudioEditorTimingScreen> createState() =>
+  State<VideoAudioEditorTimingScreen> createState() =>
       _VideoAudioEditorTimingScreenState();
 }
 
 class _VideoAudioEditorTimingScreenState
-    extends ConsumerState<VideoAudioEditorTimingScreen>
+    extends State<VideoAudioEditorTimingScreen>
     with SingleTickerProviderStateMixin {
   late final SoundWaveformBloc _waveformBloc;
   late final AnimationController _flingController;
@@ -210,10 +209,7 @@ class _VideoAudioEditorTimingScreenState
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // Scrim overlay (65% black as per Figma)
-              const ColoredBox(
-                color: Color(0xA6000000), // rgba(0,0,0,0.65)
-              ),
+              const ColoredBox(color: VineTheme.scrim65),
 
               // Content
               SafeArea(
@@ -467,7 +463,7 @@ class _VideoDurationTimeline extends StatelessWidget {
         }
         // Convert velocity from pixels to normalized offset units
         final velocityInOffset =
-            details.primaryVelocity! / maxScrollableDistance / 1000;
+            (details.primaryVelocity ?? 0) / maxScrollableDistance / 1000;
         onFling(velocityInOffset);
       },
       child: Padding(
@@ -535,7 +531,7 @@ class _AudioWaveformSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width - 32;
+    final screenWidth = MediaQuery.sizeOf(context).width - 32;
     // Selection area represents portion of audio that fits video duration
     final selectionWidth = screenWidth * selectionWidthRatio;
     // Selection is always centered
@@ -590,7 +586,7 @@ class _AudioWaveformSelector extends StatelessWidget {
         // Convert velocity from pixels to normalized offset units
         // Invert velocity to match inverted drag direction
         final velocityInOffset =
-            -details.primaryVelocity! / maxScrollableDistance / 1000;
+            -(details.primaryVelocity ?? 0) / maxScrollableDistance / 1000;
         onFling(velocityInOffset);
       },
       child: Container(
