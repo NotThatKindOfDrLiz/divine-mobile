@@ -179,24 +179,17 @@ class _BottomActions extends StatelessWidget {
 }
 
 class _BottomCornerArcs extends StatelessWidget {
-  const _BottomCornerArcs({
-    super.key,
-    this.arcRadius = VideoEditorConstants.canvasRadius,
-    this.color = VineTheme.surfaceContainerHigh,
-  });
-
-  final double arcRadius;
-  final Color color;
+  const _BottomCornerArcs();
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: double.infinity,
-      height: arcRadius,
+      width: .infinity,
+      height: VideoEditorConstants.canvasRadius,
       child: CustomPaint(
         painter: _BottomCornerArcsPainter(
-          arcRadius: arcRadius,
-          color: color,
+          arcRadius: VideoEditorConstants.canvasRadius,
+          color: VineTheme.surfaceContainerHigh,
         ),
       ),
     );
