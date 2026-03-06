@@ -65,7 +65,7 @@ final class PushNotificationsProvider
   }
 }
 
-String _$pushNotificationsHash() => r'be014793bd7c000f3e378dab0b323e1fa94a6c71';
+String _$pushNotificationsHash() => r'38a5ddd05d23a4116f7f9ad9941c2c550b7bd113';
 
 /// Provider managing push notification registration lifecycle.
 ///

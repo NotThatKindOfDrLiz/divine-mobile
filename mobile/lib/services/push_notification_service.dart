@@ -214,10 +214,18 @@ class PushNotificationService {
       }
 
       // Publish to relay
-      await _nostrClient.publishEvent(
+      final publishedEvent = await _nostrClient.publishEvent(
         event,
         targetRelays: [pushRegistrationRelay],
       );
+      if (publishedEvent == null) {
+        Log.error(
+          'Failed to publish registration event',
+          name: 'PushNotificationService',
+          category: LogCategory.system,
+        );
+        return;
+      }
 
       _lastRegisteredAt = DateTime.now();
 
@@ -283,10 +291,18 @@ class PushNotificationService {
       }
 
       // Publish to relay
-      await _nostrClient.publishEvent(
+      final publishedEvent = await _nostrClient.publishEvent(
         event,
         targetRelays: [pushRegistrationRelay],
       );
+      if (publishedEvent == null) {
+        Log.error(
+          'Failed to publish deregistration event',
+          name: 'PushNotificationService',
+          category: LogCategory.system,
+        );
+        return;
+      }
 
       Log.info(
         'Push token deregistered',

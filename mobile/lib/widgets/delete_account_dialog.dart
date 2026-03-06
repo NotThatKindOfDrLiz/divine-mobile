@@ -251,6 +251,7 @@ Future<void> executeAccountDeletion({
   required BuildContext context,
   required AccountDeletionService deletionService,
   required AuthService authService,
+  Future<void> Function()? preSignOut,
   String screenName = 'AccountDeletion',
 }) async {
   // Create cubit for tracking progress
@@ -301,6 +302,9 @@ Future<void> executeAccountDeletion({
       // Step 3: Sign out and delete local keys
       // Router will automatically redirect to /welcome when auth state
       // becomes unauthenticated
+      if (preSignOut != null) {
+        await preSignOut();
+      }
       await authService.signOut(deleteKeys: true);
 
       // Close loading indicator and show success snackbar

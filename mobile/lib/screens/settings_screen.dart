@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/developer_mode_tap_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
+import 'package:openvine/providers/push_notification_provider.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
 import 'package:openvine/screens/blossom_settings_screen.dart';
 import 'package:openvine/screens/developer_options_screen.dart';
@@ -697,9 +698,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               final authService = ref.read(authServiceProvider);
-              authService.signOut();
+              final pushNotifications = ref.read(
+                pushNotificationsProvider.notifier,
+              );
+              await pushNotifications.deregisterBeforeSignOut();
+              await authService.signOut();
+              if (!context.mounted) return;
               context.pop(true);
             },
             child: const Text(
@@ -737,6 +743,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
 
         try {
+          final pushNotifications = ref.read(
+            pushNotificationsProvider.notifier,
+          );
+          await pushNotifications.deregisterBeforeSignOut();
+
           // Sign out and delete keys (no relay broadcast)
           await authService.signOut(deleteKeys: true);
 
@@ -778,6 +789,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         context: context,
         deletionService: deletionService,
         authService: authService,
+        preSignOut: () async {
+          final pushNotifications = ref.read(
+            pushNotificationsProvider.notifier,
+          );
+          await pushNotifications.deregisterBeforeSignOut();
+        },
         screenName: 'SettingsScreen',
       ),
     );

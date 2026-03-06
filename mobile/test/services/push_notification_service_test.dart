@@ -265,6 +265,20 @@ void main() {
           ),
         );
       });
+
+      test('does not mark registered when publish fails', () async {
+        when(
+          mockNostrClient.publishEvent(
+            any,
+            targetRelays: anyNamed('targetRelays'),
+          ),
+        ).thenAnswer((_) async => null);
+
+        await service.initialize();
+
+        expect(service.isRegistered, isFalse);
+        expect(service.currentToken, equals(testToken));
+      });
     });
 
     group('deregister', () {
@@ -313,6 +327,31 @@ void main() {
             targetRelays: anyNamed('targetRelays'),
           ),
         ).called(1);
+      });
+
+      test('retains state when deregistration publish fails', () async {
+        var publishCount = 0;
+        when(
+          mockNostrClient.publishEvent(
+            any,
+            targetRelays: anyNamed('targetRelays'),
+          ),
+        ).thenAnswer((invocation) async {
+          publishCount++;
+          if (publishCount == 1) {
+            return invocation.positionalArguments[0] as Event;
+          }
+          return null;
+        });
+
+        await service.initialize();
+        expect(service.isRegistered, isTrue);
+        expect(service.currentToken, equals(testToken));
+
+        await service.deregister();
+
+        expect(service.isRegistered, isTrue);
+        expect(service.currentToken, equals(testToken));
       });
     });
 

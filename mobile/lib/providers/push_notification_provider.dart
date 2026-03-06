@@ -84,13 +84,22 @@ class PushNotifications extends _$PushNotifications {
     switch (newState) {
       case AuthState.authenticated:
         await _initializePush();
+        return;
       case AuthState.unauthenticated:
         await _deregister();
+        return;
       case AuthState.checking:
       case AuthState.authenticating:
       case AuthState.awaitingTosAcceptance:
         break;
     }
+  }
+
+  /// Explicitly deregister before signing out while signer context is still
+  /// available.
+  Future<void> deregisterBeforeSignOut() async {
+    if (kIsWeb) return;
+    await _deregister();
   }
 
   Future<void> _initializePush() async {
