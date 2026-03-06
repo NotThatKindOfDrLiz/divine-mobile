@@ -92,14 +92,18 @@ class _TopActions extends ConsumerWidget {
             selectedSound: selectedSound,
             onSoundChanged: (sound) => _onSoundChanged(context, ref, sound),
             onSelectionStarted: () {
-              context.read<VideoEditorMainBloc>().add(
-                const VideoEditorExternalPauseRequested(isPaused: true),
-              );
+              context.read<VideoEditorMainBloc>()
+                ..add(const VideoEditorMainOpenSubEditor(.music))
+                ..add(
+                  const VideoEditorExternalPauseRequested(isPaused: true),
+                );
             },
             onSelectionEnded: () {
-              context.read<VideoEditorMainBloc>().add(
-                const VideoEditorExternalPauseRequested(isPaused: false),
-              );
+              context.read<VideoEditorMainBloc>()
+                ..add(const VideoEditorMainSubEditorClosed())
+                ..add(
+                  const VideoEditorExternalPauseRequested(isPaused: false),
+                );
             },
           ),
         ),
