@@ -23,6 +23,8 @@ class AudioSelectionBottomSheet extends ConsumerStatefulWidget {
 
 class _AudioSelectionBottomSheetState
     extends ConsumerState<AudioSelectionBottomSheet> {
+  // Note: Temporarily final until search is reimplemented.
+  // Using final to satisfy lint rules (prefer_final_locals).
   final String _searchQuery = '';
   AudioSortOption _sortOption = AudioSortOption.newest;
   String? _playingSoundId;
