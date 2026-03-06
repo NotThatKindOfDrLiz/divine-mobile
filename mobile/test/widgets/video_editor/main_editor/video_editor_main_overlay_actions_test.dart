@@ -145,10 +145,12 @@ void main() {
     });
 
     group('music sub-editor hiding', () {
-      Finder findOverlayOpacity() => find.descendant(
+      Finder findOverlayOpacity() => find
+          .descendant(
             of: find.byType(VideoEditorMainOverlayActions),
             matching: find.byType(AnimatedOpacity),
-          ).first;
+          )
+          .first;
 
       testWidgets('is hidden when music sub-editor is open', (tester) async {
         await tester.pumpWidget(
