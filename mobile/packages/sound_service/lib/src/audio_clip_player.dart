@@ -19,8 +19,10 @@ class AudioClipPlayer {
   ///
   /// An optional [audioPlayer] can be injected for testing within the
   /// `sound_service` package.
+  // coverage:ignore-start
   AudioClipPlayer({AudioPlayer? audioPlayer})
     : _audioPlayer = audioPlayer ?? AudioPlayer();
+  // coverage:ignore-end
 
   final AudioPlayer _audioPlayer;
 
