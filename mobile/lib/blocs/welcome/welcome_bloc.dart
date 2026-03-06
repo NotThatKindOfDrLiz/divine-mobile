@@ -220,7 +220,7 @@ class WelcomeBloc extends Bloc<WelcomeEvent, WelcomeState> {
   ) async {
     Log.info(
       'WelcomeBloc: create account requested — accepting terms and '
-      'navigating',
+      'navigating to create account',
       name: 'WelcomeBloc',
       category: LogCategory.auth,
     );

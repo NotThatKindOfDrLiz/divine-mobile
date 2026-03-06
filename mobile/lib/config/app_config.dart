@@ -8,6 +8,11 @@ class AppConfig {
     defaultValue: 'https://api.openvine.co',
   );
 
+  static const String inviteServerBaseUrl = String.fromEnvironment(
+    'INVITE_SERVER_URL',
+    defaultValue: 'https://invite.divine.video',
+  );
+
   // Environment detection
   static const String environment = String.fromEnvironment(
     'ENVIRONMENT',

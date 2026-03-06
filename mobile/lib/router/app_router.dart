@@ -8,10 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/models/audio_event.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
+import 'package:openvine/repositories/invite_code_repository.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/screens/auth/create_account_screen.dart';
 import 'package:openvine/screens/auth/email_verification_screen.dart';
+import 'package:openvine/screens/auth/invite_code_screen.dart';
 import 'package:openvine/screens/auth/login_options_screen.dart';
 import 'package:openvine/screens/auth/nostr_connect_screen.dart';
 import 'package:openvine/screens/auth/reset_password.dart';
@@ -76,8 +79,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: NavigatorKeys.root,
-    // Start at /welcome - redirect logic will navigate to appropriate route
-    initialLocation: WelcomeScreen.path,
+    // Start at /invite-code - redirect logic will navigate to appropriate route
+    initialLocation: InviteCodeScreen.fullPath,
     observers: [
       routeObserver,
       PageLoadObserver(),
@@ -97,6 +100,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         category: LogCategory.auth,
       );
 
+      // Gate: require invite code before anything else.
+      final prefs = ref.read(sharedPreferencesProvider);
+      final inviteRepo = InviteCodeRepository(prefs: prefs);
+      final hasClaimed = inviteRepo.hasClaimedCode;
+
+      if (!hasClaimed && location != InviteCodeScreen.fullPath) {
+        Log.info(
+          'Router redirect: no invite code claimed — '
+          'redirecting to ${InviteCodeScreen.fullPath}',
+          name: 'AppRouter',
+          category: LogCategory.auth,
+        );
+        return InviteCodeScreen.fullPath;
+      }
+
       // Handle authenticated users on auth routes
       // Note: resetPasswordPath and EmailVerificationScreen are intentionally
       // excluded — authenticated users may navigate there via deep links.
@@ -105,7 +123,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               location == KeyImportScreen.path ||
               location == NostrConnectScreen.path ||
               location == WelcomeScreen.createAccountPath ||
-              location == WelcomeScreen.loginOptionsPath)) {
+              location == WelcomeScreen.loginOptionsPath ||
+              location == InviteCodeScreen.fullPath)) {
         // On first navigation, redirect to explore if user has no following
         if (!_hasNavigated) {
           _hasNavigated = true;
@@ -133,10 +152,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location.startsWith(NostrConnectScreen.path) ||
           location.startsWith(WelcomeScreen.resetPasswordPath) ||
           location.startsWith(ResetPasswordScreen.path) ||
-          location.startsWith(EmailVerificationScreen.path);
+          location.startsWith(EmailVerificationScreen.path) ||
+          location.startsWith(InviteCodeScreen.fullPath);
 
       // Non-authenticated users on protected routes → welcome.
-      // awaitingTosAcceptance has no dedicated screen, so treat it like unauthenticated.
+      // awaitingTosAcceptance has no dedicated screen, so treat it like
+      // unauthenticated.
       if (!isAuthRoute &&
           (authState == AuthState.unauthenticated ||
               authState == AuthState.awaitingTosAcceptance)) {
@@ -422,6 +443,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: DiscoverListsScreen.path,
         name: DiscoverListsScreen.routeName,
         builder: (ctx, st) => const DiscoverListsScreen(),
+      ),
+      GoRoute(
+        path: InviteCodeScreen.path,
+        name: InviteCodeScreen.routeName,
+        builder: (_, _) => const InviteCodeScreen(),
       ),
       GoRoute(
         path: WelcomeScreen.path,
@@ -839,6 +865,7 @@ int tabIndexFromLocation(String loc) {
     case 'import-key':
     case 'nostr-connect':
     case 'welcome':
+    case 'invite-code':
     case 'video-recorder':
     case 'video-editor':
     case 'video-metadata':
