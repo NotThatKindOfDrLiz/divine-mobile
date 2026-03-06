@@ -1967,7 +1967,7 @@ final class ContentBlocklistServiceProvider
 }
 
 String _$contentBlocklistServiceHash() =>
-    r'f3d72c3f14c8b9f294ab31e60cf62e16640c6c32';
+    r'e9f2a94864c583c91619dffc906067ba6c907bb0';
 
 /// Version counter to trigger rebuilds when blocklist changes.
 /// Widgets watching this will rebuild when block/unblock actions occur.
@@ -2923,7 +2923,7 @@ final class HashtagRepositoryProvider
   }
 }
 
-String _$hashtagRepositoryHash() => r'7d61e9d5f99412e7f62cbb1456aeca1c12ab5b34';
+String _$hashtagRepositoryHash() => r'aacff5fc9d7d369a80b68ffa4595628b18ab1f99';
 
 /// Provider for ProfileRepository instance
 ///

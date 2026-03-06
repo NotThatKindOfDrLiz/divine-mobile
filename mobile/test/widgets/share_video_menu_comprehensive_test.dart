@@ -21,6 +21,8 @@ class _MockBookmarkService extends Mock implements BookmarkService {}
 
 class _MockVideoSharingService extends Mock implements VideoSharingService {}
 
+class _FakeVideoEvent extends Fake implements VideoEvent {}
+
 /// Fake notifier that provides test data for curatedListsStateProvider
 List<CuratedList> _fakeLists = [];
 
@@ -38,15 +40,7 @@ void main() {
   late _MockVideoSharingService mockVideoSharingService;
 
   setUpAll(() {
-    registerFallbackValue(
-      VideoEvent(
-        id: 'fallback',
-        pubkey: 'fallback',
-        createdAt: 0,
-        content: '',
-        timestamp: DateTime.now(),
-      ),
-    );
+    registerFallbackValue(_FakeVideoEvent());
   });
 
   setUp(() {

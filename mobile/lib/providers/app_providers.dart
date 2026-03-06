@@ -30,7 +30,6 @@ import 'package:openvine/services/analytics_api_service.dart';
 import 'package:openvine/services/analytics_service.dart';
 import 'package:openvine/services/api_service.dart';
 import 'package:openvine/services/audio_device_preference_service.dart';
-import 'package:openvine/services/audio_playback_service.dart';
 import 'package:openvine/services/audio_sharing_preference_service.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
 import 'package:openvine/services/background_activity_manager.dart';
@@ -74,6 +73,7 @@ import 'package:openvine/services/seen_videos_service.dart';
 import 'package:openvine/services/social_service.dart';
 import 'package:openvine/services/subscribed_list_video_cache.dart';
 import 'package:openvine/services/subscription_manager.dart';
+import 'package:openvine/services/top_hashtags_service.dart';
 import 'package:openvine/services/upload_manager.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
 import 'package:openvine/services/user_list_service.dart';
@@ -93,6 +93,7 @@ import 'package:permissions_service/permissions_service.dart';
 import 'package:profile_repository/profile_repository.dart';
 import 'package:reposts_repository/reposts_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sound_service/sound_service.dart';
 import 'package:videos_repository/videos_repository.dart';
 
 part 'app_providers.g.dart';
@@ -628,7 +629,13 @@ SeenVideosService seenVideosService(Ref ref) {
 @riverpod
 ContentBlocklistService contentBlocklistService(Ref ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  return ContentBlocklistService(prefs: prefs);
+  return ContentBlocklistService(
+    prefs: prefs,
+    onChanged: () {
+      if (!ref.mounted) return;
+      ref.read(blocklistVersionProvider.notifier).increment();
+    },
+  );
 }
 
 /// Version counter to trigger rebuilds when blocklist changes.
@@ -1080,7 +1087,33 @@ CuratedListRepository curatedListRepository(Ref ref) {
 @riverpod
 HashtagRepository hashtagRepository(Ref ref) {
   final funnelcakeClient = ref.watch(funnelcakeApiClientProvider);
-  return HashtagRepository(funnelcakeApiClient: funnelcakeClient);
+  final hashtagService = ref.watch(hashtagServiceProvider);
+  return HashtagRepository(
+    funnelcakeApiClient: funnelcakeClient,
+    localSearch: (query, limit) {
+      final results = <String>[];
+
+      void addMatches(Iterable<String> matches) {
+        for (final hashtag in matches) {
+          if (results.contains(hashtag)) continue;
+          results.add(hashtag);
+          if (results.length >= limit) break;
+        }
+      }
+
+      addMatches(hashtagService.searchHashtags(query));
+      if (results.length < limit) {
+        addMatches(
+          TopHashtagsService.instance.searchHashtags(
+            query,
+            limit: limit,
+          ),
+        );
+      }
+
+      return results;
+    },
+  );
 }
 
 /// Provider for ProfileRepository instance
