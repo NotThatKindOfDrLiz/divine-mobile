@@ -13,6 +13,7 @@ import 'package:audio_session/audio_session.dart' as audio_session;
 import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:sound_service/src/audio_session_wrapper.dart';
+import 'package:sound_service/src/audio_source_config.dart';
 
 /// Service for managing audio playback during lip sync recording mode.
 ///
@@ -235,19 +236,41 @@ class AudioPlaybackService {
     }
   }
 
-  /// Sets an audio source directly.
+  /// Sets an audio source from a library-agnostic [AudioSourceConfig].
   ///
-  /// This allows using advanced audio sources like [ClippingAudioSource].
-  Future<Duration?> setAudioSource(AudioSource source) async {
+  /// Converts the config into the appropriate player-specific source type.
+  /// If [AudioSourceConfig.isClipped], wraps the source in a
+  /// [ClippingAudioSource].
+  Future<Duration?> setAudioSource(AudioSourceConfig config) async {
     if (_isDisposed) return null;
     _loadCompleter = Completer<void>();
     try {
+      final UriAudioSource child;
+      if (config.isAsset) {
+        child = AudioSource.asset(config.uri);
+      } else if (config.isFile) {
+        child = AudioSource.file(config.uri);
+      } else {
+        child = AudioSource.uri(Uri.parse(config.uri));
+      }
+
+      final AudioSource source;
+      if (config.isClipped) {
+        source = ClippingAudioSource(
+          child: child,
+          start: config.start,
+          end: config.end,
+        );
+      } else {
+        source = child;
+      }
+
       final loadedDuration = await _audioPlayer.setAudioSource(source);
       log(
         'Set audio source: ${source.runtimeType}',
         name: 'AudioPlaybackService',
       );
-      _lastSource = (type: _SourceType.audioSource, value: source);
+      _lastSource = (type: _SourceType.audioSource, value: config);
       return loadedDuration;
     } catch (e) {
       log(
@@ -545,7 +568,7 @@ class AudioPlaybackService {
         case _SourceType.file:
           await loadAudioFromFile(source.value as String);
         case _SourceType.audioSource:
-          await _audioPlayer.setAudioSource(source.value as AudioSource);
+          await setAudioSource(source.value as AudioSourceConfig);
       }
       log(
         'Reloaded audio source after interruption',

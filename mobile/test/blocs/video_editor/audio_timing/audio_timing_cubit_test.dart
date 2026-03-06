@@ -50,6 +50,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(Duration.zero);
+    registerFallbackValue(const AudioSourceConfig.network(''));
   });
 
   group(AudioTimingCubit, () {
@@ -61,12 +62,7 @@ void main() {
         (_) => const Stream.empty(),
       );
       when(
-        () => mockClipPlayer.setClip(
-          uri: any(named: 'uri'),
-          isAsset: any(named: 'isAsset'),
-          start: any(named: 'start'),
-          end: any(named: 'end'),
-        ),
+        () => mockClipPlayer.setClip(any()),
       ).thenAnswer((_) async {});
       when(() => mockClipPlayer.play()).thenAnswer((_) async {});
       when(() => mockClipPlayer.pause()).thenAnswer((_) async {});
@@ -111,12 +107,7 @@ void main() {
         ],
         verify: (_) {
           verify(
-            () => mockClipPlayer.setClip(
-              uri: any(named: 'uri'),
-              isAsset: any(named: 'isAsset'),
-              start: any(named: 'start'),
-              end: any(named: 'end'),
-            ),
+            () => mockClipPlayer.setClip(any()),
           ).called(1);
           verify(() => mockClipPlayer.play()).called(1);
         },
@@ -206,12 +197,7 @@ void main() {
         ],
         verify: (_) {
           verify(
-            () => mockClipPlayer.setClip(
-              uri: any(named: 'uri'),
-              isAsset: any(named: 'isAsset'),
-              start: any(named: 'start'),
-              end: any(named: 'end'),
-            ),
+            () => mockClipPlayer.setClip(any()),
           ).called(1);
           verify(() => mockClipPlayer.play()).called(1);
         },
@@ -296,12 +282,7 @@ void main() {
         ],
         verify: (_) {
           verify(
-            () => mockClipPlayer.setClip(
-              uri: any(named: 'uri'),
-              isAsset: any(named: 'isAsset'),
-              start: any(named: 'start'),
-              end: any(named: 'end'),
-            ),
+            () => mockClipPlayer.setClip(any()),
           ).called(1);
           verify(() => mockClipPlayer.play()).called(1);
         },

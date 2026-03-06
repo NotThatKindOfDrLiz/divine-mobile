@@ -183,12 +183,10 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
       return;
     }
 
-    await _clipPlayer.setClip(
-      uri: uri,
-      isAsset: isAsset,
-      start: clipStart,
-      end: clipEnd,
-    );
+    final config = isAsset
+        ? AudioSourceConfig.asset(uri, start: clipStart, end: clipEnd)
+        : AudioSourceConfig.network(uri, start: clipStart, end: clipEnd);
+    await _clipPlayer.setClip(config);
   }
 
   @override
