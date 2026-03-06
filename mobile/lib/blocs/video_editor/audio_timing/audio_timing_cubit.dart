@@ -80,7 +80,7 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
 
     // Listen for audio completion to restart loop
     _completionSubscription = _clipPlayer.completionStream.listen(
-      (_) => _onPlaybackCompleted(),
+      (_) => unawaited(_onPlaybackCompleted()),
     );
 
     await _loadAndPlayAudio();
@@ -125,9 +125,9 @@ class AudioTimingCubit extends Cubit<AudioTimingState> {
 
   /// Called when playback completes — restarts from the beginning
   /// to implement manual looping.
-  void _onPlaybackCompleted() {
-    _clipPlayer.seek(Duration.zero);
-    _clipPlayer.play();
+  Future<void> _onPlaybackCompleted() async {
+    await _clipPlayer.seek(Duration.zero);
+    await _clipPlayer.play();
   }
 
   /// Loads the selected audio and starts looped playback.

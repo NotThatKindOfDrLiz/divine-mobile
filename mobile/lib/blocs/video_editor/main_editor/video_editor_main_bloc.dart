@@ -1,4 +1,3 @@
-import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pro_image_editor/pro_image_editor.dart';
@@ -16,58 +15,19 @@ part 'video_editor_main_state.dart';
 class VideoEditorMainBloc
     extends Bloc<VideoEditorMainEvent, VideoEditorMainState> {
   VideoEditorMainBloc() : super(const VideoEditorMainState()) {
-    on<VideoEditorMainCapabilitiesChanged>(
-      _onCapabilitiesChanged,
-      transformer: sequential(),
-    );
-    on<VideoEditorLayerInteractionStarted>(
-      _onLayerInteractionStarted,
-      transformer: sequential(),
-    );
-    on<VideoEditorLayerInteractionEnded>(
-      _onLayerInteractionEnded,
-      transformer: sequential(),
-    );
-    on<VideoEditorLayerOverRemoveAreaChanged>(
-      _onLayerOverRemoveAreaChanged,
-      transformer: sequential(),
-    );
-    on<VideoEditorMainOpenSubEditor>(
-      _onOpenSubEditor,
-      transformer: sequential(),
-    );
-    on<VideoEditorMainSubEditorClosed>(
-      _onSubEditorClosed,
-      transformer: sequential(),
-    );
-    on<VideoEditorLayerAdded>(
-      _onLayerAdded,
-      transformer: sequential(),
-    );
-    on<VideoEditorLayerRemoved>(
-      _onLayerRemoved,
-      transformer: sequential(),
-    );
-    on<VideoEditorPlaybackChanged>(
-      _onPlaybackChanged,
-      transformer: sequential(),
-    );
-    on<VideoEditorPlayerReady>(
-      _onPlayerReady,
-      transformer: sequential(),
-    );
-    on<VideoEditorExternalPauseRequested>(
-      _onExternalPauseRequested,
-      transformer: sequential(),
-    );
-    on<VideoEditorPlaybackRestartRequested>(
-      _onPlaybackRestartRequested,
-      transformer: sequential(),
-    );
-    on<VideoEditorPlaybackToggleRequested>(
-      _onPlaybackToggleRequested,
-      transformer: sequential(),
-    );
+    on<VideoEditorMainCapabilitiesChanged>(_onCapabilitiesChanged);
+    on<VideoEditorLayerInteractionStarted>(_onLayerInteractionStarted);
+    on<VideoEditorLayerInteractionEnded>(_onLayerInteractionEnded);
+    on<VideoEditorLayerOverRemoveAreaChanged>(_onLayerOverRemoveAreaChanged);
+    on<VideoEditorMainOpenSubEditor>(_onOpenSubEditor);
+    on<VideoEditorMainSubEditorClosed>(_onSubEditorClosed);
+    on<VideoEditorLayerAdded>(_onLayerAdded);
+    on<VideoEditorLayerRemoved>(_onLayerRemoved);
+    on<VideoEditorPlaybackChanged>(_onPlaybackChanged);
+    on<VideoEditorPlayerReady>(_onPlayerReady);
+    on<VideoEditorExternalPauseRequested>(_onExternalPauseRequested);
+    on<VideoEditorPlaybackRestartRequested>(_onPlaybackRestartRequested);
+    on<VideoEditorPlaybackToggleRequested>(_onPlaybackToggleRequested);
   }
 
   /// Updates undo/redo/subEditor state based on editor capabilities.
