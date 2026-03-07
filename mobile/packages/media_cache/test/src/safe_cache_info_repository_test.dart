@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_cache/media_cache.dart';
@@ -146,6 +147,59 @@ void main() {
         expect(openCallCount, 2);
         expect(cacheFile.existsSync(), false);
       });
+
+      test(
+        'recovers when upstream reports via FlutterError instead of throwing',
+        () async {
+          // This tests the real-world scenario: JsonCacheInfoRepository
+          // catches exceptions internally and reports via
+          // FlutterError.reportError instead of rethrowing.
+          var openCallCount = 0;
+          when(() => mockRepository.open()).thenAnswer((_) async {
+            openCallCount++;
+            if (openCallCount == 1) {
+              // Simulate upstream behavior: report via FlutterError, not throw
+              FlutterError.reportError(
+                FlutterErrorDetails(
+                  exception: const FormatException('Unexpected end of input'),
+                  library: 'flutter cache manager',
+                  context: ErrorDescription('Reading cache info file'),
+                ),
+              );
+              return true; // Upstream returns normally after reporting
+            }
+            return true;
+          });
+
+          final cacheFile = File('$testSupportPath/test_flutter_error.json');
+          await cacheFile.writeAsString('{"truncated":');
+
+          FlutterErrorDetails? capturedError;
+          final previousHandler = FlutterError.onError;
+          FlutterError.onError = (details) {
+            capturedError = details;
+          };
+
+          try {
+            final repo = SafeCacheInfoRepository(
+              databaseName: 'test_flutter_error',
+              repository: mockRepository,
+              directoryProvider: () async => testDirectory,
+            );
+
+            await repo.open();
+
+            // File should be deleted
+            expect(cacheFile.existsSync(), isFalse);
+            // FlutterError should NOT have leaked to outer handler
+            expect(capturedError, isNull);
+            // open called twice: first detects corruption, second is retry
+            expect(openCallCount, equals(2));
+          } finally {
+            FlutterError.onError = previousHandler;
+          }
+        },
+      );
 
       test('rethrows non-recoverable exceptions', () async {
         when(() => mockRepository.open()).thenThrow(
