@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
 import 'package:openvine/blocs/video_feed/video_feed_bloc.dart';
 import 'package:openvine/blocs/video_interactions/video_interactions_bloc.dart';
+import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
@@ -21,8 +22,55 @@ import 'package:pooled_video_player/pooled_video_player.dart';
 
 extension on List<VideoEvent> {
   List<VideoItem> get toVideoItems {
-    return map((e) => VideoItem(id: e.id, url: e.videoUrl!)).toList();
+    return where((e) => e.videoUrl != null)
+        .map(
+          (e) => VideoItem(
+            id: e.id,
+            url: e.getOptimalVideoUrlForPlatform() ?? e.videoUrl!,
+          ),
+        )
+        .toList();
   }
+}
+
+@visibleForTesting
+bool samePooledVideoItems(List<VideoItem>? previous, List<VideoItem> current) {
+  if (previous == null || previous.length != current.length) return false;
+
+  for (var i = 0; i < current.length; i++) {
+    if (previous[i].id != current[i].id || previous[i].url != current[i].url) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+@visibleForTesting
+bool isAppendOnlyPooledVideoUpdate(
+  List<VideoItem>? previous,
+  List<VideoItem> current,
+) {
+  if (previous == null || current.length < previous.length) return false;
+
+  for (var i = 0; i < previous.length; i++) {
+    if (previous[i].id != current[i].id || previous[i].url != current[i].url) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+@visibleForTesting
+bool sameVideoEventIds(List<VideoEvent> previous, List<VideoEvent> current) {
+  if (previous.length != current.length) return false;
+
+  for (var i = 0; i < previous.length; i++) {
+    if (previous[i].id != current[i].id) return false;
+  }
+
+  return true;
 }
 
 class VideoFeedPage extends ConsumerWidget {
@@ -107,6 +155,9 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
   /// Tracks the last set of pooled videos to detect new additions.
   List<VideoItem>? lastPooledVideos;
 
+  /// Tracks which feed mode the current controller was built for.
+  FeedMode? controllerMode;
+
   /// Whether this state owns (and should dispose) the controller.
   bool get ownsController => widget.controller == null;
 
@@ -143,14 +194,40 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
   ///
   /// Called from [didChangeDependencies] for eager setup and from
   /// [BlocListener] when videos arrive asynchronously.
-  void handleVideoController([VideoFeedState? state]) {
-    if (controller != null) return;
+  void _resetVideoController() {
+    if (ownsController) {
+      controller?.dispose();
+      controller = null;
+    } else {
+      controller = widget.controller;
+    }
 
+    controllerMode = null;
+    lastPooledVideos = null;
+    lastPrefetchIndex = null;
+  }
+
+  void handleVideoController([VideoFeedState? state]) {
     final effectiveState = state ?? context.read<VideoFeedBloc>().state;
     if (!effectiveState.isLoaded || effectiveState.videos.isEmpty) return;
 
     final pooledVideos = effectiveState.videos.toVideoItems;
 
+    if (!ownsController) {
+      controller = widget.controller;
+      controllerMode = effectiveState.mode;
+      lastPooledVideos = pooledVideos;
+      return;
+    }
+
+    final needsNewController =
+        controller == null ||
+        controllerMode != effectiveState.mode ||
+        !samePooledVideoItems(lastPooledVideos, pooledVideos);
+
+    if (!needsNewController) return;
+
+    controller?.dispose();
     controller = VideoFeedController(
       videos: pooledVideos,
       pool: PlayerPool.instance,
@@ -162,21 +239,37 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
       },
     );
 
+    controllerMode = effectiveState.mode;
     lastPooledVideos = pooledVideos;
   }
 
   /// Handles new videos from pagination by adding them to the controller.
   void handleVideosChanged(VideoFeedState state) {
-    if (controller == null || lastPooledVideos == null) return;
-
     final pooledVideos = state.videos.toVideoItems;
+    if (pooledVideos.isEmpty) return;
 
-    final newVideos = pooledVideos
-        .where((v) => !lastPooledVideos!.any((old) => old.id == v.id))
-        .toList();
+    if (controller == null || lastPooledVideos == null) {
+      handleVideoController(state);
+      return;
+    }
+
+    if (!ownsController) {
+      controllerMode = state.mode;
+      lastPooledVideos = pooledVideos;
+      return;
+    }
+
+    if (controllerMode != state.mode ||
+        !isAppendOnlyPooledVideoUpdate(lastPooledVideos, pooledVideos)) {
+      handleVideoController(state);
+      return;
+    }
+
+    final newVideos = pooledVideos.skip(lastPooledVideos!.length).toList();
 
     if (newVideos.isNotEmpty) controller?.addVideos(newVideos);
 
+    controllerMode = state.mode;
     lastPooledVideos = pooledVideos;
   }
 
@@ -235,13 +328,10 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
           // Reset controller when mode changes so a fresh one is
           // created for the new feed.
           BlocListener<VideoFeedBloc, VideoFeedState>(
-            listenWhen: (previous, current) =>
-                previous.mode != current.mode && current.isLoading,
+            listenWhen: (previous, current) => previous.mode != current.mode,
             listener: (_, state) {
-              if (ownsController) controller?.dispose();
-              controller = null;
-              lastPooledVideos = null;
-              lastPrefetchIndex = null;
+              _resetVideoController();
+              handleVideoController(state);
             },
           ),
           // Initialize controller when videos first become available
@@ -261,7 +351,8 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
           // Handle new videos from pagination
           BlocListener<VideoFeedBloc, VideoFeedState>(
             listenWhen: (previous, current) =>
-                previous.videos.length != current.videos.length,
+                previous.mode != current.mode ||
+                !sameVideoEventIds(previous.videos, current.videos),
             listener: (_, state) => handleVideosChanged(state),
           ),
         ],
