@@ -168,7 +168,6 @@ class ZendeskSupportService {
     _userName = null;
     _userEmail = null;
     _userNpub = null;
-
     if (_initialized) {
       try {
         await _channel.invokeMethod('clearUserIdentity');
@@ -200,6 +199,58 @@ class ZendeskSupportService {
           category: LogCategory.system,
         );
       }
+    }
+  }
+
+  // ==========================================================================
+  // JWT Authentication (for native SDK ticket history)
+  // ==========================================================================
+
+  /// Set JWT identity on the native Zendesk SDK
+  ///
+  /// Pass the user's npub as the userToken. Zendesk will call our JWT endpoint
+  /// with this token to get the actual JWT for authentication.
+  ///
+  /// Returns true if identity was set successfully.
+  static Future<bool> setJwtIdentity(String userToken) async {
+    if (!_initialized) {
+      Log.warning(
+        '⚠️ Zendesk JWT: SDK not initialized',
+        category: LogCategory.system,
+      );
+      return false;
+    }
+
+    try {
+      Log.info(
+        '🎫 Zendesk JWT: Setting identity with user token',
+        category: LogCategory.system,
+      );
+
+      final result = await _channel.invokeMethod('setJwtIdentity', {
+        'userToken': userToken,
+      });
+
+      if (result == true) {
+        Log.info(
+          '✅ Zendesk JWT: Identity set - Zendesk will callback for JWT',
+          category: LogCategory.system,
+        );
+        return true;
+      }
+      return false;
+    } on PlatformException catch (e) {
+      Log.error(
+        '❌ Zendesk JWT: Platform error - ${e.code}: ${e.message}',
+        category: LogCategory.system,
+      );
+      return false;
+    } catch (e) {
+      Log.error(
+        '❌ Zendesk JWT: Error setting identity - $e',
+        category: LogCategory.system,
+      );
+      return false;
     }
   }
 
@@ -288,14 +339,18 @@ class ZendeskSupportService {
   /// Useful for automatic content reporting or system-generated tickets.
   /// Returns true if ticket created successfully, false otherwise.
   ///
-  /// Platform limitations:
-  /// - iOS: Full support via RequestProvider API
-  /// - Android: Full support via RequestProvider API
-  /// - macOS/Windows: Not supported (returns false)
+  /// Platform support:
+  /// - iOS: Full support via RequestProvider API (with custom fields)
+  /// - Android: Full support via RequestProvider API (with custom fields)
+  /// - macOS/Windows: Falls back to REST API
+  ///
+  /// Custom fields format: [{'id': 12345, 'value': 'some_value'}, ...]
   static Future<bool> createTicket({
     required String subject,
     required String description,
     List<String>? tags,
+    int? ticketFormId,
+    List<Map<String, dynamic>>? customFields,
   }) async {
     if (!_initialized) {
       Log.warning(
@@ -310,6 +365,9 @@ class ZendeskSupportService {
         'subject': subject,
         'description': description,
         'tags': tags ?? [],
+        if (ticketFormId != null) 'ticketFormId': ticketFormId,
+        if (customFields != null && customFields.isNotEmpty)
+          'customFields': customFields,
       });
 
       if (result == true) {
@@ -341,10 +399,21 @@ class ZendeskSupportService {
       );
     } on PlatformException catch (e) {
       Log.error(
-        'Platform error creating Zendesk ticket: ${e.code} - ${e.message}',
+        '❌ Zendesk SDK error: ${e.code} - ${e.message}',
         category: LogCategory.system,
       );
-      return false;
+      // Fall back to REST API on SDK error
+      Log.info(
+        '🔄 Falling back to REST API after SDK error',
+        category: LogCategory.system,
+      );
+      return createTicketViaApi(
+        subject: subject,
+        description: description,
+        requesterName: _userName,
+        requesterEmail: _userEmail,
+        tags: tags,
+      );
     } catch (e) {
       Log.error(
         'Unexpected error creating Zendesk ticket: $e',
@@ -406,6 +475,18 @@ class ZendeskSupportService {
   /// Check if REST API is available (for platforms without native SDK)
   static bool get isRestApiAvailable => ZendeskConfig.isRestApiConfigured;
 
+  /// Build requester object with optional external_id for JWT identity linking
+  static Map<String, dynamic> _buildRequester({String? name, String? email}) {
+    final requester = <String, dynamic>{
+      'name': name ?? _userName ?? 'Divine App User',
+      'email': email ?? _userEmail ?? ZendeskConfig.apiEmail,
+    };
+    if (_userNpub != null) {
+      requester['external_id'] = _userNpub;
+    }
+    return requester;
+  }
+
   /// Create a Zendesk ticket via REST API (no native SDK required)
   ///
   /// This works on ALL platforms including macOS, Windows, and Web.
@@ -432,17 +513,14 @@ class ZendeskSupportService {
         category: LogCategory.system,
       );
 
-      // Build the request body
-      // Using the Requests API which requires a requester email
-      // Default to apiEmail if none provided (for anonymous bug reports)
-      final effectiveEmail = requesterEmail ?? ZendeskConfig.apiEmail;
-      final effectiveName = requesterName ?? 'Divine App User';
-
       final requestBody = {
         'request': {
           'subject': subject,
           'comment': {'body': description},
-          'requester': {'name': effectiveName, 'email': effectiveEmail},
+          'requester': _buildRequester(
+            name: requesterName,
+            email: requesterEmail,
+          ),
           if (tags != null && tags.isNotEmpty) 'tags': tags,
         },
       };
@@ -490,13 +568,26 @@ class ZendeskSupportService {
     }
   }
 
-  /// Create a bug report ticket via REST API with full diagnostics
+  /// Create a structured bug report with user-provided fields
   ///
-  /// Formats the bug report data into a Zendesk ticket with proper structure.
-  /// Includes device info, logs summary, and error counts.
-  static Future<bool> createBugReportTicketViaApi({
+  /// This method submits bug reports via native SDK (iOS/Android) or REST API
+  /// (desktop). Using SDK ensures tickets are linked to the user's identity
+  /// and visible in "View Past Messages".
+  ///
+  /// Custom field IDs (configured in Zendesk):
+  /// - 14772963437071: ticket_form_id (Bug Report form)
+  /// - 14332953477519: Ticket Type (incident)
+  /// - 14884176561807: Platform (ios/android/macos/etc)
+  /// - 14884157556111: OS Version
+  /// - 14884184890511: Build Number
+  /// - 14677364166031: Steps to Reproduce
+  /// - 14677341431695: Expected Behavior
+  static Future<bool> createStructuredBugReport({
+    required String subject,
+    required String description,
+    String? stepsToReproduce,
+    String? expectedBehavior,
     required String reportId,
-    required String userDescription,
     required String appVersion,
     required Map<String, dynamic> deviceInfo,
     String? currentScreen,
@@ -504,15 +595,42 @@ class ZendeskSupportService {
     Map<String, int>? errorCounts,
     String? logsSummary,
   }) async {
+    Log.info(
+      'Creating structured Zendesk bug report: $reportId',
+      category: LogCategory.system,
+    );
+
+    // Extract platform info for custom fields
+    final platform =
+        deviceInfo['platform']?.toString().toLowerCase() ?? 'unknown';
+    final osVersion =
+        deviceInfo['version']?.toString() ??
+        deviceInfo['systemVersion']?.toString() ??
+        'unknown';
+    // appVersion format is "1.2.3+456" - extract build number after +
+    final buildNumber = appVersion.contains('+')
+        ? appVersion.split('+').last
+        : appVersion;
+
     // Build comprehensive ticket description
     final buffer = StringBuffer();
     buffer.writeln('## Bug Report');
     buffer.writeln('**Report ID:** $reportId');
     buffer.writeln('**App Version:** $appVersion');
-    buffer.writeln();
-    buffer.writeln('### User Description');
-    buffer.writeln(userDescription);
-    buffer.writeln();
+    buffer.writeln('');
+    buffer.writeln('### Description');
+    buffer.writeln(description);
+    buffer.writeln('');
+    if (stepsToReproduce != null && stepsToReproduce.isNotEmpty) {
+      buffer.writeln('### Steps to Reproduce');
+      buffer.writeln(stepsToReproduce);
+      buffer.writeln('');
+    }
+    if (expectedBehavior != null && expectedBehavior.isNotEmpty) {
+      buffer.writeln('### Expected Behavior');
+      buffer.writeln(expectedBehavior);
+      buffer.writeln('');
+    }
     buffer.writeln('### Device Information');
     deviceInfo.forEach((key, value) {
       buffer.writeln('- **$key:** $value');
@@ -521,7 +639,6 @@ class ZendeskSupportService {
       buffer.writeln();
       buffer.writeln('**Current Screen:** $currentScreen');
     }
-    // Include user pubkey - use passed value or stored npub
     final effectivePubkey = userPubkey ?? _userNpub;
     if (effectivePubkey != null) {
       buffer.writeln('**User Pubkey:** $effectivePubkey');
@@ -543,12 +660,221 @@ class ZendeskSupportService {
       buffer.writeln('```');
     }
 
-    return createTicketViaApi(
-      subject: 'Bug Report: $reportId',
+    final effectiveSubject = subject.isNotEmpty
+        ? subject
+        : 'Bug Report: $reportId';
+    final tags = ['bug_report', 'divine_app', 'mobile', platform];
+
+    // Build custom fields list for SDK
+    final customFields = <Map<String, dynamic>>[
+      {'id': 14332953477519, 'value': 'incident'}, // Ticket Type
+      {'id': 14884176561807, 'value': platform}, // Platform
+      {'id': 14884157556111, 'value': osVersion}, // OS Version
+      {'id': 14884184890511, 'value': buildNumber}, // Build Number
+    ];
+
+    // Add optional text fields if provided
+    if (stepsToReproduce != null && stepsToReproduce.isNotEmpty) {
+      customFields.add({
+        'id': 14677364166031,
+        'value': stepsToReproduce,
+      }); // Steps to Reproduce
+    }
+    if (expectedBehavior != null && expectedBehavior.isNotEmpty) {
+      customFields.add({
+        'id': 14677341431695,
+        'value': expectedBehavior,
+      }); // Expected Behavior
+    }
+
+    // Try native SDK first (iOS/Android) - this links tickets to user identity
+    if (_initialized) {
+      Log.info(
+        '🎫 Using native SDK for bug report (enables View Past Messages)',
+        category: LogCategory.system,
+      );
+      return createTicket(
+        subject: effectiveSubject,
+        description: buffer.toString(),
+        tags: tags,
+        ticketFormId: 14772963437071,
+        customFields: customFields,
+      );
+    }
+
+    // Fall back to REST API for desktop platforms
+    Log.info(
+      '🎫 Native SDK not available, using REST API fallback',
+      category: LogCategory.system,
+    );
+    return _createTicketWithFormViaApi(
+      subject: effectiveSubject,
       description: buffer.toString(),
-      requesterName: _userName,
-      requesterEmail: _userEmail,
-      tags: ['bug_report', 'divine_app', appVersion],
+      tags: tags,
+      customFields: customFields,
+      ticketFormId: 14772963437071,
+      label: 'bug report',
+    );
+  }
+
+  /// Internal: Create ticket via REST API with form and custom fields
+  static Future<bool> _createTicketWithFormViaApi({
+    required String subject,
+    required String description,
+    required List<String> tags,
+    required List<Map<String, dynamic>> customFields,
+    required int ticketFormId,
+    required String label,
+  }) async {
+    if (!ZendeskConfig.isRestApiConfigured) {
+      Log.error(
+        '❌ Zendesk REST API not configured - ZENDESK_API_TOKEN not set',
+        category: LogCategory.system,
+      );
+      return false;
+    }
+
+    try {
+      final requestBody = {
+        'ticket': {
+          'subject': subject,
+          'comment': {'body': description},
+          'requester': _buildRequester(),
+          'ticket_form_id': ticketFormId,
+          'tags': tags,
+          'custom_fields': customFields,
+        },
+      };
+
+      final apiUrl = '${ZendeskConfig.zendeskUrl}/api/v2/tickets.json';
+      final credentials =
+          '${ZendeskConfig.apiEmail}/token:${ZendeskConfig.apiToken}';
+      final encodedCredentials = base64Encode(utf8.encode(credentials));
+
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic $encodedCredentials',
+        },
+        body: jsonEncode(requestBody),
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final ticketId = responseData['ticket']?['id'];
+        Log.info(
+          '✅ Zendesk $label created via API: #$ticketId',
+          category: LogCategory.system,
+        );
+        return true;
+      } else {
+        Log.error(
+          'Zendesk API error: ${response.statusCode} - ${response.body}',
+          category: LogCategory.system,
+        );
+        return false;
+      }
+    } catch (e, stackTrace) {
+      Log.error(
+        'Exception creating Zendesk $label via API: $e',
+        category: LogCategory.system,
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  // ==========================================================================
+  // Feature Requests
+  // ==========================================================================
+
+  /// Create a feature request ticket
+  ///
+  /// Custom field IDs (configured in Zendesk):
+  /// - 15081095878799: ticket_form_id (Feature Request form)
+  /// - 15081108558863: How would this be useful for you?
+  /// - 15081142424847: When would you use this?
+  static Future<bool> createFeatureRequest({
+    required String subject,
+    required String description,
+    String? usefulness,
+    String? whenToUse,
+    String? userPubkey,
+  }) async {
+    Log.info(
+      '💡 Creating Zendesk feature request',
+      category: LogCategory.system,
+    );
+
+    // Build ticket description
+    final buffer = StringBuffer();
+    buffer.writeln('## Feature Request');
+    buffer.writeln('');
+    buffer.writeln('### What would you like?');
+    buffer.writeln(description);
+    if (usefulness != null && usefulness.isNotEmpty) {
+      buffer.writeln('');
+      buffer.writeln('### How would this be useful for you?');
+      buffer.writeln(usefulness);
+    }
+    if (whenToUse != null && whenToUse.isNotEmpty) {
+      buffer.writeln('');
+      buffer.writeln('### When would you use this?');
+      buffer.writeln(whenToUse);
+    }
+    final effectivePubkey = userPubkey ?? _userNpub;
+    if (effectivePubkey != null) {
+      buffer.writeln('');
+      buffer.writeln('**User Pubkey:** $effectivePubkey');
+    }
+
+    final effectiveSubject = subject.isNotEmpty ? subject : 'Feature Request';
+    final tags = ['feature_request', 'divine_app', 'mobile'];
+
+    // Build custom fields list
+    final customFields = <Map<String, dynamic>>[];
+    if (usefulness != null && usefulness.isNotEmpty) {
+      customFields.add({
+        'id': 15081108558863,
+        'value': usefulness,
+      }); // How would this be useful for you?
+    }
+    if (whenToUse != null && whenToUse.isNotEmpty) {
+      customFields.add({
+        'id': 15081142424847,
+        'value': whenToUse,
+      }); // When would you use this?
+    }
+
+    // Try native SDK first (iOS/Android) - this links tickets to user identity
+    if (_initialized) {
+      Log.info(
+        '💡 Using native SDK for feature request (enables View Past Messages)',
+        category: LogCategory.system,
+      );
+      return createTicket(
+        subject: effectiveSubject,
+        description: buffer.toString(),
+        tags: tags,
+        ticketFormId: 15081095878799,
+        customFields: customFields,
+      );
+    }
+
+    // Fall back to REST API for desktop platforms
+    Log.info(
+      '💡 Native SDK not available, using REST API fallback',
+      category: LogCategory.system,
+    );
+    return _createTicketWithFormViaApi(
+      subject: effectiveSubject,
+      description: buffer.toString(),
+      tags: tags,
+      customFields: customFields,
+      ticketFormId: 15081095878799,
+      label: 'feature request',
     );
   }
 }

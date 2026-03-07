@@ -17,6 +17,7 @@ import 'package:openvine/services/zendesk_support_service.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/bug_report_dialog.dart';
+import 'package:openvine/widgets/feature_request_dialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -143,9 +144,6 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                             final bugReportService = ref.read(
                               bugReportServiceProvider,
                             );
-                            final userProfileService = ref.read(
-                              userProfileServiceProvider,
-                            );
                             final userPubkey = authService.currentPublicKeyHex;
 
                             final navigatorContext = Navigator.of(
@@ -168,7 +166,6 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                             _showSupportOptionsDialog(
                               navigatorContext,
                               bugReportService,
-                              userProfileService,
                               userPubkey,
                               isZendeskAvailable,
                             );
@@ -283,7 +280,6 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
   void _showSupportOptionsDialog(
     BuildContext context,
     BugReportService bugReportService,
-    UserProfileService userProfileService,
     String? userPubkey,
     bool isZendeskAvailable,
   ) {
@@ -308,10 +304,19 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
                 _handleBugReportWithServices(
                   context,
                   bugReportService,
-                  userProfileService,
                   userPubkey,
                   isZendeskAvailable,
                 );
+              },
+            ),
+            const SizedBox(height: 12),
+            _SupportOption(
+              icon: Icons.lightbulb_outline,
+              title: 'Request a Feature',
+              subtitle: 'Suggest improvements or new features',
+              onTap: () {
+                dialogContext.pop();
+                _handleFeatureRequest(context, userPubkey, isZendeskAvailable);
               },
             ),
             const SizedBox(height: 12),
@@ -322,11 +327,13 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
               onTap: () async {
                 dialogContext.pop();
                 if (isZendeskAvailable) {
-                  // Ensure identity is set before viewing tickets
-                  await _setZendeskIdentityWithService(
-                    userPubkey,
-                    userProfileService,
-                  );
+                  // Set JWT identity for ticket list (Zendesk configured for JWT auth)
+                  // Don't set anonymous identity first - causes auth type mismatch
+                  if (userPubkey != null) {
+                    final npub = NostrKeyUtils.encodePubKey(userPubkey);
+                    await ZendeskSupportService.setJwtIdentity(npub);
+                  }
+
                   Log.debug(
                     '💬 Opening Zendesk ticket list',
                     category: LogCategory.ui,
@@ -369,92 +376,24 @@ class _VineDrawerState extends ConsumerState<VineDrawer> {
     );
   }
 
-  /// Set Zendesk user identity from user pubkey using pre-captured service
-  /// This version doesn't use ref, so it works after drawer is closed
-  Future<void> _setZendeskIdentityWithService(
-    String? userPubkey,
-    UserProfileService userProfileService,
-  ) async {
-    if (userPubkey == null) {
-      // Users always have pubkey in this app, but handle edge case gracefully
-      Log.warning(
-        '⚠️ Zendesk: No userPubkey, using baseline anonymous identity',
-        category: LogCategory.system,
-      );
-      return;
-    }
-
-    try {
-      final npub = NostrKeyUtils.encodePubKey(userPubkey);
-      final profile = userProfileService.getCachedProfile(userPubkey);
-
-      Log.debug(
-        '🎫 Zendesk: Setting identity for ${profile?.bestDisplayName ?? npub}',
-        category: LogCategory.system,
-      );
-      Log.debug(
-        '🎫 Zendesk: NIP-05: ${profile?.nip05 ?? "none"}',
-        category: LogCategory.system,
-      );
-
-      await ZendeskSupportService.setUserIdentity(
-        displayName: profile?.bestDisplayName,
-        nip05: profile?.nip05,
-        npub: npub,
-      );
-
-      Log.debug(
-        '✅ Zendesk: Identity set successfully',
-        category: LogCategory.system,
-      );
-    } catch (e) {
-      Log.error(
-        '❌ Zendesk: Failed to set identity: $e',
-        category: LogCategory.system,
-      );
-    }
-  }
-
   /// Handle bug report submission
+  /// Uses JWT identity for SDK ticket creation (enables View Past Messages)
   Future<void> _handleBugReportWithServices(
     BuildContext context,
     BugReportService bugReportService,
-    UserProfileService userProfileService,
     String? userPubkey,
     bool isZendeskAvailable,
   ) async {
-    // Set Zendesk identity for all paths (native SDK and REST API)
-    await _setZendeskIdentityWithService(userPubkey, userProfileService);
-    if (!context.mounted) return;
-
-    if (isZendeskAvailable) {
-      // Get device and app info
-      final packageInfo = await PackageInfo.fromPlatform();
-      if (!context.mounted) return;
-      final appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-
-      final description =
-          '''
-Please describe the bug you encountered:
-
----
-App Version: $appVersion
-Platform: ${Theme.of(context).platform.name}
-''';
-
-      Log.debug('🐛 Opening Zendesk for bug report', category: LogCategory.ui);
-      final success = await ZendeskSupportService.showNewTicketScreen(
-        subject: 'Bug Report',
-        description: description,
-        tags: ['mobile', 'bug', 'ios'],
-      );
-
-      if (!success && context.mounted) {
-        _showSupportFallbackWithServices(context, bugReportService, userPubkey);
-      }
-    } else {
-      _showSupportFallbackWithServices(context, bugReportService, userPubkey);
+    // Set JWT identity for SDK ticket creation (Zendesk configured for JWT auth)
+    // Don't set anonymous identity first - causes auth type mismatch
+    if (userPubkey != null) {
+      final npub = NostrKeyUtils.encodePubKey(userPubkey);
+      await ZendeskSupportService.setJwtIdentity(npub);
     }
+
+    // Always use custom dialog for bug reports (supports structured fields)
+    Log.debug('🐛 Opening bug report dialog', category: LogCategory.ui);
+    _showSupportFallbackWithServices(context, bugReportService, userPubkey);
   }
 
   /// Show fallback support options when Zendesk is not available
@@ -471,6 +410,28 @@ Platform: ${Theme.of(context).platform.name}
         currentScreen: 'VineDrawer',
         userPubkey: userPubkey,
       ),
+    );
+  }
+
+  /// Handle feature request submission
+  /// Uses JWT identity for SDK ticket creation (enables View Past Messages)
+  Future<void> _handleFeatureRequest(
+    BuildContext context,
+    String? userPubkey,
+    bool isZendeskAvailable,
+  ) async {
+    // Set JWT identity for SDK ticket creation (Zendesk configured for JWT auth)
+    // Don't set anonymous identity first - causes auth type mismatch
+    if (userPubkey != null) {
+      final npub = NostrKeyUtils.encodePubKey(userPubkey);
+      await ZendeskSupportService.setJwtIdentity(npub);
+    }
+
+    Log.debug('💡 Opening feature request dialog', category: LogCategory.ui);
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => FeatureRequestDialog(userPubkey: userPubkey),
     );
   }
 }
@@ -525,7 +486,7 @@ class _SupportOption extends StatelessWidget {
         decoration: BoxDecoration(
           color: VineTheme.backgroundColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: VineTheme.cardBackground),
+          border: Border.all(color: VineTheme.outlineVariant),
         ),
         child: Row(
           children: [
@@ -547,14 +508,14 @@ class _SupportOption extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: VineTheme.secondaryText,
+                      color: VineTheme.onSurfaceVariant,
                       fontSize: 13,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: VineTheme.lightText),
+            const Icon(Icons.chevron_right, color: VineTheme.onSurfaceDisabled),
           ],
         ),
       ),

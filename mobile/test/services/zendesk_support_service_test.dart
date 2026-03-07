@@ -456,11 +456,12 @@ void main() {
     });
 
     test(
-      'createBugReportTicketViaApi returns false when API not configured',
+      'createStructuredBugReport returns false when API not configured',
       () async {
-        final result = await ZendeskSupportService.createBugReportTicketViaApi(
+        final result = await ZendeskSupportService.createStructuredBugReport(
+          subject: 'Test bug',
+          description: 'Test bug description',
           reportId: 'test-123',
-          userDescription: 'Test bug',
           appVersion: '1.0.0',
           deviceInfo: {'platform': 'test'},
         );
@@ -469,5 +470,223 @@ void main() {
         expect(result, ZendeskConfig.isRestApiConfigured);
       },
     );
+
+    test(
+      'createFeatureRequest returns false when API not configured',
+      () async {
+        final result = await ZendeskSupportService.createFeatureRequest(
+          subject: 'Test feature',
+          description: 'Test feature description',
+        );
+
+        expect(result, ZendeskConfig.isRestApiConfigured);
+      },
+    );
+  });
+
+  group('ZendeskSupportService SDK-vs-REST fallback', () {
+    test(
+      'createTicket uses SDK when initialized and falls back to REST on '
+      'PlatformException',
+      () async {
+        var createTicketCalled = false;
+
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') return true;
+              if (call.method == 'createTicket') {
+                createTicketCalled = true;
+                throw PlatformException(
+                  code: 'SDK_ERROR',
+                  message: 'SDK failed',
+                );
+              }
+              return null;
+            });
+
+        await ZendeskSupportService.initialize(
+          appId: 'test',
+          clientId: 'test',
+          zendeskUrl: 'https://test.zendesk.com',
+        );
+
+        // SDK is initialized, so createTicket will try SDK first.
+        // On PlatformException, it falls back to REST API.
+        // REST API is not configured in tests, so result depends on config.
+        final result = await ZendeskSupportService.createTicket(
+          subject: 'Test',
+          description: 'Test description',
+        );
+
+        expect(createTicketCalled, isTrue);
+        // Falls back to REST; without API token configured, returns false
+        expect(result, ZendeskConfig.isRestApiConfigured);
+      },
+    );
+
+    test(
+      'createTicket falls back to REST on MissingPluginException',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') return true;
+              if (call.method == 'createTicket') {
+                throw MissingPluginException('Not available on this platform');
+              }
+              return null;
+            });
+
+        await ZendeskSupportService.initialize(
+          appId: 'test',
+          clientId: 'test',
+          zendeskUrl: 'https://test.zendesk.com',
+        );
+
+        final result = await ZendeskSupportService.createTicket(
+          subject: 'Test',
+          description: 'Test description',
+        );
+
+        // Falls back to REST API
+        expect(result, ZendeskConfig.isRestApiConfigured);
+      },
+    );
+
+    test('createTicket returns false when not initialized', () async {
+      // Reset initialization state by reinitializing with empty creds
+      await ZendeskSupportService.initialize(
+        appId: '',
+        clientId: '',
+        zendeskUrl: '',
+      );
+
+      final result = await ZendeskSupportService.createTicket(
+        subject: 'Test',
+        description: 'Test description',
+      );
+
+      expect(result, isFalse);
+    });
+
+    test(
+      'createStructuredBugReport uses SDK path when initialized',
+      () async {
+        var createTicketCalled = false;
+        int? capturedTicketFormId;
+
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') return true;
+              if (call.method == 'createTicket') {
+                createTicketCalled = true;
+                capturedTicketFormId = call.arguments['ticketFormId'] as int?;
+                return true;
+              }
+              return null;
+            });
+
+        await ZendeskSupportService.initialize(
+          appId: 'test',
+          clientId: 'test',
+          zendeskUrl: 'https://test.zendesk.com',
+        );
+
+        final result = await ZendeskSupportService.createStructuredBugReport(
+          subject: 'fix: App crash',
+          description: 'App crashes on startup',
+          reportId: 'test-report-123',
+          appVersion: '1.0.0+42',
+          deviceInfo: {'platform': 'ios', 'version': '17.0'},
+          stepsToReproduce: '1. Open app\n2. See crash',
+          expectedBehavior: 'App should open normally',
+        );
+
+        expect(result, isTrue);
+        expect(createTicketCalled, isTrue);
+        // Bug report form ID
+        expect(capturedTicketFormId, equals(14772963437071));
+      },
+    );
+
+    test(
+      'createFeatureRequest uses SDK path when initialized',
+      () async {
+        var createTicketCalled = false;
+        int? capturedTicketFormId;
+
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') return true;
+              if (call.method == 'createTicket') {
+                createTicketCalled = true;
+                capturedTicketFormId = call.arguments['ticketFormId'] as int?;
+                return true;
+              }
+              return null;
+            });
+
+        await ZendeskSupportService.initialize(
+          appId: 'test',
+          clientId: 'test',
+          zendeskUrl: 'https://test.zendesk.com',
+        );
+
+        final result = await ZendeskSupportService.createFeatureRequest(
+          subject: 'feat: Calendar view',
+          description: 'A calendar for scheduled posts',
+          usefulness: 'Plan content better',
+          whenToUse: 'Weekly content planning',
+        );
+
+        expect(result, isTrue);
+        expect(createTicketCalled, isTrue);
+        // Feature request form ID
+        expect(capturedTicketFormId, equals(15081095878799));
+      },
+    );
+
+    test('setJwtIdentity returns false when not initialized', () async {
+      await ZendeskSupportService.initialize(
+        appId: '',
+        clientId: '',
+        zendeskUrl: '',
+      );
+
+      final result = await ZendeskSupportService.setJwtIdentity('npub1test');
+
+      expect(result, isFalse);
+    });
+
+    test('setJwtIdentity passes userToken to native SDK', () async {
+      String? capturedToken;
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            if (call.method == 'initialize') return true;
+            if (call.method == 'setJwtIdentity') {
+              capturedToken = call.arguments['userToken'] as String?;
+              return true;
+            }
+            return null;
+          });
+
+      await ZendeskSupportService.initialize(
+        appId: 'test',
+        clientId: 'test',
+        zendeskUrl: 'https://test.zendesk.com',
+      );
+
+      final result = await ZendeskSupportService.setJwtIdentity(
+        'npub1abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345',
+      );
+
+      expect(result, isTrue);
+      expect(
+        capturedToken,
+        equals(
+          'npub1abcdef1234567890abcdef1234567890abcdef1234567890abcdef12345',
+        ),
+      );
+    });
   });
 }
