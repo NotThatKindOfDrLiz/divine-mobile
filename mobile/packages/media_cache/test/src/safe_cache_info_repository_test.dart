@@ -201,6 +201,48 @@ void main() {
         },
       );
 
+      test(
+        'forwards non-cache FlutterErrors to previous handler during open',
+        () async {
+          when(() => mockRepository.open()).thenAnswer((_) async {
+            // Simulate a non-cache FlutterError during open
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: Exception('some rendering error'),
+                library: 'rendering library',
+                context: ErrorDescription('during layout'),
+              ),
+            );
+            return true;
+          });
+
+          FlutterErrorDetails? forwardedError;
+          final previousHandler = FlutterError.onError;
+          FlutterError.onError = (details) {
+            forwardedError = details;
+          };
+
+          try {
+            final repo = SafeCacheInfoRepository(
+              databaseName: 'test_forward',
+              repository: mockRepository,
+              directoryProvider: () async => testDirectory,
+            );
+
+            await repo.open();
+
+            // Non-cache error should have been forwarded to previous handler
+            expect(forwardedError, isNotNull);
+            expect(
+              forwardedError!.library,
+              equals('rendering library'),
+            );
+          } finally {
+            FlutterError.onError = previousHandler;
+          }
+        },
+      );
+
       test('rethrows non-recoverable exceptions', () async {
         when(() => mockRepository.open()).thenThrow(
           Exception('Some other error'),
