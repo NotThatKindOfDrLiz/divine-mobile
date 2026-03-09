@@ -978,21 +978,14 @@ List<String> cachedFollowingList(Ref ref) {
 /// Provider for FollowRepository instance
 ///
 /// Creates a FollowRepository for managing follow relationships.
-/// Requires authentication.
+/// Non-nullable: the repository works without keys at construction time.
+/// Read operations return cached/empty data; write operations check keys.
 ///
 /// Uses:
 /// - NostrClient from nostrServiceProvider (for relay communication)
 /// - PersonalEventCacheService (for caching contact list events)
 @Riverpod(keepAlive: true)
-FollowRepository? followRepository(Ref ref) {
-  // Return null if NostrClient is not ready yet
-  // This prevents race conditions during auth where auth state is 'authenticated'
-  // but NostrClient hasn't yet rebuilt with the new keys.
-  // The provider will rebuild when isNostrReady becomes true.
-  if (!ref.watch(isNostrReadyProvider)) {
-    return null;
-  }
-
+FollowRepository followRepository(Ref ref) {
   final nostrClient = ref.watch(nostrServiceProvider);
   final personalEventCache = ref.watch(personalEventCacheServiceProvider);
 
@@ -1055,6 +1048,25 @@ FollowRepository? followRepository(Ref ref) {
       name: 'AppProviders',
       error: e,
     );
+  });
+
+  // Listen for isNostrReady changes to re-initialize when keys become available.
+  // This handles the case where the provider was created before keys were loaded.
+  ref.listen<bool>(isNostrReadyProvider, (previous, next) {
+    if (previous == false && next && !repository.isInitialized) {
+      Log.info(
+        'NostrClient became ready, re-initializing FollowRepository',
+        name: 'AppProviders',
+        category: LogCategory.system,
+      );
+      repository.initialize().catchError((e) {
+        Log.error(
+          'Failed to re-initialize FollowRepository after keys ready',
+          name: 'AppProviders',
+          error: e,
+        );
+      });
+    }
   });
 
   ref.onDispose(repository.dispose);

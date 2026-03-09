@@ -20,7 +20,6 @@ import 'package:openvine/services/startup_performance_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_presentation.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
-import 'package:openvine/widgets/branded_loading_scaffold.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
 /// Compares two [VideoItem] lists for equality by id and url.
@@ -97,11 +96,6 @@ class VideoFeedPage extends ConsumerWidget {
     final curatedListRepository = ref.watch(curatedListRepositoryProvider);
     final authService = ref.watch(authServiceProvider);
     final sharedPreferences = ref.watch(sharedPreferencesProvider);
-
-    // Show loading until NostrClient has keys
-    if (followRepository == null) {
-      return const BrandedLoadingScaffold();
-    }
 
     return BlocProvider(
       create: (_) => VideoFeedBloc(
