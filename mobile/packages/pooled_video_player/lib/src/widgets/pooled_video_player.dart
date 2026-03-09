@@ -109,42 +109,35 @@ class PooledVideoPlayer extends StatelessWidget {
               ?overlay,
             ],
           );
-        } else if (videoController != null && player != null) {
+        } else {
           final loadingPlaceholder =
               loadingBuilder?.call(context) ??
               _DefaultLoadingState(thumbnailUrl: thumbnailUrl);
+
           final children = <Widget>[
             loadingPlaceholder,
-            _RevealVideoAfterFirstFrame(
-              videoController: videoController,
-              readyForFallback: loadState == LoadState.ready,
-              child: videoBuilder(context, videoController, player),
-            ),
+            if (videoController != null && player != null)
+              _RevealVideoAfterFirstFrame(
+                videoController: videoController,
+                player: player,
+                readyForFallback: loadState == LoadState.ready,
+                child: videoBuilder(context, videoController, player),
+              ),
             ?overlay,
           ];
           content = Stack(fit: StackFit.expand, children: children);
-        } else {
-          content = Stack(
-            fit: StackFit.expand,
-            children: [
-              loadingBuilder?.call(context) ??
-                  _DefaultLoadingState(thumbnailUrl: thumbnailUrl),
-              ?overlay,
-            ],
-          );
         }
 
-        if ((enableTapToPause || onTap != null) &&
+        final enableInteraction =
+            (enableTapToPause || onTap != null) &&
             videoController != null &&
-            loadState == LoadState.ready) {
-          content = GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onTap: () => _handleTap(feedController),
-            child: content,
-          );
-        }
+            loadState == LoadState.ready;
 
-        return content;
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: enableInteraction ? () => _handleTap(feedController) : null,
+          child: content,
+        );
       },
     );
   }
@@ -153,11 +146,13 @@ class PooledVideoPlayer extends StatelessWidget {
 class _RevealVideoAfterFirstFrame extends StatefulWidget {
   const _RevealVideoAfterFirstFrame({
     required this.videoController,
+    required this.player,
     required this.readyForFallback,
     required this.child,
   });
 
   final VideoController videoController;
+  final Player player;
   final bool readyForFallback;
   final Widget child;
 
@@ -168,10 +163,11 @@ class _RevealVideoAfterFirstFrame extends StatefulWidget {
 
 class _RevealVideoAfterFirstFrameState
     extends State<_RevealVideoAfterFirstFrame> {
-  bool _hasRenderedFirstFrame = false;
-  bool _revealedByTimeout = false;
+  final ValueNotifier<bool> _hasRenderedFirstFrame = ValueNotifier(false);
+  final ValueNotifier<bool> _revealedByTimeout = ValueNotifier(false);
   int _generation = 0;
   Timer? _firstFrameTimeout;
+  StreamSubscription<Duration>? _positionSubscription;
 
   @override
   void initState() {
@@ -183,7 +179,8 @@ class _RevealVideoAfterFirstFrameState
   @override
   void didUpdateWidget(covariant _RevealVideoAfterFirstFrame oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.videoController, widget.videoController)) {
+    if (!identical(oldWidget.player, widget.player)) {
+      _cancelPositionSubscription();
       _resetRevealState();
       _subscribeToFirstFrame();
     }
@@ -192,69 +189,94 @@ class _RevealVideoAfterFirstFrameState
     }
   }
 
+  void _cancelPositionSubscription() {
+    unawaited(_positionSubscription?.cancel());
+    _positionSubscription = null;
+  }
+
   void _resetRevealState() {
     _firstFrameTimeout?.cancel();
-    _hasRenderedFirstFrame = false;
-    _revealedByTimeout = false;
+    _hasRenderedFirstFrame.value = false;
+    _revealedByTimeout.value = false;
   }
 
   void _subscribeToFirstFrame() {
     final generation = ++_generation;
     _firstFrameTimeout?.cancel();
+    _cancelPositionSubscription();
 
-    unawaited(
-      widget.videoController.waitUntilFirstFrameRendered
-          .then((_) {
-            if (!mounted || generation != _generation) return;
-            _firstFrameTimeout?.cancel();
-            setState(() {
-              _hasRenderedFirstFrame = true;
-            });
-          })
-          .catchError((_) {
-            if (!mounted || generation != _generation) return;
-            _firstFrameTimeout?.cancel();
-            setState(() {
-              _hasRenderedFirstFrame = true;
-            });
-          }),
-    );
+    // Wait for position to become > 0 after subscribing.
+    // We track whether we've seen position become > 0 since subscribing,
+    // which handles the case where the player is reused and had an old
+    // position value before being assigned to this video.
+    var seenZeroOrStart = widget.player.state.position <= Duration.zero;
+
+    _positionSubscription = widget.player.stream.position.listen((position) {
+      if (!mounted || generation != _generation) return;
+
+      // First, we need to see position at or near zero (video started loading)
+      if (position <= Duration.zero) {
+        seenZeroOrStart = true;
+      }
+
+      // Then, when position becomes > 0, the first frame is rendered
+      if (seenZeroOrStart && position > Duration.zero) {
+        _cancelPositionSubscription();
+        _firstFrameTimeout?.cancel();
+        _hasRenderedFirstFrame.value = true;
+      }
+    });
+
+    // If position is already 0 or less, we're ready to detect first frame
+    // If position is already > 0 and we just subscribed, we need to wait
+    // for it to reset (new video loading) before revealing
   }
 
   void _syncFallbackTimer() {
     _firstFrameTimeout = Timer(_firstFrameRevealTimeout, () {
-      if (!mounted || _hasRenderedFirstFrame || !widget.readyForFallback) {
+      if (!mounted ||
+          _hasRenderedFirstFrame.value ||
+          !widget.readyForFallback) {
         return;
       }
-      setState(() {
-        _revealedByTimeout = true;
-      });
+      _revealedByTimeout.value = true;
     });
 
-    if (!widget.readyForFallback || _hasRenderedFirstFrame) {
+    if (!widget.readyForFallback || _hasRenderedFirstFrame.value) {
       _firstFrameTimeout?.cancel();
-      _revealedByTimeout = false;
+      _revealedByTimeout.value = false;
       return;
     }
   }
 
   @override
   void dispose() {
+    _cancelPositionSubscription();
     _firstFrameTimeout?.cancel();
+    _hasRenderedFirstFrame.dispose();
+    _revealedByTimeout.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final shouldReveal =
-        _hasRenderedFirstFrame ||
-        (widget.readyForFallback && _revealedByTimeout);
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        _hasRenderedFirstFrame,
+        _revealedByTimeout,
+      ]),
+      builder: (context, _) {
+        final shouldReveal =
+            _hasRenderedFirstFrame.value ||
+            (widget.readyForFallback && _revealedByTimeout.value);
 
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 120),
-      curve: Curves.easeOut,
-      opacity: shouldReveal ? 1 : 0,
-      child: widget.child,
+        return AnimatedOpacity(
+          duration: const Duration(milliseconds: 120),
+          curve: Curves.easeOut,
+          opacity: shouldReveal ? 1 : 0,
+          child: widget.child,
+        );
+      },
     );
   }
 }
