@@ -119,7 +119,6 @@ class PooledVideoPlayer extends StatelessWidget {
             if (videoController != null && player != null)
               _RevealVideoAfterFirstFrame(
                 videoController: videoController,
-                player: player,
                 readyForFallback: loadState == LoadState.ready,
                 child: videoBuilder(context, videoController, player),
               ),
@@ -146,13 +145,11 @@ class PooledVideoPlayer extends StatelessWidget {
 class _RevealVideoAfterFirstFrame extends StatefulWidget {
   const _RevealVideoAfterFirstFrame({
     required this.videoController,
-    required this.player,
     required this.readyForFallback,
     required this.child,
   });
 
   final VideoController videoController;
-  final Player player;
   final bool readyForFallback;
   final Widget child;
 
@@ -167,7 +164,7 @@ class _RevealVideoAfterFirstFrameState
   final ValueNotifier<bool> _revealedByTimeout = ValueNotifier(false);
   int _generation = 0;
   Timer? _firstFrameTimeout;
-  StreamSubscription<Duration>? _positionSubscription;
+  VoidCallback? _idListener;
 
   @override
   void initState() {
@@ -179,19 +176,30 @@ class _RevealVideoAfterFirstFrameState
   @override
   void didUpdateWidget(covariant _RevealVideoAfterFirstFrame oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.player, widget.player)) {
-      _cancelPositionSubscription();
+    if (!identical(oldWidget.videoController, widget.videoController)) {
+      _removeIdListener(oldWidget.videoController);
       _resetRevealState();
       _subscribeToFirstFrame();
+    }
+    // When readyForFallback becomes true, check if we can reveal immediately
+    if (!oldWidget.readyForFallback && widget.readyForFallback) {
+      if (widget.videoController.id.value != null &&
+          !_hasRenderedFirstFrame.value) {
+        _removeIdListener(widget.videoController);
+        _firstFrameTimeout?.cancel();
+        _hasRenderedFirstFrame.value = true;
+      }
     }
     if (oldWidget.readyForFallback != widget.readyForFallback) {
       _syncFallbackTimer();
     }
   }
 
-  void _cancelPositionSubscription() {
-    unawaited(_positionSubscription?.cancel());
-    _positionSubscription = null;
+  void _removeIdListener(VideoController controller) {
+    if (_idListener != null) {
+      controller.id.removeListener(_idListener!);
+      _idListener = null;
+    }
   }
 
   void _resetRevealState() {
@@ -203,33 +211,34 @@ class _RevealVideoAfterFirstFrameState
   void _subscribeToFirstFrame() {
     final generation = ++_generation;
     _firstFrameTimeout?.cancel();
-    _cancelPositionSubscription();
+    _removeIdListener(widget.videoController);
 
-    // Wait for position to become > 0 after subscribing.
-    // We track whether we've seen position become > 0 since subscribing,
-    // which handles the case where the player is reused and had an old
-    // position value before being assigned to this video.
-    var seenZeroOrStart = widget.player.state.position <= Duration.zero;
+    // If video is already ready (LoadState.ready) and texture ID is set,
+    // reveal immediately. This handles normal scrolling where the controller
+    // was just assigned but is already prepared.
+    // If readyForFallback is false, the video is still loading and we must
+    // wait - even if id.value != null (stale texture from previous video).
+    if (widget.readyForFallback && widget.videoController.id.value != null) {
+      _hasRenderedFirstFrame.value = true;
+      return;
+    }
 
-    _positionSubscription = widget.player.stream.position.listen((position) {
+    // Otherwise wait for texture ID to change (first frame of new video).
+    final initialId = widget.videoController.id.value;
+
+    void onIdChanged() {
       if (!mounted || generation != _generation) return;
-
-      // First, we need to see position at or near zero (video started loading)
-      if (position <= Duration.zero) {
-        seenZeroOrStart = true;
-      }
-
-      // Then, when position becomes > 0, the first frame is rendered
-      if (seenZeroOrStart && position > Duration.zero) {
-        _cancelPositionSubscription();
+      final currentId = widget.videoController.id.value;
+      // Reveal when texture ID changes (new frame rendered) or becomes non-null
+      if (currentId != null && currentId != initialId) {
+        _removeIdListener(widget.videoController);
         _firstFrameTimeout?.cancel();
         _hasRenderedFirstFrame.value = true;
       }
-    });
+    }
 
-    // If position is already 0 or less, we're ready to detect first frame
-    // If position is already > 0 and we just subscribed, we need to wait
-    // for it to reset (new video loading) before revealing
+    _idListener = onIdChanged;
+    widget.videoController.id.addListener(onIdChanged);
   }
 
   void _syncFallbackTimer() {
@@ -251,7 +260,7 @@ class _RevealVideoAfterFirstFrameState
 
   @override
   void dispose() {
-    _cancelPositionSubscription();
+    _removeIdListener(widget.videoController);
     _firstFrameTimeout?.cancel();
     _hasRenderedFirstFrame.dispose();
     _revealedByTimeout.dispose();
