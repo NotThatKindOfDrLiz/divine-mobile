@@ -158,7 +158,6 @@ void main() {
           content: 'unverified video',
           timestamp: DateTime.now(),
           videoUrl: 'https://example-cdn.com/video.mp4',
-          rawTags: const {},
         );
 
         await tester.pumpWidget(buildSubject(video));
