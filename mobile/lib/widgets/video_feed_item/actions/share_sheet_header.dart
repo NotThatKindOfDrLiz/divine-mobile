@@ -23,14 +23,17 @@ class _DragIndicator extends StatelessWidget {
   }
 }
 
-class _ShareSheetHeader extends ConsumerWidget {
+class _ShareSheetHeader extends StatelessWidget {
   const _ShareSheetHeader({required this.video});
 
   final VideoEvent video;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profileAsync = ref.watch(userProfileReactiveProvider(video.pubkey));
+  Widget build(BuildContext context) {
+    context.read<ProfilesBloc>().add(ProfileRequested(pubkey: video.pubkey));
+    final profile = context.select<ProfilesBloc, UserProfile?>(
+      (bloc) => bloc.state.profiles[video.pubkey],
+    );
 
     final videoTitle = video.title?.isNotEmpty == true
         ? video.title!
@@ -41,14 +44,10 @@ class _ShareSheetHeader extends ConsumerWidget {
       child: Row(
         spacing: 12,
         children: [
-          profileAsync.when(
-            data: (profile) => UserAvatar(
-              imageUrl: profile?.picture,
-              name: profile?.displayName,
-              size: 40,
-            ),
-            loading: () => const UserAvatar(size: 40),
-            error: (_, _) => const UserAvatar(size: 40),
+          UserAvatar(
+            imageUrl: profile?.picture,
+            name: profile?.displayName,
+            size: 40,
           ),
           Expanded(
             child: Column(

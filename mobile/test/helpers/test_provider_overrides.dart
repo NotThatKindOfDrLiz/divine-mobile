@@ -227,7 +227,6 @@ List<dynamic> getStandardTestOverrides({
   final mockSub = mockSubscriptionManager ?? createMockSubscriptionManager();
   final mockBlossom = mockBlossomAuthService ?? createMockBlossomAuthService();
   final mockCache = mockMediaCacheManager ?? createMockMediaCacheManager();
-  final mockProfile = mockProfileRepository ?? createMockProfileRepository();
 
   return [
     // Override sharedPreferencesProvider which throws in production

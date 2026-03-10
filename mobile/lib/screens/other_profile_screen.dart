@@ -222,9 +222,10 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
           const OtherProfileBlockRequested(),
         );
         if (mounted) {
-          final profile = ref
-              .read(userProfileReactiveProvider(widget.pubkey))
-              .value;
+          final profile = context
+              .read<ProfilesBloc>()
+              .state
+              .profiles[widget.pubkey];
           final name =
               profile?.bestDisplayName ?? widget.displayNameHint ?? 'User';
           // TODO(SofiaRey): revisit when designs are ready
@@ -238,9 +239,10 @@ class _OtherProfileViewState extends ConsumerState<OtherProfileView> {
           const OtherProfileUnblockRequested(),
         );
         if (mounted) {
-          final profile = ref
-              .read(userProfileReactiveProvider(widget.pubkey))
-              .value;
+          final profile = context
+              .read<ProfilesBloc>()
+              .state
+              .profiles[widget.pubkey];
           final name =
               profile?.bestDisplayName ?? widget.displayNameHint ?? 'User';
           // TODO(SofiaRey): revisit when designs are ready

@@ -1120,7 +1120,6 @@ ProfileRepository? profileRepository(Ref ref) {
 
   final nostrClient = ref.watch(nostrServiceProvider);
   final userProfilesDao = ref.watch(databaseProvider).userProfilesDao;
-  final blocklistService = ref.watch(contentBlocklistServiceProvider);
   final funnelcakeClient = ref.watch(funnelcakeApiClientProvider);
 
   return ProfileRepository(
@@ -1128,7 +1127,6 @@ ProfileRepository? profileRepository(Ref ref) {
     userProfilesDao: userProfilesDao,
     httpClient: Client(),
     funnelcakeApiClient: funnelcakeClient,
-    userBlockFilter: blocklistService.shouldFilterFromFeeds,
     profileSearchFilter: (query, profiles) =>
         SearchUtils.searchProfiles(query, profiles, limit: 50),
   );

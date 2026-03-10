@@ -4260,9 +4260,9 @@ class VideoEventService extends ChangeNotifier {
   /// Fetches and caches a profile only if it isn't already in the local cache.
   Future<void> _fetchProfileIfMissing(String pubkey) async {
     try {
-      final cached = await _profileRepository.getCachedProfile(pubkey: pubkey);
+      final cached = await _profileRepository?.getCachedProfile(pubkey: pubkey);
       if (cached != null) return;
-      await _profileRepository.fetchFreshProfile(pubkey: pubkey);
+      await _profileRepository?.fetchFreshProfile(pubkey: pubkey);
     } catch (e) {
       Log.warning(
         'Failed to fetch profile for $pubkey: $e',
