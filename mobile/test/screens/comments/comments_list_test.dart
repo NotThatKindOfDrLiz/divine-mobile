@@ -51,7 +51,7 @@ void main() {
 
     Widget buildTestWidget({
       required CommentsState commentsState,
-      bool isOriginalVine = false,
+      bool showClassicVineNotice = false,
       ScrollController? scrollController,
     }) {
       final sc = scrollController ?? ScrollController();
@@ -59,9 +59,7 @@ void main() {
       when(() => mockCommentsBloc.state).thenReturn(commentsState);
 
       return ProviderScope(
-        overrides: [
-          nostrServiceProvider.overrideWithValue(mockNostrClient),
-        ],
+        overrides: [nostrServiceProvider.overrideWithValue(mockNostrClient)],
         child: MaterialApp(
           home: Scaffold(
             body: MultiBlocProvider(
@@ -70,7 +68,7 @@ void main() {
                 BlocProvider<ProfilesBloc>.value(value: mockProfilesBloc),
               ],
               child: CommentsList(
-                isOriginalVine: isOriginalVine,
+                showClassicVineNotice: showClassicVineNotice,
                 scrollController: sc,
               ),
             ),
@@ -120,9 +118,7 @@ void main() {
       expect(find.byType(CommentsEmptyState), findsOneWidget);
     });
 
-    testWidgets('shows Classic Vine notice when isOriginalVine', (
-      tester,
-    ) async {
+    testWidgets('shows Classic Vine notice when requested', (tester) async {
       const state = CommentsState(
         rootEventId: testVideoEventId,
         rootAuthorPubkey: testVideoAuthorPubkey,
@@ -130,7 +126,7 @@ void main() {
       );
 
       await tester.pumpWidget(
-        buildTestWidget(commentsState: state, isOriginalVine: true),
+        buildTestWidget(commentsState: state, showClassicVineNotice: true),
       );
       await tester.pump();
 

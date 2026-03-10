@@ -6,7 +6,6 @@ import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart';
 import 'package:openvine/blocs/profiles/profiles_bloc.dart';
@@ -37,6 +36,7 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
   bool _isAgeVerified = false;
   Set<ContentLabel> _accountLabels = {};
   bool _isDivineLabelerEnabled = true;
+  bool _showDivineHostedOnly = false;
 
   @override
   void initState() {
@@ -49,6 +49,7 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
     await service.initialize();
     final accountLabelService = ref.read(accountLabelServiceProvider);
     final labelService = ref.read(moderationLabelServiceProvider);
+    final divineHostFilterService = ref.read(divineHostFilterServiceProvider);
     if (mounted) {
       setState(() {
         _isAgeVerified = service.isAdultContentVerified;
@@ -56,6 +57,7 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
         _isDivineLabelerEnabled = labelService.subscribedLabelers.contains(
           ModerationLabelService.divineModerationPubkeyHex,
         );
+        _showDivineHostedOnly = divineHostFilterService.showDivineHostedOnly;
         _isLoading = false;
       });
     }
@@ -80,44 +82,26 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
     }
   }
 
+  Future<void> _setShowDivineHostedOnly(bool value) async {
+    final service = ref.read(divineHostFilterServiceProvider);
+    await service.setShowDivineHostedOnly(value);
+
+    if (mounted) {
+      setState(() {
+        _showDivineHostedOnly = value;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 72,
-        leadingWidth: 80,
-        centerTitle: false,
-        titleSpacing: 0,
-        backgroundColor: VineTheme.navGreen,
-        leading: IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          icon: Container(
-            width: 48,
-            height: 48,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: VineTheme.iconButtonBackground,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: SvgPicture.asset(
-              'assets/icon/CaretLeft.svg',
-              width: 32,
-              height: 32,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-          onPressed: context.pop,
-          tooltip: 'Back',
-        ),
-        title: Text('Safety & Privacy', style: VineTheme.titleFont()),
+      appBar: DiVineAppBar(
+        title: 'Safety & Privacy',
+        showBackButton: true,
+        onBackPressed: context.pop,
       ),
-      backgroundColor: Colors.black,
+      backgroundColor: VineTheme.backgroundColor,
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: VineTheme.vineGreen),
@@ -132,6 +116,23 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
                   title: 'Content Filters',
                   subtitle: 'Per-category Show, Warn, or Hide',
                   onTap: () => context.push(ContentFiltersScreen.path),
+                ),
+                SwitchListTile(
+                  value: _showDivineHostedOnly,
+                  onChanged: _setShowDivineHostedOnly,
+                  secondary: const Icon(
+                    Icons.verified,
+                    color: VineTheme.vineGreen,
+                  ),
+                  title: const Text(
+                    'Only show Divine-hosted videos',
+                    style: TextStyle(color: VineTheme.whiteText),
+                  ),
+                  subtitle: const Text(
+                    'Hide videos served from other media hosts',
+                    style: TextStyle(color: VineTheme.secondaryText),
+                  ),
+                  activeThumbColor: VineTheme.vineGreen,
                 ),
                 _buildNavigationTile(
                   icon: Icons.warning_amber_rounded,
@@ -184,7 +185,7 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
             style: TextStyle(color: VineTheme.secondaryText),
           ),
           activeColor: VineTheme.vineGreen,
-          checkColor: Colors.black,
+          checkColor: VineTheme.backgroundColor,
           controlAffinity: ListTileControlAffinity.leading,
         ),
       ],
@@ -443,7 +444,6 @@ class _SafetySettingsScreenState extends ConsumerState<SafetySettingsScreen> {
   Future<void> _unblockUser(String pubkey) async {
     final blocklistService = ref.read(contentBlocklistServiceProvider);
     blocklistService.unblockUser(pubkey);
-    ref.read(blocklistVersionProvider.notifier).increment();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -597,9 +597,7 @@ class _AccountLabelMultiSelectState extends State<_AccountLabelMultiSelect> {
                 children: [
                   Text(
                     'Account Content Labels',
-                    style: VineTheme.titleFont(
-                      fontSize: 18,
-                    ),
+                    style: VineTheme.titleFont(fontSize: 18),
                   ),
                   if (_selected.isNotEmpty)
                     TextButton(

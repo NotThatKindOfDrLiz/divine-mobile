@@ -13,7 +13,6 @@ import 'package:openvine/constants/nip71_migration.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/screens/comments/widgets/widgets.dart';
-import 'package:openvine/utils/nostr_key_utils.dart';
 
 /// Maps [CommentsError] to user-facing strings.
 /// TODO(l10n): Replace with context.l10n when localization is added.
@@ -121,7 +120,8 @@ class CommentsScreen extends ConsumerWidget {
   }) {
     final container = ProviderScope.containerOf(context, listen: false);
     final overlayNotifier = container.read(overlayVisibilityProvider.notifier);
-    overlayNotifier.setModalOpen(true);
+    // Use setBottomSheetOpen to retain current player for instant resume.
+    overlayNotifier.setBottomSheetOpen(true);
 
     return showModalBottomSheet<void>(
       context: context,
@@ -148,7 +148,7 @@ class CommentsScreen extends ConsumerWidget {
         );
       },
     ).whenComplete(() {
-      overlayNotifier.setModalOpen(false);
+      overlayNotifier.setBottomSheetOpen(false);
     });
   }
 
@@ -166,8 +166,6 @@ class CommentsScreen extends ConsumerWidget {
     final contentReportingServiceFuture = ref.read(
       contentReportingServiceProvider.future,
     );
-    final muteServiceFuture = ref.read(muteServiceProvider.future);
-
     // Mention search dependencies
     final profileRepository = ref.watch(profileRepositoryProvider);
     final followRepository = ref.watch(followRepositoryProvider);
@@ -182,7 +180,6 @@ class CommentsScreen extends ConsumerWidget {
         authService: authService,
         likesRepository: likesRepository,
         contentReportingServiceFuture: contentReportingServiceFuture,
-        muteServiceFuture: muteServiceFuture,
         contentBlocklistService: contentBlocklistService,
         rootEventId: videoEvent.id,
         rootEventKind: NIP71VideoKinds.addressableShortVideo,
@@ -252,7 +249,7 @@ class _CommentsScreenBody extends StatelessWidget {
       },
       child: SizedBox(
         child: CommentsList(
-          isOriginalVine: videoEvent.isOriginalVine,
+          showClassicVineNotice: videoEvent.isVintageRecoveredVine,
           scrollController: sheetScrollController,
         ),
       ),
@@ -348,7 +345,7 @@ class _MainCommentInputState extends ConsumerState<_MainCommentInput> {
           replyToDisplayName =
               profile?.displayName ??
               profile?.name ??
-              NostrKeyUtils.encodePubKey(replyToAuthorPubkey);
+              UserProfile.generatedNameFor(replyToAuthorPubkey);
         }
 
         return CommentInput(

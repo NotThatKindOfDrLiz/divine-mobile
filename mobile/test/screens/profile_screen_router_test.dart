@@ -9,12 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:likes_repository/likes_repository.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:models/models.dart' hide VineDraft;
+import 'package:models/models.dart';
 import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
 import 'package:openvine/blocs/profiles/profiles_bloc.dart';
-import 'package:openvine/models/vine_draft.dart';
+import 'package:openvine/models/divine_video_draft.dart';
 import 'package:openvine/providers/active_video_provider.dart';
 import 'package:openvine/providers/app_lifecycle_provider.dart';
 import 'package:openvine/providers/app_providers.dart';
@@ -30,7 +30,7 @@ import 'package:videos_repository/videos_repository.dart';
 
 import '../helpers/test_provider_overrides.dart';
 
-class _MockVineDraft extends Mock implements VineDraft {}
+class _MockVineDraft extends Mock implements DivineVideoDraft {}
 
 class _MockFollowRepository extends Mock implements FollowRepository {
   @override
@@ -73,13 +73,13 @@ class _MockNostrClient extends Mock implements NostrClient {
   List<String> get configuredRelays => <String>[];
 }
 
-class _MockMyProfileBloc extends MockBloc<MyProfileEvent, MyProfileState>
-    implements MyProfileBloc {}
-
 class _MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
     implements ProfilesBloc {}
 
 class _MockVideoEventService extends Mock implements VideoEventService {}
+
+class _MockMyProfileBloc extends MockBloc<MyProfileEvent, MyProfileState>
+    implements MyProfileBloc {}
 
 void main() {
   Widget shell(ProviderContainer c) => UncontrolledProviderScope(
@@ -125,10 +125,7 @@ void main() {
       overrides: [
         videosForProfileRouteProvider.overrideWith((ref) {
           return AsyncValue.data(
-            VideoFeedState(
-              videos: mockVideos,
-              hasMoreContent: false,
-            ),
+            VideoFeedState(videos: mockVideos, hasMoreContent: false),
           );
         }),
       ],
@@ -158,10 +155,7 @@ void main() {
       overrides: [
         videosForProfileRouteProvider.overrideWith((ref) {
           return const AsyncValue.data(
-            VideoFeedState(
-              videos: [],
-              hasMoreContent: false,
-            ),
+            VideoFeedState(videos: [], hasMoreContent: false),
           );
         }),
       ],
@@ -184,10 +178,7 @@ void main() {
         appForegroundProvider.overrideWithValue(const AsyncValue.data(false)),
         videosForProfileRouteProvider.overrideWith((ref) {
           return AsyncValue.data(
-            VideoFeedState(
-              videos: mockVideos,
-              hasMoreContent: false,
-            ),
+            VideoFeedState(videos: mockVideos, hasMoreContent: false),
           );
         }),
       ],
@@ -259,15 +250,11 @@ void main() {
 
     Widget buildTestWidget(_FakeBackgroundPublishBloc bloc) {
       final mockMyProfileBloc = _MockMyProfileBloc();
-      when(() => mockMyProfileBloc.state).thenReturn(
-        const MyProfileInitial(),
-      );
+      when(() => mockMyProfileBloc.state).thenReturn(const MyProfileInitial());
 
       return ProviderScope(
         overrides: [
-          ...getStandardTestOverrides(
-            mockNostrService: mockNostrClient,
-          ),
+          ...getStandardTestOverrides(mockNostrService: mockNostrClient),
           followRepositoryProvider.overrideWithValue(mockFollowRepository),
           likesRepositoryProvider.overrideWithValue(mockLikesRepository),
           repostsRepositoryProvider.overrideWithValue(mockRepostsRepository),
@@ -348,6 +335,28 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // Should not show the error snackbar
+      expect(find.byType(DivineSnackbarContainer), findsNothing);
+    });
+
+    testWidgets('does not show DivineSnackbarContainer when upload succeeded', (
+      tester,
+    ) async {
+      fakeBloc = _FakeBackgroundPublishBloc(
+        initialState: BackgroundPublishState(
+          uploads: [
+            BackgroundUpload(
+              draft: mockDraft,
+              result: const PublishSuccess(), // Success, not error
+              progress: 1.0,
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(buildTestWidget(fakeBloc));
+      await tester.pumpAndSettle();
+
+      // Should NOT show the error snackbar for successful uploads
       expect(find.byType(DivineSnackbarContainer), findsNothing);
     });
 

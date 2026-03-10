@@ -14,6 +14,7 @@ import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/utils/clipboard_utils.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -90,6 +91,7 @@ class ProfileHeaderWidget extends ConsumerWidget {
     // (e.g., after email verification completes)
     ref.watch(currentAuthStateProvider);
     final isAnonymous = authService.isAnonymous;
+    final hasExpiredSession = authService.hasExpiredOAuthSession;
 
     // Use profile color as header background (like original Vine)
     // Color covers avatar/stats, then fades to dark for name/bio readability
@@ -121,12 +123,19 @@ class ProfileHeaderWidget extends ConsumerWidget {
               children: [
                 // Setup profile banner for new users with default names
                 // (only on own profile)
-                if (isOwnProfile && !hasCustomName && onSetupProfile != null)
+                if (isOwnProfile &&
+                    profile != null &&
+                    !hasCustomName &&
+                    onSetupProfile != null)
                   _SetupProfileBanner(onSetup: onSetupProfile!),
 
-                // Secure account banner for anonymous users (only on own profile)
-                // Only shown when headless auth feature is enabled
-                if (isOwnProfile && isAnonymous)
+                // Session expired banner for divineOAuth users (only on own
+                // profile) — prompts re-login instead of "Secure Your Account"
+                if (isOwnProfile && hasExpiredSession)
+                  const _SessionExpiredBanner()
+                // Secure account banner for anonymous users (only on own
+                // profile)
+                else if (isOwnProfile && isAnonymous)
                   const _IdentityNotRecoverableBanner(),
 
                 // Profile picture and stats row
@@ -214,7 +223,7 @@ class _SetupProfileBanner extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Colors.purple, Colors.blue],
+          colors: [VineTheme.accentPurple, VineTheme.info],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -246,7 +255,7 @@ class _SetupProfileBanner extends StatelessWidget {
             onPressed: onSetup,
             style: ElevatedButton.styleFrom(
               backgroundColor: VineTheme.whiteText,
-              foregroundColor: Colors.purple,
+              foregroundColor: VineTheme.accentPurple,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -254,7 +263,7 @@ class _SetupProfileBanner extends StatelessWidget {
             ),
             child: Text(
               'Set Up',
-              style: VineTheme.labelMediumFont(color: Colors.purple),
+              style: VineTheme.labelMediumFont(color: VineTheme.accentPurple),
             ),
           ),
         ],
@@ -377,7 +386,7 @@ class _IdentityNotRecoverableBanner extends StatelessWidget {
           onPressed: () => context.push(SecureAccountScreen.path),
           style: ElevatedButton.styleFrom(
             backgroundColor: VineTheme.whiteText,
-            foregroundColor: Colors.red,
+            foregroundColor: VineTheme.error,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -385,7 +394,7 @@ class _IdentityNotRecoverableBanner extends StatelessWidget {
           ),
           child: Text(
             'Retry',
-            style: VineTheme.labelMediumFont(color: Colors.red),
+            style: VineTheme.labelMediumFont(color: VineTheme.error),
           ),
         );
       case EmailVerificationStatus.initial:
@@ -406,6 +415,95 @@ class _IdentityNotRecoverableBanner extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+/// Banner shown when a divineOAuth user's session expired and refresh failed.
+/// Prompts the user to sign in again instead of showing "Secure Your Account".
+/// Attempts a silent token refresh first; navigates to login only if that fails.
+class _SessionExpiredBanner extends ConsumerStatefulWidget {
+  const _SessionExpiredBanner();
+
+  @override
+  ConsumerState<_SessionExpiredBanner> createState() =>
+      _SessionExpiredBannerState();
+}
+
+class _SessionExpiredBannerState extends ConsumerState<_SessionExpiredBanner> {
+  bool _isRefreshing = false;
+
+  Future<void> _onSignIn() async {
+    setState(() => _isRefreshing = true);
+    try {
+      final authService = ref.read(authServiceProvider);
+      final refreshed = await authService.tryRefreshExpiredSession();
+      if (!mounted) return;
+      if (!refreshed) {
+        context.go(WelcomeScreen.loginOptionsPath);
+      }
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [VineTheme.accentOrange, Color(0xFFCC5E33)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.refresh, color: VineTheme.whiteText, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Session Expired', style: VineTheme.titleSmallFont()),
+                const SizedBox(height: 4),
+                Text(
+                  'Sign in again to restore full access',
+                  style: VineTheme.bodySmallFont(
+                    color: VineTheme.onSurfaceMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _isRefreshing ? null : _onSignIn,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: VineTheme.whiteText,
+              foregroundColor: VineTheme.accentOrange,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: _isRefreshing
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    'Sign in',
+                    style: VineTheme.labelMediumFont(
+                      color: VineTheme.accentOrange,
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

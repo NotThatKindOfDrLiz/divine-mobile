@@ -179,7 +179,8 @@ Stream<List<CuratedList>> publicListsContainingVideo(
   yield const <CuratedList>[];
 
   // Stream events from Nostr relays, accumulating as they arrive
-  await for (final list in curatedListStream ?? const Stream.empty()) {
+  await for (final CuratedList list
+      in curatedListStream ?? const Stream.empty()) {
     if (!seenIds.contains(list.id)) {
       seenIds.add(list.id);
       accumulated.add(list);
@@ -358,6 +359,9 @@ Stream<List<VideoEvent>> curatedListVideoEvents(Ref ref, String listId) async* {
         try {
           // Use permissive mode to accept all NIP-71 video kinds from curated lists
           final video = VideoEvent.fromNostrEvent(event, permissive: true);
+          if (videoEventService.shouldHideVideo(video)) {
+            continue;
+          }
           foundVideos.add(video);
           seenIds.add(event.id.toLowerCase());
 
@@ -557,6 +561,9 @@ Stream<List<VideoEvent>> videoEventsByIds(
         try {
           // Use permissive mode to accept all NIP-71 video kinds from external sources
           final video = VideoEvent.fromNostrEvent(event, permissive: true);
+          if (videoEventService.shouldHideVideo(video)) {
+            continue;
+          }
           foundVideos.add(video);
           seenIds.add(event.id.toLowerCase());
 

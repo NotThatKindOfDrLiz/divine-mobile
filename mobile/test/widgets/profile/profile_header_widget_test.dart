@@ -87,6 +87,9 @@ class MockAuthService extends Mock implements AuthService {
   @override
   Stream<AuthState> get authStateStream =>
       Stream.value(AuthState.authenticated);
+
+  @override
+  bool get hasExpiredOAuthSession => false;
 }
 
 const testUserHex =
@@ -137,6 +140,7 @@ void main() {
       required bool isOwnProfile,
       int videoCount = 10,
       UserProfile? profile,
+      bool profileIsLoading = false,
       VoidCallback? onSetupProfile,
       bool isAnonymous = false,
       String? displayNameHint,
@@ -156,13 +160,13 @@ void main() {
       if (isOwnProfile) {
         final mockMyProfileBloc = _MockMyProfileBloc();
         if (profile != null) {
-          when(() => mockMyProfileBloc.state).thenReturn(
-            MyProfileUpdated(profile: profile),
-          );
+          when(
+            () => mockMyProfileBloc.state,
+          ).thenReturn(MyProfileUpdated(profile: profile));
         } else {
-          when(() => mockMyProfileBloc.state).thenReturn(
-            const MyProfileInitial(),
-          );
+          when(
+            () => mockMyProfileBloc.state,
+          ).thenReturn(const MyProfileInitial());
         }
         header = BlocProvider<MyProfileBloc>.value(
           value: mockMyProfileBloc,
@@ -173,18 +177,14 @@ void main() {
       final mockProfilesBloc = _MockProfilesBloc();
       when(() => mockProfilesBloc.state).thenReturn(
         ProfilesState(
-          profiles: {
-            userIdHex: ?profile,
-          },
+          profiles: {userIdHex: ?profile},
           requestedPubkeys: {userIdHex},
         ),
       );
 
       return ProviderScope(
         overrides: [
-          ...getStandardTestOverrides(
-            mockNostrService: mockNostrClient,
-          ),
+          ...getStandardTestOverrides(mockNostrService: mockNostrClient),
           followRepositoryProvider.overrideWithValue(mockFollowRepository),
           authServiceProvider.overrideWithValue(authService),
           currentAuthStateProvider.overrideWith(
@@ -199,9 +199,7 @@ void main() {
               authService: authService,
             ),
             child: MaterialApp(
-              home: Scaffold(
-                body: SingleChildScrollView(child: header),
-              ),
+              home: Scaffold(body: SingleChildScrollView(child: header)),
             ),
           ),
         ),
@@ -310,6 +308,23 @@ void main() {
       await tester.pump();
 
       expect(setupCalled, isTrue);
+    });
+
+    testWidgets('hides setup banner while profile is still loading', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          userIdHex: testUserHex,
+          isOwnProfile: true,
+          profileIsLoading: true,
+          onSetupProfile: () {},
+        ),
+      );
+      // Do not pumpAndSettle — provider never resolves
+      await tester.pump();
+
+      expect(find.text('Complete Your Profile'), findsNothing);
     });
 
     testWidgets('hides setup banner when profile has custom name', (

@@ -12,13 +12,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/developer_mode_tap_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/screens/blossom_settings_screen.dart';
 import 'package:openvine/screens/developer_options_screen.dart';
 import 'package:openvine/screens/key_management_screen.dart';
@@ -27,7 +27,6 @@ import 'package:openvine/screens/relay_diagnostic_screen.dart';
 import 'package:openvine/screens/relay_settings_screen.dart';
 import 'package:openvine/screens/safety_settings_screen.dart';
 import 'package:openvine/services/auth_service.dart';
-import 'package:openvine/services/draft_storage_service.dart';
 import 'package:openvine/services/language_preference_service.dart';
 import 'package:openvine/services/zendesk_support_service.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
@@ -80,41 +79,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final isAuthenticated = authState == AuthState.authenticated;
 
     return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        toolbarHeight: 72,
-        leadingWidth: 80,
-        centerTitle: false,
-        titleSpacing: 0,
-        backgroundColor: VineTheme.navGreen,
-        leading: IconButton(
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
-          icon: Container(
-            width: 48,
-            height: 48,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: VineTheme.iconButtonBackground,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: SvgPicture.asset(
-              'assets/icon/CaretLeft.svg',
-              width: 32,
-              height: 32,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-          onPressed: context.pop,
-          tooltip: 'Back',
-        ),
-        title: Text('Settings', style: VineTheme.titleFont()),
+      appBar: DiVineAppBar(
+        title: 'Settings',
+        showBackButton: true,
+        onBackPressed: context.pop,
       ),
-      backgroundColor: Colors.black,
+      backgroundColor: VineTheme.backgroundColor,
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -124,9 +94,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               // Profile Section
               if (isAuthenticated) ...[
                 const _SectionHeader(title: 'Profile'),
+                // Show session expired tile for divineOAuth users
+                // whose refresh token also expired
+                if (authService.hasExpiredOAuthSession)
+                  _SettingsTile(
+                    icon: Icons.refresh,
+                    title: 'Session Expired',
+                    subtitle: 'Sign in again to restore full access',
+                    onTap: () async {
+                      final router = GoRouter.of(context);
+                      final refreshed = await authService
+                          .tryRefreshExpiredSession();
+                      if (!mounted) return;
+                      if (!refreshed) {
+                        router.go(WelcomeScreen.loginOptionsPath);
+                      }
+                    },
+                    iconColor: VineTheme.accentOrange,
+                  )
                 // Show register tile for anonymous users
-                // Only shown when headless auth feature is enabled
-                if (authService.isAnonymous)
+                else if (authService.isAnonymous)
                   _SettingsTile(
                     icon: Icons.security,
                     title: 'Secure Your Account',
@@ -193,7 +180,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'Developer Options',
                 subtitle: 'Environment switcher and debug settings',
                 onTap: () => context.push(DeveloperOptionsScreen.path),
-                iconColor: Colors.orange,
+                iconColor: VineTheme.warning,
               ),
 
               // Support
@@ -254,7 +241,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Failed to export logs'),
-                        backgroundColor: Colors.red,
+                        backgroundColor: VineTheme.error,
                       ),
                     );
                   }
@@ -277,8 +264,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       "Your content stays on relays, but you'll need your "
                       'nsec backup to access your account again.',
                   onTap: () => _handleRemoveKeys(context, ref),
-                  iconColor: Colors.orange,
-                  titleColor: Colors.orange,
+                  iconColor: VineTheme.warning,
+                  titleColor: VineTheme.warning,
                 ),
                 const _SectionHeader(title: 'Danger Zone'),
                 _SettingsTile(
@@ -287,8 +274,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   subtitle:
                       'PERMANENTLY delete your account and ALL content from Nostr relays. This cannot be undone.',
                   onTap: () => _handleDeleteAllContent(context, ref),
-                  iconColor: Colors.red,
-                  titleColor: Colors.red,
+                  iconColor: VineTheme.error,
+                  titleColor: VineTheme.error,
                 ),
               ],
             ],
@@ -314,14 +301,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: const Text(
         'Make my audio available for reuse',
         style: TextStyle(
-          color: Colors.white,
+          color: VineTheme.whiteText,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: const Text(
         'When enabled, others can use audio from your videos',
-        style: TextStyle(color: Colors.grey, fontSize: 14),
+        style: TextStyle(color: VineTheme.lightText, fontSize: 14),
       ),
       activeThumbColor: VineTheme.vineGreen,
       secondary: const Icon(Icons.music_note, color: VineTheme.vineGreen),
@@ -340,16 +327,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       title: const Text(
         'Content Language',
         style: TextStyle(
-          color: Colors.white,
+          color: VineTheme.whiteText,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(color: Colors.grey, fontSize: 14),
+        style: const TextStyle(color: VineTheme.lightText, fontSize: 14),
       ),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      trailing: const Icon(Icons.chevron_right, color: VineTheme.lightText),
       onTap: _showLanguagePicker,
     );
   }
@@ -381,7 +368,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Text(
                   'Content Language',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: VineTheme.whiteText,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -391,11 +378,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   'Tag your videos with a language so viewers can filter content.',
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                  style: TextStyle(color: VineTheme.lightText, fontSize: 13),
                 ),
               ),
               const SizedBox(height: 8),
-              const Divider(color: Colors.grey, height: 1),
+              const Divider(color: VineTheme.lightText, height: 1),
               // Device default option
               ListTile(
                 leading: Icon(
@@ -406,13 +393,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 title: const Text(
                   'Use device language (default)',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: VineTheme.whiteText),
                 ),
                 subtitle: Text(
                   LanguagePreferenceService.displayNameFor(
                     PlatformDispatcher.instance.locale.languageCode,
                   ),
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  style: const TextStyle(
+                    color: VineTheme.lightText,
+                    fontSize: 12,
+                  ),
                 ),
                 onTap: () async {
                   await languageService.clearContentLanguage();
@@ -422,7 +412,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   }
                 },
               ),
-              const Divider(color: Colors.grey, height: 1),
+              const Divider(color: VineTheme.lightText, height: 1),
               // Language list
               Expanded(
                 child: ListView.builder(
@@ -447,12 +437,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       title: Text(
                         name,
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: VineTheme.whiteText),
                       ),
                       subtitle: Text(
                         code.toUpperCase(),
                         style: const TextStyle(
-                          color: Colors.grey,
+                          color: VineTheme.lightText,
                           fontSize: 12,
                         ),
                       ),
@@ -508,16 +498,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: const Text(
             'Audio Input Device',
             style: TextStyle(
-              color: Colors.white,
+              color: VineTheme.whiteText,
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
           ),
           subtitle: Text(
             currentDisplayName,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
+            style: const TextStyle(color: VineTheme.lightText, fontSize: 14),
           ),
-          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+          trailing: const Icon(Icons.chevron_right, color: VineTheme.lightText),
           onTap: () => _showAudioDevicePicker(devices, currentDevice),
         );
       },
@@ -564,13 +554,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Text(
                 'Select Audio Input',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: VineTheme.whiteText,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-            const Divider(color: Colors.grey, height: 1),
+            const Divider(color: VineTheme.lightText, height: 1),
             // Auto option
             ListTile(
               leading: Icon(
@@ -581,11 +571,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               title: const Text(
                 'Auto (recommended)',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: VineTheme.whiteText),
               ),
               subtitle: const Text(
                 'Automatically selects the best microphone',
-                style: TextStyle(color: Colors.grey, fontSize: 12),
+                style: TextStyle(color: VineTheme.lightText, fontSize: 12),
               ),
               onTap: () async {
                 await audioDevicePref.setPreferredDeviceId(null);
@@ -595,7 +585,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 }
               },
             ),
-            const Divider(color: Colors.grey, height: 1),
+            const Divider(color: VineTheme.lightText, height: 1),
             // Device list
             ...devices.map(
               (device) => ListTile(
@@ -607,11 +597,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
                 title: Text(
                   _formatAudioDeviceName(device.deviceId),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(color: VineTheme.whiteText),
                 ),
                 subtitle: Text(
                   device.deviceId,
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                  style: const TextStyle(
+                    color: VineTheme.lightText,
+                    fontSize: 11,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 onTap: () async {
@@ -632,9 +625,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _handleSwitchAccount() async {
     // Check for existing drafts before showing switch account confirmation
-    final draftService = DraftStorageService();
-    final drafts = await draftService.getAllDrafts();
-    final draftCount = drafts.length;
+    final draftService = ref.read(draftStorageServiceProvider);
+    final draftCount = await draftService.getDraftCount();
 
     if (!mounted) return;
 
@@ -647,24 +639,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           backgroundColor: VineTheme.cardBackground,
           title: const Text(
             'Unsaved Drafts',
-            style: TextStyle(color: Colors.red),
+            style: TextStyle(color: VineTheme.error),
           ),
           content: Text(
             'You have $draftCount unsaved $draftWord. '
             'Switching accounts will keep your $draftWord, but you may want to publish or review ${draftCount == 1 ? 'it' : 'them'} first.\n\n'
             'Do you want to switch accounts anyway?',
-            style: const TextStyle(color: Colors.grey),
+            style: const TextStyle(color: VineTheme.lightText),
           ),
           actions: [
             TextButton(
               onPressed: () => context.pop(false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: VineTheme.lightText),
+              ),
             ),
             TextButton(
               onPressed: () => context.pop(true),
               child: const Text(
                 'Switch Anyway',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(color: VineTheme.error),
               ),
             ),
           ],
@@ -691,12 +686,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           '• Import a different account\n'
           '• Create a new identity\n\n'
           'Your current keys will stay saved on this device.',
-          style: TextStyle(color: Colors.grey),
+          style: TextStyle(color: VineTheme.lightText),
         ),
         actions: [
           TextButton(
             onPressed: () => context.pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: VineTheme.lightText),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -755,9 +753,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             SnackBar(
               content: Text(
                 'Failed to remove keys: $e',
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: VineTheme.whiteText),
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: VineTheme.error,
             ),
           );
         }
@@ -797,7 +795,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Could not open ProofMode info page'),
-              backgroundColor: Colors.red,
+              backgroundColor: VineTheme.error,
             ),
           );
         }
@@ -807,7 +805,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to open URL: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: VineTheme.error,
           ),
         );
       }
@@ -878,14 +876,14 @@ class _VersionTile extends ConsumerWidget {
       title: const Text(
         'Version',
         style: TextStyle(
-          color: Colors.white,
+          color: VineTheme.whiteText,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         _appVersion.isEmpty ? 'Loading...' : _appVersion,
-        style: const TextStyle(color: Colors.grey, fontSize: 14),
+        style: const TextStyle(color: VineTheme.lightText, fontSize: 14),
       ),
       onTap: () async {
         if (isDeveloperMode) {
@@ -967,16 +965,16 @@ class _SettingsTile extends StatelessWidget {
       title: Text(
         title,
         style: TextStyle(
-          color: titleColor ?? Colors.white,
+          color: titleColor ?? VineTheme.whiteText,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(color: Colors.grey, fontSize: 14),
+        style: const TextStyle(color: VineTheme.lightText, fontSize: 14),
       ),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+      trailing: const Icon(Icons.chevron_right, color: VineTheme.lightText),
       onTap: onTap,
     );
   }

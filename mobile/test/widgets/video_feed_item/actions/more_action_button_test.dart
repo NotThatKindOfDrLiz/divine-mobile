@@ -1,5 +1,5 @@
-// ABOUTME: Tests for MoreActionButton widget and _VideoMoreMenu
-// ABOUTME: Verifies moderation actions (report, mute, block) and debug tools
+// ABOUTME: Tests for MoreActionButton widget
+// ABOUTME: Verifies the button renders correctly with proper semantics
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:divine_ui/divine_ui.dart';

@@ -21,45 +21,34 @@ const _usernameCheckUrl = 'https://names.divine.video/api/username/check';
 /// Keycast NIP-05 endpoint for checking username availability on login server.
 const _keycastNip05Url = 'https://login.divine.video/.well-known/nostr.json';
 
-/// Callback to check if a user should be filtered from results.
-typedef UserBlockFilter = bool Function(String pubkey);
-
 // TODO(search): Move ProfileSearchFilter to a shared package
 // (e.g., search_utils) when we need to reuse search logic across
 // multiple repositories.
 /// Callback to filter and sort profiles by search relevance.
 /// Takes a query and list of profiles, returns filtered/sorted profiles.
 typedef ProfileSearchFilter =
-    List<UserProfile> Function(
-      String query,
-      List<UserProfile> profiles,
-    );
+    List<UserProfile> Function(String query, List<UserProfile> profiles);
 
 /// Well-known indexer relays that maintain broad coverage of kind 0 events.
 /// Used as a last-resort fallback when main relays and REST API don't have
 /// a profile.
-const _profileIndexerRelays = [
-  'wss://purplepag.es',
-  'wss://user.kindpag.es',
-];
+const _profileIndexerRelays = ['wss://purplepag.es', 'wss://user.kindpag.es'];
 
 /// Repository for fetching and publishing user profiles (Kind 0 metadata).
 class ProfileRepository {
   /// Creates a new profile repository.
-  const ProfileRepository({
+  ProfileRepository({
     required NostrClient nostrClient,
     required UserProfilesDao userProfilesDao,
     required Client httpClient,
     ProfileStatsDao? profileStatsDao,
     FunnelcakeApiClient? funnelcakeApiClient,
-    UserBlockFilter? userBlockFilter,
     ProfileSearchFilter? profileSearchFilter,
   }) : _nostrClient = nostrClient,
        _userProfilesDao = userProfilesDao,
        _httpClient = httpClient,
        _profileStatsDao = profileStatsDao,
        _funnelcakeApiClient = funnelcakeApiClient,
-       _userBlockFilter = userBlockFilter,
        _profileSearchFilter = profileSearchFilter;
 
   final NostrClient _nostrClient;
@@ -67,8 +56,77 @@ class ProfileRepository {
   final Client _httpClient;
   final ProfileStatsDao? _profileStatsDao;
   final FunnelcakeApiClient? _funnelcakeApiClient;
-  final UserBlockFilter? _userBlockFilter;
   final ProfileSearchFilter? _profileSearchFilter;
+
+  /// In-flight relay fetches keyed by pubkey. Concurrent callers for the
+  /// same pubkey share the same future instead of firing duplicate requests.
+  final _inFlightFetches = <String, Future<UserProfile?>>{};
+
+  /// Pubkeys confirmed to have no Kind 0 profile (FunnelCake returned
+  /// the `_noProfile` sentinel or relay + indexer returned nothing).
+  /// Session-scoped — cleared on app restart.
+  final _confirmedMissing = <String>{};
+
+  /// In-memory set of pubkeys known to have cached profiles.
+  /// Enables synchronous [hasProfile] checks for subscription
+  /// manager filtering.
+  final _knownCached = <String>{};
+
+  /// Searches cached profiles from local storage only.
+  ///
+  /// This avoids remote work and is suitable for lightweight tab counts
+  /// or instant local-first suggestions.
+  Future<List<UserProfile>> searchUsersLocally({
+    required String query,
+    int? limit,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return [];
+
+    final cachedProfiles = await _userProfilesDao.getAllProfiles();
+
+    final filtered = _profileSearchFilter != null
+        ? _profileSearchFilter(trimmed, cachedProfiles)
+        : cachedProfiles.where((profile) {
+            final queryLower = trimmed.toLowerCase();
+            return profile.bestDisplayName.toLowerCase().contains(queryLower) ||
+                (profile.about?.toLowerCase().contains(queryLower) ?? false);
+          }).toList();
+
+    if (limit != null && filtered.length > limit) {
+      return filtered.sublist(0, limit);
+    }
+
+    return filtered;
+  }
+
+  /// Counts cached profiles matching [query] without performing remote search.
+  Future<int> countUsersLocally({required String query}) async {
+    final matches = await searchUsersLocally(query: query);
+    return matches.length;
+  }
+
+  /// Whether the given pubkey is known to have no Kind 0 profile.
+  ///
+  /// Returns `true` if FunnelCake or relay fetches previously confirmed
+  /// this pubkey has no profile. Session-scoped.
+  bool isConfirmedMissing(String pubkey) => _confirmedMissing.contains(pubkey);
+
+  /// Synchronous check for whether a profile is cached.
+  ///
+  /// Returns `true` if the pubkey was previously fetched and cached in
+  /// this session. Used by the subscription manager to skip redundant
+  /// Kind 0 relay requests.
+  ///
+  /// Call [loadKnownCachedPubkeys] once at startup to pre-populate.
+  bool hasProfile(String pubkey) => _knownCached.contains(pubkey);
+
+  /// Pre-loads the in-memory [_knownCached] set from all profiles
+  /// currently in the Drift cache. Call once after construction.
+  Future<void> loadKnownCachedPubkeys() async {
+    final all = await _userProfilesDao.getAllProfiles();
+    _knownCached.addAll(all.map((p) => p.pubkey));
+  }
 
   /// Returns the cached profile from local storage (SQLite) only.
   ///
@@ -84,7 +142,11 @@ class ProfileRepository {
   ///
   /// Use this to cache profiles obtained from relay events or REST APIs.
   /// If a profile with the same pubkey already exists, it is updated.
+  /// Also clears the pubkey from the confirmed-missing set and adds
+  /// it to the known-cached set.
   Future<void> cacheProfile(UserProfile profile) {
+    _confirmedMissing.remove(profile.pubkey);
+    _knownCached.add(profile.pubkey);
     return _userProfilesDao.upsertProfile(profile);
   }
 
@@ -140,17 +202,32 @@ class ProfileRepository {
 
   /// Fetches a fresh profile from Nostr relays and updates the local cache.
   ///
-  /// Always fetches from relay, ignoring any cached data. Use this to ensure
-  /// the user sees the latest profile data.
+  /// Skips the relay fetch if the pubkey is confirmed missing (no Kind 0).
+  /// Deduplicates concurrent calls for the same pubkey — only one relay
+  /// request is made, and all callers share the result.
   ///
   /// Returns `null` if no profile exists on relays for the given pubkey.
   /// On success, the profile is automatically cached locally.
-  Future<UserProfile?> fetchFreshProfile({required String pubkey}) async {
+  Future<UserProfile?> fetchFreshProfile({required String pubkey}) {
+    if (_confirmedMissing.contains(pubkey)) return Future.value();
+
+    // Deduplicate: return existing in-flight future if present.
+    final existing = _inFlightFetches[pubkey];
+    if (existing != null) return existing;
+
+    final future = _doFetchFreshProfile(pubkey);
+    _inFlightFetches[pubkey] = future;
+
+    return future.whenComplete(() => _inFlightFetches.remove(pubkey));
+  }
+
+  Future<UserProfile?> _doFetchFreshProfile(String pubkey) async {
     final profileEvent = await _nostrClient.fetchProfile(pubkey);
     if (profileEvent == null) {
+      _confirmedMissing.add(pubkey);
       developer.log(
-        'No profile found for $pubkey (cache miss + relay miss)',
-        name: 'ProfileRepository.getProfile',
+        'No profile found for $pubkey (relay miss, marked missing)',
+        name: 'ProfileRepository.fetchFreshProfile',
       );
       return null;
     }
@@ -159,8 +236,9 @@ class ProfileRepository {
     developer.log(
       'Fetched from relay and caching: ${profile.bestDisplayName}, '
       'picture=${profile.picture ?? "null"}',
-      name: 'ProfileRepository.getProfile',
+      name: 'ProfileRepository.fetchFreshProfile',
     );
+    _knownCached.add(pubkey);
     await _userProfilesDao.upsertProfile(profile);
     return profile;
   }
@@ -175,7 +253,9 @@ class ProfileRepository {
   ///
   /// If both [nip05] and [username] are provided, [nip05] takes precedence.
   /// When neither is provided and a [currentProfile] is supplied, the existing
-  /// NIP-05 value is preserved from `currentProfile.rawData`.
+  /// NIP-05 value is preserved from `currentProfile.rawData`. Pass
+  /// [clearNip05] as `true` to explicitly remove the NIP-05 from the profile
+  /// (overriding any value in `currentProfile.rawData`).
   ///
   /// After successful publish, the profile is cached locally for immediate
   /// subsequent reads.
@@ -186,6 +266,7 @@ class ProfileRepository {
     String? about,
     String? username,
     String? nip05,
+    bool clearNip05 = false,
     String? picture,
     String? banner,
     UserProfile? currentProfile,
@@ -203,6 +284,13 @@ class ProfileRepository {
       'picture': ?picture,
       'banner': ?banner,
     };
+
+    // When the user explicitly removes their NIP-05 (no username, no external
+    // NIP-05), remove the key so the rawData spread does not preserve the old
+    // value.
+    if (clearNip05 && resolvedNip05 == null) {
+      profileContent.remove('nip05');
+    }
 
     final profileEvent = await _nostrClient.sendProfile(
       profileContent: profileContent,
@@ -226,13 +314,9 @@ class ProfileRepository {
   /// server.
   ///
   /// Returns a [UsernameClaimResult] indicating success or the type of failure.
-  Future<UsernameClaimResult> claimUsername({
-    required String username,
-  }) async {
+  Future<UsernameClaimResult> claimUsername({required String username}) async {
     final normalizedUsername = username.toLowerCase();
-    final payload = jsonEncode({
-      'name': normalizedUsername,
-    });
+    final payload = jsonEncode({'name': normalizedUsername});
     final authHeader = await _nostrClient.createNip98AuthHeader(
       url: _usernameClaimUrl,
       method: 'POST',
@@ -267,9 +351,7 @@ class ProfileRepository {
 
       return switch (response.statusCode) {
         200 || 201 => const UsernameClaimSuccess(),
-        400 => UsernameClaimError(
-          serverError ?? 'Invalid username format',
-        ),
+        400 => UsernameClaimError(serverError ?? 'Invalid username format'),
         403 => const UsernameClaimReserved(),
         409 => const UsernameClaimTaken(),
         _ => UsernameClaimError(
@@ -294,6 +376,7 @@ class ProfileRepository {
   ///   an unexpected response
   Future<UsernameAvailabilityResult> checkUsernameAvailability({
     required String username,
+    String? currentUserPubkey,
   }) async {
     final normalizedUsername = username.toLowerCase().trim();
 
@@ -304,9 +387,7 @@ class ProfileRepository {
       return const UsernameInvalidFormat('Username is required');
     }
     if (normalizedUsername.length > 63) {
-      return const UsernameInvalidFormat(
-        'Usernames must be 1–63 characters',
-      );
+      return const UsernameInvalidFormat('Usernames must be 1–63 characters');
     }
     if (normalizedUsername.startsWith('-') ||
         normalizedUsername.endsWith('-')) {
@@ -325,9 +406,7 @@ class ProfileRepository {
     // and checks availability in one call.
     try {
       final response = await _httpClient.get(
-        Uri.parse(
-          '$_usernameCheckUrl/$normalizedUsername',
-        ),
+        Uri.parse('$_usernameCheckUrl/$normalizedUsername'),
       );
 
       if (response.statusCode == 200) {
@@ -340,9 +419,7 @@ class ProfileRepository {
           // available on both the name server and the login server.
           try {
             final keycastResponse = await _httpClient.get(
-              Uri.parse(
-                '$_keycastNip05Url?name=$normalizedUsername',
-              ),
+              Uri.parse('$_keycastNip05Url?name=$normalizedUsername'),
             );
             if (keycastResponse.statusCode == 200) {
               final keycastData =
@@ -361,6 +438,15 @@ class ProfileRepository {
             );
           }
           return const UsernameAvailable();
+        }
+
+        // Name is taken, but check if it's assigned to the current user
+        // (e.g. admin-reserved name assigned to this pubkey).
+        if (currentUserPubkey != null) {
+          final ownerPubkey = data['pubkey'] as String?;
+          if (ownerPubkey != null && ownerPubkey == currentUserPubkey) {
+            return const UsernameAvailable();
+          }
         }
 
         // Server told us it's not available — return appropriate type
@@ -400,7 +486,6 @@ class ProfileRepository {
   ///
   /// Filters using [ProfileSearchFilter] if provided (only when no server-side
   /// sort is active), otherwise falls back to simple bestDisplayName matching.
-  /// If a [UserBlockFilter] was provided, blocked users are excluded.
   /// Returns list of [UserProfile] matching the search query.
   /// Returns empty list if query is empty or no results found.
   Future<List<UserProfile>> searchUsers({
@@ -445,19 +530,26 @@ class ProfileRepository {
     // Phase 2: NIP-50 WebSocket search (comprehensive, first page only)
     // Skip on paginated requests since NIP-50 doesn't support offset.
     if (offset == 0) {
-      final events = await _nostrClient.queryUsers(query, limit: limit);
-      for (final event in events) {
-        final profile = UserProfile.fromNostrEvent(event);
-        // Don't overwrite REST results - they may have more complete data
-        resultMap.putIfAbsent(profile.pubkey, () => profile);
+      try {
+        final events = await _nostrClient.queryUsers(query, limit: limit);
+        for (final event in events) {
+          final profile = UserProfile.fromNostrEvent(event);
+          // Don't overwrite REST results - they may have more complete data
+          resultMap.putIfAbsent(profile.pubkey, () => profile);
+        }
+        final wsProfiles = resultMap.values.toList();
+        final wsWithPic = wsProfiles.where((p) => p.picture != null).length;
+        developer.log(
+          'Phase 2 (WS): ${events.length} events, '
+          'merged total: ${wsProfiles.length}, $wsWithPic with picture',
+          name: 'ProfileRepository.searchUsers',
+        );
+      } on Object catch (e) {
+        developer.log(
+          'Phase 2 (WebSocket NIP-50) failed: $e',
+          name: 'ProfileRepository.searchUsers',
+        );
       }
-      final wsProfiles = resultMap.values.toList();
-      final wsWithPic = wsProfiles.where((p) => p.picture != null).length;
-      developer.log(
-        'Phase 2 (WS): ${events.length} events, '
-        'merged total: ${wsProfiles.length}, $wsWithPic with picture',
-        name: 'ProfileRepository.searchUsers',
-      );
     }
 
     final profiles = resultMap.values.toList();
@@ -465,23 +557,22 @@ class ProfileRepository {
     // Enrich profiles from local SQLite cache (fill in missing pictures, etc.)
     final enrichedProfiles = await _enrichFromCache(profiles);
 
-    // Filter out blocked users
-    final unblockedProfiles = enrichedProfiles.where((profile) {
-      return !(_userBlockFilter?.call(profile.pubkey) ?? false);
-    }).toList();
+    // Note: blocked users are NOT filtered from search results.
+    // Users need to find blocked profiles in search to unblock them.
+    // Block filtering is applied in video feeds (VideoEventService) instead.
 
     // When server-side sorting is active, trust server order
     if (useServerSort) {
-      return unblockedProfiles;
+      return enrichedProfiles;
     }
 
     // Use custom search filter if provided, otherwise simple contains match
     if (_profileSearchFilter != null) {
-      return _profileSearchFilter(query, unblockedProfiles);
+      return _profileSearchFilter(query, enrichedProfiles);
     }
 
     final queryLower = query.toLowerCase();
-    return unblockedProfiles.where((profile) {
+    return enrichedProfiles.where((profile) {
       return profile.bestDisplayName.toLowerCase().contains(queryLower);
     }).toList();
   }
@@ -561,6 +652,16 @@ class ProfileRepository {
         for (final entry in bulkResponse.profiles.entries) {
           final pubkey = entry.key;
           final data = entry.value;
+
+          // Sentinel: user exists in FunnelCake but has never
+          // published a Kind 0 profile. Remove from remaining so
+          // we skip the relay/indexer fallback — the profile truly
+          // doesn't exist.
+          if (data['_noProfile'] == true) {
+            remaining.remove(pubkey);
+            continue;
+          }
+
           final profile = UserProfile(
             pubkey: pubkey,
             name: data['name'] as String?,
@@ -644,7 +745,14 @@ class ProfileRepository {
 
     // Step 5: Batch-write all freshly fetched to Drift
     if (toCache.isNotEmpty) {
+      _knownCached.addAll(toCache.map((p) => p.pubkey));
       await _userProfilesDao.upsertProfiles(toCache);
+    }
+
+    // Mark any still-remaining pubkeys as confirmed missing so future
+    // single-profile fetches skip the relay/indexer cascade.
+    if (remaining.isNotEmpty) {
+      _confirmedMissing.addAll(remaining);
     }
 
     developer.log(
@@ -660,9 +768,7 @@ class ProfileRepository {
   ///
   /// For each profile, fills in null fields (picture, about, etc.) from
   /// the cached version without overwriting data from search results.
-  Future<List<UserProfile>> _enrichFromCache(
-    List<UserProfile> profiles,
-  ) async {
+  Future<List<UserProfile>> _enrichFromCache(List<UserProfile> profiles) async {
     final enriched = <UserProfile>[];
     var cacheHits = 0;
     var pictureEnriched = 0;

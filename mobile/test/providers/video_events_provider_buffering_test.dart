@@ -8,29 +8,43 @@ import 'package:nostr_client/nostr_client.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/readiness_gate_providers.dart';
 import 'package:openvine/providers/seen_videos_notifier.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/providers/tab_visibility_provider.dart';
 import 'package:openvine/providers/video_events_providers.dart';
+import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/subscription_manager.dart';
 import 'package:openvine/services/video_event_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockNostrClient extends Mock implements NostrClient {}
 
 class _MockSubscriptionManager extends Mock implements SubscriptionManager {}
 
+class _MockContentBlocklistService extends Mock
+    implements ContentBlocklistService {}
+
 void main() {
   group('VideoEventsProvider - Buffering', () {
     late _MockNostrClient mockNostrService;
     late _MockSubscriptionManager mockSubscriptionManager;
+    late _MockContentBlocklistService mockBlocklistService;
     late VideoEventService videoEventService;
     late ProviderContainer container;
+    late SharedPreferences sharedPreferences;
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      sharedPreferences = await SharedPreferences.getInstance();
       mockNostrService = _MockNostrClient();
       mockSubscriptionManager = _MockSubscriptionManager();
+      mockBlocklistService = _MockContentBlocklistService();
 
       // Stub necessary methods
       when(() => mockNostrService.isInitialized).thenReturn(true);
       when(() => mockNostrService.connectedRelayCount).thenReturn(0);
+      when(
+        () => mockBlocklistService.shouldFilterFromFeeds(any()),
+      ).thenReturn(false);
 
       videoEventService = VideoEventService(
         mockNostrService,
@@ -39,7 +53,11 @@ void main() {
 
       container = ProviderContainer(
         overrides: [
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           videoEventServiceProvider.overrideWithValue(videoEventService),
+          contentBlocklistServiceProvider.overrideWithValue(
+            mockBlocklistService,
+          ),
           appReadyProvider.overrideWith(
             (ref) => false,
           ), // Start with gates closed

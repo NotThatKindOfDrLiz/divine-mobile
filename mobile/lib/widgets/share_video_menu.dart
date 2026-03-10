@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory, NIP71VideoKinds;
 import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/constants/nip71_migration.dart';
+import 'package:openvine/models/content_label.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
@@ -19,6 +20,7 @@ import 'package:openvine/services/content_moderation_service.dart';
 import 'package:openvine/services/social_service.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/unified_logger.dart';
+import 'package:openvine/utils/watermark_text_resolver.dart';
 import 'package:openvine/widgets/add_to_list_dialog.dart';
 import 'package:openvine/widgets/report_content_dialog.dart';
 import 'package:openvine/widgets/save_original_progress_sheet.dart';
@@ -123,9 +125,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
   Widget _buildHeader() => Container(
     padding: const EdgeInsets.all(16),
     decoration: const BoxDecoration(
-      border: Border(
-        bottom: BorderSide(color: VineTheme.cardBackground),
-      ),
+      border: Border(bottom: BorderSide(color: VineTheme.cardBackground)),
     ),
     child: Row(
       children: [
@@ -167,19 +167,23 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
   /// Build quick AI report button for one-tap reporting
   Widget _buildQuickAIReportButton() => Container(
     decoration: BoxDecoration(
-      color: Colors.orange.withValues(alpha: 0.1),
+      color: VineTheme.warning.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+      border: Border.all(color: VineTheme.warning.withValues(alpha: 0.3)),
     ),
     child: ListTile(
       leading: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: Colors.orange.withValues(alpha: 0.2),
+          color: VineTheme.warning.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Icon(Icons.psychology_alt, color: Colors.orange, size: 20),
+        child: const Icon(
+          Icons.psychology_alt,
+          color: VineTheme.warning,
+          size: 20,
+        ),
       ),
       title: const Text(
         'Report AI Content',
@@ -194,7 +198,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
       ),
       trailing: const Icon(
         Icons.arrow_forward_ios,
-        color: Colors.orange,
+        color: VineTheme.warning,
         size: 16,
       ),
       onTap: _quickReportAI,
@@ -215,14 +219,14 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: VineTheme.whiteText,
                   ),
                 ),
                 SizedBox(width: 12),
                 Text('Reporting AI content...'),
               ],
             ),
-            backgroundColor: Colors.orange,
+            backgroundColor: VineTheme.warning,
             duration: Duration(seconds: 2),
           ),
         );
@@ -253,14 +257,14 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.error, color: Colors.white),
+                  const Icon(Icons.error, color: VineTheme.whiteText),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text('Failed to report content: ${result.error}'),
                   ),
                 ],
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: VineTheme.error,
             ),
           );
         }
@@ -276,7 +280,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to report AI content: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: VineTheme.error,
           ),
         );
       }
@@ -334,9 +338,9 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
                 margin: const EdgeInsets.only(top: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade900,
+                  color: VineTheme.cardBackground,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade700),
+                  border: Border.all(color: VineTheme.cardBackground),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,7 +453,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
         icon: Icons.download,
         title: _isUserOwnContent() ? 'Save with Watermark' : 'Save Video',
         subtitle: _isUserOwnContent()
-            ? 'Download with diVine watermark'
+            ? 'Download with Divine watermark'
             : 'Save video to camera roll',
         onTap: () => _saveWithWatermark(context),
       ),
@@ -819,7 +823,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
     }
   }
 
-  /// Save video with diVine watermark overlay
+  /// Save video with Divine watermark overlay
   Future<void> _saveOriginal(BuildContext ctx) async {
     // Close the share menu first
     _safePop(ctx);
@@ -833,13 +837,15 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
     // Close the share menu first
     _safePop(ctx);
 
-    // Resolve the creator's display name from their profile
+    // Resolve the creator's displayed NIP-05 or fallback handle.
     final profile = context
         .read<ProfilesBloc>()
         .state
         .profiles[widget.video.pubkey];
-    final username =
-        profile?.bestDisplayName ?? widget.video.authorName ?? 'diVine';
+    final watermarkText = resolveWatermarkText(
+      profile: profile,
+      fallbackAuthorName: widget.video.authorName,
+    );
 
     if (!ctx.mounted) return;
 
@@ -847,7 +853,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
       context: ctx,
       ref: ref,
       video: widget.video,
-      username: username,
+      watermarkText: watermarkText,
     );
   }
 
@@ -922,7 +928,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
       // Delete content option
       _buildActionTile(
         icon: Icons.delete_outline,
-        iconColor: Colors.red,
+        iconColor: VineTheme.error,
         title: 'Delete Video',
         subtitle: 'Permanently remove this content',
         onTap: _showDeleteDialog,
@@ -940,10 +946,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
 
   /// Show delete confirmation dialog
   void _showDeleteDialog() {
-    showDialog(
-      context: context,
-      builder: _buildDeleteDialog,
-    );
+    showDialog(context: context, builder: _buildDeleteDialog);
   }
 
   void _showAllListsDialog(List<CuratedList> lists) {
@@ -1036,7 +1039,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
           dialogContext.pop();
           _deleteContent();
         },
-        style: TextButton.styleFrom(foregroundColor: Colors.red),
+        style: TextButton.styleFrom(foregroundColor: VineTheme.error),
         child: const Text('Delete'),
       ),
     ],
@@ -1064,14 +1067,14 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: VineTheme.whiteText,
                   ),
                 ),
                 SizedBox(width: 12),
                 Text('Deleting content...'),
               ],
             ),
-            backgroundColor: Colors.orange,
+            backgroundColor: VineTheme.warning,
             duration: Duration(seconds: 2),
           ),
         );
@@ -1089,7 +1092,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
               children: [
                 Icon(
                   result.success ? Icons.check_circle : Icons.error,
-                  color: Colors.white,
+                  color: VineTheme.whiteText,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1101,7 +1104,9 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
                 ),
               ],
             ),
-            backgroundColor: result.success ? VineTheme.vineGreen : Colors.red,
+            backgroundColor: result.success
+                ? VineTheme.vineGreen
+                : VineTheme.error,
           ),
         );
 
@@ -1140,7 +1145,7 @@ class _ShareVideoMenuState extends ConsumerState<ShareVideoMenu> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to delete content: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: VineTheme.error,
           ),
         );
       }
@@ -1350,6 +1355,7 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
   late TextEditingController _descriptionController;
   late TextEditingController _hashtagsController;
   late List<String> _collaboratorPubkeys;
+  Set<ContentLabel> _contentWarningLabels = {};
   InspiredByInfo? _inspiredByVideo;
   String? _inspiredByNpub;
   bool _isUpdating = false;
@@ -1374,6 +1380,10 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
 
     // Initialize collaborators and inspired-by from existing video
     _collaboratorPubkeys = List<String>.from(widget.video.collaboratorPubkeys);
+    _contentWarningLabels = widget.video.contentWarningLabels
+        .map(ContentLabel.fromValue)
+        .whereType<ContentLabel>()
+        .toSet();
     _inspiredByVideo = widget.video.inspiredByVideo;
     _inspiredByNpub = widget.video.inspiredByNpub;
   }
@@ -1430,6 +1440,14 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
           ),
           const SizedBox(height: 16),
 
+          _EditContentLabelsSection(
+            selectedLabels: _contentWarningLabels,
+            isDisabled: _isUpdating,
+            onTap: _isUpdating ? null : _showContentLabelPicker,
+          ),
+
+          const SizedBox(height: 16),
+
           // Collaborators section
           _EditCollaboratorsSection(
             collaboratorPubkeys: _collaboratorPubkeys,
@@ -1472,13 +1490,13 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.red,
+                      color: VineTheme.error,
                     ),
                   )
-                : const Icon(Icons.delete_outline, color: Colors.red),
+                : const Icon(Icons.delete_outline, color: VineTheme.error),
             label: Text(
               _isDeleting ? 'Deleting...' : 'Delete Video',
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(color: VineTheme.error),
             ),
           ),
         ],
@@ -1504,6 +1522,19 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
       ),
     ],
   );
+
+  Future<void> _showContentLabelPicker() async {
+    final result = await _EditContentLabelsPicker.show(
+      context: context,
+      selected: _contentWarningLabels,
+    );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      _contentWarningLabels = result;
+    });
+  }
 
   Future<void> _updateVideo() async {
     setState(() => _isUpdating = true);
@@ -1618,6 +1649,11 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
         tags.add(['t', hashtag]);
       }
 
+      // Add content warning labels (NIP-32)
+      for (final label in _contentWarningLabels) {
+        tags.add(['l', label.value, 'content-warning']);
+      }
+
       // Preserve other original tags that shouldn't be changed
       if (widget.video.publishedAt != null) {
         tags.add(['published_at', widget.video.publishedAt!]);
@@ -1710,7 +1746,7 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to update video: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: VineTheme.error,
           ),
         );
       }
@@ -1738,7 +1774,10 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
           ),
           TextButton(
             onPressed: () => context.pop(true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: VineTheme.error),
+            ),
           ),
         ],
       ),
@@ -1795,7 +1834,7 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to delete video: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: VineTheme.error,
           ),
         );
       }
@@ -1815,6 +1854,171 @@ class _EditVideoDialogState extends ConsumerState<_EditVideoDialog> {
     _hashtagsController.dispose();
     super.dispose();
   }
+}
+
+class _EditContentLabelsSection extends StatelessWidget {
+  const _EditContentLabelsSection({
+    required this.selectedLabels,
+    required this.isDisabled,
+    required this.onTap,
+  });
+
+  final Set<ContentLabel> selectedLabels;
+  final bool isDisabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayText = selectedLabels.isEmpty
+        ? 'Add content labels'
+        : selectedLabels.map((label) => label.displayName).join(', ');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Content labels',
+          style: VineTheme.bodyFont(
+            color: VineTheme.onSurfaceVariant,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1.45,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: isDisabled ? null : onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: VineTheme.onSurfaceMuted),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    displayText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: VineTheme.bodyFont(fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right,
+                  color: isDisabled
+                      ? VineTheme.secondaryText
+                      : VineTheme.onSurfaceMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EditContentLabelsPicker extends StatefulWidget {
+  const _EditContentLabelsPicker({required this.selected});
+
+  final Set<ContentLabel> selected;
+
+  static Future<Set<ContentLabel>?> show({
+    required BuildContext context,
+    required Set<ContentLabel> selected,
+  }) => showModalBottomSheet<Set<ContentLabel>>(
+    context: context,
+    backgroundColor: VineTheme.cardBackground,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    isScrollControlled: true,
+    builder: (_) => _EditContentLabelsPicker(selected: selected),
+  );
+
+  @override
+  State<_EditContentLabelsPicker> createState() =>
+      _EditContentLabelsPickerState();
+}
+
+class _EditContentLabelsPickerState extends State<_EditContentLabelsPicker> {
+  late Set<ContentLabel> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = Set<ContentLabel>.of(widget.selected);
+  }
+
+  void _toggle(ContentLabel label) {
+    setState(() {
+      if (_selected.contains(label)) {
+        _selected.remove(label);
+      } else {
+        _selected.add(label);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    top: false,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Content labels', style: VineTheme.titleFont(fontSize: 18)),
+              if (_selected.isNotEmpty)
+                TextButton(
+                  onPressed: () => setState(_selected.clear),
+                  child: const Text(
+                    'Clear all',
+                    style: TextStyle(color: VineTheme.vineGreen),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: ContentLabel.values
+                  .map(
+                    (label) => CheckboxListTile(
+                      value: _selected.contains(label),
+                      onChanged: (_) => _toggle(label),
+                      title: Text(
+                        label.displayName,
+                        style: const TextStyle(color: VineTheme.whiteText),
+                      ),
+                      activeColor: VineTheme.vineGreen,
+                      checkColor: VineTheme.whiteText,
+                      controlAffinity: ListTileControlAffinity.leading,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(_selected),
+              child: const Text('Done'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Collaborators editing section for the post-publish edit dialog.
@@ -1909,7 +2113,6 @@ class _EditCollaboratorsSection extends ConsumerWidget {
 
     // Verify mutual follow
     final followRepo = ref.read(followRepositoryProvider);
-    if (followRepo == null) return;
     final isMutual = await followRepo.isMutualFollow(profile.pubkey);
 
     if (!isMutual) {
@@ -2223,7 +2426,7 @@ class _SelectBookmarkSetDialog extends StatelessWidget {
                   // Divider if there are existing sets
                   if (bookmarkSets.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    Divider(color: Colors.grey.shade700),
+                    const Divider(color: VineTheme.cardBackground),
                     const SizedBox(height: 8),
                   ],
 

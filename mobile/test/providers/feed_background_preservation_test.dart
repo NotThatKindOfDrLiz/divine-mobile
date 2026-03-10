@@ -9,13 +9,19 @@ import 'package:openvine/providers/classic_vines_provider.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/popular_now_feed_provider.dart';
 import 'package:openvine/providers/readiness_gate_providers.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/services/analytics_api_service.dart';
+import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:riverpod/riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockAnalyticsApiService extends Mock implements AnalyticsApiService {}
 
 class _MockVideoEventService extends Mock implements VideoEventService {}
+
+class _MockContentBlocklistService extends Mock
+    implements ContentBlocklistService {}
 
 /// Test override for FunnelcakeAvailable that always returns false
 /// (forces Nostr fallback path for simpler mocking)
@@ -33,6 +39,8 @@ void main() {
   group('Feed background state preservation', () {
     late _MockAnalyticsApiService mockAnalyticsService;
     late _MockVideoEventService mockVideoEventService;
+    late _MockContentBlocklistService mockBlocklistService;
+    late SharedPreferences sharedPreferences;
 
     // Test videos with originalLoops for ClassicVines Nostr fallback
     final testVideos = List.generate(
@@ -50,14 +58,21 @@ void main() {
         videoUrl: 'https://example.com/video_$i.mp4',
         thumbnailUrl: 'https://example.com/thumb_$i.jpg',
         originalLoops: 1000 - i * 100,
+        rawTags: const {'platform': 'vine'},
       ),
     );
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      sharedPreferences = await SharedPreferences.getInstance();
       mockAnalyticsService = _MockAnalyticsApiService();
       mockVideoEventService = _MockVideoEventService();
+      mockBlocklistService = _MockContentBlocklistService();
 
       when(() => mockAnalyticsService.isAvailable).thenReturn(false);
+      when(
+        () => mockBlocklistService.shouldFilterFromFeeds(any()),
+      ).thenReturn(false);
 
       // Nostr fallback data: discoveryVideos for ClassicVines
       when(() => mockVideoEventService.discoveryVideos).thenReturn(testVideos);
@@ -84,8 +99,12 @@ void main() {
       return ProviderContainer(
         overrides: [
           appReadyProvider.overrideWithValue(appReady),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           analyticsApiServiceProvider.overrideWithValue(mockAnalyticsService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
+          contentBlocklistServiceProvider.overrideWithValue(
+            mockBlocklistService,
+          ),
           funnelcakeAvailableProvider.overrideWith(
             _TestFunnelcakeUnavailable.new,
           ),
@@ -126,8 +145,12 @@ void main() {
         // Simulate going to background — appReady becomes false
         container.updateOverrides([
           appReadyProvider.overrideWithValue(false),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           analyticsApiServiceProvider.overrideWithValue(mockAnalyticsService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
+          contentBlocklistServiceProvider.overrideWithValue(
+            mockBlocklistService,
+          ),
           funnelcakeAvailableProvider.overrideWith(
             _TestFunnelcakeUnavailable.new,
           ),
@@ -163,8 +186,12 @@ void main() {
         // Go to background
         container.updateOverrides([
           appReadyProvider.overrideWithValue(false),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           analyticsApiServiceProvider.overrideWithValue(mockAnalyticsService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
+          contentBlocklistServiceProvider.overrideWithValue(
+            mockBlocklistService,
+          ),
           funnelcakeAvailableProvider.overrideWith(
             _TestFunnelcakeUnavailable.new,
           ),
@@ -186,8 +213,12 @@ void main() {
         // Return to foreground
         container.updateOverrides([
           appReadyProvider.overrideWithValue(true),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           analyticsApiServiceProvider.overrideWithValue(mockAnalyticsService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
+          contentBlocklistServiceProvider.overrideWithValue(
+            mockBlocklistService,
+          ),
           funnelcakeAvailableProvider.overrideWith(
             _TestFunnelcakeUnavailable.new,
           ),
@@ -240,8 +271,12 @@ void main() {
         // Simulate going to background
         container.updateOverrides([
           appReadyProvider.overrideWithValue(false),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
           analyticsApiServiceProvider.overrideWithValue(mockAnalyticsService),
           videoEventServiceProvider.overrideWithValue(mockVideoEventService),
+          contentBlocklistServiceProvider.overrideWithValue(
+            mockBlocklistService,
+          ),
           funnelcakeAvailableProvider.overrideWith(
             _TestFunnelcakeUnavailable.new,
           ),

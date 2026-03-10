@@ -44,8 +44,10 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
   ProfileEditorBloc({
     required ProfileRepository profileRepository,
     required bool hasExistingProfile,
+    String? currentUserPubkey,
   }) : _profileRepository = profileRepository,
        _hasExistingProfile = hasExistingProfile,
+       _currentUserPubkey = currentUserPubkey,
        super(const ProfileEditorState()) {
     on<InitialUsernameSet>(_onInitialUsernameSet);
     on<ProfileSaved>(_onProfileSaved);
@@ -57,10 +59,12 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
     on<Nip05ModeChanged>(_onNip05ModeChanged);
     on<ExternalNip05Changed>(_onExternalNip05Changed);
     on<InitialExternalNip05Set>(_onInitialExternalNip05Set);
+    on<UsernameRechecked>(_onUsernameRechecked);
   }
 
   final ProfileRepository _profileRepository;
   final bool _hasExistingProfile;
+  final String? _currentUserPubkey;
 
   void _onInitialUsernameSet(
     InitialUsernameSet event,
@@ -120,10 +124,7 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
 
     if (username.isEmpty) {
       emit(
-        state.copyWith(
-          username: username,
-          usernameStatus: UsernameStatus.idle,
-        ),
+        state.copyWith(username: username, usernameStatus: UsernameStatus.idle),
       );
       return;
     }
@@ -166,10 +167,7 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
     final initial = state.initialUsername;
     if (initial != null && username == initial.toLowerCase()) {
       emit(
-        state.copyWith(
-          username: username,
-          usernameStatus: UsernameStatus.idle,
-        ),
+        state.copyWith(username: username, usernameStatus: UsernameStatus.idle),
       );
       return;
     }
@@ -183,21 +181,14 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
 
     final result = await _profileRepository.checkUsernameAvailability(
       username: username,
+      currentUserPubkey: _currentUserPubkey,
     );
 
     switch (result) {
       case UsernameAvailable():
-        emit(
-          state.copyWith(
-            usernameStatus: UsernameStatus.available,
-          ),
-        );
+        emit(state.copyWith(usernameStatus: UsernameStatus.available));
       case UsernameTaken():
-        emit(
-          state.copyWith(
-            usernameStatus: UsernameStatus.taken,
-          ),
-        );
+        emit(state.copyWith(usernameStatus: UsernameStatus.taken));
       case UsernameInvalidFormat(:final reason):
         emit(
           state.copyWith(
@@ -226,12 +217,7 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
   ) {
     if (event.mode == Nip05Mode.divine) {
       // Switching back to divine mode — clear external NIP-05 state
-      emit(
-        state.copyWith(
-          nip05Mode: Nip05Mode.divine,
-          externalNip05: '',
-        ),
-      );
+      emit(state.copyWith(nip05Mode: Nip05Mode.divine, externalNip05: ''));
     } else {
       // Switching to external mode — reset divine username status to idle
       emit(
@@ -291,6 +277,60 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
     emit(state.copyWith(initialExternalNip05: event.nip05));
   }
 
+  /// Re-checks a previously reserved username against the nameserver.
+  ///
+  /// Removes the username from the local reserved cache and performs a fresh
+  /// availability check. If support has released the name to this user, the
+  /// nameserver will return it as available (owner matches current pubkey).
+  Future<void> _onUsernameRechecked(
+    UsernameRechecked event,
+    Emitter<ProfileEditorState> emit,
+  ) async {
+    final username = state.username;
+    if (username.isEmpty) return;
+
+    // Remove from local reserved cache so the check runs against the server
+    final updatedReserved = {...state.reservedUsernames}..remove(username);
+
+    emit(
+      state.copyWith(
+        usernameStatus: UsernameStatus.checking,
+        reservedUsernames: updatedReserved,
+      ),
+    );
+
+    final result = await _profileRepository.checkUsernameAvailability(
+      username: username,
+      currentUserPubkey: _currentUserPubkey,
+    );
+
+    switch (result) {
+      case UsernameAvailable():
+        emit(state.copyWith(usernameStatus: UsernameStatus.available));
+      case UsernameTaken():
+        emit(state.copyWith(usernameStatus: UsernameStatus.taken));
+      case UsernameInvalidFormat(:final reason):
+        emit(
+          state.copyWith(
+            usernameStatus: UsernameStatus.invalidFormat,
+            usernameError: UsernameValidationError.invalidFormat,
+            usernameFormatMessage: reason,
+          ),
+        );
+      case UsernameCheckError(:final message):
+        Log.error(
+          'Username re-check failed: $message',
+          name: 'ProfileEditorBloc',
+        );
+        emit(
+          state.copyWith(
+            usernameStatus: UsernameStatus.reserved,
+            reservedUsernames: {...state.reservedUsernames, username},
+          ),
+        );
+    }
+  }
+
   /// Core profile save logic (extracted for reuse)
   Future<void> _saveProfile(
     ProfileSaved event,
@@ -310,6 +350,11 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
         !isExternal || (event.externalNip05?.trim().isEmpty ?? true)
         ? null
         : event.externalNip05?.trim().toLowerCase();
+
+    // Explicitly clear NIP-05 when in divine mode with no username. Without
+    // this flag, saveProfileEvent would silently preserve the existing NIP-05
+    // from currentProfile.rawData even though the user opted out of both modes.
+    final clearNip05 = !isExternal && username == null;
     final picture = (event.picture?.trim().isEmpty ?? true)
         ? null
         : event.picture;
@@ -334,6 +379,7 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
         about: about,
         username: username,
         nip05: externalNip05,
+        clearNip05: clearNip05,
         picture: picture,
         banner: banner,
         currentProfile: currentProfile,

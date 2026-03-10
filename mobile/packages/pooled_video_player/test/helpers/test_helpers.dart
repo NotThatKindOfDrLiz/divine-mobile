@@ -108,11 +108,13 @@ class MockPlayerSetup {
 
 /// Creates a fully configured [MockPlayerSetup] with streams.
 ///
-/// Use [isPlaying], [isBuffering], and [position] to set initial state.
+/// Use [isPlaying], [isBuffering], [position], and [duration] to set
+/// initial state.
 MockPlayerSetup createMockPlayerSetup({
   bool isPlaying = false,
   bool isBuffering = false,
   Duration position = Duration.zero,
+  Duration duration = Duration.zero,
 }) {
   final mockPlayer = _MockPlayer();
   final mockState = _MockPlayerState();
@@ -126,6 +128,7 @@ MockPlayerSetup createMockPlayerSetup({
   when(() => mockState.playing).thenReturn(isPlaying);
   when(() => mockState.buffering).thenReturn(isBuffering);
   when(() => mockState.position).thenReturn(position);
+  when(() => mockState.duration).thenReturn(duration);
   when(() => mockPlayer.state).thenReturn(mockState);
 
   // Configure streams
@@ -242,7 +245,10 @@ VideoFeedController createMockVideoFeedController({
   when(() => mockController.setVolume(any())).thenReturn(null);
   when(() => mockController.setPlaybackSpeed(any())).thenReturn(null);
   when(
-    () => mockController.setActive(active: any(named: 'active')),
+    () => mockController.setActive(
+      active: any(named: 'active'),
+      retainCurrentPlayer: any(named: 'retainCurrentPlayer'),
+    ),
   ).thenReturn(null);
   when(() => mockController.addVideos(any())).thenReturn(null);
   when(() => mockController.addListener(any())).thenReturn(null);

@@ -2962,20 +2962,49 @@ void main() {
         );
       });
 
-      test('returns null when profile has no name fields', () async {
-        const noNameResponse = '''
+      test(
+        'returns _noProfile sentinel when profile has no name fields',
+        () async {
+          const noNameResponse = '''
 {"profile": {"about": "just about"}}
 ''';
-        when(
-          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
-        ).thenAnswer(
-          (_) async => http.Response(noNameResponse, 200),
-        );
+          when(
+            () => mockHttpClient.get(
+              any(),
+              headers: any(named: 'headers'),
+            ),
+          ).thenAnswer(
+            (_) async => http.Response(noNameResponse, 200),
+          );
 
-        final profile = await client.getUserProfile(testPubkey);
+          final profile = await client.getUserProfile(testPubkey);
 
-        expect(profile, isNull);
-      });
+          expect(profile, isNotNull);
+          expect(profile!['_noProfile'], isTrue);
+          expect(profile['pubkey'], equals(testPubkey));
+        },
+      );
+
+      test(
+        'returns _noProfile sentinel when profile is null',
+        () async {
+          const nullProfileResponse = '{"profile": null}';
+          when(
+            () => mockHttpClient.get(
+              any(),
+              headers: any(named: 'headers'),
+            ),
+          ).thenAnswer(
+            (_) async => http.Response(nullProfileResponse, 200),
+          );
+
+          final profile = await client.getUserProfile(testPubkey);
+
+          expect(profile, isNotNull);
+          expect(profile!['_noProfile'], isTrue);
+          expect(profile['pubkey'], equals(testPubkey));
+        },
+      );
 
       test('returns null on 404', () async {
         when(
@@ -3727,14 +3756,13 @@ void main() {
       });
 
       test(
-        'filters out entries without pubkey or profile',
+        'filters out entries without pubkey',
         () async {
           const responseWithInvalid = '''
 {
   "users": [
     {"pubkey": "", "profile": {"name": "No Key"}},
-    {"pubkey": "pub1", "profile": null},
-    {"pubkey": "pub2", "profile": {"name": "Valid"}}
+    {"pubkey": "pub1", "profile": {"name": "Valid"}}
   ]
 }
 ''';
@@ -3749,13 +3777,84 @@ void main() {
           );
 
           final result = await client.getBulkProfiles(
-            ['pub1', 'pub2'],
+            ['pub1'],
           );
 
           expect(result.profiles, hasLength(1));
           expect(
+            result.profiles['pub1']?['name'],
+            equals('Valid'),
+          );
+        },
+      );
+
+      test(
+        'returns _noProfile sentinel for users with null profile',
+        () async {
+          const response = '''
+{
+  "users": [
+    {"pubkey": "pub1", "profile": null},
+    {"pubkey": "pub2", "profile": {"name": "Valid"}}
+  ]
+}
+''';
+          when(
+            () => mockHttpClient.post(
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer(
+            (_) async => http.Response(response, 200),
+          );
+
+          final result = await client.getBulkProfiles(
+            ['pub1', 'pub2'],
+          );
+
+          expect(result.profiles, hasLength(2));
+          expect(
+            result.profiles['pub1']?['_noProfile'],
+            isTrue,
+          );
+          expect(
             result.profiles['pub2']?['name'],
             equals('Valid'),
+          );
+        },
+      );
+
+      test(
+        'returns _noProfile sentinel for users with all-null '
+        'profile fields',
+        () async {
+          const response = '''
+{
+  "users": [
+    {
+      "pubkey": "pub1",
+      "profile": {"name": null, "display_name": null, "about": null}
+    }
+  ]
+}
+''';
+          when(
+            () => mockHttpClient.post(
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer(
+            (_) async => http.Response(response, 200),
+          );
+
+          final result = await client.getBulkProfiles(['pub1']);
+
+          expect(result.profiles, hasLength(1));
+          expect(
+            result.profiles['pub1']?['_noProfile'],
+            isTrue,
           );
         },
       );
@@ -4093,6 +4192,196 @@ void main() {
         // We can't verify the internal client is closed, but we can verify
         // the method doesn't throw
         expect(internalClient.dispose, returnsNormally);
+      });
+    });
+
+    group('getCategories', () {
+      const validResponseBody = '''
+[
+  {"name": "music", "video_count": 1500},
+  {"name": "comedy", "video_count": 900}
+]
+''';
+
+      test('returns categories on success', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response(validResponseBody, 200),
+        );
+
+        final categories = await client.getCategories();
+
+        expect(categories, hasLength(2));
+        expect(categories[0]['name'], equals('music'));
+        expect(categories[0]['video_count'], equals(1500));
+        expect(categories[1]['name'], equals('comedy'));
+      });
+
+      test('includes query parameter when provided', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response(validResponseBody, 200),
+        );
+
+        await client.getCategories(query: 'mus');
+
+        final captured =
+            verify(
+                  () => mockHttpClient.get(
+                    captureAny(),
+                    headers: any(named: 'headers'),
+                  ),
+                ).captured.first
+                as Uri;
+
+        expect(captured.queryParameters['q'], equals('mus'));
+      });
+
+      test(
+        'throws FunnelcakeNotConfiguredException when unavailable',
+        () async {
+          final emptyClient = FunnelcakeApiClient(
+            baseUrl: '',
+            httpClient: mockHttpClient,
+          );
+
+          expect(
+            emptyClient.getCategories,
+            throwsA(isA<FunnelcakeNotConfiguredException>()),
+          );
+
+          emptyClient.dispose();
+        },
+      );
+
+      test('throws FunnelcakeApiException on non-200 response', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response('Server error', 500),
+        );
+
+        expect(
+          () => client.getCategories(),
+          throwsA(isA<FunnelcakeApiException>()),
+        );
+      });
+
+      test('throws FunnelcakeTimeoutException on timeout', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) => Future.delayed(
+            const Duration(minutes: 1),
+            () => http.Response('', 200),
+          ),
+        );
+
+        expect(
+          () => client.getCategories(),
+          throwsA(isA<FunnelcakeTimeoutException>()),
+        );
+      });
+    });
+
+    group('getVideosByCategory', () {
+      const validResponseBody =
+          '''
+[
+  {
+    "id": "cat_video_1",
+    "pubkey": "$testPubkey",
+    "created_at": 1700000000,
+    "kind": 34236,
+    "d_tag": "cat_video_1",
+    "title": "Music Video",
+    "thumbnail": "https://example.com/thumb.jpg",
+    "video_url": "https://example.com/video.mp4",
+    "reactions": 10,
+    "comments": 5,
+    "reposts": 2,
+    "engagement_score": 17
+  }
+]
+''';
+
+      test('returns videos on success', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response(validResponseBody, 200),
+        );
+
+        final videos = await client.getVideosByCategory(
+          category: 'music',
+        );
+
+        expect(videos, hasLength(1));
+        expect(videos.first.title, equals('Music Video'));
+      });
+
+      test('includes category and sort in query params', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response('[]', 200),
+        );
+
+        await client.getVideosByCategory(
+          category: 'Music',
+          sort: 'loops',
+        );
+
+        final captured =
+            verify(
+                  () => mockHttpClient.get(
+                    captureAny(),
+                    headers: any(named: 'headers'),
+                  ),
+                ).captured.first
+                as Uri;
+
+        expect(captured.queryParameters['category'], equals('music'));
+        expect(captured.queryParameters['sort'], equals('loops'));
+      });
+
+      test('throws FunnelcakeException when category is empty', () async {
+        expect(
+          () => client.getVideosByCategory(category: ''),
+          throwsA(isA<FunnelcakeException>()),
+        );
+      });
+
+      test(
+        'throws FunnelcakeNotConfiguredException when unavailable',
+        () async {
+          final emptyClient = FunnelcakeApiClient(
+            baseUrl: '',
+            httpClient: mockHttpClient,
+          );
+
+          expect(
+            () => emptyClient.getVideosByCategory(category: 'music'),
+            throwsA(isA<FunnelcakeNotConfiguredException>()),
+          );
+
+          emptyClient.dispose();
+        },
+      );
+
+      test('throws FunnelcakeApiException on non-200 response', () async {
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => http.Response('Error', 500),
+        );
+
+        expect(
+          () => client.getVideosByCategory(category: 'music'),
+          throwsA(isA<FunnelcakeApiException>()),
+        );
       });
     });
   });

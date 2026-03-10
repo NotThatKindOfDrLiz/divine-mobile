@@ -13,13 +13,19 @@ import 'package:openvine/providers/app_foreground_provider.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/readiness_gate_providers.dart';
 import 'package:openvine/providers/seen_videos_notifier.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/providers/video_events_providers.dart';
 import 'package:openvine/router/router.dart';
+import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/video_event_service.dart';
 import 'package:openvine/services/video_filter_builder.dart';
 import 'package:openvine/state/seen_videos_state.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockVideoEventService extends Mock implements VideoEventService {}
+
+class _MockContentBlocklistService extends Mock
+    implements ContentBlocklistService {}
 
 class _FakeAppForeground extends AppForeground {
   _FakeAppForeground(this._isForeground);
@@ -43,15 +49,31 @@ class _FakeSeenVideosNotifier extends SeenVideosNotifier {
 /// the [videoEventsProvider].
 ProviderContainer _createContainer({
   required _MockVideoEventService mockVideoEventService,
+  required SharedPreferences sharedPreferences,
+  ContentBlocklistService? blocklistService,
   bool appReady = true,
   bool tabActive = true,
   SeenVideosState seenState = SeenVideosState.initial,
 }) {
+  final effectiveBlocklistService =
+      blocklistService ?? _MockContentBlocklistService();
+  if (effectiveBlocklistService is _MockContentBlocklistService) {
+    when(
+      () => effectiveBlocklistService.shouldFilterFromFeeds(any()),
+    ).thenReturn(false);
+  }
+
   return ProviderContainer(
     overrides: [
       // Override the gate providers directly to avoid complex dependency chains
       appReadyProvider.overrideWith((ref) => appReady),
       isDiscoveryTabActiveProvider.overrideWith((ref) => tabActive),
+      sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+
+      // Override blocklist service to avoid SharedPreferences dependency
+      contentBlocklistServiceProvider.overrideWithValue(
+        effectiveBlocklistService,
+      ),
 
       // Override foreground provider (used by gate listeners)
       appForegroundProvider.overrideWith(() => _FakeAppForeground(appReady)),
@@ -79,6 +101,11 @@ ProviderContainer _createContainer({
 void _setupMockDefaults(_MockVideoEventService mock) {
   when(() => mock.discoveryVideos).thenReturn([]);
   when(() => mock.isSubscribed(any())).thenReturn(false);
+  when(
+    () => mock.filterVideoList(any()),
+  ).thenAnswer(
+    (invocation) => invocation.positionalArguments.first as List<VideoEvent>,
+  );
 
   // Mock addVideoUpdateListener (called by provider during build)
   when(() => mock.addVideoUpdateListener(any())).thenReturn(() {});
@@ -104,19 +131,24 @@ void main() {
   setUpAll(() {
     registerFallbackValue(SubscriptionType.discovery);
     registerFallbackValue(() {});
+    registerFallbackValue(<VideoEvent>[]);
     registerFallbackValue(NIP50SortMode.hot);
   });
 
   group('VideoEvents Provider - Listener Attachment', () {
     late _MockVideoEventService mockVideoEventService;
+    late SharedPreferences sharedPreferences;
     late ProviderContainer container;
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      sharedPreferences = await SharedPreferences.getInstance();
       mockVideoEventService = _MockVideoEventService();
       _setupMockDefaults(mockVideoEventService);
 
       container = _createContainer(
         mockVideoEventService: mockVideoEventService,
+        sharedPreferences: sharedPreferences,
       );
     });
 
@@ -280,6 +312,7 @@ void main() {
 
       final testContainer = _createContainer(
         mockVideoEventService: mockVideoEventService,
+        sharedPreferences: sharedPreferences,
         seenState: seenState,
       );
 
@@ -311,6 +344,7 @@ void main() {
       // Arrange - App not ready, wrong tab
       final testContainer = _createContainer(
         mockVideoEventService: mockVideoEventService,
+        sharedPreferences: sharedPreferences,
         appReady: false,
         tabActive: false,
       );
@@ -363,14 +397,18 @@ void main() {
 
   group('VideoEvents Provider - Reactive Updates', () {
     late _MockVideoEventService mockVideoEventService;
+    late SharedPreferences sharedPreferences;
     late ProviderContainer container;
 
-    setUp(() {
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      sharedPreferences = await SharedPreferences.getInstance();
       mockVideoEventService = _MockVideoEventService();
       _setupMockDefaults(mockVideoEventService);
 
       container = _createContainer(
         mockVideoEventService: mockVideoEventService,
+        sharedPreferences: sharedPreferences,
       );
     });
 

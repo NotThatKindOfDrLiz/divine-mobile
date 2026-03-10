@@ -136,10 +136,7 @@ void main() {
           appForegroundProvider.overrideWithValue(const AsyncValue.data(true)),
           videosForProfileRouteProvider.overrideWith((ref) {
             return AsyncValue.data(
-              VideoFeedState(
-                videos: mockVideos,
-                hasMoreContent: false,
-              ),
+              VideoFeedState(videos: mockVideos, hasMoreContent: false),
             );
           }),
           authServiceProvider.overrideWithValue(
@@ -209,10 +206,7 @@ void main() {
           appForegroundProvider.overrideWithValue(const AsyncValue.data(true)),
           videosForProfileRouteProvider.overrideWith((ref) {
             return AsyncValue.data(
-              VideoFeedState(
-                videos: mockVideos,
-                hasMoreContent: false,
-              ),
+              VideoFeedState(videos: mockVideos, hasMoreContent: false),
             );
           }),
           authServiceProvider.overrideWithValue(
@@ -245,10 +239,7 @@ void main() {
             ),
             videosForProfileRouteProvider.overrideWith((ref) {
               return AsyncValue.data(
-                VideoFeedState(
-                  videos: mockVideos,
-                  hasMoreContent: false,
-                ),
+                VideoFeedState(videos: mockVideos, hasMoreContent: false),
               );
             }),
             authServiceProvider.overrideWithValue(
@@ -286,10 +277,7 @@ void main() {
           appForegroundProvider.overrideWithValue(const AsyncValue.data(true)),
           videosForProfileRouteProvider.overrideWith((ref) {
             return AsyncValue.data(
-              VideoFeedState(
-                videos: mockVideos,
-                hasMoreContent: false,
-              ),
+              VideoFeedState(videos: mockVideos, hasMoreContent: false),
             );
           }),
           authServiceProvider.overrideWithValue(

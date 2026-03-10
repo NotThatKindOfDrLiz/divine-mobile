@@ -16,6 +16,7 @@ import 'package:openvine/services/blossom_auth_service.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/services/social_service.dart';
 import 'package:openvine/services/subscription_manager.dart';
+import 'package:profile_repository/profile_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // Mock classes (public because they are imported by many test files)
@@ -32,6 +33,8 @@ class MockBlossomAuthService extends Mock implements BlossomAuthService {}
 class MockMediaCacheManager extends Mock implements MediaCacheManager {}
 
 class MockNostrClient extends Mock implements NostrClient {}
+
+class MockProfileRepository extends Mock implements ProfileRepository {}
 
 /// Creates a properly stubbed MockSharedPreferences for testing
 MockSharedPreferences createMockSharedPreferences() {
@@ -77,6 +80,13 @@ MockAuthService createMockAuthService() {
   when(() => mockAuth.isAuthenticated).thenReturn(false);
   when(() => mockAuth.currentPublicKeyHex).thenReturn(null);
 
+  // Stub authState and authStateStream so currentAuthStateProvider does not
+  // crash with type 'Null' is not a subtype of type 'Stream<AuthState>'
+  when(() => mockAuth.authState).thenReturn(AuthState.unauthenticated);
+  when(
+    () => mockAuth.authStateStream,
+  ).thenAnswer((_) => const Stream<AuthState>.empty());
+
   return mockAuth;
 }
 
@@ -99,6 +109,7 @@ MockNostrClient createMockNostrService() {
 
   // Stub common properties
   when(() => mockNostr.isInitialized).thenReturn(true);
+  when(() => mockNostr.hasKeys).thenReturn(false);
   when(() => mockNostr.connectedRelayCount).thenReturn(1);
   when(() => mockNostr.configuredRelays).thenReturn(<String>[]);
 
@@ -184,6 +195,20 @@ MockMediaCacheManager createMockMediaCacheManager() {
   return mockCache;
 }
 
+/// Creates a properly stubbed MockProfileRepository for testing
+MockProfileRepository createMockProfileRepository() {
+  final mockRepo = MockProfileRepository();
+
+  when(
+    () => mockRepo.getCachedProfile(pubkey: any(named: 'pubkey')),
+  ).thenAnswer((_) async => null);
+  when(
+    () => mockRepo.fetchFreshProfile(pubkey: any(named: 'pubkey')),
+  ).thenAnswer((_) async => null);
+
+  return mockRepo;
+}
+
 /// Standard provider overrides that fix most ProviderException failures
 List<dynamic> getStandardTestOverrides({
   SharedPreferences? mockSharedPreferences,
@@ -193,6 +218,7 @@ List<dynamic> getStandardTestOverrides({
   SubscriptionManager? mockSubscriptionManager,
   BlossomAuthService? mockBlossomAuthService,
   MediaCacheManager? mockMediaCacheManager,
+  ProfileRepository? mockProfileRepository,
 }) {
   final mockPrefs = mockSharedPreferences ?? createMockSharedPreferences();
   final mockAuth = mockAuthService ?? createMockAuthService();
@@ -201,6 +227,7 @@ List<dynamic> getStandardTestOverrides({
   final mockSub = mockSubscriptionManager ?? createMockSubscriptionManager();
   final mockBlossom = mockBlossomAuthService ?? createMockBlossomAuthService();
   final mockCache = mockMediaCacheManager ?? createMockMediaCacheManager();
+  final mockProfile = mockProfileRepository ?? createMockProfileRepository();
 
   return [
     // Override sharedPreferencesProvider which throws in production
@@ -251,6 +278,7 @@ Widget testProviderScope({
   SubscriptionManager? mockSubscriptionManager,
   BlossomAuthService? mockBlossomAuthService,
   MediaCacheManager? mockMediaCacheManager,
+  ProfileRepository? mockProfileRepository,
 }) {
   return ProviderScope(
     overrides: [
@@ -262,6 +290,7 @@ Widget testProviderScope({
         mockSubscriptionManager: mockSubscriptionManager,
         mockBlossomAuthService: mockBlossomAuthService,
         mockMediaCacheManager: mockMediaCacheManager,
+        mockProfileRepository: mockProfileRepository,
       ),
       ...?additionalOverrides,
     ],
@@ -295,6 +324,7 @@ Widget testMaterialApp({
   SubscriptionManager? mockSubscriptionManager,
   BlossomAuthService? mockBlossomAuthService,
   MediaCacheManager? mockMediaCacheManager,
+  ProfileRepository? mockProfileRepository,
   ThemeData? theme,
 }) {
   return testProviderScope(
@@ -306,6 +336,7 @@ Widget testMaterialApp({
     mockSubscriptionManager: mockSubscriptionManager,
     mockBlossomAuthService: mockBlossomAuthService,
     mockMediaCacheManager: mockMediaCacheManager,
+    mockProfileRepository: mockProfileRepository,
     child: MaterialApp(
       home: home,
       routes: routes ?? {},
