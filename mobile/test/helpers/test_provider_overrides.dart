@@ -1,12 +1,15 @@
 // ABOUTME: Centralized provider overrides for widget tests to fix ProviderException failures
 // ABOUTME: Provides mock implementations of all providers that throw UnimplementedError in production
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_cache/media_cache.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nostr_client/nostr_client.dart';
 import 'package:nostr_sdk/event.dart';
+import 'package:openvine/blocs/profiles/profiles_bloc.dart';
 import 'package:openvine/features/feature_flags/models/feature_flag.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
@@ -35,6 +38,9 @@ class MockMediaCacheManager extends Mock implements MediaCacheManager {}
 class MockNostrClient extends Mock implements NostrClient {}
 
 class MockProfileRepository extends Mock implements ProfileRepository {}
+
+class MockProfilesBloc extends MockBloc<ProfilesEvent, ProfilesState>
+    implements ProfilesBloc {}
 
 /// Creates a properly stubbed MockSharedPreferences for testing
 MockSharedPreferences createMockSharedPreferences() {
@@ -209,6 +215,13 @@ MockProfileRepository createMockProfileRepository() {
   return mockRepo;
 }
 
+/// Creates a MockProfilesBloc with empty state for testing
+MockProfilesBloc createMockProfilesBloc() {
+  final mockBloc = MockProfilesBloc();
+  when(() => mockBloc.state).thenReturn(const ProfilesState());
+  return mockBloc;
+}
+
 /// Standard provider overrides that fix most ProviderException failures
 List<dynamic> getStandardTestOverrides({
   SharedPreferences? mockSharedPreferences,
@@ -227,7 +240,6 @@ List<dynamic> getStandardTestOverrides({
   final mockSub = mockSubscriptionManager ?? createMockSubscriptionManager();
   final mockBlossom = mockBlossomAuthService ?? createMockBlossomAuthService();
   final mockCache = mockMediaCacheManager ?? createMockMediaCacheManager();
-
   return [
     // Override sharedPreferencesProvider which throws in production
     sharedPreferencesProvider.overrideWithValue(mockPrefs),
@@ -249,6 +261,8 @@ List<dynamic> getStandardTestOverrides({
       authServiceProvider.overrideWithValue(mockAuth),
     if (mockSocialService != null)
       socialServiceProvider.overrideWithValue(mockSocial),
+    if (mockProfileRepository != null)
+      profileRepositoryProvider.overrideWithValue(mockProfileRepository),
   ];
 }
 
@@ -278,7 +292,10 @@ Widget testProviderScope({
   BlossomAuthService? mockBlossomAuthService,
   MediaCacheManager? mockMediaCacheManager,
   ProfileRepository? mockProfileRepository,
+  ProfilesBloc? mockProfilesBloc,
 }) {
+  final profilesBloc = mockProfilesBloc ?? createMockProfilesBloc();
+
   return ProviderScope(
     overrides: [
       ...getStandardTestOverrides(
@@ -293,7 +310,10 @@ Widget testProviderScope({
       ),
       ...?additionalOverrides,
     ],
-    child: child,
+    child: BlocProvider<ProfilesBloc>.value(
+      value: profilesBloc,
+      child: child,
+    ),
   );
 }
 
@@ -324,6 +344,7 @@ Widget testMaterialApp({
   BlossomAuthService? mockBlossomAuthService,
   MediaCacheManager? mockMediaCacheManager,
   ProfileRepository? mockProfileRepository,
+  ProfilesBloc? mockProfilesBloc,
   ThemeData? theme,
 }) {
   return testProviderScope(
@@ -336,6 +357,7 @@ Widget testMaterialApp({
     mockBlossomAuthService: mockBlossomAuthService,
     mockMediaCacheManager: mockMediaCacheManager,
     mockProfileRepository: mockProfileRepository,
+    mockProfilesBloc: mockProfilesBloc,
     child: MaterialApp(
       home: home,
       routes: routes ?? {},
