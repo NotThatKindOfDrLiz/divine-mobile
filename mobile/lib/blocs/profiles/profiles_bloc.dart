@@ -1,6 +1,7 @@
 // ABOUTME: App-level BLoC for inline profile display (name, avatar).
 // ABOUTME: One-shot cache+fetch per pubkey, no persistent streams.
 
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:models/models.dart';
@@ -18,7 +19,7 @@ class ProfilesBloc extends Bloc<ProfilesEvent, ProfilesState> {
   ProfilesBloc({required ProfileRepository profileRepository})
     : _profileRepository = profileRepository,
       super(const ProfilesState()) {
-    on<ProfileRequested>(_onProfileRequested);
+    on<ProfileRequested>(_onProfileRequested, transformer: sequential());
     on<ProfileRefreshRequested>(_onProfileRefreshRequested);
   }
 
@@ -61,7 +62,13 @@ class ProfilesBloc extends Bloc<ProfilesEvent, ProfilesState> {
         );
       }
     } on Exception {
-      // Network errors are non-fatal — cached profile (if any) remains
+      // Network errors are non-fatal — cached profile (if any) remains.
+      // Remove from requestedPubkeys so transient failures can be retried.
+      emit(
+        state.copyWith(
+          requestedPubkeys: {...state.requestedPubkeys}..remove(pubkey),
+        ),
+      );
     }
   }
 

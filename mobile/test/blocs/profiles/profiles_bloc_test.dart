@@ -218,7 +218,7 @@ void main() {
       );
 
       blocTest<ProfilesBloc, ProfilesState>(
-        'handles exception from getCachedProfile gracefully',
+        'removes pubkey from requestedPubkeys on getCachedProfile exception',
         setUp: () {
           when(
             () => mockRepo.getCachedProfile(pubkey: pubkeyA),
@@ -228,11 +228,12 @@ void main() {
         act: (bloc) => bloc.add(const ProfileRequested(pubkey: pubkeyA)),
         expect: () => [
           const ProfilesState(requestedPubkeys: {pubkeyA}),
+          const ProfilesState(),
         ],
       );
 
       blocTest<ProfilesBloc, ProfilesState>(
-        'handles exception from fetchFreshProfile gracefully',
+        'removes pubkey from requestedPubkeys on fetchFreshProfile exception',
         setUp: () {
           when(
             () => mockRepo.getCachedProfile(pubkey: pubkeyA),
@@ -244,6 +245,41 @@ void main() {
         build: createBloc,
         act: (bloc) => bloc.add(const ProfileRequested(pubkey: pubkeyA)),
         expect: () => [
+          const ProfilesState(requestedPubkeys: {pubkeyA}),
+          ProfilesState(
+            profiles: {pubkeyA: profileA},
+            requestedPubkeys: const {pubkeyA},
+          ),
+          ProfilesState(profiles: {pubkeyA: profileA}),
+        ],
+      );
+
+      blocTest<ProfilesBloc, ProfilesState>(
+        'allows retry after transient failure',
+        setUp: () {
+          var callCount = 0;
+          when(
+            () => mockRepo.getCachedProfile(pubkey: pubkeyA),
+          ).thenAnswer((_) async {
+            callCount++;
+            if (callCount == 1) throw Exception('DB error');
+            return profileA;
+          });
+          when(
+            () => mockRepo.fetchFreshProfile(pubkey: pubkeyA),
+          ).thenAnswer((_) async => null);
+        },
+        build: createBloc,
+        act: (bloc) async {
+          bloc.add(const ProfileRequested(pubkey: pubkeyA));
+          await Future<void>.delayed(Duration.zero);
+          bloc.add(const ProfileRequested(pubkey: pubkeyA));
+        },
+        expect: () => [
+          // First attempt: mark requested, then fail and remove
+          const ProfilesState(requestedPubkeys: {pubkeyA}),
+          const ProfilesState(),
+          // Retry: mark requested again, then succeed
           const ProfilesState(requestedPubkeys: {pubkeyA}),
           ProfilesState(
             profiles: {pubkeyA: profileA},
