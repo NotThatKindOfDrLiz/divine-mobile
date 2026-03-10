@@ -1,6 +1,8 @@
 // ABOUTME: Utility for formatting timestamps into human-readable relative strings.
 // ABOUTME: Used by conversation list items and message bubbles.
 
+import 'package:intl/intl.dart';
+
 /// Formats Unix timestamps into human-readable relative time strings.
 abstract class TimeFormatter {
   /// Formats a Unix timestamp (seconds) into a relative time string.
@@ -42,36 +44,7 @@ abstract class TimeFormatter {
 
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
-    if (diff < 7) {
-      const days = [
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-        'Sunday',
-      ];
-      return days[date.weekday - 1];
-    }
-    return '${_monthName(date.month)} ${date.day}';
-  }
-
-  static String _monthName(int month) {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return months[month - 1];
+    if (diff < 7) return DateFormat('EEEE').format(date);
+    return DateFormat('MMMM d').format(date);
   }
 }

@@ -67,7 +67,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     ConversationMessageSent event,
     Emitter<ConversationState> emit,
   ) async {
-    emit(state.copyWith(sendStatus: SendStatus.sending));
+    emit(state.copyWith(sendStatus: SendStatus.sending, clearSendError: true));
 
     try {
       if (event.recipientPubkeys.length == 1) {

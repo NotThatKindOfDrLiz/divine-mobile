@@ -3,8 +3,6 @@
 
 import 'package:equatable/equatable.dart';
 
-const _sentinel = Object();
-
 /// A DM conversation (chat room) as defined by NIP-17.
 ///
 /// The conversation is identified by the sorted set of participant pubkeys.
@@ -50,15 +48,22 @@ class DmConversation extends Equatable {
   final bool isRead;
 
   /// Creates a copy with the given fields replaced.
+  ///
+  /// To explicitly clear a nullable field, set the corresponding
+  /// `clear*` flag to `true`.
   DmConversation copyWith({
     String? id,
     List<String>? participantPubkeys,
     bool? isGroup,
     int? createdAt,
-    Object? lastMessageContent = _sentinel,
-    Object? lastMessageTimestamp = _sentinel,
-    Object? lastMessageSenderPubkey = _sentinel,
-    Object? subject = _sentinel,
+    String? lastMessageContent,
+    bool clearLastMessageContent = false,
+    int? lastMessageTimestamp,
+    bool clearLastMessageTimestamp = false,
+    String? lastMessageSenderPubkey,
+    bool clearLastMessageSenderPubkey = false,
+    String? subject,
+    bool clearSubject = false,
     bool? isRead,
   }) {
     return DmConversation(
@@ -66,16 +71,16 @@ class DmConversation extends Equatable {
       participantPubkeys: participantPubkeys ?? this.participantPubkeys,
       isGroup: isGroup ?? this.isGroup,
       createdAt: createdAt ?? this.createdAt,
-      lastMessageContent: lastMessageContent == _sentinel
-          ? this.lastMessageContent
-          : lastMessageContent as String?,
-      lastMessageTimestamp: lastMessageTimestamp == _sentinel
-          ? this.lastMessageTimestamp
-          : lastMessageTimestamp as int?,
-      lastMessageSenderPubkey: lastMessageSenderPubkey == _sentinel
-          ? this.lastMessageSenderPubkey
-          : lastMessageSenderPubkey as String?,
-      subject: subject == _sentinel ? this.subject : subject as String?,
+      lastMessageContent: clearLastMessageContent
+          ? null
+          : lastMessageContent ?? this.lastMessageContent,
+      lastMessageTimestamp: clearLastMessageTimestamp
+          ? null
+          : lastMessageTimestamp ?? this.lastMessageTimestamp,
+      lastMessageSenderPubkey: clearLastMessageSenderPubkey
+          ? null
+          : lastMessageSenderPubkey ?? this.lastMessageSenderPubkey,
+      subject: clearSubject ? null : subject ?? this.subject,
       isRead: isRead ?? this.isRead,
     );
   }

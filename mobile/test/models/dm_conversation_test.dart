@@ -70,7 +70,7 @@ void main() {
         expect(updated, isNot(equals(original)));
       });
 
-      test('allows setting nullable fields to null', () {
+      test('allows clearing nullable fields via clear flags', () {
         final original = createConversation(
           lastMessageContent: 'Hi there',
           lastMessageTimestamp: 1700000100,
@@ -78,10 +78,10 @@ void main() {
           subject: 'Test Subject',
         );
         final updated = original.copyWith(
-          lastMessageContent: null,
-          lastMessageTimestamp: null,
-          lastMessageSenderPubkey: null,
-          subject: null,
+          clearLastMessageContent: true,
+          clearLastMessageTimestamp: true,
+          clearLastMessageSenderPubkey: true,
+          clearSubject: true,
         );
 
         expect(updated.lastMessageContent, isNull);

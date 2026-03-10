@@ -691,6 +691,20 @@ void main() {
       expect(state.copyWith(), equals(state));
     });
 
+    test('copyWith clearSendError resets sendError to null', () {
+      const state = ConversationState(
+        sendStatus: SendStatus.failed,
+        sendError: 'previous error',
+      );
+      final cleared = state.copyWith(
+        sendStatus: SendStatus.sending,
+        clearSendError: true,
+      );
+
+      expect(cleared.sendStatus, equals(SendStatus.sending));
+      expect(cleared.sendError, isNull);
+    });
+
     test('copyWith replaces every value', () {
       const message = DmMessage(
         id: messageId,

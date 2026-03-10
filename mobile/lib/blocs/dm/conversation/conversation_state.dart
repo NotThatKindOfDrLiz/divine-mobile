@@ -24,12 +24,13 @@ class ConversationState extends Equatable {
     List<DmMessage>? messages,
     SendStatus? sendStatus,
     String? sendError,
+    bool clearSendError = false,
   }) {
     return ConversationState(
       status: status ?? this.status,
       messages: messages ?? this.messages,
       sendStatus: sendStatus ?? this.sendStatus,
-      sendError: sendError ?? this.sendError,
+      sendError: clearSendError ? null : sendError ?? this.sendError,
     );
   }
 
