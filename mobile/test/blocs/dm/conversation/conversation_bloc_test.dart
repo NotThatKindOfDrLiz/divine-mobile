@@ -65,7 +65,6 @@ void main() {
       expect(bloc.state.status, equals(ConversationStatus.initial));
       expect(bloc.state.messages, isEmpty);
       expect(bloc.state.sendStatus, equals(SendStatus.idle));
-      expect(bloc.state.sendError, isNull);
     });
 
     group('ConversationStarted', () {
@@ -238,11 +237,9 @@ void main() {
           ),
           expect: () => [
             const ConversationState(sendStatus: SendStatus.sending),
-            const ConversationState(
-              sendStatus: SendStatus.failed,
-              sendError: 'Failed to publish message',
-            ),
+            const ConversationState(sendStatus: SendStatus.failed),
           ],
+          errors: () => [isA<Exception>()],
         );
       });
 
@@ -302,11 +299,9 @@ void main() {
           ),
           expect: () => [
             const ConversationState(sendStatus: SendStatus.sending),
-            const ConversationState(
-              sendStatus: SendStatus.failed,
-              sendError: 'Relay timeout',
-            ),
+            const ConversationState(sendStatus: SendStatus.failed),
           ],
+          errors: () => [isA<Exception>()],
         );
       });
 
@@ -330,10 +325,7 @@ void main() {
           ),
           expect: () => [
             const ConversationState(sendStatus: SendStatus.sending),
-            const ConversationState(
-              sendStatus: SendStatus.failed,
-              sendError: 'Exception: Network error',
-            ),
+            const ConversationState(sendStatus: SendStatus.failed),
           ],
           errors: () => [isA<Exception>()],
         );
@@ -357,10 +349,7 @@ void main() {
           ),
           expect: () => [
             const ConversationState(sendStatus: SendStatus.sending),
-            const ConversationState(
-              sendStatus: SendStatus.failed,
-              sendError: 'Exception: Network error',
-            ),
+            const ConversationState(sendStatus: SendStatus.failed),
           ],
           errors: () => [isA<Exception>()],
         );
@@ -631,7 +620,6 @@ void main() {
           ConversationStatus.initial,
           <DmMessage>[],
           SendStatus.idle,
-          null,
         ]),
       );
     });
@@ -674,35 +662,10 @@ void main() {
       );
     });
 
-    test('states with different sendError are not equal', () {
-      expect(
-        const ConversationState(),
-        isNot(
-          equals(
-            const ConversationState(sendError: 'some error'),
-          ),
-        ),
-      );
-    });
-
     test('copyWith returns same object when no parameters are provided', () {
       const state = ConversationState();
 
       expect(state.copyWith(), equals(state));
-    });
-
-    test('copyWith clearSendError resets sendError to null', () {
-      const state = ConversationState(
-        sendStatus: SendStatus.failed,
-        sendError: 'previous error',
-      );
-      final cleared = state.copyWith(
-        sendStatus: SendStatus.sending,
-        clearSendError: true,
-      );
-
-      expect(cleared.sendStatus, equals(SendStatus.sending));
-      expect(cleared.sendError, isNull);
     });
 
     test('copyWith replaces every value', () {
@@ -721,13 +684,11 @@ void main() {
         status: ConversationStatus.loaded,
         messages: [message],
         sendStatus: SendStatus.sent,
-        sendError: 'test error',
       );
 
       expect(copied.status, equals(ConversationStatus.loaded));
       expect(copied.messages, equals([message]));
       expect(copied.sendStatus, equals(SendStatus.sent));
-      expect(copied.sendError, equals('test error'));
     });
   });
 

@@ -11,29 +11,24 @@ class ConversationState extends Equatable {
     this.status = ConversationStatus.initial,
     this.messages = const [],
     this.sendStatus = SendStatus.idle,
-    this.sendError,
   });
 
   final ConversationStatus status;
   final List<DmMessage> messages;
   final SendStatus sendStatus;
-  final String? sendError;
 
   ConversationState copyWith({
     ConversationStatus? status,
     List<DmMessage>? messages,
     SendStatus? sendStatus,
-    String? sendError,
-    bool clearSendError = false,
   }) {
     return ConversationState(
       status: status ?? this.status,
       messages: messages ?? this.messages,
       sendStatus: sendStatus ?? this.sendStatus,
-      sendError: clearSendError ? null : sendError ?? this.sendError,
     );
   }
 
   @override
-  List<Object?> get props => [status, messages, sendStatus, sendError];
+  List<Object?> get props => [status, messages, sendStatus];
 }

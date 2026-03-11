@@ -67,7 +67,7 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
     ConversationMessageSent event,
     Emitter<ConversationState> emit,
   ) async {
-    emit(state.copyWith(sendStatus: SendStatus.sending, clearSendError: true));
+    emit(state.copyWith(sendStatus: SendStatus.sending));
 
     try {
       if (event.recipientPubkeys.length == 1) {
@@ -78,12 +78,11 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         if (result.success) {
           emit(state.copyWith(sendStatus: SendStatus.sent));
         } else {
-          emit(
-            state.copyWith(
-              sendStatus: SendStatus.failed,
-              sendError: result.error,
-            ),
+          addError(
+            Exception(result.error ?? 'Failed to send message'),
+            StackTrace.current,
           );
+          emit(state.copyWith(sendStatus: SendStatus.failed));
         }
       } else {
         final results = await _dmRepository.sendGroupMessage(
@@ -93,22 +92,16 @@ class ConversationBloc extends Bloc<ConversationEvent, ConversationState> {
         if (results.any((r) => r.success)) {
           emit(state.copyWith(sendStatus: SendStatus.sent));
         } else {
-          emit(
-            state.copyWith(
-              sendStatus: SendStatus.failed,
-              sendError: results.first.error,
-            ),
+          addError(
+            Exception(results.first.error ?? 'Failed to send group message'),
+            StackTrace.current,
           );
+          emit(state.copyWith(sendStatus: SendStatus.failed));
         }
       }
     } catch (e, stackTrace) {
       addError(e, stackTrace);
-      emit(
-        state.copyWith(
-          sendStatus: SendStatus.failed,
-          sendError: e.toString(),
-        ),
-      );
+      emit(state.copyWith(sendStatus: SendStatus.failed));
     }
   }
 }
