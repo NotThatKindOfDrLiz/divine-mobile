@@ -1,4 +1,5 @@
 import 'package:divine_ui/divine_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,6 +18,7 @@ import 'package:openvine/services/feed_performance_tracker.dart';
 import 'package:openvine/services/startup_performance_service.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/branded_loading_scaffold.dart';
+import 'package:openvine/widgets/web_video_feed.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
 extension on List<VideoEvent> {
@@ -143,7 +145,12 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
   ///
   /// Called from [didChangeDependencies] for eager setup and from
   /// [BlocListener] when videos arrive asynchronously.
+  ///
+  /// On web, the controller is not needed because [WebVideoFeed] manages
+  /// its own playback using Flutter's video_player package.
   void handleVideoController([VideoFeedState? state]) {
+    // On web, skip media_kit controller — WebVideoFeed handles playback.
+    if (kIsWeb) return;
     if (controller != null) return;
 
     final effectiveState = state ?? context.read<VideoFeedBloc>().state;
@@ -298,50 +305,68 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
             // instead.
             return Stack(
               children: [
-                PooledVideoFeed(
-                  key: ValueKey(state.mode),
-                  videos: pooledVideos,
-                  controller: controller,
-                  itemBuilder: (context, video, index, {required isActive}) {
-                    final originalEvent = eventsById[video.id];
-                    if (originalEvent == null) {
-                      return const ColoredBox(
-                        color: VineTheme.backgroundColor,
+                if (kIsWeb)
+                  WebVideoFeed(
+                    key: ValueKey(state.mode),
+                    videos: state.videos
+                        .where((v) => v.videoUrl != null)
+                        .toList(),
+                    onActiveVideoChanged: (video, index) {
+                      FeedPerformanceTracker().startVideoSwipeTracking(
+                        video.id,
                       );
-                    }
-                    final listSources =
-                        state.listOnlyVideoIds.contains(originalEvent.id)
-                        ? state.videoListSources[originalEvent.id]
-                        : null;
-                    return _PooledVideoFeedItem(
-                      video: originalEvent,
-                      index: index,
-                      isActive: isActive,
-                      contextTitle: state.mode.name,
-                      listSources: listSources,
-                    );
-                  },
-                  onActiveVideoChanged: (video, index) {
-                    FeedPerformanceTracker().startVideoSwipeTracking(video.id);
-                    final sourceIndex = state.videos.indexWhere(
-                      (event) => event.id == video.id,
-                    );
-                    if (sourceIndex != -1) {
-                      prefetchProfiles(state.videos, sourceIndex);
-                    }
-                  },
-                  onNearEnd: (index) {
-                    // PooledVideoFeed fires this when the user is within
-                    // nearEndThreshold (default 3) of the end, using the
-                    // controller's actual video count (not the BlocBuilder's
-                    // list length, which may differ due to deduplication).
-                    if (state.hasMore) {
-                      context.read<VideoFeedBloc>().add(
-                        const VideoFeedLoadMoreRequested(),
+                    },
+                    onNearEnd: (index) {
+                      if (state.hasMore) {
+                        context.read<VideoFeedBloc>().add(
+                          const VideoFeedLoadMoreRequested(),
+                        );
+                      }
+                    },
+                  )
+                else
+                  PooledVideoFeed(
+                    key: ValueKey(state.mode),
+                    videos: pooledVideos,
+                    controller: controller,
+                    itemBuilder: (context, video, index, {required isActive}) {
+                      final originalEvent = eventsById[video.id];
+                      if (originalEvent == null) {
+                        return const ColoredBox(
+                          color: VineTheme.backgroundColor,
+                        );
+                      }
+                      final listSources =
+                          state.listOnlyVideoIds.contains(originalEvent.id)
+                          ? state.videoListSources[originalEvent.id]
+                          : null;
+                      return _PooledVideoFeedItem(
+                        video: originalEvent,
+                        index: index,
+                        isActive: isActive,
+                        contextTitle: state.mode.name,
+                        listSources: listSources,
                       );
-                    }
-                  },
-                ),
+                    },
+                    onActiveVideoChanged: (video, index) {
+                      FeedPerformanceTracker().startVideoSwipeTracking(
+                        video.id,
+                      );
+                      final sourceIndex = state.videos.indexWhere(
+                        (event) => event.id == video.id,
+                      );
+                      if (sourceIndex != -1) {
+                        prefetchProfiles(state.videos, sourceIndex);
+                      }
+                    },
+                    onNearEnd: (index) {
+                      if (state.hasMore) {
+                        context.read<VideoFeedBloc>().add(
+                          const VideoFeedLoadMoreRequested(),
+                        );
+                      }
+                    },
+                  ),
                 const FeedModeSwitch(),
               ],
             );

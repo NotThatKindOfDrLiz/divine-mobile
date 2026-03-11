@@ -10,7 +10,7 @@ import 'dart:html'
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:models/models.dart'
     show BugReportData, BugReportResult, LogEntry;
@@ -60,7 +60,7 @@ class BugReportService {
       final deviceInfoPlugin = DeviceInfoPlugin();
       Map<String, dynamic> deviceInfo = {};
       try {
-        if (Platform.isAndroid) {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
           final androidInfo = await deviceInfoPlugin.androidInfo;
           deviceInfo = {
             'platform': 'android',
@@ -70,7 +70,7 @@ class BugReportService {
             'sdkInt': androidInfo.version.sdkInt,
             'brand': androidInfo.brand,
           };
-        } else if (Platform.isIOS) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
           final iosInfo = await deviceInfoPlugin.iosInfo;
           deviceInfo = {
             'platform': 'ios',
@@ -79,7 +79,7 @@ class BugReportService {
             'systemVersion': iosInfo.systemVersion,
             'name': iosInfo.name,
           };
-        } else if (Platform.isMacOS) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) {
           final macInfo = await deviceInfoPlugin.macOsInfo;
           deviceInfo = {
             'platform': 'macos',
@@ -87,14 +87,14 @@ class BugReportService {
             'version': macInfo.osRelease,
             'hostName': macInfo.hostName,
           };
-        } else if (Platform.isWindows) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
           final windowsInfo = await deviceInfoPlugin.windowsInfo;
           deviceInfo = {
             'platform': 'windows',
             'version': windowsInfo.productName,
             'computerName': windowsInfo.computerName,
           };
-        } else if (Platform.isLinux) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
           final linuxInfo = await deviceInfoPlugin.linuxInfo;
           deviceInfo = {
             'platform': 'linux',
@@ -102,7 +102,7 @@ class BugReportService {
             'name': linuxInfo.name,
           };
         } else {
-          // Unknown platform fallback
+          // Unknown platform fallback (includes web)
           deviceInfo = {'platform': 'unknown', 'version': 'unknown'};
         }
       } catch (e) {
@@ -111,17 +111,14 @@ class BugReportService {
           category: LogCategory.system,
         );
         // Must include platform even in error case for Worker API compatibility
-        final platform = Platform.isAndroid
-            ? 'android'
-            : Platform.isIOS
-            ? 'ios'
-            : Platform.isMacOS
-            ? 'macos'
-            : Platform.isWindows
-            ? 'windows'
-            : Platform.isLinux
-            ? 'linux'
-            : 'unknown';
+        final platform = switch (defaultTargetPlatform) {
+          TargetPlatform.android => 'android',
+          TargetPlatform.iOS => 'ios',
+          TargetPlatform.macOS => 'macos',
+          TargetPlatform.windows => 'windows',
+          TargetPlatform.linux => 'linux',
+          _ => 'unknown',
+        };
         deviceInfo = {
           'platform': platform,
           'version': 'unknown',

@@ -2,7 +2,7 @@
 // ABOUTME: Centralizes platform logic to avoid scattered inline checks.
 
 import 'package:flutter/foundation.dart';
-import 'package:openvine/platform_io.dart';
+import 'dart:io';
 
 /// Whether the current platform is a desktop OS (macOS, Windows, or Linux).
 ///

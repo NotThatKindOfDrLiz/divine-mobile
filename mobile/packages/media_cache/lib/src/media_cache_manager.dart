@@ -241,6 +241,7 @@ class MediaCacheManager extends CacheManager {
     // In debug mode on desktop, allow self-signed certificates
     if (config.allowBadCertificatesInDebug &&
         kDebugMode &&
+        !kIsWeb &&
         (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
       httpClient.badCertificateCallback = (cert, host, port) => true;
     }

@@ -339,13 +339,20 @@ class PlayerPool {
 
     // Suppress FFmpeg codec warnings (e.g. smpte170m color transfer) that
     // bypass MPV's API log callback and go directly to stderr.
+    // Use dynamic dispatch to avoid compile error on web where the
+    // NativePlayer stub doesn't define setProperty.
     try {
-      final nativePlayer = player.platform;
+      final dynamic nativePlayer = player.platform;
       if (nativePlayer is NativePlayer) {
-        await nativePlayer.setProperty('msg-level', 'all=error');
+        await (nativePlayer as dynamic).setProperty(
+          'msg-level',
+          'all=error',
+        );
       }
     } on Exception {
       // Ignore — non-native platforms don't support setProperty.
+    } on NoSuchMethodError {
+      // Ignore — web stub doesn't have setProperty.
     }
 
     final videoController = VideoController(player);

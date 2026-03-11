@@ -3,6 +3,7 @@
 // ABOUTME: Uses FullscreenFeedBloc for state management
 
 import 'package:divine_ui/divine_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,6 +26,7 @@ import 'package:openvine/widgets/video_feed_item/content_warning_helpers.dart';
 import 'package:openvine/widgets/video_feed_item/paused_video_play_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/subtitle_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
+import 'package:openvine/widgets/web_video_feed.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
 /// Arguments for navigating to PooledFullscreenVideoFeedScreen.
@@ -96,7 +98,7 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mediaCache = ref.read(mediaCacheProvider);
+    final mediaCache = kIsWeb ? null : ref.read(mediaCacheProvider);
     final blossomAuthService = ref.read(blossomAuthServiceProvider);
 
     return BlocProvider(
@@ -204,7 +206,15 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
   ///
   /// Called from [didChangeDependencies] for initial setup and from
   /// [BlocListener] when videos become available asynchronously.
+  ///
+  /// On web, the controller is not needed because [WebVideoFeed] manages
+  /// its own playback using Flutter's video_player package.
   void _initializeControllerIfNeeded({bool triggerRebuild = false}) {
+    // On web, skip media_kit controller — WebVideoFeed handles playback.
+    if (kIsWeb) {
+      if (triggerRebuild) setState(() {});
+      return;
+    }
     if (_controller != null) return;
 
     final state = context.read<FullscreenFeedBloc>().state;
@@ -295,6 +305,75 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
     );
   }
 
+  Widget _buildWebFeed(FullscreenFeedState state, bool isOwnVideo) {
+    final videosWithUrls = state.videos
+        .where((v) => v.videoUrl != null)
+        .toList();
+    return WebVideoFeed(
+      videos: videosWithUrls,
+      initialIndex: state.currentIndex,
+      onActiveVideoChanged: (video, index) {
+        FeedPerformanceTracker().startVideoSwipeTracking(video.id);
+        context.read<FullscreenFeedBloc>().add(
+          FullscreenFeedIndexChanged(index),
+        );
+      },
+      onNearEnd: (index) => _onNearEnd(state, index),
+      nearEndThreshold: 0,
+    );
+  }
+
+  Widget _buildNativeFeed(FullscreenFeedState state, bool isOwnVideo) {
+    return PooledVideoFeed(
+      videos: state.pooledVideos,
+      controller: _controller,
+      initialIndex: state.currentIndex,
+      onActiveVideoChanged: (video, index) {
+        FeedPerformanceTracker().startVideoSwipeTracking(video.id);
+        context.read<FullscreenFeedBloc>().add(
+          FullscreenFeedIndexChanged(index),
+        );
+      },
+      onNearEnd: (index) => _onNearEnd(state, index),
+      nearEndThreshold: 0,
+      itemBuilder: (context, video, index, {required isActive}) {
+        // Look up by video ID instead of index, because
+        // pooledVideos filters out null-URL entries and indices
+        // may diverge from state.videos.
+        if (state.videos.isEmpty) {
+          debugPrint(
+            'FullscreenFeed: itemBuilder called with empty '
+            'state.videos! index=$index, video.id=${video.id}',
+          );
+          return const ColoredBox(color: VineTheme.backgroundColor);
+        }
+        final originalEvent = state.videos.firstWhere(
+          (v) => v.id == video.id,
+          orElse: () {
+            final clamped = index.clamp(0, state.videos.length - 1);
+            debugPrint(
+              'FullscreenFeed: video ID lookup miss! '
+              'video.id=${video.id}, index=$index, '
+              'clamped=$clamped, '
+              'state.videos.length=${state.videos.length}, '
+              'pooledVideos.length=${state.pooledVideos.length}',
+            );
+            return state.videos[clamped];
+          },
+        );
+        return _PooledFullscreenItem(
+          video: originalEvent,
+          index: index,
+          isActive: isActive,
+          contextTitle: widget.contextTitle,
+          trafficSource: widget.trafficSource,
+          sourceDetail: widget.sourceDetail,
+          isOwnVideo: isOwnVideo,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocListener(
@@ -360,54 +439,9 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
               currentVideo: state.currentVideo,
               isOwnVideo: isOwnVideo,
             ),
-            body: PooledVideoFeed(
-              videos: state.pooledVideos,
-              controller: _controller,
-              initialIndex: state.currentIndex,
-              onActiveVideoChanged: (video, index) {
-                FeedPerformanceTracker().startVideoSwipeTracking(video.id);
-                context.read<FullscreenFeedBloc>().add(
-                  FullscreenFeedIndexChanged(index),
-                );
-              },
-              onNearEnd: (index) => _onNearEnd(state, index),
-              nearEndThreshold: 0,
-              itemBuilder: (context, video, index, {required isActive}) {
-                // Look up by video ID instead of index, because
-                // pooledVideos filters out null-URL entries and indices
-                // may diverge from state.videos.
-                if (state.videos.isEmpty) {
-                  debugPrint(
-                    'FullscreenFeed: itemBuilder called with empty '
-                    'state.videos! index=$index, video.id=${video.id}',
-                  );
-                  return const ColoredBox(color: VineTheme.backgroundColor);
-                }
-                final originalEvent = state.videos.firstWhere(
-                  (v) => v.id == video.id,
-                  orElse: () {
-                    final clamped = index.clamp(0, state.videos.length - 1);
-                    debugPrint(
-                      'FullscreenFeed: video ID lookup miss! '
-                      'video.id=${video.id}, index=$index, '
-                      'clamped=$clamped, '
-                      'state.videos.length=${state.videos.length}, '
-                      'pooledVideos.length=${state.pooledVideos.length}',
-                    );
-                    return state.videos[clamped];
-                  },
-                );
-                return _PooledFullscreenItem(
-                  video: originalEvent,
-                  index: index,
-                  isActive: isActive,
-                  contextTitle: widget.contextTitle,
-                  trafficSource: widget.trafficSource,
-                  sourceDetail: widget.sourceDetail,
-                  isOwnVideo: isOwnVideo,
-                );
-              },
-            ),
+            body: kIsWeb
+                ? _buildWebFeed(state, isOwnVideo)
+                : _buildNativeFeed(state, isOwnVideo),
           );
         },
       ),
