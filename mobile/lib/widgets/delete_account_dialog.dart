@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:openvine/services/account_deletion_service.dart';
@@ -15,51 +16,112 @@ import 'package:openvine/utils/unified_logger.dart';
 /// Show warning dialog for removing keys from device only
 Future<void> showRemoveKeysWarningDialog({
   required BuildContext context,
+  required AuthService authService,
   required VoidCallback onConfirm,
-}) {
+}) async {
+  final nsec = await authService.exportNsec();
+
+  Future<void> copyWordsBackup() async {
+    final words = await authService.exportMnemonicWords();
+    if (!context.mounted || words == null) return;
+    await Clipboard.setData(ClipboardData(text: words));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('24-word backup copied')),
+    );
+  }
+
+  Future<void> copyEncryptedBackup() async {
+    final passwordController = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: VineTheme.cardBackground,
+        title: const Text('Encrypt backup'),
+        content: TextField(
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: 'Password'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => context.pop(passwordController.text.trim()),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    passwordController.dispose();
+
+    if (password == null || password.isEmpty) return;
+    final ncrypt = await authService.exportNcryptsec(password);
+    if (!context.mounted || ncrypt == null) return;
+    await Clipboard.setData(ClipboardData(text: ncrypt));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Encrypted ncryptsec1 copied')),
+    );
+  }
+
+  if (!context.mounted) return;
+
   return showDialog(
     context: context,
     barrierDismissible: false,
     builder: (context) => AlertDialog(
       backgroundColor: VineTheme.cardBackground,
-      title: const Text(
-        '⚠️ Remove Keys from Device?',
-        style: TextStyle(
-          color: VineTheme.whiteText,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      content: const Text(
-        'This will:\n'
-        '• Remove your Nostr private key (nsec) from this device\n'
-        '• Sign you out immediately\n'
-        '• Your content will REMAIN on Nostr relays\n\n'
-        'Make sure you have your nsec backed up elsewhere or you will lose access to your account!\n\n'
-        'Continue?',
-        style: TextStyle(color: VineTheme.whiteText, fontSize: 16, height: 1.5),
+      title: const Text('⚠️ Remove Keys from Device?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Back up before removing. You are removing this key from this device:',
+            style: TextStyle(color: VineTheme.whiteText, height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          SelectableText(
+            nsec ?? 'Unable to load nsec',
+            style: const TextStyle(color: VineTheme.lightText, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                onPressed: nsec == null
+                    ? null
+                    : () async {
+                        await Clipboard.setData(ClipboardData(text: nsec));
+                      },
+                child: const Text('Copy nsec'),
+              ),
+              OutlinedButton(
+                onPressed: nsec == null ? null : copyWordsBackup,
+                child: const Text('Copy words'),
+              ),
+              OutlinedButton(
+                onPressed: nsec == null ? null : copyEncryptedBackup,
+                child: const Text('Copy ncryptsec1'),
+              ),
+            ],
+          ),
+        ],
       ),
       actions: [
-        TextButton(
-          onPressed: context.pop,
-          child: const Text(
-            'Cancel',
-            style: TextStyle(color: VineTheme.lightText, fontSize: 16),
-          ),
-        ),
+        TextButton(onPressed: context.pop, child: const Text('Cancel')),
         ElevatedButton(
           onPressed: () {
             context.pop();
             onConfirm();
           },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: VineTheme.warning,
-            foregroundColor: VineTheme.whiteText,
-          ),
-          child: const Text(
-            'Remove Keys',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
+          style: ElevatedButton.styleFrom(backgroundColor: VineTheme.warning),
+          child: const Text('Remove Keys'),
         ),
       ],
     ),

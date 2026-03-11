@@ -111,6 +111,7 @@ dependencies:
   # Crypto (needed for Nostr)
   crypto: ^3.0.7
   bech32: ^0.2.2
+  bip39: ^1.0.6
 
   # UI/UX
   cached_network_image: ^3.3.1

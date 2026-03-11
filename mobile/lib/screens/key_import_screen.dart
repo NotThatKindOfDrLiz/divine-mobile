@@ -1,4 +1,4 @@
-// ABOUTME: Screen for importing existing Nostr private keys (nsec or hex format)
+// ABOUTME: Screen for importing existing Nostr private keys (nsec/hex/words)
 // ABOUTME: Also supports NIP-46 bunker URLs for remote signing
 // ABOUTME: Validates keys and imports them securely for existing Nostr users
 
@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nostr_sdk/nostr_sdk.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/auth_service.dart';
+import 'package:openvine/utils/key_backup_words.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/auth_back_button.dart';
 import 'package:openvine/widgets/divine_primary_button.dart';
@@ -96,8 +97,8 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
 
                     // Subtitle
                     const Text(
-                      'Import your existing Nostr identity using your '
-                      'private key or a bunker URL.',
+                      'Import using nsec, 24-word backup phrase, '
+                      'ncryptsec1, or a bunker URL.',
                       style: TextStyle(
                         fontSize: 16,
                         color: VineTheme.secondaryText,
@@ -206,9 +207,14 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
       return null;
     }
 
+    // 24-word phrase backup
+    if (KeyBackupWords.isValidMnemonic(trimmed)) {
+      return null;
+    }
+
     // Check if it looks like a valid key format
     if (!trimmed.startsWith('nsec') && trimmed.length != 64) {
-      return 'Invalid format. Use nsec..., hex, ncryptsec1..., or bunker://...';
+      return 'Invalid format. Use nsec..., 24 words, hex, ncryptsec1..., or bunker://...';
     }
 
     if (trimmed.startsWith('nsec') && trimmed.length != 63) {
@@ -259,6 +265,8 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
           keyText,
           _passwordController.text,
         );
+      } else if (KeyBackupWords.isValidMnemonic(keyText)) {
+        result = await authService.importFromMnemonic(keyText);
       } else if (keyText.startsWith('nsec')) {
         result = await authService.importFromNsec(keyText);
       } else {

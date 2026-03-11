@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nostr_sdk/nostr_sdk.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/utils/key_backup_words.dart';
 
 class KeyManagementScreen extends ConsumerStatefulWidget {
   /// Route name for this screen.
@@ -132,7 +134,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Already have a Nostr account? Paste your private key (nsec) to access it here.',
+          'Paste nsec, 24 backup words, or ncryptsec1 to access your account.',
           style: TextStyle(
             color: VineTheme.onSurfaceMuted,
             fontSize: 14,
@@ -157,7 +159,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
                   fontSize: 14,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'nsec1...',
+                  hintText: 'nsec1... / 24 words / ncryptsec1...',
                   hintStyle: const TextStyle(color: VineTheme.lightText),
                   filled: true,
                   fillColor: VineTheme.backgroundColor,
@@ -300,7 +302,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
                   onPressed: _isProcessing ? null : () => _exportKey(context),
                   icon: const Icon(Icons.copy, size: 20),
                   label: const Text(
-                    'Copy My Private Key (nsec)',
+                    'Copy plain nsec',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -311,6 +313,28 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () => _exportWordsBackup(context),
+                  icon: const Icon(Icons.text_fields, size: 20),
+                  label: const Text('Copy 24-word backup'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () => _exportEncryptedBackup(context),
+                  icon: const Icon(Icons.lock, size: 20),
+                  label: const Text('Create encrypted ncryptsec1 backup'),
                 ),
               ),
               const SizedBox(height: 12),
@@ -351,23 +375,13 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     BuildContext context,
     nostrService,
   ) async {
-    final nsec = _importController.text.trim();
+    final keyInput = _importController.text.trim();
 
-    if (nsec.isEmpty) {
+    if (keyInput.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please paste your private key'),
+          content: Text('Please paste your key, words, or ncryptsec1'),
           backgroundColor: VineTheme.warning,
-        ),
-      );
-      return;
-    }
-
-    if (!nsec.startsWith('nsec1')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid key format. Must start with "nsec1"'),
-          backgroundColor: VineTheme.error,
         ),
       );
       return;
@@ -413,7 +427,25 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
     try {
       // Use AuthService for proper session setup and relay discovery
       final authService = ref.read(authServiceProvider);
-      final result = await authService.importFromNsec(nsec);
+      final result = await (() async {
+        if (Nip49.isEncryptedKey(keyInput)) {
+          final password = await _promptPassword(context);
+          if (password == null || password.isEmpty) {
+            throw Exception('Import cancelled');
+          }
+          return authService.importFromNcryptsec(keyInput, password);
+        }
+
+        if (KeyBackupWords.isValidMnemonic(keyInput)) {
+          return authService.importFromMnemonic(keyInput);
+        }
+
+        if (keyInput.startsWith('nsec')) {
+          return authService.importFromNsec(keyInput);
+        }
+
+        return authService.importFromHex(keyInput);
+      })();
 
       if (!result.success) {
         throw Exception(result.errorMessage ?? 'Failed to import key');
@@ -493,5 +525,95 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
         );
       }
     }
+  }
+
+  Future<void> _exportWordsBackup(BuildContext context) async {
+    try {
+      final words = await ref.read(authServiceProvider).exportMnemonicWords();
+      if (words == null) throw Exception('No private key available to export.');
+
+      await Clipboard.setData(ClipboardData(text: words));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ 24-word backup copied to clipboard.'),
+            backgroundColor: VineTheme.vineGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export words: $e'),
+            backgroundColor: VineTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _exportEncryptedBackup(BuildContext context) async {
+    final password = await _promptPassword(context);
+    if (password == null || password.isEmpty) return;
+
+    try {
+      final ncrypt = await ref
+          .read(authServiceProvider)
+          .exportNcryptsec(password);
+      if (ncrypt == null) {
+        throw Exception('No private key available to export.');
+      }
+
+      await Clipboard.setData(ClipboardData(text: ncrypt));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Encrypted ncryptsec1 copied to clipboard.'),
+            backgroundColor: VineTheme.vineGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to export encrypted backup: $e'),
+            backgroundColor: VineTheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<String?> _promptPassword(BuildContext context) async {
+    final controller = TextEditingController();
+    final password = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: VineTheme.cardBackground,
+        title: const Text('Backup password'),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Enter password',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => context.pop(controller.text.trim()),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return password;
   }
 }

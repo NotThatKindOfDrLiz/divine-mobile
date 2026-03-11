@@ -718,6 +718,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     // Show warning dialog
     await showRemoveKeysWarningDialog(
       context: context,
+      authService: authService,
       onConfirm: () async {
         // Show loading indicator
         if (!context.mounted) return;

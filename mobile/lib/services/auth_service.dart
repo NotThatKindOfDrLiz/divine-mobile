@@ -18,6 +18,7 @@ import 'package:openvine/services/crash_reporting_service.dart';
 import 'package:openvine/services/pending_verification_service.dart';
 import 'package:openvine/services/relay_discovery_service.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
+import 'package:openvine/utils/key_backup_words.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/nostr_timestamp.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -1763,6 +1764,23 @@ class AuthService implements BackgroundAwareService {
     }
   }
 
+  /// Import identity from a 24-word backup phrase.
+  Future<AuthResult> importFromMnemonic(String words) async {
+    Log.debug(
+      'Importing identity from mnemonic words',
+      name: 'AuthService',
+      category: LogCategory.auth,
+    );
+
+    try {
+      final nsec = KeyBackupWords.mnemonicToNsec(words);
+      return importFromNsec(nsec);
+    } catch (e) {
+      _setAuthState(AuthState.unauthenticated);
+      return AuthResult.failure('Invalid words');
+    }
+  }
+
   /// Import identity from hex private key
   Future<AuthResult> importFromHex(
     String privateKeyHex, {
@@ -2567,6 +2585,25 @@ class AuthService implements BackgroundAwareService {
       );
       return null;
     }
+  }
+
+  /// Export nsec as a 24-word backup phrase.
+  Future<String?> exportMnemonicWords({String? biometricPrompt}) async {
+    final nsec = await exportNsec(biometricPrompt: biometricPrompt);
+    if (nsec == null) return null;
+    return KeyBackupWords.nsecToMnemonic(nsec);
+  }
+
+  /// Export nsec as ncryptsec1 (NIP-49) encrypted backup.
+  Future<String?> exportNcryptsec(
+    String password, {
+    String? biometricPrompt,
+  }) async {
+    final privateKeyHex = await getPrivateKeyForSigning(
+      biometricPrompt: biometricPrompt,
+    );
+    if (privateKeyHex == null) return null;
+    return Nip49.encode(privateKeyHex, password);
   }
 
   /// Create and sign a Nostr event
