@@ -4,10 +4,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:models/models.dart';
+import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/relay_notifications_provider.dart';
+import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/screens/notifications_screen.dart';
+import 'package:openvine/services/auth_service.dart';
 import 'package:openvine/widgets/notification_list_item.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class _MockAuthService extends Mock implements AuthService {}
 
 /// Tracks how many times refresh was called across all instances
 int _globalRefreshCount = 0;
@@ -39,6 +46,16 @@ class _MockRelayNotifications extends RelayNotifications {
 }
 
 void main() {
+  late SharedPreferences sharedPreferences;
+  late _MockAuthService mockAuthService;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    sharedPreferences = await SharedPreferences.getInstance();
+    mockAuthService = _MockAuthService();
+    when(() => mockAuthService.currentPublicKeyHex).thenReturn(null);
+  });
+
   Widget shell(ProviderContainer c) => UncontrolledProviderScope(
     container: c,
     child: const MaterialApp(home: Scaffold(body: NotificationsScreen())),
@@ -54,6 +71,8 @@ void main() {
       (WidgetTester tester) async {
         final c = ProviderContainer(
           overrides: [
+            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+            authServiceProvider.overrideWithValue(mockAuthService),
             relayNotificationsProvider.overrideWith(
               _MockRelayNotifications.new,
             ),
@@ -75,6 +94,8 @@ void main() {
       (WidgetTester tester) async {
         final c = ProviderContainer(
           overrides: [
+            sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+            authServiceProvider.overrideWithValue(mockAuthService),
             relayNotificationsProvider.overrideWith(
               _MockRelayNotifications.new,
             ),

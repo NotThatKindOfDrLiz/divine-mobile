@@ -31,7 +31,12 @@ void main() {
       mockAudioSharingService = _MockAudioSharingPreferenceService();
 
       when(() => mockAuthService.isAuthenticated).thenReturn(true);
-      when(() => mockAuthService.isAnonymous).thenReturn(true);
+      when(() => mockAuthService.isAnonymous).thenReturn(false);
+      when(
+        () => mockAuthService.currentPublicKeyHex,
+      ).thenReturn(
+        '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      );
       when(() => mockAuthService.authState).thenReturn(AuthState.authenticated);
       when(
         () => mockAuthService.authStateStream,
@@ -61,11 +66,24 @@ void main() {
       );
     }
 
+    Finder audioSharingTitle() =>
+        find.text('Make my audio available for reuse', skipOffstage: false);
+
+    Future<void> scrollToAudioSharingToggle(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        audioSharingTitle(),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('displays audio sharing toggle in Preferences section', (
       tester,
     ) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
+      await scrollToAudioSharingToggle(tester);
 
       // Should find the toggle in the Preferences section
       expect(find.text('Make my audio available for reuse'), findsOneWidget);
@@ -82,17 +100,10 @@ void main() {
 
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
+      await scrollToAudioSharingToggle(tester);
 
-      // Find the SwitchListTile and verify it's OFF
-      final switchFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            widget.title is Text &&
-            (widget.title! as Text).data ==
-                'Make my audio available for reuse' &&
-            !widget.value,
-      );
-      expect(switchFinder, findsOneWidget);
+      final audioSwitch = tester.widget<Switch>(find.byType(Switch));
+      expect(audioSwitch.value, isFalse);
     });
 
     testWidgets('toggle shows correct initial state (ON)', (tester) async {
@@ -102,17 +113,10 @@ void main() {
 
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
+      await scrollToAudioSharingToggle(tester);
 
-      // Find the SwitchListTile and verify it's ON
-      final switchFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            widget.title is Text &&
-            (widget.title! as Text).data ==
-                'Make my audio available for reuse' &&
-            widget.value,
-      );
-      expect(switchFinder, findsOneWidget);
+      final audioSwitch = tester.widget<Switch>(find.byType(Switch));
+      expect(audioSwitch.value, isTrue);
     });
 
     testWidgets('tapping toggle calls setAudioSharingEnabled', (tester) async {
@@ -125,24 +129,9 @@ void main() {
 
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
+      await scrollToAudioSharingToggle(tester);
 
-      // Find the switch
-      final switchFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            widget.title is Text &&
-            (widget.title! as Text).data == 'Make my audio available for reuse',
-      );
-
-      // Scroll until the switch is visible before tapping
-      await tester.scrollUntilVisible(
-        switchFinder,
-        100,
-        scrollable: find.byType(Scrollable),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(switchFinder);
+      await tester.tap(find.byType(Switch));
       await tester.pumpAndSettle();
 
       // Verify the service was called
@@ -154,17 +143,10 @@ void main() {
     testWidgets('uses correct VineTheme colors', (tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
+      await scrollToAudioSharingToggle(tester);
 
-      // Find the switch and verify it uses vineGreen for active thumb
-      final switchFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is SwitchListTile &&
-            widget.title is Text &&
-            (widget.title! as Text).data ==
-                'Make my audio available for reuse' &&
-            widget.activeThumbColor == VineTheme.vineGreen,
-      );
-      expect(switchFinder, findsOneWidget);
+      final audioSwitch = tester.widget<Switch>(find.byType(Switch));
+      expect(audioSwitch.activeThumbColor, VineTheme.vineGreen);
     });
   });
 }
