@@ -343,7 +343,7 @@ class PlayerPool {
     // expose setProperty, causing a dart2js compile-time error.
     try {
       final nativePlayer = player.platform;
-      if (nativePlayer is NativePlayer) {
+      if (!kIsWeb && nativePlayer is NativePlayer) {
         await (nativePlayer as dynamic).setProperty('msg-level', 'all=error');
       }
     } on Exception {
