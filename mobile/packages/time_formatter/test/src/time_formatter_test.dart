@@ -1,8 +1,5 @@
-// ABOUTME: Unit tests for TimeFormatter utility
-// ABOUTME: Tests relative time formatting for various durations
-
-import 'package:divine_ui/divine_ui.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:test/test.dart';
+import 'package:time_formatter/time_formatter.dart';
 
 void main() {
   group(TimeFormatter, () {
@@ -66,11 +63,8 @@ void main() {
 
     group('formatDateLabel', () {
       test('returns Today for current day', () {
-        // Use a timestamp earlier today (noon) instead of a relative offset,
-        // to avoid crossing the day boundary when tests run near midnight.
         final now = DateTime.now();
         final earlierToday = DateTime(now.year, now.month, now.day, 12);
-        // If it's before noon, just use the start of the day + 1 minute.
         final safeTime = earlierToday.isAfter(now)
             ? DateTime(now.year, now.month, now.day, 0, 1)
             : earlierToday;
@@ -79,7 +73,6 @@ void main() {
       });
 
       test('returns Yesterday for previous day', () {
-        // Use noon yesterday to avoid edge cases around midnight.
         final now = DateTime.now();
         final yesterday = DateTime(now.year, now.month, now.day - 1, 12);
         final ts = yesterday.millisecondsSinceEpoch ~/ 1000;
@@ -104,10 +97,8 @@ void main() {
       });
 
       test('returns month and day for older dates', () {
-        // 30 days ago
         final ts = unixSecondsAgo(const Duration(days: 30));
         final result = TimeFormatter.formatDateLabel(ts);
-        // Should be something like "February 7"
         expect(result, matches(RegExp(r'^[A-Z][a-z]+ \d+$')));
       });
     });
