@@ -66,7 +66,15 @@ void main() {
 
     group('formatDateLabel', () {
       test('returns Today for current day', () {
-        final ts = unixSecondsAgo(const Duration(hours: 1));
+        // Use a timestamp earlier today (noon) instead of a relative offset,
+        // to avoid crossing the day boundary when tests run near midnight.
+        final now = DateTime.now();
+        final earlierToday = DateTime(now.year, now.month, now.day, 12);
+        // If it's before noon, just use the start of the day + 1 minute.
+        final safeTime = earlierToday.isAfter(now)
+            ? DateTime(now.year, now.month, now.day, 0, 1)
+            : earlierToday;
+        final ts = safeTime.millisecondsSinceEpoch ~/ 1000;
         expect(TimeFormatter.formatDateLabel(ts), equals('Today'));
       });
 
