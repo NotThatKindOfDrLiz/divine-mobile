@@ -80,7 +80,7 @@ Future<void> showRemoveKeysWarningDialog({
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Back up before removing. You are removing this key from this device:',
+            'Back up before removing. Please confirm this is the exact key you want to remove from this device:',
             style: TextStyle(color: VineTheme.whiteText, height: 1.4),
           ),
           const SizedBox(height: 8),

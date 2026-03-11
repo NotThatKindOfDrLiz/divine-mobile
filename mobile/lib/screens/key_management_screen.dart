@@ -134,7 +134,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Paste nsec, 24 backup words, or ncryptsec1 to access your account.',
+          'Paste your plain nsec, 24-word backup phrase, or ncryptsec1.',
           style: TextStyle(
             color: VineTheme.onSurfaceMuted,
             fontSize: 14,
@@ -302,7 +302,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
                   onPressed: _isProcessing ? null : () => _exportKey(context),
                   icon: const Icon(Icons.copy, size: 20),
                   label: const Text(
-                    'Copy plain nsec',
+                    'Copy plain nsec (raw key)',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -334,7 +334,7 @@ class _KeyManagementScreenState extends ConsumerState<KeyManagementScreen> {
                       ? null
                       : () => _exportEncryptedBackup(context),
                   icon: const Icon(Icons.lock, size: 20),
-                  label: const Text('Create encrypted ncryptsec1 backup'),
+                  label: const Text('Create password-encrypted ncryptsec1'),
                 ),
               ),
               const SizedBox(height: 12),

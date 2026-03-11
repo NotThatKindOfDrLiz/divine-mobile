@@ -97,8 +97,8 @@ class _KeyImportScreenState extends ConsumerState<KeyImportScreen> {
 
                     // Subtitle
                     const Text(
-                      'Import using nsec, 24-word backup phrase, '
-                      'ncryptsec1, or a bunker URL.',
+                      'Import using a plain nsec, 24-word backup phrase, '
+                      'password-encrypted ncryptsec1, or bunker URL.',
                       style: TextStyle(
                         fontSize: 16,
                         color: VineTheme.secondaryText,
