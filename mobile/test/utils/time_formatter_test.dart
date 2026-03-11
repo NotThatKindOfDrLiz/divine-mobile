@@ -1,8 +1,8 @@
 // ABOUTME: Unit tests for TimeFormatter utility
 // ABOUTME: Tests relative time formatting for various durations
 
+import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:openvine/utils/time_formatter.dart';
 
 void main() {
   group(TimeFormatter, () {

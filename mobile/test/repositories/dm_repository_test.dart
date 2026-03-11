@@ -56,12 +56,9 @@ void main() {
       mockDirectMessagesDao = _MockDirectMessagesDao();
       mockConversationsDao = _MockConversationsDao();
 
-      // Stub relay health properties used by startListening().
+      // Stub relay properties used by startListening() log.
       when(() => mockNostrClient.connectedRelayCount).thenReturn(3);
       when(() => mockNostrClient.configuredRelayCount).thenReturn(3);
-      when(
-        () => mockNostrClient.retryDisconnectedRelays(),
-      ).thenAnswer((_) async {});
     });
 
     DmRepository createRepository({
@@ -1132,42 +1129,6 @@ void main() {
 
         await controller.close();
       });
-
-      test(
-        'stopListening cancels health check timer',
-        () async {
-          final controller = StreamController<Event>();
-          when(
-            () => mockNostrClient.subscribe(
-              any(),
-              subscriptionId: any(named: 'subscriptionId'),
-            ),
-          ).thenAnswer((_) => controller.stream);
-          when(
-            () => mockNostrClient.unsubscribe('dm_inbox'),
-          ).thenAnswer((_) async {});
-
-          // Start with some relays disconnected so the timer would
-          // call retryDisconnectedRelays if it fires.
-          when(
-            () => mockNostrClient.connectedRelayCount,
-          ).thenReturn(0);
-
-          final repository = createRepository();
-          repository.startListening();
-
-          // Stop immediately — timer should be cancelled.
-          await repository.stopListening();
-
-          // retryDisconnectedRelays should NOT have been called
-          // since the 30s interval hasn't elapsed.
-          verifyNever(
-            () => mockNostrClient.retryDisconnectedRelays(),
-          );
-
-          await controller.close();
-        },
-      );
     });
 
     // -----------------------------------------------------------------

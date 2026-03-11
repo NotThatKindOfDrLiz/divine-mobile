@@ -73,7 +73,6 @@ class DmRepository {
   RumorDecryptor _rumorDecryptor;
 
   StreamSubscription<Event>? _giftWrapSubscription;
-  Timer? _healthCheckTimer;
   Timer? _pollTimer;
   bool _disposed = false;
 
@@ -91,12 +90,17 @@ class DmRepository {
   ///
   /// Called by the provider when the user's keys become available.
   /// Read methods work before this; send/subscribe require it.
+  ///
+  /// Safe to call multiple times — subsequent calls are no-ops when the
+  /// repository is already initialized.
   void initialize({
     required String userPubkey,
     required NostrSigner signer,
     required NIP17MessageService messageService,
     RumorDecryptor? rumorDecryptor,
   }) {
+    if (isInitialized) return;
+
     _userPubkey = userPubkey;
     _signer = signer;
     _messageService = messageService;
@@ -114,15 +118,6 @@ class DmRepository {
   /// due to AUTH requirements or relay implementation). This poll ensures
   /// messages arrive within a bounded delay regardless of relay behavior.
   static const _pollInterval = Duration(seconds: 10);
-
-  /// Interval for checking relay health and reconnecting if needed.
-  ///
-  /// iOS aggressively manages network connections and WebSocket idle timeouts
-  /// (90s default) can disconnect relays silently. The broadcast
-  /// StreamController stays open but stops receiving events — `onDone` never
-  /// fires. This timer ensures relays are periodically reconnected so the DM
-  /// subscription remains active.
-  static const _healthCheckInterval = Duration(seconds: 30);
 
   // -------------------------------------------------------------------------
   // Subscription lifecycle
@@ -184,9 +179,6 @@ class DmRepository {
       },
     );
 
-    // Start periodic relay health monitoring.
-    _startHealthCheck();
-
     // Start periodic polling for new events.
     // Some relays don't push real-time events for kind 1059 #p
     // subscriptions, so polling ensures messages arrive reliably.
@@ -196,8 +188,6 @@ class DmRepository {
   /// Stop listening for incoming DMs and clean up resources.
   Future<void> stopListening() async {
     _disposed = true;
-    _healthCheckTimer?.cancel();
-    _healthCheckTimer = null;
     _pollTimer?.cancel();
     _pollTimer = null;
     await _giftWrapSubscription?.cancel();
@@ -207,41 +197,6 @@ class DmRepository {
     } on Object {
       // Ignore if subscription doesn't exist
     }
-  }
-
-  /// Periodically check relay health and reconnect if needed.
-  ///
-  /// iOS aggressively manages network connections. The WebSocket idle timeout
-  /// (90s) can force-disconnect relays, but the broadcast StreamController
-  /// used by the DM subscription stays open — so `onDone` never fires and
-  /// no re-subscription is attempted.
-  ///
-  /// This timer **always** calls [retryDisconnectedRelays] which first runs
-  /// `_checkRelayHealth()` to detect silently dead connections (idle >90s).
-  /// Without the unconditional call, connections that appear "connected" but
-  /// are actually dead would not be detected until the relay status poller
-  /// catches up — leaving a window where DMs silently stop arriving.
-  void _startHealthCheck() {
-    _healthCheckTimer?.cancel();
-    _healthCheckTimer = Timer.periodic(_healthCheckInterval, (_) async {
-      if (_disposed) return;
-
-      final connected = _nostrClient.connectedRelayCount;
-      final configured = _nostrClient.configuredRelayCount;
-
-      if (connected < configured) {
-        Log.info(
-          'DM health check: $connected/$configured relays connected, '
-          'reconnecting',
-          category: LogCategory.system,
-        );
-      }
-
-      // Always retry — retryDisconnectedRelays first runs _checkRelayHealth
-      // which detects connections that appear connected but are silently dead
-      // (common on iOS after WebSocket idle timeout).
-      await _nostrClient.retryDisconnectedRelays();
-    });
   }
 
   /// Periodically poll the relay for new kind 1059 events.

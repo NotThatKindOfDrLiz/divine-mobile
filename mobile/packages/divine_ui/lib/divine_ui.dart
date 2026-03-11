@@ -8,3 +8,4 @@ export 'src/partial_circle_spinner.dart';
 export 'src/sticker/sticker.dart';
 export 'src/text_field/text_field.dart';
 export 'src/theme/vine_theme.dart';
+export 'src/time_formatter.dart';
