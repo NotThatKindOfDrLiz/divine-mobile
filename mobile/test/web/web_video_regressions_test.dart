@@ -12,11 +12,33 @@ void main() {
     expect(contents, contains('pointer-events: none'));
   });
 
-  test('web video player ignores pointer input on the platform view', () {
+  test(
+    'web video player blocks pointer input via CSS pointer-events',
+    () {
+      final contents = File(
+        'lib/widgets/web_video_player_web.dart',
+      ).readAsStringSync();
+
+      expect(contents, contains('pointer-events'));
+      expect(contents, contains('none'));
+    },
+  );
+
+  test('web video player uses HtmlElementView not VideoPlayer', () {
+    final contents = File(
+      'lib/widgets/web_video_player_web.dart',
+    ).readAsStringSync();
+
+    expect(contents, contains('HtmlElementView'));
+    expect(contents, isNot(contains('child: VideoPlayer(')));
+  });
+
+  test('web video player uses conditional imports', () {
     final contents = File(
       'lib/widgets/web_video_player.dart',
     ).readAsStringSync();
 
-    expect(contents, contains('IgnorePointer'));
+    expect(contents, contains('web_video_player_stub.dart'));
+    expect(contents, contains('web_video_player_web.dart'));
   });
 }
