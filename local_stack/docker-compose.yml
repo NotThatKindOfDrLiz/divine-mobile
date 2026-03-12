@@ -158,7 +158,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -178,9 +178,8 @@ services:
   # Blossom (divine-blossom in local mode via Viceroy)
   # ---------------------------------------------------------------------------
   blossom:
-    build:
-      context: ../../divine-blossom
-      dockerfile: Dockerfile.local
+    image: ghcr.io/divinevideo/divine-blossom:latest
+    pull_policy: always
     ports:
       - "43003:7676"
     depends_on:

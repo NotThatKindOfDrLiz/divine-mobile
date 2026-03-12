@@ -139,6 +139,7 @@ Future<String> _uploadTestBlob({
     final request = await client.openUrl('PUT', uri);
     request.headers.set('Content-Type', contentType);
     request.headers.set('Authorization', auth);
+    request.contentLength = data.length;
     request.add(data);
     final response = await request.close().timeout(
       const Duration(seconds: 10),
