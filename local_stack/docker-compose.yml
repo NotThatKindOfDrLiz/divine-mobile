@@ -4,6 +4,7 @@ services:
   # ---------------------------------------------------------------------------
   keycast-postgres:
     image: postgres:16
+    pull_policy: always
     environment:
       POSTGRES_DB: keycast
       POSTGRES_USER: postgres
@@ -20,6 +21,7 @@ services:
 
   keycast-redis:
     image: redis:7
+    pull_policy: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 3s
@@ -28,6 +30,7 @@ services:
 
   keycast-migrate:
     image: ghcr.io/divinevideo/keycast:latest
+    pull_policy: always
     entrypoint: ["./keycast"]
     command: ["--migrate"]
     depends_on:
@@ -38,6 +41,7 @@ services:
 
   keycast:
     image: ghcr.io/divinevideo/keycast:latest
+    pull_policy: always
     ports:
       - "43000:3000"
       - "45173:5173"
@@ -68,6 +72,7 @@ services:
   # ---------------------------------------------------------------------------
   funnelcake-clickhouse:
     image: clickhouse/clickhouse-server:25.8
+    pull_policy: always
     ports:
       - "18123:8123"
       - "19000:9000"
@@ -87,6 +92,7 @@ services:
 
   funnelcake-redis:
     image: redis/redis-stack-server:7.4.0-v1
+    pull_policy: always
     ports:
       - "16380:6379"
     healthcheck:
@@ -97,6 +103,7 @@ services:
 
   funnelcake-migrate:
     image: ghcr.io/divinevideo/funnelcake-migrate:latest
+    pull_policy: always
     restart: on-failure:3
     depends_on:
       funnelcake-clickhouse:
@@ -109,6 +116,7 @@ services:
 
   funnelcake-relay:
     image: ghcr.io/divinevideo/funnelcake-relay:latest
+    pull_policy: always
     ports:
       - "47777:7777"
     depends_on:
@@ -123,6 +131,7 @@ services:
 
   funnelcake-api:
     image: ghcr.io/divinevideo/funnelcake-api:latest
+    pull_policy: always
     ports:
       - "43001:3001"
     depends_on:
@@ -141,6 +150,7 @@ services:
   # ---------------------------------------------------------------------------
   blossom:
     image: ghcr.io/hzrd149/blossom-server:master
+    pull_policy: always
     ports:
       - "43003:3000"
     volumes:
