@@ -7,9 +7,9 @@ import 'package:comments_repository/comments_repository.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/profile_comments/profile_comments_bloc.dart';
 import 'package:openvine/screens/video_detail_screen.dart';
+import 'package:openvine/utils/pause_aware_modals.dart';
 
 /// Grid widget displaying a user's comments (video replies + text).
 ///
@@ -206,8 +206,9 @@ class _VideoReplyTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () =>
-          context.push(VideoDetailScreen.pathForId(comment.rootEventId)),
+      onTap: () => context.pushWithVideoPause(
+        VideoDetailScreen.pathForId(comment.rootEventId),
+      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: DecoratedBox(
@@ -274,8 +275,9 @@ class _ProfileCommentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () =>
-          context.push(VideoDetailScreen.pathForId(comment.rootEventId)),
+      onTap: () => context.pushWithVideoPause(
+        VideoDetailScreen.pathForId(comment.rootEventId),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(

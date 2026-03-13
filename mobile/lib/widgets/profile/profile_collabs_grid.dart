@@ -6,12 +6,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/blocs/profile_collab_videos/profile_collab_videos_bloc.dart';
 import 'package:openvine/mixins/grid_prefetch_mixin.dart';
 import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/services/view_event_publisher.dart';
+import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
 
 /// Grid widget displaying user's collab videos.
@@ -47,7 +47,7 @@ class _ProfileCollabsGridState extends State<ProfileCollabsGrid>
     // Pre-warm adjacent videos before navigation
     prefetchAroundIndex(index, allVideos);
 
-    context.push(
+    context.pushWithVideoPause(
       PooledFullscreenVideoFeedScreen.path,
       extra: PooledFullscreenVideoFeedArgs(
         videosStream: Stream.value(allVideos),

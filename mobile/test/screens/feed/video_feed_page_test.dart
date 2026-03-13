@@ -397,6 +397,87 @@ void main() {
     );
 
     testWidgets(
+      'does not resume when router transiently reports home during '
+      'search navigation pop',
+      (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pump();
+
+        final element = tester.element(find.byType(VideoFeedView));
+        final container = ProviderScope.containerOf(element);
+
+        // Start on home
+        locationController.add('/home/0');
+        await tester.pump();
+
+        // pushWithVideoPause sets pageOpen before pushing search
+        container.read(overlayVisibilityProvider.notifier).setPageOpen(true);
+        locationController.add('/search');
+        await tester.pump();
+
+        // Navigate deeper: search → profile → video
+        locationController.add('/profile-view/npub1abc');
+        await tester.pump();
+        locationController.add('/pooled-video-feed');
+        await tester.pump();
+
+        clearInteractions(videoFeedController);
+
+        // Pop from video: GoRouter transiently emits /home before
+        // settling on /profile-view (known GoRouter shell-route behavior)
+        locationController.add('/home/0');
+        await tester.pump();
+
+        // Guard must prevent resume — pageOpen is still true
+        verifyNever(
+          () => videoFeedController.setActive(active: true),
+        );
+
+        // GoRouter settles on profile-view
+        locationController.add('/profile-view/npub1abc');
+        await tester.pump();
+
+        // Still no resume — not on home tab
+        verifyNever(
+          () => videoFeedController.setActive(active: true),
+        );
+      },
+    );
+
+    testWidgets(
+      'resumes playback when search navigation fully pops back to home',
+      (tester) async {
+        await tester.pumpWidget(buildSubject());
+        await tester.pump();
+
+        final element = tester.element(find.byType(VideoFeedView));
+        final container = ProviderScope.containerOf(element);
+
+        // Start on home
+        locationController.add('/home/0');
+        await tester.pump();
+
+        // pushWithVideoPause sets pageOpen before pushing search
+        container.read(overlayVisibilityProvider.notifier).setPageOpen(true);
+        locationController.add('/search');
+        await tester.pump();
+
+        clearInteractions(videoFeedController);
+
+        // User pops search — pushWithVideoPause.whenComplete clears
+        // overlay, and router reports home
+        container.read(overlayVisibilityProvider.notifier).setPageOpen(false);
+        locationController.add('/home/0');
+        await tester.pump();
+
+        // Now playback should resume via the overlay listener
+        verify(
+          () => videoFeedController.setActive(active: true),
+        ).called(1);
+      },
+    );
+
+    testWidgets(
       'resumes playback when overlay closes after false home report',
       (tester) async {
         await tester.pumpWidget(buildSubject());

@@ -1539,7 +1539,9 @@ class VideoOverlayActions extends ConsumerWidget {
                           );
                           final npub = normalizeToNpub(video.pubkey);
                           if (npub != null) {
-                            context.push(OtherProfileScreen.pathForNpub(npub));
+                            context.pushWithVideoPause(
+                              OtherProfileScreen.pathForNpub(npub),
+                            );
                           }
                         }
 
@@ -2009,7 +2011,9 @@ class VideoAuthorRow extends ConsumerWidget {
             // Push other user's profile (fullscreen, no bottom nav)
             final npub = normalizeToNpub(video.pubkey);
             if (npub != null) {
-              context.push(OtherProfileScreen.pathForNpub(npub));
+              context.pushWithVideoPause(
+                OtherProfileScreen.pathForNpub(npub),
+              );
             }
           },
           child: Container(
@@ -2468,7 +2472,7 @@ class _ContentWarningDetailsSheet extends StatelessWidget {
               child: TextButton.icon(
                 onPressed: () {
                   Navigator.of(context).pop();
-                  context.push('/content-filters');
+                  context.pushWithVideoPause('/content-filters');
                 },
                 icon: const Icon(
                   Icons.tune,
