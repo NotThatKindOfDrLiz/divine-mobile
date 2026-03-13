@@ -78,8 +78,12 @@ class ProfileFeed extends _$ProfileFeed {
 
         if (apiVideos.isNotEmpty) {
           _usingRestApi = true;
-          // Filter out reposts and store cursor
-          final tempAuthorVideos = apiVideos.where((v) => !v.isRepost).toList();
+          // Filter out reposts, sort newest-first, and store cursor.
+          // Defensive sort: toVideoEvent() uses published_at as createdAt
+          // which may differ from the API's sort key (event created_at),
+          // so re-sort client-side to guarantee newest-first display.
+          final tempAuthorVideos = apiVideos.where((v) => !v.isRepost).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           _nextCursor = _getOldestTimestamp(apiVideos);
 
           // Cache metadata for later merging with Nostr data
@@ -394,8 +398,9 @@ class ProfileFeed extends _$ProfileFeed {
       if (!ref.mounted) return;
 
       if (apiVideos.isNotEmpty) {
-        // Filter out reposts
-        var authorVideos = apiVideos.where((v) => !v.isRepost).toList();
+        // Filter out reposts and sort newest-first
+        var authorVideos = apiVideos.where((v) => !v.isRepost).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         authorVideos = _mergeStableTimestampsFromCurrentState(authorVideos);
 
         // Update metadata cache with fresh data
@@ -661,8 +666,9 @@ class ProfileFeed extends _$ProfileFeed {
           // Reset cursor for pagination
           _nextCursor = _getOldestTimestamp(apiVideos);
 
-          // Filter out reposts
-          var authorVideos = apiVideos.where((v) => !v.isRepost).toList();
+          // Filter out reposts and sort newest-first
+          var authorVideos = apiVideos.where((v) => !v.isRepost).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           authorVideos = _mergeStableTimestampsFromCurrentState(authorVideos);
 
           // Cache metadata for future Nostr fallbacks
