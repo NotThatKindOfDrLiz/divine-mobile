@@ -270,3 +270,33 @@ Results in:
 - `/technology/flutter/news`
 
 Each level supports proper back navigation.
+
+---
+
+## Video-Aware Navigation
+
+### Use `pushWithVideoPause` When Navigating Away From Video Screens
+
+GoRouter transiently emits the shell-route location (`/home/0`) when popping between pushed routes. The home video feed listens to route changes and resumes playback when it detects `/home`. Without proper guarding, this causes audio to resume in the background.
+
+**Rule**: Use `context.pushWithVideoPause()` from `pause_aware_modals.dart` instead of `context.push()` whenever navigating away from a screen where the home video feed could be playing.
+
+```dart
+// Good - pauses video feed and guards against transient route emissions
+import 'package:openvine/utils/pause_aware_modals.dart';
+
+context.pushWithVideoPause('/search');
+
+// Bad - video feed resumes on transient /home emission during pop
+import 'package:go_router/go_router.dart';
+
+context.push('/search');
+```
+
+**How it works**:
+1. `pushWithVideoPause` sets `overlayVisibilityProvider.pageOpen = true` before pushing
+2. The flag stays `true` for the entire pushed route chain (e.g. search -> profile -> video)
+3. `video_feed_page.dart` checks `hasVisibleOverlay` before resuming — blocks false resumes
+4. On pop (via `.whenComplete()`), the flag clears and playback resumes normally
+
+**When to use**: Any `context.push()` from a screen that is part of the shell-route navigation (home feed, explore, profile tabs) or from widgets rendered on top of the video feed (feed item overlays, attribution rows, grid tiles).
