@@ -404,6 +404,8 @@ class _ListAttribution extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final curatedListRepository = ref.watch(curatedListRepositoryProvider);
 
+    if (curatedListRepository == null) return const SizedBox.shrink();
+
     return ListAttributionChip(
       listIds: listSources,
       listLookup: curatedListRepository.getListById,
