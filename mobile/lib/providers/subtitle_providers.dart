@@ -5,11 +5,11 @@
 
 import 'dart:developer' as developer;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:nostr_sdk/filter.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/subtitle_service.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'subtitle_providers.g.dart';
@@ -26,9 +26,9 @@ final subtitleHttpClientProvider = Provider<http.Client>((ref) {
   return client;
 });
 
-final subtitlePollDelayProvider = Provider<SubtitlePollDelay>((_) {
-  return (duration) => Future<void>.delayed(duration);
-});
+final subtitlePollDelayProvider = Provider<SubtitlePollDelay>(
+  (_) => Future<void>.delayed,
+);
 
 Duration _parseRetryAfter(Map<String, String> headers) {
   final rawValue = headers['retry-after'];
