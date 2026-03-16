@@ -5,10 +5,10 @@
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
-import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/public_identifier_normalizer.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/user_avatar.dart';
@@ -76,7 +76,7 @@ class CollaboratorAvatarRow extends ConsumerWidget {
 
     final npub = normalizeToNpub(pubkey);
     if (npub != null) {
-      context.pushWithVideoPause(OtherProfileScreen.pathForNpub(npub));
+      context.push(OtherProfileScreen.pathForNpub(npub));
     }
   }
 }

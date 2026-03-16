@@ -24,7 +24,6 @@ import 'package:openvine/services/error_analytics_tracker.dart';
 import 'package:openvine/services/feed_performance_tracker.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
 import 'package:openvine/services/top_hashtags_service.dart';
-import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
@@ -622,7 +621,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                 );
                 // Stop any playing videos before navigating
                 disposeAllVideoControllers(ref);
-                context.pushWithVideoPause(DiscoverListsScreen.path);
+                context.push(DiscoverListsScreen.path);
               },
               icon: const Icon(Icons.search, color: VineTheme.backgroundColor),
               label: const Text(
@@ -807,7 +806,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                           );
                           // Stop any playing videos before navigating
                           disposeAllVideoControllers(ref);
-                          context.pushWithVideoPause(
+                          context.push(
                             CuratedListFeedScreen.pathForId(curatedList.id),
                             extra: CuratedListRouteExtra(
                               listName: curatedList.name,
@@ -971,7 +970,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
               );
               // Stop any playing videos before navigating
               disposeAllVideoControllers(ref);
-              context.pushWithVideoPause(
+              context.push(
                 CuratedListFeedScreen.pathForId(curatedList.id),
                 extra: CuratedListRouteExtra(listName: curatedList.name),
               );
