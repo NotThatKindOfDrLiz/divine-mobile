@@ -381,6 +381,100 @@ void main() {
           );
         },
       );
+
+      testWidgets(
+        'uses likely AI intro copy for proof-backed videos when moderation score is above fifty percent',
+        (tester) async {
+          const sha256 =
+              '1212121212121212121212121212121212121212121212121212121212121212';
+          when(
+            () => mockVideoModerationStatusService.fetchStatus(sha256),
+          ).thenAnswer(
+            (_) async => const VideoModerationStatus(
+              moderated: false,
+              blocked: false,
+              quarantined: false,
+              ageRestricted: false,
+              needsReview: false,
+              aiGenerated: false,
+              aiScore: 0.65,
+            ),
+          );
+
+          final video = VideoEvent(
+            id: 'proof_modal_likely_ai',
+            pubkey: 'pubkey10',
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            content: 'proof backed likely ai video',
+            timestamp: DateTime.now(),
+            sha256: sha256,
+            videoUrl: 'https://media.divine.video/$sha256.mp4',
+            rawTags: const {
+              'verification': 'verified_mobile',
+              'proofmode': '{"proof":"present"}',
+            },
+          );
+
+          await tester.pumpWidget(buildSubject(video));
+          await tester.tap(find.text('Show'));
+          await tester.pumpAndSettle();
+
+          expect(find.textContaining('likely AI-generated'), findsOneWidget);
+          expect(
+            find.textContaining(
+              "This video's authenticity is verified using Proofmode technology.",
+            ),
+            findsNothing,
+          );
+        },
+      );
+
+      testWidgets(
+        'uses probably AI intro copy for proof-backed videos when moderation score is above eighty percent',
+        (tester) async {
+          const sha256 =
+              '3434343434343434343434343434343434343434343434343434343434343434';
+          when(
+            () => mockVideoModerationStatusService.fetchStatus(sha256),
+          ).thenAnswer(
+            (_) async => const VideoModerationStatus(
+              moderated: false,
+              blocked: false,
+              quarantined: false,
+              ageRestricted: false,
+              needsReview: false,
+              aiGenerated: true,
+              aiScore: 0.99,
+            ),
+          );
+
+          final video = VideoEvent(
+            id: 'proof_modal_probably_ai',
+            pubkey: 'pubkey11',
+            createdAt: DateTime.now().millisecondsSinceEpoch,
+            content: 'proof backed probably ai video',
+            timestamp: DateTime.now(),
+            sha256: sha256,
+            videoUrl: 'https://media.divine.video/$sha256.mp4',
+            rawTags: const {
+              'verification': 'verified_mobile',
+              'proofmode': '{"proof":"present"}',
+            },
+          );
+
+          await tester.pumpWidget(buildSubject(video));
+          await tester.tap(find.text('Show'));
+          await tester.pumpAndSettle();
+
+          expect(find.textContaining('probably AI-generated'), findsOneWidget);
+          expect(
+            find.textContaining(
+              "This video's authenticity is verified using Proofmode technology.",
+            ),
+            findsNothing,
+          );
+        },
+      );
     });
 
     group('close button', () {

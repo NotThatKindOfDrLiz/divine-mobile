@@ -10,6 +10,7 @@ import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/moderation_label_service.dart';
 import 'package:openvine/services/video_moderation_status_service.dart';
+import 'package:openvine/utils/ai_verdict.dart';
 import 'package:openvine/utils/proofmode_helpers.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/proofmode_badge.dart';
@@ -80,38 +81,36 @@ class ProofModeBadgeRow extends ConsumerWidget {
 
     // Determine effective verification level (with platinum upgrade)
     final effectiveLevel = _resolveLevel(aiResult);
+    final aiVerdict = resolveAIVerdict(aiResult?.score);
 
     // A video with no proof tags can still earn a badge via AI scan.
     final hasAIScanBadge =
         !video.hasProofMode &&
-        aiResult != null &&
-        aiResult.score < 0.5 &&
+        isHumanConfirmedAiScore(aiResult?.score) &&
         !video.isOriginalVine;
 
-    // AI scan indicates possibly AI-generated (score >= 0.5)
-    final isPossiblyAI =
-        aiResult != null && aiResult.score >= 0.5 && !video.isOriginalVine;
     final isCheckingForAI =
         video.isFromDivineServer &&
         !video.shouldShowProofModeBadge &&
         !video.shouldShowVineBadge &&
         !hasAIScanBadge &&
-        !isPossiblyAI &&
+        aiVerdict == null &&
         aiResult == null;
 
     final badges = <Widget>[];
     final badgeLabels = <String>[];
 
     // Add ProofMode badge for proof-backed content or a clean AI scan.
-    if (video.shouldShowProofModeBadge || hasAIScanBadge) {
+    if ((video.shouldShowProofModeBadge || hasAIScanBadge) &&
+        aiVerdict == null) {
       badges.add(ProofModeBadge(level: effectiveLevel, size: size));
       badgeLabels.add('proofmode:${effectiveLevel.name}');
     }
 
-    // Add "Possibly AI-Generated" badge for high AI scores
-    if (isPossiblyAI && !video.shouldShowProofModeBadge) {
-      badges.add(PossiblyAIBadge(size: size));
-      badgeLabels.add('possibly_ai');
+    // Add AI warning badges when moderation indicates generated content.
+    if (aiVerdict != null && !video.isOriginalVine) {
+      badges.add(AIVerdictBadge(verdict: aiVerdict, size: size));
+      badgeLabels.add('ai_verdict:${aiVerdict.name}');
     }
 
     // Divine-hosted videos should surface pending AI status instead of
@@ -122,7 +121,9 @@ class ProofModeBadgeRow extends ConsumerWidget {
     }
 
     // Add "Not Divine Hosted" badge for external content (tappable)
-    if (video.shouldShowNotDivineBadge && !hasAIScanBadge && !isPossiblyAI) {
+    if (video.shouldShowNotDivineBadge &&
+        !hasAIScanBadge &&
+        aiVerdict == null) {
       badges.add(
         GestureDetector(
           onTap: () => _showNotDivineExplanation(
@@ -148,7 +149,7 @@ class ProofModeBadgeRow extends ConsumerWidget {
       'isFromDivine=${video.isFromDivineServer}, hasProofMode=${video.hasProofMode}, '
       'proofBadge=${video.shouldShowProofModeBadge}, vineBadge=${video.shouldShowVineBadge}, '
       'notDivine=${video.shouldShowNotDivineBadge}, '
-      'aiScore=${aiResult?.score}, aiSource=${aiResult?.source}, '
+      'aiScore=${aiResult?.score}, aiSource=${aiResult?.source}, aiVerdict=${aiVerdict?.name}, '
       'checkingForAI=$isCheckingForAI, '
       'moderationLoading=${moderationStatusAsync?.isLoading ?? false}, '
       'moderationHasError=${moderationStatusAsync?.hasError ?? false}, '
@@ -172,7 +173,7 @@ class ProofModeBadgeRow extends ConsumerWidget {
     // No AI scan result — use base level
     if (aiResult == null) return baseLevel;
 
-    final isLikelyHuman = aiResult.score < 0.5;
+    final isLikelyHuman = isHumanConfirmedAiScore(aiResult.score);
 
     // Platinum: device proof + AI scan confirms human
     if (baseLevel == VerificationLevel.verifiedMobile && isLikelyHuman) {

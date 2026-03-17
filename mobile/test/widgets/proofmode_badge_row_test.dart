@@ -194,5 +194,93 @@ void main() {
       expect(find.text('Human Made'), findsOneWidget);
       expect(find.text('Hosted on Divine'), findsNothing);
     });
+
+    testWidgets(
+      'shows Likely AI for proof-backed Divine videos when moderation score is above fifty percent',
+      (tester) async {
+        const sha256 =
+            'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+        when(
+          () => mockVideoModerationStatusService.fetchStatus(sha256),
+        ).thenAnswer(
+          (_) async => const VideoModerationStatus(
+            moderated: false,
+            blocked: false,
+            quarantined: false,
+            ageRestricted: false,
+            needsReview: false,
+            aiGenerated: false,
+            aiScore: 0.65,
+          ),
+        );
+
+        final video = VideoEvent(
+          id: 'proof_backed_likely_ai',
+          pubkey: 'pubkey5',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          content: 'proof backed video with ai score',
+          timestamp: DateTime.now(),
+          sha256: sha256,
+          videoUrl: 'https://media.divine.video/$sha256.mp4',
+          rawTags: const {
+            'verification': 'verified_mobile',
+            'proofmode': '{"proof":"present"}',
+          },
+        );
+
+        await tester.pumpWidget(buildSubject(video));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Likely AI'), findsOneWidget);
+        expect(find.text('Human Made'), findsNothing);
+        verify(
+          () => mockVideoModerationStatusService.fetchStatus(sha256),
+        ).called(greaterThanOrEqualTo(1));
+      },
+    );
+
+    testWidgets(
+      'shows Probably AI for proof-backed Divine videos when moderation score is above eighty percent',
+      (tester) async {
+        const sha256 =
+            'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+        when(
+          () => mockVideoModerationStatusService.fetchStatus(sha256),
+        ).thenAnswer(
+          (_) async => const VideoModerationStatus(
+            moderated: false,
+            blocked: false,
+            quarantined: false,
+            ageRestricted: false,
+            needsReview: false,
+            aiGenerated: true,
+            aiScore: 0.99,
+          ),
+        );
+
+        final video = VideoEvent(
+          id: 'proof_backed_probably_ai',
+          pubkey: 'pubkey6',
+          createdAt: DateTime.now().millisecondsSinceEpoch,
+          content: 'proof backed video with strong ai score',
+          timestamp: DateTime.now(),
+          sha256: sha256,
+          videoUrl: 'https://media.divine.video/$sha256.mp4',
+          rawTags: const {
+            'verification': 'verified_mobile',
+            'proofmode': '{"proof":"present"}',
+          },
+        );
+
+        await tester.pumpWidget(buildSubject(video));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Probably AI'), findsOneWidget);
+        expect(find.text('Human Made'), findsNothing);
+        verify(
+          () => mockVideoModerationStatusService.fetchStatus(sha256),
+        ).called(greaterThanOrEqualTo(1));
+      },
+    );
   });
 }

@@ -4,6 +4,7 @@
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:openvine/utils/ai_verdict.dart';
 
 /// Verification tier for "Human Made" badge display.
 ///
@@ -458,15 +459,25 @@ class CheckingForAIBadge extends StatelessWidget {
   }
 }
 
-/// "Possibly AI-Generated" warning badge
-class PossiblyAIBadge extends StatelessWidget {
-  const PossiblyAIBadge({super.key, this.size = BadgeSize.small});
+/// AI warning badge derived from moderation score bands.
+class AIVerdictBadge extends StatelessWidget {
+  const AIVerdictBadge({
+    required this.verdict,
+    super.key,
+    this.size = BadgeSize.small,
+  });
 
+  final AIVerdict verdict;
   final BadgeSize size;
 
   @override
   Widget build(BuildContext context) {
     final dimensions = _getDimensions(size);
+    final isProbablyAi = verdict == AIVerdict.probably;
+    final accentColor = isProbablyAi ? VineTheme.error : VineTheme.warning;
+    final backgroundColor = isProbablyAi
+        ? const Color(0xFF2A1111)
+        : const Color(0xFF2E1F00);
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -474,9 +485,9 @@ class PossiblyAIBadge extends StatelessWidget {
         vertical: dimensions.verticalPadding,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF2E1F00), // Dark amber bg
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(dimensions.borderRadius),
-        border: Border.all(color: VineTheme.warning),
+        border: Border.all(color: accentColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -484,15 +495,15 @@ class PossiblyAIBadge extends StatelessWidget {
           Icon(
             Icons.warning_amber,
             size: dimensions.iconSize,
-            color: VineTheme.warning,
+            color: accentColor,
           ),
           SizedBox(width: dimensions.iconTextSpacing),
           Text(
-            'Possibly AI-Generated',
+            verdict.badgeLabel,
             style: TextStyle(
               fontSize: dimensions.fontSize,
               fontWeight: FontWeight.w500,
-              color: VineTheme.warning,
+              color: accentColor,
             ),
           ),
         ],

@@ -10,6 +10,7 @@ import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/services/moderation_label_service.dart';
 import 'package:openvine/services/video_moderation_status_service.dart';
+import 'package:openvine/utils/ai_verdict.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Modal dialog explaining the origin and authenticity of video content
@@ -231,12 +232,25 @@ class _ProofModeExplanationState extends ConsumerState<_ProofModeExplanation> {
 
   String _getIntroText(AIDetectionResult? aiResult) {
     final video = widget.video;
+    final aiVerdict = resolveAIVerdict(aiResult?.score);
+
+    if (aiVerdict != null) {
+      if (video.hasProofMode) {
+        return 'AI detection indicates this video is ${aiVerdict.generatedDescription}, '
+            'even though Proofmode verification data is attached.';
+      }
+      if (video.isFromDivineServer) {
+        return 'This video is hosted on Divine and AI detection indicates it is '
+            '${aiVerdict.generatedDescription}.';
+      }
+      return 'AI detection indicates this video is ${aiVerdict.generatedDescription}.';
+    }
 
     if (video.hasProofMode) {
       return "This video's authenticity is verified using Proofmode "
           'technology.';
     }
-    if (aiResult != null && aiResult.score < 0.5) {
+    if (isHumanConfirmedAiScore(aiResult?.score)) {
       if (video.isFromDivineServer) {
         return 'This video is hosted on Divine and AI detection indicates it '
             'is likely human-made, but it does not include cryptographic '
@@ -661,7 +675,7 @@ class _VerificationLevelCard extends StatelessWidget {
     VideoEvent video,
     AIDetectionResult? aiResult,
   ) {
-    final hasHumanAIScan = aiResult != null && aiResult.score < 0.5;
+    final hasHumanAIScan = isHumanConfirmedAiScore(aiResult?.score);
 
     if (video.isVerifiedMobile && hasHumanAIScan) {
       return const _VerificationConfig(
