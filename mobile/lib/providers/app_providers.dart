@@ -18,8 +18,8 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:nostr_client/nostr_client.dart'
     show RelayConnectionStatus, RelayState;
 import 'package:nostr_key_manager/nostr_key_manager.dart';
-import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/blocs/video_feed/video_feed_bloc.dart';
+import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/models/environment_config.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
@@ -103,7 +103,17 @@ import 'package:videos_repository/videos_repository.dart';
 part 'app_providers.g.dart';
 
 final videoFeedRetainedCacheProvider = Provider<VideoFeedRetainedCache>((ref) {
-  return InMemoryVideoFeedRetainedCache();
+  final cache = InMemoryVideoFeedRetainedCache();
+
+  // Clear retained feed snapshots when the user logs out so the next
+  // session never sees another account's cached feed.
+  ref.listen<AuthState>(currentAuthStateProvider, (previous, next) {
+    if (next == AuthState.unauthenticated) {
+      cache.clearAll();
+    }
+  });
+
+  return cache;
 });
 
 // =============================================================================

@@ -21,6 +21,9 @@ final class RetainedVideoFeedSnapshot extends Equatable {
   final DateTime refreshedAt;
 
   @override
+  // refreshedAt is intentionally excluded from equality — it is a diagnostic
+  // timestamp only. Including it would cause BLoC to treat every write as a
+  // distinct state even when the feed data is identical.
   List<Object?> get props => [
     mode,
     videos,
@@ -28,7 +31,6 @@ final class RetainedVideoFeedSnapshot extends Equatable {
     videoListSources,
     listOnlyVideoIds,
     creatorProfiles,
-    refreshedAt,
   ];
 }
 
@@ -36,6 +38,9 @@ abstract interface class VideoFeedRetainedCache {
   RetainedVideoFeedSnapshot? read(FeedMode mode);
   void write(RetainedVideoFeedSnapshot snapshot);
   void clear(FeedMode mode);
+
+  /// Remove all cached snapshots (e.g. on logout).
+  void clearAll();
 }
 
 final class InMemoryVideoFeedRetainedCache implements VideoFeedRetainedCache {
@@ -52,5 +57,10 @@ final class InMemoryVideoFeedRetainedCache implements VideoFeedRetainedCache {
   @override
   void clear(FeedMode mode) {
     _snapshots.remove(mode);
+  }
+
+  @override
+  void clearAll() {
+    _snapshots.clear();
   }
 }

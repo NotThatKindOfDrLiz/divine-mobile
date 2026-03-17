@@ -311,31 +311,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     VideoFeedRefreshRequested event,
     Emitter<VideoFeedState> emit,
   ) async {
-    final hasVisibleVideos =
-        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
-    if (hasVisibleVideos) {
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.success,
-          hasMore: true,
-          isRefreshing: true,
-          clearError: true,
-        ),
-      );
-    } else {
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.loading,
-          videos: [],
-          hasMore: true,
-          isRefreshing: false,
-          clearError: true,
-          videoListSources: const {},
-          listOnlyVideoIds: const {},
-        ),
-      );
-    }
-
+    _emitPreRefreshState(emit);
     await _loadVideos(state.mode, emit);
   }
 
@@ -357,31 +333,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
       return;
     }
 
-    final hasVisibleVideos =
-        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
-    if (hasVisibleVideos) {
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.success,
-          hasMore: true,
-          isRefreshing: true,
-          clearError: true,
-        ),
-      );
-    } else {
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.loading,
-          videos: [],
-          hasMore: true,
-          isRefreshing: false,
-          clearError: true,
-          videoListSources: const {},
-          listOnlyVideoIds: const {},
-        ),
-      );
-    }
-
+    _emitPreRefreshState(emit);
     await _loadVideos(state.mode, emit);
   }
 
@@ -446,31 +398,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     if (state.mode != FeedMode.home) return;
     if (state.status == VideoFeedStatus.loading) return;
 
-    final hasVisibleVideos =
-        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
-    if (hasVisibleVideos) {
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.success,
-          hasMore: true,
-          isRefreshing: true,
-          clearError: true,
-        ),
-      );
-    } else {
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.loading,
-          videos: [],
-          hasMore: true,
-          isRefreshing: false,
-          clearError: true,
-          videoListSources: const {},
-          listOnlyVideoIds: const {},
-        ),
-      );
-    }
-
+    _emitPreRefreshState(emit);
     await _loadVideos(FeedMode.home, emit);
   }
 
@@ -643,6 +571,37 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
         'VideoFeedBloc: Failed to batch-fetch creator profiles - $e',
         name: 'VideoFeedBloc',
         category: LogCategory.video,
+      );
+    }
+  }
+
+  /// Emit either a refreshing or loading state before starting a refresh.
+  ///
+  /// When the feed already has visible videos, keeps them on screen with
+  /// [isRefreshing] = true. Otherwise emits a full loading state.
+  void _emitPreRefreshState(Emitter<VideoFeedState> emit) {
+    final hasVisibleVideos =
+        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
+    if (hasVisibleVideos) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.success,
+          hasMore: true,
+          isRefreshing: true,
+          clearError: true,
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.loading,
+          videos: [],
+          hasMore: true,
+          isRefreshing: false,
+          clearError: true,
+          videoListSources: const {},
+          listOnlyVideoIds: const {},
+        ),
       );
     }
   }
