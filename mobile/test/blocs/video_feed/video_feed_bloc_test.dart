@@ -32,14 +32,33 @@ class _MockProfileRepository extends Mock implements ProfileRepository {}
 
 class _MockHomeFeedCache extends Mock implements HomeFeedCache {}
 
+class _MockVideoFeedRetainedCache extends Mock
+    implements VideoFeedRetainedCache {}
+
 class _FakeSharedPreferences extends Fake implements SharedPreferences {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(FeedMode.home);
+    registerFallbackValue(
+      RetainedVideoFeedSnapshot(
+        mode: FeedMode.home,
+        videos: const [],
+        hasMore: true,
+        videoListSources: const {},
+        listOnlyVideoIds: const {},
+        creatorProfiles: const {},
+        refreshedAt: DateTime(2026),
+      ),
+    );
+  });
+
   group('VideoFeedBloc', () {
     late _MockVideosRepository mockVideosRepository;
     late _MockFollowRepository mockFollowRepository;
     late _MockCuratedListRepository mockCuratedListRepository;
     late _MockProfileRepository mockProfileRepository;
+    late _MockVideoFeedRetainedCache mockRetainedCache;
     late StreamController<List<String>> followingController;
     late StreamController<List<CuratedList>> curatedListsController;
 
@@ -48,6 +67,7 @@ void main() {
       mockFollowRepository = _MockFollowRepository();
       mockCuratedListRepository = _MockCuratedListRepository();
       mockProfileRepository = _MockProfileRepository();
+      mockRetainedCache = _MockVideoFeedRetainedCache();
       followingController = StreamController<List<String>>.broadcast();
       curatedListsController = StreamController<List<CuratedList>>.broadcast();
 
@@ -69,6 +89,9 @@ void main() {
           pubkeys: any(named: 'pubkeys'),
         ),
       ).thenAnswer((_) async => {});
+      when(() => mockRetainedCache.read(any())).thenReturn(null);
+      when(() => mockRetainedCache.write(any())).thenReturn(null);
+      when(() => mockRetainedCache.clear(any())).thenReturn(null);
     });
 
     tearDown(() {
@@ -76,10 +99,17 @@ void main() {
       curatedListsController.close();
     });
 
-    VideoFeedBloc createBloc() => VideoFeedBloc(
+    VideoFeedBloc createBloc({
+      VideoFeedRetainedCache? retainedCache,
+      SharedPreferences? sharedPreferences,
+      HomeFeedCache? homeFeedCache,
+    }) => VideoFeedBloc(
       videosRepository: mockVideosRepository,
       followRepository: mockFollowRepository,
       curatedListRepository: mockCuratedListRepository,
+      retainedCache: retainedCache ?? mockRetainedCache,
+      sharedPreferences: sharedPreferences,
+      homeFeedCache: homeFeedCache,
     );
 
     VideoEvent createTestVideo(String id, {int? createdAt}) {
@@ -175,6 +205,15 @@ void main() {
 
         expect(updated.status, VideoFeedStatus.success);
         expect(updated.mode, FeedMode.popular);
+      });
+
+      test('copyWith updates refreshing state', () {
+        const state = VideoFeedState(status: VideoFeedStatus.success);
+
+        final updated = state.copyWith(isRefreshing: true);
+
+        expect(updated.isRefreshing, isTrue);
+        expect(updated.status, VideoFeedStatus.success);
       });
 
       test('copyWith clearError removes error', () {
@@ -475,6 +514,53 @@ void main() {
               .having((s) => s.status, 'status', VideoFeedStatus.success)
               .having((s) => s.mode, 'mode', FeedMode.latest)
               .having((s) => s.videos.length, 'videos count', 5),
+        ],
+      );
+
+      blocTest<VideoFeedBloc, VideoFeedState>(
+        'shows retained target-mode videos before refresh when cached',
+        setUp: () {
+          final retainedVideos = createTestVideos(2, idPrefix: 'retained');
+          final latestVideos = createTestVideos(5, idPrefix: 'fresh');
+
+          when(
+            () => mockRetainedCache.read(FeedMode.latest),
+          ).thenReturn(
+            RetainedVideoFeedSnapshot(
+              mode: FeedMode.latest,
+              videos: retainedVideos,
+              hasMore: true,
+              videoListSources: const {},
+              listOnlyVideoIds: const {},
+              creatorProfiles: const {},
+              refreshedAt: DateTime(2026),
+            ),
+          );
+          when(
+            () => mockVideosRepository.getNewVideos(
+              limit: any(named: 'limit'),
+              until: any(named: 'until'),
+            ),
+          ).thenAnswer((_) async => latestVideos);
+        },
+        build: () => createBloc(retainedCache: mockRetainedCache),
+        seed: () => VideoFeedState(
+          status: VideoFeedStatus.success,
+          mode: FeedMode.home,
+          videos: createTestVideos(3),
+        ),
+        act: (bloc) => bloc.add(const VideoFeedModeChanged(FeedMode.latest)),
+        expect: () => [
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.mode, 'mode', FeedMode.latest)
+              .having((s) => s.videos.length, 'retained videos count', 2)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.mode, 'mode', FeedMode.latest)
+              .having((s) => s.videos.length, 'videos count', 5)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -801,7 +887,7 @@ void main() {
 
     group('VideoFeedRefreshRequested', () {
       blocTest<VideoFeedBloc, VideoFeedState>(
-        'clears videos and reloads from beginning',
+        'preserves visible videos while reloading from beginning',
         setUp: () {
           final freshVideos = createTestVideos(pageSize);
 
@@ -824,11 +910,16 @@ void main() {
         ),
         act: (bloc) => bloc.add(const VideoFeedRefreshRequested()),
         expect: () => [
-          const VideoFeedState(),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'previous videos count', 10)
+              .having((s) => s.hasMore, 'hasMore reset', true)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
               .having((s) => s.videos.length, 'videos count', pageSize)
-              .having((s) => s.hasMore, 'hasMore', true),
+              .having((s) => s.hasMore, 'hasMore', true)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
         verify: (_) {
           // Verify called without 'until' parameter (fresh fetch)
@@ -876,7 +967,7 @@ void main() {
 
     group('VideoFeedAutoRefreshRequested', () {
       blocTest<VideoFeedBloc, VideoFeedState>(
-        'refreshes when on home mode and data is stale',
+        'refreshes stale home data without wiping visible videos',
         setUp: () {
           final videos = createTestVideos(pageSize);
 
@@ -903,10 +994,14 @@ void main() {
         ),
         act: (bloc) => bloc.add(const VideoFeedAutoRefreshRequested()),
         expect: () => [
-          const VideoFeedState(),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
-              .having((s) => s.videos.length, 'videos count', pageSize),
+              .having((s) => s.videos.length, 'retained videos count', 3)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -1022,10 +1117,14 @@ void main() {
         },
         skip: 2, // Skip the loading + success from VideoFeedStarted
         expect: () => [
-          const VideoFeedState(),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
-              .having((s) => s.videos.length, 'videos count', pageSize),
+              .having((s) => s.videos.length, 'retained videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -1088,11 +1187,15 @@ void main() {
         act: (bloc) =>
             bloc.add(const VideoFeedFollowingListChanged(['new-author'])),
         expect: () => [
-          // No loading state — silent refresh replaces in-place
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'previous videos count', 3)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
               .having((s) => s.videos.length, 'videos count', pageSize)
-              .having((s) => s.mode, 'mode', FeedMode.home),
+              .having((s) => s.mode, 'mode', FeedMode.home)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -1283,8 +1386,16 @@ void main() {
           followingController.add(['author', 'new-author']);
         },
         skip: 2, // Skip loading + success from VideoFeedStarted
-        // No state changes — same videos returned, Equatable deduplicates
-        expect: () => <VideoFeedState>[],
+        expect: () => [
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'retained videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
+        ],
         verify: (_) {
           // Called 2 times: initial + runtime (replay is skipped)
           verify(
@@ -1326,11 +1437,15 @@ void main() {
         ),
         act: (bloc) => bloc.add(const VideoFeedCuratedListsChanged()),
         expect: () => [
-          const VideoFeedState(),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'previous videos count', 3)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
               .having((s) => s.videos.length, 'videos count', pageSize)
-              .having((s) => s.mode, 'mode', FeedMode.home),
+              .having((s) => s.mode, 'mode', FeedMode.home)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -1385,10 +1500,14 @@ void main() {
         },
         skip: 2, // Skip loading + success from VideoFeedStarted
         expect: () => [
-          const VideoFeedState(),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
-              .having((s) => s.videos.length, 'videos count', pageSize),
+              .having((s) => s.videos.length, 'retained videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'videos count', pageSize)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -1426,7 +1545,10 @@ void main() {
         ),
         act: (bloc) => bloc.add(const VideoFeedCuratedListsChanged()),
         expect: () => [
-          const VideoFeedState(),
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'previous videos count', 3)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
               .having((s) => s.videoListSources, 'videoListSources', {
@@ -1434,7 +1556,8 @@ void main() {
               })
               .having((s) => s.listOnlyVideoIds, 'listOnlyVideoIds', {
                 'video-0',
-              }),
+              })
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 
@@ -1683,6 +1806,7 @@ void main() {
         curatedListRepository: mockCuratedListRepository,
         sharedPreferences: sharedPreferences,
         homeFeedCache: mockCache,
+        retainedCache: mockRetainedCache,
       );
 
       blocTest<VideoFeedBloc, VideoFeedState>(
@@ -1905,8 +2029,13 @@ void main() {
           // 2. Cached videos served
           isA<VideoFeedState>()
               .having((s) => s.status, 'status', VideoFeedStatus.success)
-              .having((s) => s.videos.length, 'cached count', 2),
-          // No failure state emitted because cached data is displayed
+              .having((s) => s.videos.length, 'cached count', 2)
+              .having((s) => s.isRefreshing, 'isRefreshing', true),
+          // 3. Refresh stops without wiping cached data
+          isA<VideoFeedState>()
+              .having((s) => s.status, 'status', VideoFeedStatus.success)
+              .having((s) => s.videos.length, 'cached count', 2)
+              .having((s) => s.isRefreshing, 'isRefreshing', false),
         ],
       );
 

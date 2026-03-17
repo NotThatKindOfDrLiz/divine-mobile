@@ -19,6 +19,7 @@ import 'package:videos_repository/videos_repository.dart';
 
 part 'video_feed_event.dart';
 part 'video_feed_state.dart';
+part 'video_feed_retained_cache.dart';
 
 /// Default interval between auto-refreshes of the home feed.
 const _defaultAutoRefreshMinInterval = Duration(minutes: 10);
@@ -45,6 +46,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     Duration autoRefreshMinInterval = _defaultAutoRefreshMinInterval,
     FeedPerformanceTracker? feedTracker,
     HomeFeedCache? homeFeedCache,
+    VideoFeedRetainedCache? retainedCache,
   }) : _videosRepository = videosRepository,
        _followRepository = followRepository,
        _curatedListRepository = curatedListRepository,
@@ -55,6 +57,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
        _autoRefreshMinInterval = autoRefreshMinInterval,
        _feedTracker = feedTracker,
        _homeFeedCache = homeFeedCache ?? const HomeFeedCache(),
+       _retainedCache = retainedCache ?? InMemoryVideoFeedRetainedCache(),
        super(const VideoFeedState()) {
     on<VideoFeedStarted>(_onStarted);
     on<VideoFeedModeChanged>(_onModeChanged);
@@ -78,6 +81,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
   final Duration _autoRefreshMinInterval;
   final FeedPerformanceTracker? _feedTracker;
   final HomeFeedCache _homeFeedCache;
+  final VideoFeedRetainedCache _retainedCache;
 
   /// Whether the cache has already been served for this BLoC instance.
   ///
@@ -121,7 +125,25 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
           )
         : event.mode;
 
-    emit(state.copyWith(status: VideoFeedStatus.loading, mode: mode));
+    final servedRetained = _emitRetainedSnapshot(
+      mode,
+      emit,
+      isRefreshing: true,
+    );
+    if (!servedRetained) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.loading,
+          mode: mode,
+          videos: [],
+          hasMore: true,
+          isRefreshing: false,
+          clearError: true,
+          videoListSources: const {},
+          listOnlyVideoIds: const {},
+        ),
+      );
+    }
 
     _feedTracker?.startFeedLoad(mode.name);
 
@@ -175,15 +197,25 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
 
     await _sharedPreferences?.setString(_feedModeKey, event.mode.name);
 
-    emit(
-      state.copyWith(
-        status: VideoFeedStatus.loading,
-        mode: event.mode,
-        videos: [],
-        hasMore: true,
-        clearError: true,
-      ),
+    final servedRetained = _emitRetainedSnapshot(
+      event.mode,
+      emit,
+      isRefreshing: true,
     );
+    if (!servedRetained) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.loading,
+          mode: event.mode,
+          videos: [],
+          hasMore: true,
+          isRefreshing: false,
+          clearError: true,
+          videoListSources: const {},
+          listOnlyVideoIds: const {},
+        ),
+      );
+    }
 
     await _loadVideos(event.mode, emit);
   }
@@ -249,17 +281,18 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
       final mergedListOnly = {...state.listOnlyVideoIds}
         ..addAll(result.listOnlyVideoIds);
 
-      emit(
-        state.copyWith(
-          videos: updatedVideos,
-          // Only stop pagination when the server returns nothing.
-          // Fewer than _pageSize can happen due to server-side filtering.
-          hasMore: result.videos.isNotEmpty,
-          isLoadingMore: false,
-          videoListSources: mergedSources,
-          listOnlyVideoIds: mergedListOnly,
-        ),
+      final nextState = state.copyWith(
+        videos: updatedVideos,
+        // Only stop pagination when the server returns nothing.
+        // Fewer than _pageSize can happen due to server-side filtering.
+        hasMore: result.videos.isNotEmpty,
+        isLoadingMore: false,
+        videoListSources: mergedSources,
+        listOnlyVideoIds: mergedListOnly,
       );
+
+      emit(nextState);
+      _writeRetainedSnapshot(state.mode, nextState);
 
       // Batch-fetch profiles for new creators only.
       await _fetchCreatorProfiles(validNewVideos, emit);
@@ -278,14 +311,30 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     VideoFeedRefreshRequested event,
     Emitter<VideoFeedState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        status: VideoFeedStatus.loading,
-        videos: [],
-        hasMore: true,
-        clearError: true,
-      ),
-    );
+    final hasVisibleVideos =
+        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
+    if (hasVisibleVideos) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.success,
+          hasMore: true,
+          isRefreshing: true,
+          clearError: true,
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.loading,
+          videos: [],
+          hasMore: true,
+          isRefreshing: false,
+          clearError: true,
+          videoListSources: const {},
+          listOnlyVideoIds: const {},
+        ),
+      );
+    }
 
     await _loadVideos(state.mode, emit);
   }
@@ -308,14 +357,30 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
       return;
     }
 
-    emit(
-      state.copyWith(
-        status: VideoFeedStatus.loading,
-        videos: [],
-        hasMore: true,
-        clearError: true,
-      ),
-    );
+    final hasVisibleVideos =
+        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
+    if (hasVisibleVideos) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.success,
+          hasMore: true,
+          isRefreshing: true,
+          clearError: true,
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.loading,
+          videos: [],
+          hasMore: true,
+          isRefreshing: false,
+          clearError: true,
+          videoListSources: const {},
+          listOnlyVideoIds: const {},
+        ),
+      );
+    }
 
     await _loadVideos(state.mode, emit);
   }
@@ -339,11 +404,15 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
 
     // Empty follow list → show "follow someone" CTA.
     if (event.followingPubkeys.isEmpty) {
+      _retainedCache
+        ..clear(FeedMode.home)
+        ..clear(FeedMode.forYou);
       emit(
         state.copyWith(
           status: VideoFeedStatus.success,
           videos: [],
           hasMore: false,
+          isRefreshing: false,
           error: VideoFeedError.noFollowedUsers,
           videoListSources: const {},
           listOnlyVideoIds: const {},
@@ -353,6 +422,16 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     }
 
     // Silent refresh — keep current videos visible, replace when done.
+    if (state.videos.isNotEmpty) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.success,
+          hasMore: true,
+          isRefreshing: true,
+          clearError: true,
+        ),
+      );
+    }
     await _loadVideos(FeedMode.home, emit);
   }
 
@@ -367,14 +446,30 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
     if (state.mode != FeedMode.home) return;
     if (state.status == VideoFeedStatus.loading) return;
 
-    emit(
-      state.copyWith(
-        status: VideoFeedStatus.loading,
-        videos: [],
-        hasMore: true,
-        clearError: true,
-      ),
-    );
+    final hasVisibleVideos =
+        state.status == VideoFeedStatus.success && state.videos.isNotEmpty;
+    if (hasVisibleVideos) {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.success,
+          hasMore: true,
+          isRefreshing: true,
+          clearError: true,
+        ),
+      );
+    } else {
+      emit(
+        state.copyWith(
+          status: VideoFeedStatus.loading,
+          videos: [],
+          hasMore: true,
+          isRefreshing: false,
+          clearError: true,
+          videoListSources: const {},
+          listOnlyVideoIds: const {},
+        ),
+      );
+    }
 
     await _loadVideos(FeedMode.home, emit);
   }
@@ -409,6 +504,7 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
               status: VideoFeedStatus.success,
               videos: cachedValid,
               hasMore: true,
+              isRefreshing: true,
               clearError: true,
             ),
           );
@@ -431,18 +527,20 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
 
       _feedTracker?.markFirstVideosReceived(mode.name, validVideos.length);
 
-      emit(
-        state.copyWith(
-          status: VideoFeedStatus.success,
-          videos: validVideos,
-          // Only stop pagination when no results at all.
-          // Fewer than _pageSize can happen due to server-side filtering.
-          hasMore: validVideos.isNotEmpty,
-          clearError: true,
-          videoListSources: result.videoListSources,
-          listOnlyVideoIds: result.listOnlyVideoIds,
-        ),
+      final nextState = state.copyWith(
+        status: VideoFeedStatus.success,
+        videos: validVideos,
+        // Only stop pagination when no results at all.
+        // Fewer than _pageSize can happen due to server-side filtering.
+        hasMore: validVideos.isNotEmpty,
+        isRefreshing: false,
+        clearError: true,
+        videoListSources: result.videoListSources,
+        listOnlyVideoIds: result.listOnlyVideoIds,
       );
+
+      emit(nextState);
+      _writeRetainedSnapshot(mode, nextState);
 
       _feedTracker?.markFeedDisplayed(mode.name, validVideos.length);
 
@@ -475,9 +573,12 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
         emit(
           state.copyWith(
             status: VideoFeedStatus.failure,
+            isRefreshing: false,
             error: VideoFeedError.loadFailed,
           ),
         );
+      } else if (state.isRefreshing) {
+        emit(state.copyWith(isRefreshing: false));
       }
     }
   }
@@ -530,11 +631,12 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
       );
 
       if (profiles.isNotEmpty) {
-        emit(
-          state.copyWith(
-            creatorProfiles: {...state.creatorProfiles, ...profiles},
-          ),
+        final nextState = state.copyWith(
+          creatorProfiles: {...state.creatorProfiles, ...profiles},
         );
+
+        emit(nextState);
+        _writeRetainedSnapshot(state.mode, nextState);
       }
     } catch (e) {
       Log.error(
@@ -543,5 +645,44 @@ class VideoFeedBloc extends Bloc<VideoFeedEvent, VideoFeedState> {
         category: LogCategory.video,
       );
     }
+  }
+
+  bool _emitRetainedSnapshot(
+    FeedMode mode,
+    Emitter<VideoFeedState> emit, {
+    required bool isRefreshing,
+  }) {
+    final retained = _retainedCache.read(mode);
+    if (retained == null) return false;
+
+    emit(
+      state.copyWith(
+        status: VideoFeedStatus.success,
+        mode: mode,
+        videos: retained.videos,
+        hasMore: retained.hasMore,
+        isRefreshing: isRefreshing,
+        clearError: true,
+        videoListSources: retained.videoListSources,
+        listOnlyVideoIds: retained.listOnlyVideoIds,
+        creatorProfiles: retained.creatorProfiles,
+      ),
+    );
+
+    return true;
+  }
+
+  void _writeRetainedSnapshot(FeedMode mode, VideoFeedState snapshotState) {
+    _retainedCache.write(
+      RetainedVideoFeedSnapshot(
+        mode: mode,
+        videos: snapshotState.videos,
+        hasMore: snapshotState.hasMore,
+        videoListSources: snapshotState.videoListSources,
+        listOnlyVideoIds: snapshotState.listOnlyVideoIds,
+        creatorProfiles: snapshotState.creatorProfiles,
+        refreshedAt: DateTime.now(),
+      ),
+    );
   }
 }

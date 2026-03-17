@@ -54,6 +54,7 @@ final class VideoFeedState extends Equatable {
     this.videos = const [],
     this.mode = FeedMode.home,
     this.hasMore = true,
+    this.isRefreshing = false,
     this.isLoadingMore = false,
     this.error,
     this.videoListSources = const {},
@@ -72,6 +73,9 @@ final class VideoFeedState extends Equatable {
 
   /// Whether more videos can be loaded via pagination.
   final bool hasMore;
+
+  /// Whether an existing feed is being refreshed in the background.
+  final bool isRefreshing;
 
   /// Whether a load-more operation is in progress.
   final bool isLoadingMore;
@@ -113,6 +117,7 @@ final class VideoFeedState extends Equatable {
     List<VideoEvent>? videos,
     FeedMode? mode,
     bool? hasMore,
+    bool? isRefreshing,
     bool? isLoadingMore,
     VideoFeedError? error,
     bool clearError = false,
@@ -125,6 +130,7 @@ final class VideoFeedState extends Equatable {
       videos: videos ?? this.videos,
       mode: mode ?? this.mode,
       hasMore: hasMore ?? this.hasMore,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
       videoListSources: videoListSources ?? this.videoListSources,
@@ -139,6 +145,7 @@ final class VideoFeedState extends Equatable {
     videos,
     mode,
     hasMore,
+    isRefreshing,
     isLoadingMore,
     error,
     videoListSources,

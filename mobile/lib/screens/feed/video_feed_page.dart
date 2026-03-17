@@ -93,6 +93,7 @@ class VideoFeedPage extends ConsumerWidget {
     final profileRepository = ref.watch(profileRepositoryProvider);
     final authService = ref.watch(authServiceProvider);
     final sharedPreferences = ref.watch(sharedPreferencesProvider);
+    final retainedCache = ref.watch(videoFeedRetainedCacheProvider);
     final showDivineHostedOnly = ref
         .read(divineHostFilterServiceProvider)
         .showDivineHostedOnly;
@@ -108,6 +109,7 @@ class VideoFeedPage extends ConsumerWidget {
         sharedPreferences: sharedPreferences,
         serveCachedHomeFeed: !showDivineHostedOnly,
         feedTracker: FeedPerformanceTracker(),
+        retainedCache: retainedCache,
       )..add(VideoFeedStarted(mode: initialMode)),
       child: const VideoFeedView(),
     );
