@@ -1,21 +1,21 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' show VideoEvent;
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/extensions/aspect_ratio_extensions.dart';
 import 'package:openvine/models/divine_video_clip.dart';
-import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_bottom_bar.dart';
 import 'package:openvine/widgets/video_metadata/video_metadata_preview_thumbnail.dart';
-import 'package:openvine/widgets/video_metadata/video_metadata_upload_status.dart';
 import 'package:video_player/video_player.dart';
 
 /// Full-screen preview of the recorded video with metadata overlay.
@@ -24,10 +24,20 @@ import 'package:video_player/video_player.dart';
 /// how the post will appear with the entered title, description, and tags.
 class VideoMetadataPreviewScreen extends ConsumerStatefulWidget {
   /// Creates a video preview screen for the given clip.
-  const VideoMetadataPreviewScreen({required this.clip, super.key});
+  const VideoMetadataPreviewScreen({
+    required this.clip,
+    this.previewOnly = false,
+    super.key,
+  });
 
   /// The recording clip to preview.
   final DivineVideoClip clip;
+
+  /// When `true`, hides the bottom bar and metadata overlay.
+  ///
+  /// Used when showing a read-only preview outside the editor flow
+  /// (e.g. from the upload failure sheet).
+  final bool previewOnly;
 
   @override
   ConsumerState<VideoMetadataPreviewScreen> createState() =>
@@ -95,35 +105,34 @@ class _VideoMetadataPreviewScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: VineTheme.surfaceContainerHigh,
-      body: Stack(
-        children: [
-          Column(
-            spacing: 16,
-            children: [
-              // Video preview area with close button
-              Expanded(
-                child: Stack(
-                  fit: .expand,
-                  children: [
-                    _VideoPreviewContent(
-                      clip: widget.clip,
-                      controller: _controller,
-                      isInitialized: _isInitialized,
-                      isPreviewReady: _isPreviewReady,
-                    ),
-                    const _CloseButton(),
-                  ],
-                ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: VideoEditorConstants.uiOverlayStyle,
+      child: Scaffold(
+        backgroundColor: VineTheme.surfaceContainerHigh,
+        body: Column(
+          spacing: 16,
+          children: [
+            // Video preview area with close button
+            Expanded(
+              child: Stack(
+                fit: .expand,
+                children: [
+                  _VideoPreviewContent(
+                    clip: widget.clip,
+                    controller: _controller,
+                    isInitialized: _isInitialized,
+                    isPreviewReady: _isPreviewReady,
+                    previewOnly: widget.previewOnly,
+                  ),
+                  const _CloseButton(),
+                ],
               ),
-              // Post button at bottom
+            ),
+            // Post button at bottom
+            if (!widget.previewOnly)
               const SafeArea(top: false, child: VideoMetadataBottomBar()),
-            ],
-          ),
-
-          const VideoMetadataUploadStatus(),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -138,18 +147,20 @@ class _VideoPreviewContent extends ConsumerWidget {
     required this.controller,
     required this.isInitialized,
     required this.isPreviewReady,
+    this.previewOnly = false,
   });
 
   final DivineVideoClip clip;
   final VideoPlayerController? controller;
   final bool isInitialized;
   final ValueNotifier<bool> isPreviewReady;
+  final bool previewOnly;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Hero animation from metadata screen
     return Hero(
-      tag: 'Video-metadata-clip-preview-video',
+      tag: VideoEditorConstants.heroMetaPreviewId,
       // Use linear flight path instead of curved arc
       createRectTween: (begin, end) => RectTween(begin: begin, end: end),
       child: Stack(
@@ -162,7 +173,7 @@ class _VideoPreviewContent extends ConsumerWidget {
             isInitialized: isInitialized,
           ),
           // Metadata overlay layer
-          _PreviewOverlay(isPreviewReady: isPreviewReady),
+          if (!previewOnly) _PreviewOverlay(isPreviewReady: isPreviewReady),
         ],
       ),
     );
@@ -304,11 +315,11 @@ class _CloseButton extends StatelessWidget {
         child: Hero(
           tag: VideoEditorConstants.heroBackButtonId,
           child: DivineIconButton(
+            icon: .x,
             type: .ghostSecondary,
             size: .small,
             // TODO(l10n): Replace with context.l10n when localization is added.
-            semanticLabel: 'Close video recorder',
-            icon: .x,
+            semanticLabel: 'Close video preview',
             onPressed: () => context.pop(),
           ),
         ),

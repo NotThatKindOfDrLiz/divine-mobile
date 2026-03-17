@@ -3,7 +3,6 @@
 // notification settings
 
 import 'dart:async';
-import 'dart:io';
 import 'dart:ui';
 
 import 'package:camera_macos_plus/camera_macos.dart';
@@ -152,7 +151,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _buildAudioSharingToggle(),
               _buildLanguageSetting(),
               // Audio device selector (macOS only - shows when multiple mics)
-              if (!kIsWeb && Platform.isMacOS) _buildAudioDeviceSelector(),
+              if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS)
+                _buildAudioDeviceSelector(),
 
               // Network Configuration
               const _SectionHeader(title: 'Network'),
@@ -829,7 +829,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // Try to get user profile for display name and NIP-05
         final profile = ref.read(userProfileReactiveProvider(userPubkey)).value;
 
-        await ZendeskSupportService.setUserIdentity(
+        ZendeskSupportService.setUserIdentity(
           displayName: profile?.bestDisplayName,
           nip05: profile?.nip05,
           npub: npub,

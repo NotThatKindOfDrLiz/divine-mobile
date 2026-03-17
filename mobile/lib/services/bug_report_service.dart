@@ -10,8 +10,7 @@ import 'dart:html'
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:models/models.dart'
     show BugReportData, BugReportResult, LogEntry;
 import 'package:openvine/config/bug_report_config.dart';
@@ -19,7 +18,6 @@ import 'package:openvine/services/blossom_upload_service.dart';
 import 'package:openvine/services/error_analytics_tracker.dart';
 import 'package:openvine/services/log_capture_service.dart';
 import 'package:openvine/services/nip17_message_service.dart';
-import 'package:openvine/services/zendesk_support_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -60,7 +58,7 @@ class BugReportService {
       final deviceInfoPlugin = DeviceInfoPlugin();
       Map<String, dynamic> deviceInfo = {};
       try {
-        if (Platform.isAndroid) {
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
           final androidInfo = await deviceInfoPlugin.androidInfo;
           deviceInfo = {
             'platform': 'android',
@@ -70,7 +68,7 @@ class BugReportService {
             'sdkInt': androidInfo.version.sdkInt,
             'brand': androidInfo.brand,
           };
-        } else if (Platform.isIOS) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
           final iosInfo = await deviceInfoPlugin.iosInfo;
           deviceInfo = {
             'platform': 'ios',
@@ -79,7 +77,7 @@ class BugReportService {
             'systemVersion': iosInfo.systemVersion,
             'name': iosInfo.name,
           };
-        } else if (Platform.isMacOS) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS) {
           final macInfo = await deviceInfoPlugin.macOsInfo;
           deviceInfo = {
             'platform': 'macos',
@@ -87,14 +85,14 @@ class BugReportService {
             'version': macInfo.osRelease,
             'hostName': macInfo.hostName,
           };
-        } else if (Platform.isWindows) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
           final windowsInfo = await deviceInfoPlugin.windowsInfo;
           deviceInfo = {
             'platform': 'windows',
             'version': windowsInfo.productName,
             'computerName': windowsInfo.computerName,
           };
-        } else if (Platform.isLinux) {
+        } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
           final linuxInfo = await deviceInfoPlugin.linuxInfo;
           deviceInfo = {
             'platform': 'linux',
@@ -102,7 +100,7 @@ class BugReportService {
             'name': linuxInfo.name,
           };
         } else {
-          // Unknown platform fallback
+          // Unknown platform fallback (includes web)
           deviceInfo = {'platform': 'unknown', 'version': 'unknown'};
         }
       } catch (e) {
@@ -111,17 +109,14 @@ class BugReportService {
           category: LogCategory.system,
         );
         // Must include platform even in error case for Worker API compatibility
-        final platform = Platform.isAndroid
-            ? 'android'
-            : Platform.isIOS
-            ? 'ios'
-            : Platform.isMacOS
-            ? 'macos'
-            : Platform.isWindows
-            ? 'windows'
-            : Platform.isLinux
-            ? 'linux'
-            : 'unknown';
+        final platform = switch (defaultTargetPlatform) {
+          TargetPlatform.android => 'android',
+          TargetPlatform.iOS => 'ios',
+          TargetPlatform.macOS => 'macos',
+          TargetPlatform.windows => 'windows',
+          TargetPlatform.linux => 'linux',
+          _ => 'unknown',
+        };
         deviceInfo = {
           'platform': platform,
           'version': 'unknown',
@@ -206,112 +201,6 @@ class BugReportService {
   int estimateReportSize(BugReportData data) {
     final jsonString = jsonEncode(data.toJson());
     return jsonString.length;
-  }
-
-  /// Send bug report to Cloudflare Worker backend
-  /// This is the primary method for submitting bug reports
-  ///
-  /// Fallback order:
-  /// 1. Cloudflare Worker API
-  /// 2. Zendesk REST API (works on all platforms including macOS)
-  /// 3. Log error (no blocking dialogs)
-  Future<BugReportResult> sendBugReport(BugReportData data) async {
-    try {
-      Log.info(
-        'Sending bug report ${data.reportId} to Worker API',
-        category: LogCategory.system,
-      );
-
-      // Sanitize sensitive data before sending
-      final sanitizedData = sanitizeSensitiveData(data);
-
-      // POST to Cloudflare Worker
-      final response = await http.post(
-        Uri.parse(BugReportConfig.bugReportApiUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(sanitizedData.toJson()),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final result = jsonDecode(response.body);
-        Log.info(
-          '✅ Bug report sent successfully: ${data.reportId}',
-          category: LogCategory.system,
-        );
-        return BugReportResult.success(
-          reportId: data.reportId,
-          messageEventId: result['reportId'] as String,
-        );
-      } else {
-        Log.error(
-          'Bug report API error: ${response.statusCode} ${response.body}',
-          category: LogCategory.system,
-        );
-
-        // Fall back to Zendesk REST API
-        return _fallbackToZendeskApi(sanitizedData);
-      }
-    } catch (e, stackTrace) {
-      Log.error(
-        'Exception while sending bug report to Worker: $e',
-        category: LogCategory.system,
-        error: e,
-        stackTrace: stackTrace,
-      );
-
-      // Sanitize and fall back to Zendesk REST API
-      final sanitizedData = sanitizeSensitiveData(data);
-      return _fallbackToZendeskApi(sanitizedData);
-    }
-  }
-
-  /// Fallback to Zendesk REST API when Worker API fails
-  Future<BugReportResult> _fallbackToZendeskApi(BugReportData data) async {
-    Log.info('Falling back to Zendesk REST API', category: LogCategory.system);
-
-    // Create a logs summary (last 50 log messages)
-    String? logsSummary;
-    if (data.recentLogs.isNotEmpty) {
-      final recentLines = data.recentLogs
-          .take(50)
-          .map(
-            (log) =>
-                '[${log.timestamp.toIso8601String()}] ${log.level.name}: ${log.message}',
-          );
-      logsSummary = recentLines.join('\n');
-    }
-
-    final success = await ZendeskSupportService.createBugReportTicketViaApi(
-      reportId: data.reportId,
-      userDescription: data.userDescription,
-      appVersion: data.appVersion,
-      deviceInfo: data.deviceInfo,
-      currentScreen: data.currentScreen,
-      userPubkey: data.userPubkey,
-      errorCounts: data.errorCounts,
-      logsSummary: logsSummary,
-    );
-
-    if (success) {
-      Log.info(
-        '✅ Bug report sent via Zendesk REST API: ${data.reportId}',
-        category: LogCategory.system,
-      );
-      return BugReportResult.success(
-        reportId: data.reportId,
-        messageEventId: 'zendesk-${data.reportId}',
-      );
-    } else {
-      // Don't fall back to file share - just log the error
-      Log.error(
-        'Failed to send bug report via all methods: ${data.reportId}',
-        category: LogCategory.system,
-      );
-      return BugReportResult.failure(
-        'Failed to submit bug report. Please try again later.',
-        reportId: data.reportId,
-      );
-    }
   }
 
   /// Send bug report to a specific recipient (for testing)

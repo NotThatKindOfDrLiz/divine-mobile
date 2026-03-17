@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:ui' show lerpDouble;
 
 import 'package:divine_ui/divine_ui.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,6 +30,7 @@ import 'package:openvine/widgets/video_feed_item/content_warning_helpers.dart';
 import 'package:openvine/widgets/video_feed_item/paused_video_play_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/subtitle_overlay.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
+import 'package:openvine/widgets/web_video_feed.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 
 // Scroll-fraction constants for overlay opacity during page transitions.
@@ -139,7 +141,7 @@ class PooledFullscreenVideoFeedScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mediaCache = ref.read(mediaCacheProvider);
+    final mediaCache = kIsWeb ? null : ref.read(mediaCacheProvider);
     final blossomAuthService = ref.read(blossomAuthServiceProvider);
 
     return BlocProvider(
@@ -257,6 +259,7 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
   /// Called from [didChangeDependencies] for initial setup and from
   /// [BlocListener] when videos become available asynchronously.
   void _initializeControllerIfNeeded({bool triggerRebuild = false}) {
+    if (kIsWeb) return; // Skip media_kit controller on web
     if (_controller != null) return;
 
     final state = context.read<FullscreenFeedBloc>().state;
@@ -445,56 +448,95 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
               forceMaterialTransparency: true,
               actions: [?editAction],
             ),
-            body: PooledVideoFeed(
-              videos: state.pooledVideos,
-              controller: _controller,
-              initialIndex: state.currentIndex,
-              onActiveVideoChanged: (video, index) {
-                FeedPerformanceTracker().startVideoSwipeTracking(video.id);
-                context.read<FullscreenFeedBloc>().add(
-                  FullscreenFeedIndexChanged(index),
-                );
-              },
-              onNearEnd: (index) => _onNearEnd(state, index),
-              nearEndThreshold: 0,
-              onScrollOffsetChanged: (page) => _pagePosition.value = page,
-              itemBuilder: (context, video, index, {required isActive}) {
-                // Look up by video ID instead of index, because
-                // pooledVideos filters out null-URL entries and indices
-                // may diverge from state.videos.
-                if (state.videos.isEmpty) {
-                  debugPrint(
-                    'FullscreenFeed: itemBuilder called with empty '
-                    'state.videos! index=$index, video.id=${video.id}',
-                  );
-                  return const ColoredBox(color: VineTheme.backgroundColor);
-                }
-                final originalEvent = state.videos.firstWhere(
-                  (v) => v.id == video.id,
-                  orElse: () {
-                    final clamped = index.clamp(0, state.videos.length - 1);
-                    debugPrint(
-                      'FullscreenFeed: video ID lookup miss! '
-                      'video.id=${video.id}, index=$index, '
-                      'clamped=$clamped, '
-                      'state.videos.length=${state.videos.length}, '
-                      'pooledVideos.length=${state.pooledVideos.length}',
-                    );
-                    return state.videos[clamped];
-                  },
-                );
-                return _PooledFullscreenItem(
-                  video: originalEvent,
-                  index: index,
-                  isActive: isActive,
-                  pagePosition: _pagePosition,
-                  contextTitle: widget.contextTitle,
-                  trafficSource: widget.trafficSource,
-                  sourceDetail: widget.sourceDetail,
-                  isOwnVideo: isOwnVideo,
-                );
-              },
-            ),
+            body: kIsWeb
+                ? WebVideoFeed(
+                    videos: state.videos
+                        .where((v) => v.videoUrl != null)
+                        .toList(),
+                    initialIndex: state.currentIndex,
+                    onActiveVideoChanged: (video, index) {
+                      _pagePosition.value = index.toDouble();
+                      FeedPerformanceTracker().startVideoSwipeTracking(
+                        video.id,
+                      );
+                      context.read<FullscreenFeedBloc>().add(
+                        FullscreenFeedIndexChanged(index),
+                      );
+                    },
+                    onNearEnd: (index) => _onNearEnd(state, index),
+                    itemBuilder:
+                        (
+                          context,
+                          video,
+                          index, {
+                          required isActive,
+                          controller,
+                        }) {
+                          return _WebFullscreenItem(
+                            video: video,
+                            isActive: isActive,
+                            isOwnVideo: currentUserPubkey == video.pubkey,
+                            contextTitle: widget.contextTitle,
+                          );
+                        },
+                  )
+                : PooledVideoFeed(
+                    videos: state.pooledVideos,
+                    controller: _controller,
+                    initialIndex: state.currentIndex,
+                    onActiveVideoChanged: (video, index) {
+                      FeedPerformanceTracker().startVideoSwipeTracking(
+                        video.id,
+                      );
+                      context.read<FullscreenFeedBloc>().add(
+                        FullscreenFeedIndexChanged(index),
+                      );
+                    },
+                    onNearEnd: (index) => _onNearEnd(state, index),
+                    nearEndThreshold: 0,
+                    onScrollOffsetChanged: (page) => _pagePosition.value = page,
+                    itemBuilder: (context, video, index, {required isActive}) {
+                      if (state.videos.isEmpty) {
+                        debugPrint(
+                          'FullscreenFeed: itemBuilder called with empty '
+                          'state.videos! index=$index, '
+                          'video.id=${video.id}',
+                        );
+                        return const ColoredBox(
+                          color: VineTheme.backgroundColor,
+                        );
+                      }
+                      final originalEvent = state.videos.firstWhere(
+                        (v) => v.id == video.id,
+                        orElse: () {
+                          final clamped = index.clamp(
+                            0,
+                            state.videos.length - 1,
+                          );
+                          debugPrint(
+                            'FullscreenFeed: video ID lookup miss! '
+                            'video.id=${video.id}, index=$index, '
+                            'clamped=$clamped, '
+                            'state.videos.length='
+                            '${state.videos.length}, '
+                            'pooledVideos.length='
+                            '${state.pooledVideos.length}',
+                          );
+                          return state.videos[clamped];
+                        },
+                      );
+                      return _PooledFullscreenItem(
+                        video: originalEvent,
+                        index: index,
+                        isActive: isActive,
+                        pagePosition: _pagePosition,
+                        contextTitle: widget.contextTitle,
+                        trafficSource: widget.trafficSource,
+                        sourceDetail: widget.sourceDetail,
+                        isOwnVideo: isOwnVideo,
+                      );
+                    },
+                  ),
           );
         },
       ),
@@ -560,7 +602,54 @@ class _PooledFullscreenItem extends ConsumerWidget {
   }
 }
 
-class _PooledFullscreenItemContent extends StatefulWidget {
+class _WebFullscreenItem extends ConsumerWidget {
+  const _WebFullscreenItem({
+    required this.video,
+    required this.isActive,
+    required this.isOwnVideo,
+    this.contextTitle,
+  });
+
+  final VideoEvent video;
+  final bool isActive;
+  final bool isOwnVideo;
+  final String? contextTitle;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final likesRepository = ref.read(likesRepositoryProvider);
+    final commentsRepository = ref.read(commentsRepositoryProvider);
+    final repostsRepository = ref.read(repostsRepositoryProvider);
+
+    return BlocProvider<VideoInteractionsBloc>(
+      create: (_) =>
+          VideoInteractionsBloc(
+              eventId: video.id,
+              authorPubkey: video.pubkey,
+              likesRepository: likesRepository,
+              commentsRepository: commentsRepository,
+              repostsRepository: repostsRepository,
+              addressableId: video.addressableId,
+              initialLikeCount: video.nostrLikeCount != null
+                  ? video.totalLikes
+                  : null,
+            )
+            ..add(const VideoInteractionsSubscriptionRequested())
+            ..add(const VideoInteractionsFetchRequested()),
+      child: VideoOverlayActions(
+        video: video,
+        isVisible: true,
+        isActive: isActive,
+        hasBottomNavigation: false,
+        contextTitle: contextTitle,
+        isFullscreen: true,
+        topOffset: isOwnVideo ? 64 : 8,
+      ),
+    );
+  }
+}
+
+class _PooledFullscreenItemContent extends ConsumerStatefulWidget {
   const _PooledFullscreenItemContent({
     required this.video,
     required this.index,
@@ -582,12 +671,12 @@ class _PooledFullscreenItemContent extends StatefulWidget {
   final String? sourceDetail;
 
   @override
-  State<_PooledFullscreenItemContent> createState() =>
+  ConsumerState<_PooledFullscreenItemContent> createState() =>
       _PooledFullscreenItemContentState();
 }
 
 class _PooledFullscreenItemContentState
-    extends State<_PooledFullscreenItemContent> {
+    extends ConsumerState<_PooledFullscreenItemContent> {
   bool _contentWarningRevealed = false;
 
   @override
@@ -595,6 +684,14 @@ class _PooledFullscreenItemContentState
     final video = widget.video;
     final isPortrait = video.dimensions != null && video.isPortrait;
     final alignment = videoAlignmentForDimensions(video.width, video.height);
+    final overlayLabels = contentWarningOverlayLabels(
+      contentWarningLabels: video.contentWarningLabels,
+      warnLabels: video.warnLabels,
+    );
+    final showContentWarningOverlay = shouldShowContentWarningOverlay(
+      contentWarningLabels: video.contentWarningLabels,
+      warnLabels: video.warnLabels,
+    );
 
     return ColoredBox(
       color: VineTheme.backgroundColor,
@@ -622,12 +719,19 @@ class _PooledFullscreenItemContentState
           alignment: alignment,
         ),
         overlayBuilder: (context, videoController, player) {
-          if (video.shouldShowWarning && !_contentWarningRevealed) {
+          if (showContentWarningOverlay && !_contentWarningRevealed) {
             return ContentWarningBlurOverlay(
-              labels: video.warnLabels,
+              labels: overlayLabels,
               onReveal: () => setState(() {
                 _contentWarningRevealed = true;
               }),
+              onHideSimilar: () {
+                hideContentWarningsLikeThese(
+                  context: context,
+                  ref: ref,
+                  labels: overlayLabels,
+                );
+              },
             );
           }
           return MediaQuery(

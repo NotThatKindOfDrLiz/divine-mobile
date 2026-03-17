@@ -882,7 +882,7 @@ final class ModerationLabelServiceProvider
 }
 
 String _$moderationLabelServiceHash() =>
-    r'17757c116c5d70c141a10d508898fecda07c923d';
+    r'd792ccdba759d461ff86ca3bd6f62aa46463a85a';
 
 /// Audio sharing preference service for managing whether audio is available
 /// for reuse by default. keepAlive ensures setting persists across widget rebuilds.
@@ -2027,7 +2027,7 @@ final class DraftStorageServiceProvider
 }
 
 String _$draftStorageServiceHash() =>
-    r'27a52029060a87f60092ca7b856ca61f8d6646e2';
+    r'1ef3ccee1fdbb86f842c2bdf448b7f72d4e8f629';
 
 /// Clip library service for persisting individual video clips
 
@@ -2080,7 +2080,7 @@ final class ClipLibraryServiceProvider
 }
 
 String _$clipLibraryServiceHash() =>
-    r'657ca5751fb520c4671997e6fbb8e87a760aecef';
+    r'f36b3e22012c58da8f70d620378448bbe500f0cc';
 
 /// Authentication service
 
@@ -2253,7 +2253,7 @@ final class IsNostrReadyProvider extends $FunctionalProvider<bool, bool, bool>
   }
 }
 
-String _$isNostrReadyHash() => r'ea9cfcc9e19612778d785043dbe87d4259ddea0a';
+String _$isNostrReadyHash() => r'fbbb0c3d96960fd4b2c49cc9180437f988da3b41';
 
 /// Provider that sets Zendesk user identity when auth state changes
 /// Watch this provider at app startup to keep Zendesk identity in sync with auth
@@ -2303,7 +2303,7 @@ final class ZendeskIdentitySyncProvider
 }
 
 String _$zendeskIdentitySyncHash() =>
-    r'ce4114939fc8a9124bc1b657defc0a6eea432d70';
+    r'e49d4f9cedf56ec4131b30a6f1d9d45dada68bed';
 
 /// User data cleanup service for handling identity changes
 /// Prevents data leakage between different Nostr accounts
@@ -2464,7 +2464,7 @@ final class VideoEventServiceProvider
   }
 }
 
-String _$videoEventServiceHash() => r'b3455a59a241ce1158a1bea7e55cbf29ab907155';
+String _$videoEventServiceHash() => r'b8cf948e728d3680cad3a1fff0e56994df434c8b';
 
 /// Hashtag service depends on Video event service and cache service
 
@@ -2512,17 +2512,17 @@ final class HashtagServiceProvider
 
 String _$hashtagServiceHash() => r'5cd38d3c2e8d78a6f7b74a72b650d79e28938fe4';
 
-/// Social service depends on Nostr service, Auth service, and Analytics API
+/// Social service depends on Nostr service, Auth service, and ProfileRepository
 
 @ProviderFor(socialService)
 const socialServiceProvider = SocialServiceProvider._();
 
-/// Social service depends on Nostr service, Auth service, and Analytics API
+/// Social service depends on Nostr service, Auth service, and ProfileRepository
 
 final class SocialServiceProvider
     extends $FunctionalProvider<SocialService, SocialService, SocialService>
     with $Provider<SocialService> {
-  /// Social service depends on Nostr service, Auth service, and Analytics API
+  /// Social service depends on Nostr service, Auth service, and ProfileRepository
   const SocialServiceProvider._()
     : super(
         from: null,
@@ -2556,7 +2556,7 @@ final class SocialServiceProvider
   }
 }
 
-String _$socialServiceHash() => r'6bcd6a86c6f0d5b42f84dc8cac32c9de51a3b950';
+String _$socialServiceHash() => r'7f858c18bfb9a531aef63fad0086233718f71a6a';
 
 /// Cached following list loaded directly from SharedPreferences.
 ///
@@ -2690,7 +2690,7 @@ final class FollowRepositoryProvider
   }
 }
 
-String _$followRepositoryHash() => r'b26951609811714d4830b2c8388b1f168d66b516';
+String _$followRepositoryHash() => r'1f2f6ee87179a7ca7cb52695e4e304ff56704c41';
 
 /// Provider for [CuratedListRepository] instance.
 ///
@@ -3153,7 +3153,7 @@ final class BlossomUploadServiceProvider
 }
 
 String _$blossomUploadServiceHash() =>
-    r'e5fedc7e9f4a91ea5dcbb1c607b5fa5008b589ba';
+    r'dd7f21326fc6c7cbc8ea291e9e9ca7c337da54f4';
 
 /// Upload manager uses only Blossom upload service
 
@@ -3199,7 +3199,7 @@ final class UploadManagerProvider
   }
 }
 
-String _$uploadManagerHash() => r'0c5355f45e237e8409b806088294fe3a96573249';
+String _$uploadManagerHash() => r'9f636cc37381c17373522cee0ba671657960bfec';
 
 /// API service depends on auth service
 
@@ -3697,11 +3697,17 @@ final class MuteServiceProvider
 String _$muteServiceHash() => r'a7faf00b4fe5d420db0bff450d444db5aa5d4934';
 
 /// Video sharing service
+///
+/// When a [DmRepository] is available the service sends videos via NIP-17
+/// encrypted DMs (NIP-17). Otherwise falls back to NIP-04 kind 4.
 
 @ProviderFor(videoSharingService)
 const videoSharingServiceProvider = VideoSharingServiceProvider._();
 
 /// Video sharing service
+///
+/// When a [DmRepository] is available the service sends videos via NIP-17
+/// encrypted DMs (NIP-17). Otherwise falls back to NIP-04 kind 4.
 
 final class VideoSharingServiceProvider
     extends
@@ -3712,6 +3718,9 @@ final class VideoSharingServiceProvider
         >
     with $Provider<VideoSharingService> {
   /// Video sharing service
+  ///
+  /// When a [DmRepository] is available the service sends videos via NIP-17
+  /// encrypted DMs (NIP-17). Otherwise falls back to NIP-04 kind 4.
   const VideoSharingServiceProvider._()
     : super(
         from: null,
@@ -3747,7 +3756,7 @@ final class VideoSharingServiceProvider
 }
 
 String _$videoSharingServiceHash() =>
-    r'b001f6ce04c25673327f72bcfbbcd27db6e49e7e';
+    r'4c869ac60484c15c6c196f164af34d658d9f2cac';
 
 /// Content deletion service for NIP-09 delete events
 
@@ -4178,7 +4187,7 @@ final class CommentsRepositoryProvider
 }
 
 String _$commentsRepositoryHash() =>
-    r'0f9ae0f15ebfc8ccb85e8ae3e2e251527271f334';
+    r'5e212e90231b672331731615d1b305759f6b9262';
 
 /// Provider for VideoLocalStorage instance (SQLite-backed)
 ///
@@ -4329,7 +4338,7 @@ final class VideosRepositoryProvider
   }
 }
 
-String _$videosRepositoryHash() => r'b4df09d7cd1d332dba8ff7e96d17b37ae4746e98';
+String _$videosRepositoryHash() => r'2111f016dd9fc45c972a42a74f85366077f05fea';
 
 /// Provider for LikesRepository instance
 ///

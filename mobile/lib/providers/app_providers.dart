@@ -457,12 +457,25 @@ AccountLabelService accountLabelService(Ref ref) {
 ModerationLabelService moderationLabelService(Ref ref) {
   final nostrClient = ref.watch(nostrServiceProvider);
   final authService = ref.watch(authServiceProvider);
+  final followRepository = ref.watch(followRepositoryProvider);
   final service = ModerationLabelService(
     nostrClient: nostrClient,
     authService: authService,
   );
-  service.initialize();
-  ref.onDispose(service.dispose);
+  unawaited(
+    service.initialize().then((_) {
+      return service.syncFollowedLabelers(followRepository.followingPubkeys);
+    }),
+  );
+  final followingSubscription = followRepository.followingStream.listen((
+    pubkeys,
+  ) {
+    unawaited(service.syncFollowedLabelers(pubkeys));
+  });
+  ref.onDispose(() {
+    followingSubscription.cancel();
+    service.dispose();
+  });
   return service;
 }
 
@@ -670,14 +683,28 @@ class BlocklistVersion extends _$BlocklistVersion {
 @riverpod
 DraftStorageService draftStorageService(Ref ref) {
   final db = ref.watch(databaseProvider);
-  return DraftStorageService(draftsDao: db.draftsDao, clipsDao: db.clipsDao);
+  // Rebuild when account changes so ownerPubkey stays current
+  ref.watch(currentAuthStateProvider);
+  final authService = ref.watch(authServiceProvider);
+  return DraftStorageService(
+    draftsDao: db.draftsDao,
+    clipsDao: db.clipsDao,
+    ownerPubkey: authService.currentPublicKeyHex,
+  );
 }
 
 /// Clip library service for persisting individual video clips
 @riverpod
 ClipLibraryService clipLibraryService(Ref ref) {
   final db = ref.watch(databaseProvider);
-  return ClipLibraryService(clipsDao: db.clipsDao, draftsDao: db.draftsDao);
+  // Rebuild when account changes so ownerPubkey stays current
+  ref.watch(currentAuthStateProvider);
+  final authService = ref.watch(authServiceProvider);
+  return ClipLibraryService(
+    clipsDao: db.clipsDao,
+    draftsDao: db.draftsDao,
+    ownerPubkey: authService.currentPublicKeyHex,
+  );
 }
 
 // (Removed duplicate legacy provider for StreamUploadService)
@@ -777,7 +804,9 @@ bool isNostrReady(Ref ref) {
   // Watch auth state to rebuild when auth changes
   ref.watch(currentAuthStateProvider);
 
-  if (!authService.isAuthenticated) return false;
+  if (!authService.isAuthenticated) {
+    return false;
+  }
 
   final nostrClient = ref.watch(nostrServiceProvider);
   final ready = nostrClient.hasKeys;
@@ -786,22 +815,24 @@ bool isNostrReady(Ref ref) {
     // NostrClient.initialize() runs asynchronously in a Future.microtask
     // after NostrService.build() returns. Riverpod can't detect when
     // hasKeys transitions because it's the same object reference.
-    // Schedule retries at increasing intervals to catch the transition.
-    var disposed = false;
-    ref.onDispose(() => disposed = true);
-
-    for (final delayMs in [100, 500, 2000]) {
-      Future.delayed(Duration(milliseconds: delayMs), () {
-        if (!disposed && nostrClient.hasKeys) {
+    // Poll with a periodic timer until hasKeys becomes true.
+    const pollInterval = Duration(milliseconds: 50);
+    final timer = Timer.periodic(
+      pollInterval,
+      (timer) {
+        if (nostrClient.hasKeys) {
+          timer.cancel();
           Log.info(
-            'isNostrReady: NostrClient.hasKeys became true after ${delayMs}ms, invalidating',
+            'isNostrReady: NostrClient.hasKeys became true after '
+            '${timer.tick * pollInterval.inMilliseconds}ms, invalidating',
             name: 'isNostrReadyProvider',
             category: LogCategory.system,
           );
           ref.invalidateSelf();
         }
-      });
-    }
+      },
+    );
+    ref.onDispose(timer.cancel);
   }
 
   return ready;
@@ -816,7 +847,11 @@ void zendeskIdentitySync(Ref ref) {
 
   // Set initial identity if already authenticated
   if (authService.isAuthenticated && authService.currentPublicKeyHex != null) {
-    _setZendeskIdentity(authService.currentPublicKeyHex!, profileRepository);
+    _setZendeskIdentity(
+      authService.currentPublicKeyHex!,
+      profileRepository,
+      ref,
+    );
   }
 
   // Listen to auth state changes
@@ -824,7 +859,7 @@ void zendeskIdentitySync(Ref ref) {
     if (authState == AuthState.authenticated) {
       final pubkeyHex = authService.currentPublicKeyHex;
       if (pubkeyHex != null) {
-        await _setZendeskIdentity(pubkeyHex, profileRepository);
+        await _setZendeskIdentity(pubkeyHex, profileRepository, ref);
       }
     } else if (authState == AuthState.unauthenticated) {
       await ZendeskSupportService.clearUserIdentity();
@@ -843,6 +878,7 @@ void zendeskIdentitySync(Ref ref) {
 Future<void> _setZendeskIdentity(
   String pubkeyHex,
   ProfileRepository? profileRepository,
+  Ref ref,
 ) async {
   try {
     final npub = NostrKeyUtils.encodePubKey(pubkeyHex);
@@ -850,11 +886,50 @@ Future<void> _setZendeskIdentity(
       pubkey: pubkeyHex,
     );
 
-    await ZendeskSupportService.setUserIdentity(
+    // 1. Store user info locally (for REST API fallback)
+    ZendeskSupportService.setUserIdentity(
       displayName: profile?.bestDisplayName,
       nip05: profile?.nip05,
       npub: npub,
     );
+
+    // 2. Set anonymous identity on native SDK immediately (no network call)
+    // This ensures createTicket() works for content reports right away
+    await ZendeskSupportService.setAnonymousIdentityWithUserInfo();
+
+    // 3. Upgrade to JWT identity asynchronously (network call)
+    // If this fails, anonymous identity remains and tickets still work
+    try {
+      final nip98Service = ref.read(nip98AuthServiceProvider);
+      final relayManagerUrl = ref
+          .read(currentEnvironmentProvider)
+          .relayManagerApiUrl;
+
+      final jwtSet = await ZendeskSupportService.setJwtIdentity(
+        nip98Service: nip98Service,
+        relayManagerUrl: relayManagerUrl,
+      );
+
+      if (jwtSet) {
+        Log.info(
+          'Zendesk JWT identity set for user',
+          name: 'ZendeskIdentitySync',
+          category: LogCategory.system,
+        );
+      } else {
+        Log.info(
+          'Zendesk JWT upgrade failed, anonymous identity active',
+          name: 'ZendeskIdentitySync',
+          category: LogCategory.system,
+        );
+      }
+    } catch (e) {
+      Log.info(
+        'Zendesk JWT upgrade failed ($e), anonymous identity active',
+        name: 'ZendeskIdentitySync',
+        category: LogCategory.system,
+      );
+    }
 
     Log.info(
       'Zendesk identity set for user: ${profile?.bestDisplayName ?? npub}',
@@ -898,6 +973,7 @@ VideoEventService videoEventService(Ref ref) {
   final eventRouter = EventRouter(db);
 
   final likesRepository = ref.watch(likesRepositoryProvider);
+  final moderationLabelService = ref.watch(moderationLabelServiceProvider);
   final divineHostFilterService = ref.read(divineHostFilterServiceProvider);
 
   final service = VideoEventService(
@@ -911,6 +987,7 @@ VideoEventService videoEventService(Ref ref) {
   service.setAgeVerificationService(ageVerificationService);
   service.setLikesRepository(likesRepository);
   service.setContentFilterService(ref.watch(contentFilterServiceProvider));
+  service.setModerationLabelService(moderationLabelService);
   service.setDivineHostFilterService(divineHostFilterService);
   return service;
 }
@@ -923,13 +1000,13 @@ HashtagService hashtagService(Ref ref) {
   return HashtagService(videoEventService, cacheService);
 }
 
-/// Social service depends on Nostr service, Auth service, and Analytics API
+/// Social service depends on Nostr service, Auth service, and ProfileRepository
 @Riverpod(keepAlive: true)
 SocialService socialService(Ref ref) {
   final nostrService = ref.watch(nostrServiceProvider);
   final authService = ref.watch(authServiceProvider);
   final personalEventCache = ref.watch(personalEventCacheServiceProvider);
-  final analyticsApiService = ref.watch(analyticsApiServiceProvider);
+  final profileRepository = ref.watch(profileRepositoryProvider);
 
   final env = ref.watch(currentEnvironmentProvider);
 
@@ -937,7 +1014,7 @@ SocialService socialService(Ref ref) {
     nostrService,
     authService,
     personalEventCache: personalEventCache,
-    analyticsApiService: analyticsApiService,
+    profileRepository: profileRepository,
     indexerRelayUrls: env.indexerRelays,
   );
 }
@@ -984,9 +1061,6 @@ FollowRepository followRepository(Ref ref) {
   final connectionStatus = ref.watch(connectionStatusServiceProvider);
   final pendingActionService = ref.watch(pendingActionServiceProvider);
 
-  // Get analytics API service for fast REST-based following list bootstrap
-  final analyticsService = ref.read(analyticsApiServiceProvider);
-
   // Get FunnelcakeApiClient for direct API access
   final funnelcakeApiClient = ref.watch(funnelcakeApiClientProvider);
 
@@ -1008,14 +1082,6 @@ FollowRepository followRepository(Ref ref) {
             );
           }
         : null,
-    fetchFollowingFromApi: (pubkey) async {
-      final result = await analyticsService.getFollowing(pubkey, limit: 5000);
-      return result.pubkeys;
-    },
-    fetchFollowersFromApi: (pubkey) async {
-      final result = await analyticsService.getFollowers(pubkey, limit: 5000);
-      return result.pubkeys;
-    },
     fetchFollowerCount: (pubkey) async {
       final socialService = ref.read(socialServiceProvider);
       final stats = await socialService.getFollowerStats(pubkey);
@@ -1276,14 +1342,22 @@ MediaAuthInterceptor mediaAuthInterceptor(Ref ref) {
 @riverpod
 BlossomUploadService blossomUploadService(Ref ref) {
   final authService = ref.watch(authServiceProvider);
-  return BlossomUploadService(authService: authService);
+  final env = ref.read(currentEnvironmentProvider);
+  return BlossomUploadService(
+    authService: authService,
+    defaultServerUrl: env.blossomUrl,
+  );
 }
 
 /// Upload manager uses only Blossom upload service
 @Riverpod(keepAlive: true)
 UploadManager uploadManager(Ref ref) {
   final blossomService = ref.watch(blossomUploadServiceProvider);
-  return UploadManager(blossomService: blossomService);
+  final env = ref.read(currentEnvironmentProvider);
+  return UploadManager(
+    blossomService: blossomService,
+    defaultBlossomUrl: env.blossomUrl,
+  );
 }
 
 /// API service depends on auth service
@@ -1513,16 +1587,21 @@ Future<MuteService> muteService(Ref ref) async {
 }
 
 /// Video sharing service
+///
+/// When a [DmRepository] is available the service sends videos via NIP-17
+/// encrypted DMs (NIP-17). Otherwise falls back to NIP-04 kind 4.
 @riverpod
 VideoSharingService videoSharingService(Ref ref) {
   final nostrService = ref.watch(nostrServiceProvider);
   final authService = ref.watch(authServiceProvider);
   final profileRepository = ref.watch(profileRepositoryProvider);
+  final dmRepository = ref.watch(dmRepositoryProvider);
 
   return VideoSharingService(
     nostrService: nostrService,
     authService: authService,
     profileRepository: profileRepository!,
+    dmRepository: dmRepository,
   );
 }
 
@@ -1670,7 +1749,11 @@ DmRepository dmRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 CommentsRepository commentsRepository(Ref ref) {
   final nostrClient = ref.watch(nostrServiceProvider);
-  return CommentsRepository(nostrClient: nostrClient);
+  final funnelcakeClient = ref.watch(funnelcakeApiClientProvider);
+  return CommentsRepository(
+    nostrClient: nostrClient,
+    funnelcakeApiClient: funnelcakeClient,
+  );
 }
 
 // =============================================================================
@@ -1707,10 +1790,14 @@ VideosRepository videosRepository(Ref ref) {
   final localStorage = ref.watch(videoLocalStorageProvider);
   final blocklistService = ref.watch(contentBlocklistServiceProvider);
   final contentFilterService = ref.watch(contentFilterServiceProvider);
+  final moderationLabelService = ref.watch(moderationLabelServiceProvider);
   final funnelcakeClient = ref.watch(funnelcakeApiClientProvider);
   final divineHostFilterService = ref.read(divineHostFilterServiceProvider);
 
-  final nsfwFilter = createNsfwFilter(contentFilterService);
+  final nsfwFilter = createNsfwFilter(
+    contentFilterService,
+    moderationLabelService: moderationLabelService,
+  );
 
   return VideosRepository(
     nostrClient: nostrClient,
@@ -1720,7 +1807,10 @@ VideosRepository videosRepository(Ref ref) {
         nsfwFilter(video) ||
         (divineHostFilterService.showDivineHostedOnly &&
             !video.isFromDivineServer),
-    warningLabelsResolver: createNsfwWarnLabels(contentFilterService),
+    warningLabelsResolver: createNsfwWarnLabels(
+      contentFilterService,
+      moderationLabelService: moderationLabelService,
+    ),
     funnelcakeApiClient: funnelcakeClient,
   );
 }

@@ -1,10 +1,10 @@
 // ABOUTME: Service for saving videos to the device's camera roll/gallery
 // ABOUTME: Uses the gal package for cross-platform gallery access
 
+import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
 import 'package:models/models.dart' as model show AspectRatio;
@@ -109,15 +109,16 @@ class GallerySaveService {
         return permResult;
       }
 
-      // Save the video to the gallery
+      // Save the video to the gallery with a timeout to prevent hanging on
+      // emulators or when the MediaStore is unresponsive.
       // On iOS, don't use album parameter - it requires full photo library access
       // With album, iOS shows a second permission dialog for full access
       // Without album, it only needs photosAddOnly permission
-      if (Platform.isIOS) {
-        await Gal.putVideo(resolvedPath);
-      } else {
-        await Gal.putVideo(resolvedPath, album: albumName);
-      }
+      final galFuture = (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS)
+          ? Gal.putVideo(resolvedPath)
+          : Gal.putVideo(resolvedPath, album: albumName);
+
+      await galFuture.timeout(const Duration(seconds: 15));
 
       Log.info(
         'Video saved to camera roll successfully',
@@ -126,6 +127,13 @@ class GallerySaveService {
       );
 
       return const GallerySaveSuccess();
+    } on TimeoutException {
+      Log.warning(
+        'Gallery save timed out after 15s',
+        name: 'GallerySaveService',
+        category: LogCategory.video,
+      );
+      return const GallerySaveFailure('Gallery save timed out');
     } on GalException catch (e) {
       Log.warning(
         'Failed to save video to gallery: ${e.type.name}',
@@ -166,6 +174,11 @@ class GallerySaveService {
       if (status == PermissionStatus.canRequest) {
         final requested = await _permissionsService.requestGalleryPermission();
         if (requested == PermissionStatus.granted) return null;
+
+        // Some platforms can briefly report a stale non-granted request result
+        // immediately after the user accepts the OS prompt.
+        final refreshedStatus = await _permissionsService.checkGalleryStatus();
+        if (refreshedStatus == PermissionStatus.granted) return null;
       }
 
       // Permanently denied or still not granted

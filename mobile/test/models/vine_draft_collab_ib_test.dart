@@ -41,10 +41,10 @@ void main() {
           description: '',
           hashtags: const {},
           selectedApproach: 'native',
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          ],
+          },
         );
 
         expect(draft.collaboratorPubkeys, hasLength(2));
@@ -111,9 +111,9 @@ void main() {
           description: '',
           hashtags: const {},
           selectedApproach: 'native',
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          ],
+          },
         );
 
         final json = draft.toJson();
@@ -124,6 +124,23 @@ void main() {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
           ]),
         );
+      });
+
+      test('collaboratorPubkeys serializes as List, not Set', () {
+        final draft = DivineVideoDraft.create(
+          clips: [_testClip()],
+          title: 'Test',
+          description: '',
+          hashtags: const {},
+          selectedApproach: 'native',
+          collaboratorPubkeys: {
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          },
+        );
+
+        final json = draft.toJson();
+        expect(json['collaboratorPubkeys'], isA<List>());
       });
 
       test('omits collaboratorPubkeys when empty', () {
@@ -223,10 +240,10 @@ void main() {
           description: 'With friends',
           hashtags: const {'collab'},
           selectedApproach: 'native',
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
             'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          ],
+          },
         );
 
         final json = original.toJson();
@@ -315,9 +332,9 @@ void main() {
           description: '',
           hashtags: const {},
           selectedApproach: 'native',
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          ],
+          },
           inspiredByVideo: ib,
           inspiredByNpub: 'npub1both',
         );
@@ -363,9 +380,9 @@ void main() {
           description: '',
           hashtags: const {},
           selectedApproach: 'native',
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          ],
+          },
           inspiredByNpub: 'npub1keep',
         );
 
@@ -400,15 +417,15 @@ void main() {
           description: '',
           hashtags: const {},
           selectedApproach: 'native',
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-          ],
+          },
         );
 
         final updated = draft.copyWith(
-          collaboratorPubkeys: [
+          collaboratorPubkeys: {
             'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-          ],
+          },
         );
 
         expect(updated.collaboratorPubkeys, hasLength(1));

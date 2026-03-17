@@ -2,6 +2,7 @@
 // ABOUTME: Controls playback, mute state, and position tracking
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,7 +14,6 @@ import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/divine_video_draft.dart';
 import 'package:openvine/models/video_publish/video_publish_provider_state.dart';
-import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
@@ -34,7 +34,7 @@ final videoPublishProvider =
 
 /// Manages video publish screen state including playback and position.
 class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
-  late final DraftStorageService _draftService = ref.read(
+  DraftStorageService get _draftService => ref.read(
     draftStorageServiceProvider,
   );
 
@@ -64,7 +64,7 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
   /// Resets all video-related providers.
   ///
   /// Clears recorder, editor, clip manager, and publish state.
-  Future<void> clearAll() async {
+  Future<void> clearAll({bool keepAutosavedDraft = false}) async {
     Log.debug(
       '🧹 Clearing all video providers',
       name: 'VideoPublishNotifier',
@@ -75,8 +75,12 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
       reset();
 
       await Future.wait([
-        ref.read(clipManagerProvider.notifier).clearAll(),
-        ref.read(videoEditorProvider.notifier).reset(),
+        ref
+            .read(clipManagerProvider.notifier)
+            .clearAll(keepAutosavedDraft: keepAutosavedDraft),
+        ref
+            .read(videoEditorProvider.notifier)
+            .reset(keepAutosavedDraft: keepAutosavedDraft),
       ]);
     } catch (error, stackTrace) {
       Log.error(
@@ -91,12 +95,14 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
 
   /// Resumes any pending publish drafts that were interrupted.
   ///
-  /// Called on app startup to check for drafts with [VideoEditorConstants.publishPrefixId]
-  /// prefix and restart their upload process.
+  /// Called on app startup to query only drafts with `publishing` or `failed`
+  /// status and surface them to the user via [BackgroundPublishFailed].
   Future<void> resumePendingPublishes(BuildContext context) async {
-    final List<DivineVideoDraft> drafts;
+    final List<DivineVideoDraft> pendingDrafts;
     try {
-      drafts = await _draftService.getAllDrafts();
+      pendingDrafts = await _draftService.getDraftsByPublishStatuses(
+        const {PublishStatus.publishing, PublishStatus.failed},
+      );
     } catch (e) {
       Log.error(
         '❌ Failed to load drafts for pending publish resume: $e',
@@ -106,10 +112,6 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
       return;
     }
     if (!context.mounted) return;
-
-    final pendingDrafts = drafts.where(
-      (d) => d.id.startsWith(VideoEditorConstants.publishPrefixId),
-    );
 
     if (pendingDrafts.isEmpty) {
       Log.debug(
@@ -156,27 +158,18 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
       }
 
       Log.info(
-        '📤 Resuming upload for draft: ${draft.id}',
+        '📤 Surfacing interrupted draft: ${draft.id}',
         name: 'VideoPublishNotifier',
         category: LogCategory.video,
       );
 
-      final publishService = await _createPublishService(
-        onProgressChanged: ({required draftId, required progress}) {
-          backgroundPublishBloc.add(
-            BackgroundPublishProgressChanged(
-              draftId: draftId,
-              progress: progress,
-            ),
-          );
-        },
-      );
-
-      final publishmentProcess = publishService.publishVideo(draft: draft);
+      // TODO(l10n): Replace with context.l10n when localization is added.
       backgroundPublishBloc.add(
-        BackgroundPublishRequested(
+        BackgroundPublishFailed(
           draft: draft,
-          publishmentProcess: publishmentProcess,
+          userMessage:
+              draft.publishError ??
+              'This upload was interrupted. Would you like to try again?',
         ),
       );
     }
@@ -309,6 +302,9 @@ class VideoPublishNotifier extends Notifier<VideoPublishProviderState> {
             '${DateTime.now().microsecondsSinceEpoch}',
         finalRenderedClip: finalRenderedClip,
         proofManifestJson: proofManifestJson,
+        publishStatus: PublishStatus.publishing,
+        clearPublishError: true,
+        publishAttempts: draft.publishAttempts + 1,
       );
 
       Log.debug(

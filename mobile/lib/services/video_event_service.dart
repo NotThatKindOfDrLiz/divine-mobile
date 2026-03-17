@@ -38,7 +38,9 @@ import 'package:openvine/services/content_blocklist_service.dart';
 import 'package:openvine/services/content_filter_service.dart';
 import 'package:openvine/services/crash_reporting_service.dart';
 import 'package:openvine/services/divine_host_filter_service.dart';
+import 'package:openvine/services/effective_content_labels.dart';
 import 'package:openvine/services/event_router.dart';
+import 'package:openvine/services/moderation_label_service.dart';
 import 'package:openvine/services/performance_monitoring_service.dart';
 import 'package:openvine/services/repost_resolver.dart';
 import 'package:openvine/services/subscription_manager.dart';
@@ -207,6 +209,7 @@ class VideoEventService extends ChangeNotifier {
   AgeVerificationService? _ageVerificationService;
   LikesRepository? _likesRepository;
   ContentFilterService? _contentFilterService;
+  ModerationLabelService? _moderationLabelService;
   DivineHostFilterService? _divineHostFilterService;
   final SubscriptionManager _subscriptionManager;
 
@@ -323,6 +326,18 @@ class VideoEventService extends ChangeNotifier {
     _contentFilterService = contentFilterService;
     Log.debug(
       'Content filter service attached to VideoEventService',
+      name: 'VideoEventService',
+      category: LogCategory.video,
+    );
+  }
+
+  /// Set the trusted moderation label service for kind-1985 label lookups.
+  void setModerationLabelService(
+    ModerationLabelService moderationLabelService,
+  ) {
+    _moderationLabelService = moderationLabelService;
+    Log.debug(
+      'Moderation label service attached to VideoEventService',
       name: 'VideoEventService',
       category: LogCategory.video,
     );
@@ -466,6 +481,13 @@ class VideoEventService extends ChangeNotifier {
   /// Filter a list of [VideoEvent]s based on the user's content filter
   /// preferences. Videos matching "hide" labels are removed from the list.
   /// Videos matching "warn" labels are kept (the UI shows an overlay).
+  ///
+  /// [contentWarningLabels] (author self-labels from NIP-32/NIP-36) trigger
+  /// both "hide" and "warn" behaviour.
+  ///
+  /// [moderationLabels] (ML-generated from Funnelcake) only trigger "hide"
+  /// filtering — never "warn" blur overlays — because ML classifiers are
+  /// noisy and would otherwise block autoplay on ordinary videos.
   List<VideoEvent> filterVideoList(List<VideoEvent> videos) {
     final service = _contentFilterService;
     final baseVideos = videos
@@ -475,7 +497,10 @@ class VideoEventService extends ChangeNotifier {
 
     return baseVideos
         .map((video) {
-          final labels = video.contentWarningLabels;
+          final labels = resolveEffectiveContentLabels(
+            video,
+            moderationLabelService: _moderationLabelService,
+          );
           if (labels.isEmpty) {
             return video.warnLabels.isEmpty
                 ? video
@@ -498,10 +523,27 @@ class VideoEventService extends ChangeNotifier {
               : video;
         })
         .where((video) {
-          final labels = video.contentWarningLabels;
-          if (labels.isEmpty) return true;
-          final pref = service.getPreferenceForLabels(labels);
-          return pref != ContentFilterPreference.hide;
+          // Hide check considers effective warning labels plus moderation labels.
+          final selfLabels = resolveEffectiveContentLabels(
+            video,
+            moderationLabelService: _moderationLabelService,
+          );
+          final modLabels = video.moderationLabels;
+          if (selfLabels.isEmpty && modLabels.isEmpty) return true;
+
+          // Check self-labels
+          if (selfLabels.isNotEmpty) {
+            final pref = service.getPreferenceForLabels(selfLabels);
+            if (pref == ContentFilterPreference.hide) return false;
+          }
+
+          // Check moderation labels (hide-only — never warn)
+          if (modLabels.isNotEmpty) {
+            final pref = service.getPreferenceForLabels(modLabels);
+            if (pref == ContentFilterPreference.hide) return false;
+          }
+
+          return true;
         })
         .toList();
   }

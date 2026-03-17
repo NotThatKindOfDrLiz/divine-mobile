@@ -18,6 +18,7 @@ import 'package:openvine/blocs/background_publish/background_publish_bloc.dart';
 import 'package:openvine/blocs/camera_permission/camera_permission_bloc.dart';
 import 'package:openvine/blocs/dm/unread_count/dm_unread_count_cubit.dart';
 import 'package:openvine/blocs/email_verification/email_verification_cubit.dart';
+import 'package:openvine/blocs/invite_gate/invite_gate_bloc.dart';
 import 'package:openvine/config/zendesk_config.dart';
 import 'package:openvine/network/vine_cdn_http_overrides.dart'
     if (dart.library.html) 'package:openvine/utils/platform_io_web.dart';
@@ -27,6 +28,7 @@ import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/router/router.dart';
+import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/feed/video_feed_page.dart';
 import 'package:openvine/screens/hashtag_screen_router.dart';
@@ -38,6 +40,7 @@ import 'package:openvine/services/back_button_handler.dart';
 import 'package:openvine/services/bandwidth_tracker_service.dart';
 import 'package:openvine/services/crash_reporting_service.dart';
 import 'package:openvine/services/deep_link_service.dart';
+import 'package:openvine/services/invite_api_service.dart';
 import 'package:openvine/services/logging_config_service.dart';
 import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/services/performance_monitoring_service.dart';
@@ -50,6 +53,7 @@ import 'package:openvine/utils/log_message_batcher.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/app_lifecycle_handler.dart';
 import 'package:openvine/widgets/geo_blocking_gate.dart';
+import 'package:openvine/widgets/upload_failure_sheet.dart';
 import 'package:permissions_service/permissions_service.dart';
 import 'package:pooled_video_player/pooled_video_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -346,30 +350,51 @@ Future<void> _startOpenVineApp() async {
   // Configure global error widget builder for user-friendly error display
   // Wrap in Directionality to enable Text widgets even before MaterialApp is ready
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    return const Directionality(
+    // On web, show error details for debugging
+    if (kIsWeb) {
+      print('ErrorWidget: ${details.exception}\n${details.stack}');
+    }
+    return Directionality(
       textDirection: TextDirection.ltr,
       child: ColoredBox(
         color: VineTheme.backgroundColor,
         child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline_rounded,
-                color: VineTheme.accentOrange,
-                size: 48,
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Oops, something went wrong',
-                style: TextStyle(
-                  color: VineTheme.whiteText,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.none,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: VineTheme.accentOrange,
+                  size: 48,
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Oops, something went wrong',
+                  style: TextStyle(
+                    color: VineTheme.whiteText,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+                if (kIsWeb) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      '${details.exception}',
+                      style: const TextStyle(
+                        color: VineTheme.secondaryText,
+                        fontSize: 12,
+                        decoration: TextDecoration.none,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -547,11 +572,15 @@ Future<void> _startOpenVineApp() async {
     ),
   );
 
-  // Initialize MediaKit for pooled_video_player (uses media_kit internally)
-  MediaKit.ensureInitialized();
+  // Initialize MediaKit for pooled_video_player (uses media_kit internally).
+  // Skip on web — media_kit requires native libraries (libmpv) that are not
+  // available in browser environments. Web uses video_player instead.
+  if (!kIsWeb) {
+    MediaKit.ensureInitialized();
 
-  // Initialize the player pool singleton
-  await PlayerPool.init();
+    // Initialize the player pool singleton
+    await PlayerPool.init();
+  }
 
   runApp(
     UncontrolledProviderScope(container: container, child: const DivineApp()),
@@ -893,6 +922,32 @@ class _DivineAppState extends ConsumerState<DivineApp> {
                   category: LogCategory.ui,
                 );
               }
+            case DeepLinkType.invite:
+              if (deepLink.inviteCode != null) {
+                final targetPath = WelcomeScreen.inviteGatePathWithCode(
+                  deepLink.inviteCode!,
+                );
+                Log.info(
+                  '📱 Navigating to invite gate: $targetPath',
+                  name: 'DeepLinkHandler',
+                  category: LogCategory.ui,
+                );
+                try {
+                  router.go(targetPath);
+                } catch (e) {
+                  Log.error(
+                    '❌ Invite navigation failed: $e',
+                    name: 'DeepLinkHandler',
+                    category: LogCategory.ui,
+                  );
+                }
+              } else {
+                Log.warning(
+                  '⚠️ Invite deep link missing code',
+                  name: 'DeepLinkHandler',
+                  category: LogCategory.ui,
+                );
+              }
             case DeepLinkType.signerCallback:
               Log.info(
                 '📱 Signer callback - triggering relay reconnection',
@@ -1114,23 +1169,13 @@ class _DivineAppState extends ConsumerState<DivineApp> {
     }
 
     // Wrap with geo-blocking check first, then lifecycle handler
-    Widget wrapped = MultiBlocProvider(
+    Widget wrapped = MultiRepositoryProvider(
       providers: [
-        BlocProvider(
-          create: (_) => BackgroundPublishBloc(
-            videoPublishServiceFactory: createPublishService,
+        RepositoryProvider(
+          create: (_) => InviteApiService(
+            authService: ref.read(nip98AuthServiceProvider),
           ),
-        ),
-        BlocProvider(
-          create: (_) => CameraPermissionBloc(
-            permissionsService: const PermissionHandlerPermissionsService(),
-          )..add(const CameraPermissionRefresh()),
-        ),
-        BlocProvider(
-          create: (_) => EmailVerificationCubit(
-            oauthClient: ref.read(oauthClientProvider),
-            authService: ref.read(authServiceProvider),
-          ),
+          dispose: (service) => service.dispose(),
         ),
         BlocProvider(
           create: (_) => DmUnreadCountCubit(
@@ -1138,26 +1183,55 @@ class _DivineAppState extends ConsumerState<DivineApp> {
           ),
         ),
       ],
-      // Global listener for email verification failures - shows snackbar
-      // when verification times out or fails while user is elsewhere in app
-      child: BlocListener<EmailVerificationCubit, EmailVerificationState>(
-        listenWhen: (previous, current) =>
-            current.status == EmailVerificationStatus.failure &&
-            previous.status != EmailVerificationStatus.failure,
-        listener: (context, state) {
-          final messenger = ScaffoldMessenger.maybeOf(context);
-          if (messenger != null && state.error != null) {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(state.error!),
-                backgroundColor: VineTheme.error,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        },
-        child: GeoBlockingGate(child: AppLifecycleHandler(child: app)),
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => BackgroundPublishBloc(
+              videoPublishServiceFactory: createPublishService,
+              draftStorageService: ref.read(draftStorageServiceProvider),
+            ),
+          ),
+          BlocProvider(
+            create: (_) => CameraPermissionBloc(
+              permissionsService: const PermissionHandlerPermissionsService(),
+            )..add(const CameraPermissionRefresh()),
+          ),
+          BlocProvider(
+            create: (context) => InviteGateBloc(
+              inviteApiService: context.read<InviteApiService>(),
+            ),
+          ),
+          BlocProvider(
+            create: (context) => EmailVerificationCubit(
+              oauthClient: ref.read(oauthClientProvider),
+              authService: ref.read(authServiceProvider),
+              inviteApiService: context.read<InviteApiService>(),
+            ),
+          ),
+        ],
+        // Global listener for email verification failures - shows snackbar
+        // when verification times out or fails while user is elsewhere in app
+        child: BlocListener<EmailVerificationCubit, EmailVerificationState>(
+          listenWhen: (previous, current) =>
+              current.status == EmailVerificationStatus.failure &&
+              previous.status != EmailVerificationStatus.failure,
+          listener: (context, state) {
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            if (messenger != null && state.error != null) {
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(state.error!),
+                  backgroundColor: VineTheme.error,
+                  behavior: SnackBarBehavior.floating,
+                  duration: const Duration(seconds: 5),
+                ),
+              );
+            }
+          },
+          child: _UploadFailureListener(
+            child: GeoBlockingGate(child: AppLifecycleHandler(child: app)),
+          ),
+        ),
       ),
     );
 
@@ -1178,6 +1252,74 @@ class _DivineAppState extends ConsumerState<DivineApp> {
     }
 
     return wrapped; // ProviderScope now wraps DivineApp from outside
+  }
+}
+
+/// Listens for background upload failures and shows a bottom sheet.
+///
+/// Uses [NavigatorKeys.root] to obtain a [BuildContext] inside the
+/// [Navigator] tree, which [showModalBottomSheet] requires.
+///
+/// Tracks the set of currently-failed draft IDs so that only **new**
+/// failures trigger a sheet. When a draft is retried or dismissed its ID
+/// leaves the failed set, so a subsequent failure is detected as new again.
+class _UploadFailureListener extends StatefulWidget {
+  const _UploadFailureListener({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_UploadFailureListener> createState() => _UploadFailureListenerState();
+}
+
+class _UploadFailureListenerState extends State<_UploadFailureListener> {
+  var _lastKnownFailedIds = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<BackgroundPublishBloc, BackgroundPublishState>(
+      listener: (context, state) {
+        // Don't show failure sheets while the user is not authenticated
+        // (e.g. still on the login screen after a cold start).
+        // Also don't update _lastKnownFailedIds so these failures are
+        // detected as "new" once the user eventually authenticates.
+        final authService = ProviderScope.containerOf(
+          context,
+        ).read(authServiceProvider);
+        if (!authService.isAuthenticated) return;
+
+        final currentFailedIds = state.uploads
+            .where((u) => u.result is PublishError)
+            .map((u) => u.draft.id)
+            .toSet();
+
+        final newFailedIds = currentFailedIds.difference(_lastKnownFailedIds);
+        _lastKnownFailedIds = currentFailedIds;
+
+        if (newFailedIds.isEmpty) return;
+
+        final navContext = NavigatorKeys.root.currentContext;
+        if (navContext == null) return;
+
+        final newFailures = state.uploads
+            .where((u) => newFailedIds.contains(u.draft.id))
+            .toList();
+
+        _showFailureSheetsSequentially(navContext, newFailures);
+      },
+      child: widget.child,
+    );
+  }
+}
+
+/// Shows failure bottom sheets one after another for each failed upload.
+Future<void> _showFailureSheetsSequentially(
+  BuildContext context,
+  List<BackgroundUpload> failedUploads,
+) async {
+  for (final upload in failedUploads) {
+    if (!context.mounted) return;
+    await showUploadFailureSheet(context, upload);
   }
 }
 

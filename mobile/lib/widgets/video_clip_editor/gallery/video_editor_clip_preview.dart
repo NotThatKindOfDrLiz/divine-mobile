@@ -2,12 +2,12 @@
 // ABOUTME: Manages video player lifecycle for the currently selected clip
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:openvine/models/divine_video_clip.dart';
-import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/widgets/video_clip_editor/video_clip_editor_processing_overlay.dart';
 import 'package:video_player/video_player.dart';
@@ -237,7 +237,7 @@ class _VideoClipPreviewState extends ConsumerState<VideoEditorClipPreview> {
                     : widget.isReordering
                     // Yellow when reordering
                     ? VineTheme.accentYellow
-                    : Colors.transparent, // Transparent otherwise
+                    : VineTheme.transparent, // Transparent otherwise
                 width: 6,
                 strokeAlign: BorderSide.strokeAlignOutside,
               ),
@@ -322,17 +322,6 @@ class _ClipThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (clip.thumbnailPath == null) {
-      return const ColoredBox(
-        color: VineTheme.lightText,
-        child: Icon(
-          Icons.play_circle_outline,
-          size: 64,
-          color: VineTheme.whiteText,
-        ),
-      );
-    }
-
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 150),
       layoutBuilder: (current, previous) => Stack(
@@ -340,11 +329,20 @@ class _ClipThumbnail extends StatelessWidget {
         fit: .expand,
         children: <Widget>[...previous, ?current],
       ),
-      child: Image.file(
-        File(clip.thumbnailPath!),
-        key: ValueKey('${clip.id}-${clip.thumbnailPath}'),
-        fit: .cover,
-      ),
+      child: clip.thumbnailPath == null
+          ? const ColoredBox(
+              color: VineTheme.lightText,
+              child: DivineIcon(
+                icon: .playCircle,
+                size: 64,
+                color: VineTheme.whiteText,
+              ),
+            )
+          : Image.file(
+              File(clip.thumbnailPath!),
+              key: ValueKey('${clip.id}-${clip.thumbnailPath}'),
+              fit: .cover,
+            ),
     );
   }
 }

@@ -19,11 +19,16 @@ class DraftStorageService {
   DraftStorageService({
     required DraftsDao draftsDao,
     required ClipsDao clipsDao,
+    this.ownerPubkey,
   }) : _draftsDao = draftsDao,
        _clipsDao = clipsDao;
 
   final DraftsDao _draftsDao;
   final ClipsDao _clipsDao;
+
+  /// Hex pubkey of the current account. When set, new drafts are tagged
+  /// with this owner and queries filter by it (plus legacy NULL rows).
+  final String? ownerPubkey;
 
   static const String _storageKey = 'vine_drafts';
 
@@ -212,11 +217,80 @@ class DraftStorageService {
           ? p.basename(draft.finalRenderedClip!.thumbnailPath!)
           : null,
       clipDataList: clipDataList,
+      ownerPubkey: ownerPubkey,
     );
   }
 
   /// Get total count of drafts without loading their data.
-  Future<int> getDraftCount() => _draftsDao.getCount();
+  Future<int> getDraftCount() => _draftsDao.getCount(ownerPubkey: ownerPubkey);
+
+  /// Returns drafts matching any of the given [statuses].
+  ///
+  /// Queries the database directly by `publish_status` column instead of
+  /// loading all drafts into memory. Corrupted rows (0 clips) are cleaned
+  /// up automatically.
+  Future<List<DivineVideoDraft>> getDraftsByPublishStatuses(
+    Set<PublishStatus> statuses,
+  ) async {
+    final documentsPath = await getDocumentsPath();
+    final drafts = <DivineVideoDraft>[];
+    final corruptedDraftIds = <String>[];
+
+    for (final status in statuses) {
+      final rows = await _draftsDao.getDraftsByStatus(
+        status.name,
+        ownerPubkey: ownerPubkey,
+      );
+
+      for (final row in rows) {
+        final clipRows = await _clipsDao.getClipsByDraftId(row.id);
+
+        if (clipRows.isEmpty) {
+          corruptedDraftIds.add(row.id);
+          continue;
+        }
+
+        drafts.add(
+          DivineVideoDraft.fromDriftRow(
+            row: row,
+            clipRows: clipRows,
+            documentsPath: documentsPath,
+          ),
+        );
+      }
+    }
+
+    if (corruptedDraftIds.isNotEmpty) {
+      Log.warning(
+        '🧹 Removing ${corruptedDraftIds.length} corrupted '
+        'draft(s) with 0 clips: $corruptedDraftIds',
+        name: 'DraftStorageService',
+        category: LogCategory.video,
+      );
+      for (final id in corruptedDraftIds) {
+        await _draftsDao.deleteDraft(id);
+      }
+    }
+
+    return drafts;
+  }
+
+  /// Updates the publish status of a draft directly in the database.
+  ///
+  /// More efficient than loading the full draft, mutating, and saving.
+  Future<void> updatePublishStatus({
+    required String draftId,
+    required PublishStatus status,
+    String? publishError,
+    int? publishAttempts,
+  }) async {
+    await _draftsDao.updatePublishStatus(
+      id: draftId,
+      publishStatus: status.name,
+      publishError: publishError,
+      publishAttempts: publishAttempts,
+    );
+  }
 
   Future<DivineVideoDraft?> getDraftById(String id) async {
     final row = await _draftsDao.getDraftById(id);
@@ -286,7 +360,9 @@ class DraftStorageService {
   /// Get all drafts from storage
   Future<List<DivineVideoDraft>> getAllDrafts() async {
     try {
-      final rows = await _draftsDao.getAllDrafts();
+      final rows = await _draftsDao.getAllDrafts(
+        ownerPubkey: ownerPubkey,
+      );
       final documentsPath = await getDocumentsPath();
       final drafts = <DivineVideoDraft>[];
       final corruptedDraftIds = <String>[];

@@ -66,6 +66,44 @@ void updateUser(User user) {
 
 ---
 
+## No Hardcoded Values
+
+Never hardcode relay URLs, port numbers, API endpoints, durations, or numeric thresholds directly in BLoCs, repositories, or widgets. Extract them into named constants grouped in a dedicated class or config object.
+
+**Bad:**
+```dart
+class ShareSheetBloc extends Bloc<ShareSheetEvent, ShareSheetState> {
+  Future<void> _onShare(...) async {
+    await _client.publish(
+      relays: ['wss://relay.example.com'],  // WRONG — hardcoded relay
+      retries: 3,                            // WRONG — magic number
+    );
+  }
+}
+```
+
+**Good:**
+```dart
+abstract class ShareConstants {
+  static const defaultRelays = ['wss://relay.example.com'];
+  static const maxRetries = 3;
+}
+
+// Or use environment config for environment-specific values
+class ShareSheetBloc extends Bloc<ShareSheetEvent, ShareSheetState> {
+  Future<void> _onShare(...) async {
+    await _client.publish(
+      relays: ShareConstants.defaultRelays,
+      retries: ShareConstants.maxRetries,
+    );
+  }
+}
+```
+
+Group related constants together so they are easy to find and update in one place.
+
+---
+
 ## Dart Best Practices
 
 ### Null Safety
@@ -201,6 +239,49 @@ return const Column(
   ],
 );
 ```
+
+### Uniform Spacing in Row/Column
+When all gaps between children are equal, use the `spacing` parameter instead of inserting `SizedBox` widgets between each child:
+
+```dart
+// Good - uniform spacing via parameter
+Column(
+  spacing: 8,
+  children: [
+    Text('Title'),
+    Text('Subtitle'),
+    Text('Body'),
+  ],
+);
+
+// Bad - manual SizedBox for uniform gaps
+Column(
+  children: [
+    Text('Title'),
+    SizedBox(height: 8),
+    Text('Subtitle'),
+    SizedBox(height: 8),
+    Text('Body'),
+  ],
+);
+```
+
+Use `SizedBox` only when gaps between children differ:
+
+```dart
+// SizedBox is fine here - gaps are not uniform
+Column(
+  children: [
+    Text('Title'),
+    SizedBox(height: 16),
+    Text('Subtitle'),
+    SizedBox(height: 8),
+    Text('Body'),
+  ],
+);
+```
+
+This applies equally to `Row(spacing: ...)` for horizontal layouts.
 
 ### List Performance
 Use `ListView.builder` or `SliverList` for long lists (lazy loading):

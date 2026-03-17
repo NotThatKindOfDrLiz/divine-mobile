@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +15,6 @@ import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/divine_video_draft.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
 import 'package:openvine/models/video_metadata/video_metadata_expiration.dart';
-import 'package:openvine/platform_io.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/database_provider.dart';
@@ -48,8 +48,11 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   static const Duration _autosaveDebounce = Duration(milliseconds: 800);
 
   /// Current draft ID for save/load operations.
-  @visibleForTesting
-  String? draftId;
+  String? _draftId;
+  String get draftId => _draftId ?? VideoEditorConstants.autoSaveId;
+  set draftId(String? id) {
+    _draftId = id;
+  }
 
   Timer? _autosaveTimer;
 
@@ -60,7 +63,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Get clips from clip manager.
   List<DivineVideoClip> get _clips => ref.read(clipManagerProvider).clips;
 
-  late final DraftStorageService _draftService = ref.read(
+  DraftStorageService get _draftService => ref.read(
     draftStorageServiceProvider,
   );
 
@@ -152,13 +155,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
         );
       }
     }
-    this.draftId = draftId ?? 'Draft_${DateTime.now().microsecondsSinceEpoch}';
+    this.draftId = draftId ?? VideoEditorConstants.autoSaveId;
   }
 
   /// Reset editor state and metadata to defaults.
   ///
-  /// Also cancels any pending autosave and deletes the autosaved draft.
-  Future<void> reset() async {
+  /// Also cancels any pending autosave and deletes the autosaved draft
+  /// unless [keepAutosavedDraft] is true.
+  Future<void> reset({bool keepAutosavedDraft = false}) async {
     Log.debug(
       '🔄 Resetting editor state',
       name: 'VideoEditorNotifier',
@@ -166,8 +170,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
     state = VideoEditorProviderState();
     _autosaveTimer?.cancel();
-
-    unawaited(removeAutosavedDraft());
+    draftId = null;
+    if (!keepAutosavedDraft) {
+      unawaited(removeAutosavedDraft());
+    }
   }
 
   // === CLIP SELECTION & NAVIGATION ===
@@ -458,9 +464,9 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Validates and enforces the 64KB size limit. Rejects updates that exceed
   /// the limit and sets metadataLimitReached flag.
   ///
-  /// Automatically extracts completed hashtags from title and description.
-  /// A hashtag is considered complete when followed by a space or at the end
-  /// of the string (e.g., "#hot " or "text #hot").
+  /// Automatically extracts hashtags from title and description.
+  /// A hashtag is detected when followed by a non-alphanumeric character
+  /// or at end of string (e.g., "#hot ", "#hot", "text #hot.").
   void updateMetadata({String? title, String? description, Set<String>? tags}) {
     Log.debug(
       '📝 Updated video metadata',
@@ -488,10 +494,10 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
           .toSet();
     } else {
       // Text changed - compare old and new hashtags to only update changed ones
-      final hashtagPattern = RegExp(r'#([a-zA-Z0-9]+)\s');
+      final hashtagPattern = RegExp('#([a-zA-Z0-9]+)(?![a-zA-Z0-9])');
 
       // Extract hashtags from OLD text
-      final oldText = '${state.title} ${state.description} ';
+      final oldText = '${state.title} ${state.description}';
       final oldHashtags = hashtagPattern
           .allMatches(oldText)
           .map((m) => m.group(1))
@@ -500,7 +506,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
           .toSet();
 
       // Extract hashtags from NEW text
-      final newText = '$rawTitle $rawDescription ';
+      final newText = '$rawTitle $rawDescription';
       final newHashtags = hashtagPattern
           .allMatches(newText)
           .map((m) => m.group(1))
@@ -574,6 +580,48 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   /// Maximum number of collaborators allowed per video.
   static const int maxCollaborators = 5;
 
+  /// Add a collaborator pubkey to the pending verification set.
+  ///
+  /// Enforces a maximum of [maxCollaborators] total (confirmed + pending).
+  void addPendingCollaborator(String pubkey) {
+    final total =
+        state.collaboratorPubkeys.length +
+        state.pendingCollaboratorPubkeys.length;
+    if (total >= maxCollaborators) return;
+    if (state.collaboratorPubkeys.contains(pubkey)) return;
+    if (state.pendingCollaboratorPubkeys.contains(pubkey)) return;
+    state = state.copyWith(
+      pendingCollaboratorPubkeys: {
+        ...state.pendingCollaboratorPubkeys,
+        pubkey,
+      },
+    );
+  }
+
+  /// Confirm a pending collaborator after successful verification.
+  ///
+  /// Moves the pubkey from [pendingCollaboratorPubkeys] to
+  /// [collaboratorPubkeys].
+  void confirmCollaborator(String pubkey) {
+    if (!state.pendingCollaboratorPubkeys.contains(pubkey)) return;
+    state = state.copyWith(
+      pendingCollaboratorPubkeys: state.pendingCollaboratorPubkeys
+          .where((p) => p != pubkey)
+          .toSet(),
+      collaboratorPubkeys: {...state.collaboratorPubkeys, pubkey},
+    );
+    triggerAutosave();
+  }
+
+  /// Remove a pubkey from the pending verification set.
+  void removePendingCollaborator(String pubkey) {
+    state = state.copyWith(
+      pendingCollaboratorPubkeys: state.pendingCollaboratorPubkeys
+          .where((p) => p != pubkey)
+          .toSet(),
+    );
+  }
+
   /// Add a collaborator pubkey to the video.
   ///
   /// Enforces a maximum of [maxCollaborators] collaborators.
@@ -582,7 +630,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     if (state.collaboratorPubkeys.length >= maxCollaborators) return;
     if (state.collaboratorPubkeys.contains(pubkey)) return;
     state = state.copyWith(
-      collaboratorPubkeys: [...state.collaboratorPubkeys, pubkey],
+      collaboratorPubkeys: {...state.collaboratorPubkeys, pubkey},
     );
     triggerAutosave();
   }
@@ -592,7 +640,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     state = state.copyWith(
       collaboratorPubkeys: state.collaboratorPubkeys
           .where((p) => p != pubkey)
-          .toList(),
+          .toSet(),
     );
     triggerAutosave();
   }
@@ -661,6 +709,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   DivineVideoDraft getActiveDraft({
     bool isAutosave = false,
     bool enforceSeparatedClips = false,
+    String? draftId,
   }) {
     // Read selected sound from local state
     final selectedSound = state.selectedSound;
@@ -676,7 +725,9 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     }
 
     return DivineVideoDraft.create(
-      id: isAutosave ? VideoEditorConstants.autoSaveId : draftId,
+      id:
+          draftId ??
+          (isAutosave ? VideoEditorConstants.autoSaveId : this.draftId),
       clips:
           state.finalRenderedClip == null || isAutosave || enforceSeparatedClips
           ? _clips
@@ -778,7 +829,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
     );
 
     try {
-      final draft = getActiveDraft(isAutosave: true);
+      final draft = getActiveDraft(isAutosave: isAutosavedDraft);
       await _draftService.saveDraft(draft);
 
       Log.info(
@@ -805,10 +856,14 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
   ///
   /// Persists clips and metadata to local storage for later editing.
   /// Returns `true` on success, `false` on failure.
-  Future<bool> saveAsDraft() async {
+  Future<bool> saveAsDraft({bool enforceCreateNewDraft = false}) async {
     if (state.isSavingDraft) return false;
 
     state = state.copyWith(isSavingDraft: true);
+
+    final draftId = enforceCreateNewDraft
+        ? 'draft_${DateTime.now().microsecondsSinceEpoch}'
+        : this.draftId;
 
     Log.info(
       '💾 Saving draft: $draftId',
@@ -818,7 +873,7 @@ class VideoEditorNotifier extends Notifier<VideoEditorProviderState> {
 
     try {
       await _draftService.saveDraft(
-        getActiveDraft(enforceSeparatedClips: true),
+        getActiveDraft(enforceSeparatedClips: true, draftId: draftId),
       );
 
       // Remove the autosaved draft
