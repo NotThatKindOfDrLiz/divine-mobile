@@ -2622,8 +2622,13 @@ void main() {
 
         clearInteractions(setup.player);
 
-        // Simulate: seek causes rebuffering, then completes
+        // Simulate: seek causes rebuffering, then completes.
+        // Set duration > 0 to indicate media was successfully loaded
+        // (prevents stall circuit breaker from firing).
         when(() => setup.state.playing).thenReturn(false);
+        when(() => setup.state.duration).thenReturn(
+          const Duration(seconds: 6),
+        );
         setup.bufferingController.add(true);
         await Future<void>.delayed(const Duration(milliseconds: 10));
         setup.bufferingController.add(false);
@@ -2654,7 +2659,11 @@ void main() {
         // Network hiccup: buffering starts then resolves without any
         // seek or user action. Player.state.playing may still be true
         // because mpv doesn't always toggle it on transient stalls.
+        // Set duration > 0 to indicate media was successfully loaded.
         when(() => setup.state.playing).thenReturn(true);
+        when(() => setup.state.duration).thenReturn(
+          const Duration(seconds: 6),
+        );
         setup.bufferingController.add(true);
         await Future<void>.delayed(const Duration(milliseconds: 10));
         setup.bufferingController.add(false);
@@ -2745,7 +2754,11 @@ void main() {
           // playing=true. mpv can stall (no frame output) even
           // when playing=true after a seek, so we always call
           // play() to nudge the decoder.
+          // Set duration > 0 to indicate media was successfully loaded.
           when(() => setup.state.playing).thenReturn(true);
+          when(() => setup.state.duration).thenReturn(
+            const Duration(seconds: 6),
+          );
           setup.bufferingController.add(true);
           await Future<void>.delayed(
             const Duration(milliseconds: 10),
@@ -2758,6 +2771,148 @@ void main() {
           verify(setup.player.play).called(greaterThanOrEqualTo(1));
         },
       );
+    });
+
+    group('stall circuit breaker', () {
+      test(
+        'stops retrying after max stall retries when video never loads',
+        () async {
+          final videos = createTestVideos(count: 1);
+          final controller = VideoFeedController(videos: videos, pool: pool);
+          addTearDown(controller.dispose);
+
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+
+          final setup = playerSetups[videos[0].url]!;
+
+          // The sync buffering check in _loadPlayer already triggers
+          // _onBufferReady (mock state.buffering defaults to false).
+          // The explicit add(false) below also hits the ready-state
+          // stall-counting path (stall count = 1).
+          setup.bufferingController.add(false);
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+
+          expect(controller.getLoadState(0), equals(LoadState.ready));
+
+          clearInteractions(setup.player);
+
+          // Next rebuffer cycle — stall count exceeds max, circuit breaker
+          // fires, play() should NOT be called.
+          setup.bufferingController.add(true);
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          setup.bufferingController.add(false);
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+
+          verifyNever(setup.player.play);
+        },
+      );
+
+      test('calls onVideoStalled when circuit breaker fires', () async {
+        final videos = createTestVideos(count: 1);
+        int? stalledIndex;
+        final controller = VideoFeedController(
+          videos: videos,
+          pool: pool,
+          onVideoStalled: (index) => stalledIndex = index,
+        );
+        addTearDown(controller.dispose);
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final setup = playerSetups[videos[0].url]!;
+
+        // Initial add(false) triggers _onBufferReady via the sync check
+        // AND counts as stall #1 via the subscription.
+        setup.bufferingController.add(false);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(stalledIndex, isNull);
+
+        // Next rebuffer — stall count exceeds max, circuit breaker fires.
+        setup.bufferingController.add(true);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        setup.bufferingController.add(false);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(stalledIndex, equals(0));
+      });
+
+      test('does not fire circuit breaker when duration is known', () async {
+        final videos = createTestVideos(count: 1);
+        int? stalledIndex;
+        final controller = VideoFeedController(
+          videos: videos,
+          pool: pool,
+          onVideoStalled: (index) => stalledIndex = index,
+        );
+        addTearDown(controller.dispose);
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final setup = playerSetups[videos[0].url]!;
+
+        // Initial buffer ready
+        setup.bufferingController.add(false);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        clearInteractions(setup.player);
+
+        // Set duration > 0 (video loaded, legitimate rebuffer at position 0)
+        when(() => setup.state.duration).thenReturn(
+          const Duration(seconds: 6),
+        );
+
+        // Multiple rebuffer cycles — all should call play()
+        for (var i = 0; i < 5; i++) {
+          setup.bufferingController.add(true);
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          setup.bufferingController.add(false);
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+
+        verify(setup.player.play).called(5);
+        expect(stalledIndex, isNull);
+      });
+
+      test('resets stall counter when playVideo is called', () async {
+        final videos = createTestVideos(count: 2);
+        final controller = VideoFeedController(videos: videos, pool: pool);
+        addTearDown(controller.dispose);
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final setup0 = playerSetups[videos[0].url]!;
+        final setup1 = playerSetups[videos[1].url]!;
+
+        // Both videos become ready
+        setup0.bufferingController.add(false);
+        setup1.bufferingController.add(false);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // First rebuffer on video 0 (retry allowed)
+        setup0.bufferingController.add(true);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        setup0.bufferingController.add(false);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        clearInteractions(setup0.player);
+
+        // Swipe away and back — resets stall counter via _playVideo
+        controller.onPageChanged(1);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        controller.onPageChanged(0);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        clearInteractions(setup0.player);
+
+        // Rebuffer again — should still call play() (counter was reset)
+        setup0.bufferingController.add(true);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        setup0.bufferingController.add(false);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        verify(setup0.player.play).called(greaterThanOrEqualTo(1));
+      });
     });
 
     group('fast-path reuse of pooled player', () {

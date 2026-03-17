@@ -16,6 +16,7 @@ import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/screens/feed/feed_mode_switch.dart';
 import 'package:openvine/screens/feed/feed_video_overlay.dart';
 import 'package:openvine/services/feed_performance_tracker.dart';
+import 'package:openvine/services/openvine_media_cache.dart';
 import 'package:openvine/services/startup_performance_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_presentation.dart';
@@ -148,6 +149,10 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
   /// or injected via [VideoFeedView.controller] for testing.
   VideoFeedController? controller;
 
+  /// Key for accessing the [PooledVideoFeedState] to auto-advance.
+  // ignore: prefer_final_fields
+  var _feedKey = GlobalKey<PooledVideoFeedState>();
+
   /// Tracks the current fractional page position for scroll-driven overlay opacity.
   late final ValueNotifier<double> _pagePosition;
 
@@ -216,11 +221,19 @@ class _VideoFeedViewState extends ConsumerState<VideoFeedView>
     controller = VideoFeedController(
       videos: pooledVideos,
       pool: PlayerPool.instance,
+      mediaSourceResolver: (video) {
+        final cached = openVineMediaCache.getCachedFileSync(video.id);
+        return cached?.path;
+      },
       onVideoReady: (index, player) {
         if (!_hasMarkedVideoReady && index == 0) {
           _hasMarkedVideoReady = true;
           StartupPerformanceService.instance.markVideoReady();
         }
+      },
+      onVideoStalled: (index) {
+        if (!mounted) return;
+        _feedKey.currentState?.skipToNext();
       },
     );
 

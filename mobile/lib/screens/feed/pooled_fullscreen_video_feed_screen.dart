@@ -210,6 +210,7 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
   VideoFeedController? _controller;
   List<VideoItem>? _lastPooledVideos;
   late final ValueNotifier<double> _pagePosition;
+  final _feedKey = GlobalKey<PooledVideoFeedState>();
 
   @override
   void didChangeDependencies() {
@@ -332,12 +333,22 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
       videos: videos,
       pool: PlayerPool.instance,
       initialIndex: initialIndex,
+      // Hook: Use cached file when available instead of streaming from CDN
+      mediaSourceResolver: (video) {
+        final cached = openVineMediaCache.getCachedFileSync(video.id);
+        return cached?.path;
+      },
       // Hook: Dispatch event for background caching when video is ready
       onVideoReady: (index, player) {
         if (!mounted) return;
         context.read<FullscreenFeedBloc>().add(
           FullscreenFeedVideoCacheStarted(index: index),
         );
+      },
+      // Hook: Auto-advance past broken/stalled videos
+      onVideoStalled: (index) {
+        if (!mounted) return;
+        _feedKey.currentState?.skipToNext();
       },
       // Hook: Dispatch position updates for loop enforcement
       positionCallback: (index, position) {
@@ -481,6 +492,7 @@ class _FullscreenFeedContentState extends ConsumerState<FullscreenFeedContent>
                         },
                   )
                 : PooledVideoFeed(
+                    key: _feedKey,
                     videos: state.pooledVideos,
                     controller: _controller,
                     initialIndex: state.currentIndex,

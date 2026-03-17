@@ -273,6 +273,67 @@ void main() {
       });
     });
 
+    group('skipToNext', () {
+      testWidgets('advances to next video', (tester) async {
+        await tester.pumpWidget(buildFeed());
+
+        final state = tester.state<PooledVideoFeedState>(
+          find.byType(PooledVideoFeed),
+        );
+
+        expect(find.text('Video 0 (active)'), findsOneWidget);
+
+        final result = state.skipToNext();
+        expect(result, isTrue);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Video 1 (active)'), findsOneWidget);
+      });
+
+      testWidgets('returns false when at last video', (tester) async {
+        final videos = createTestVideos(count: 2);
+        await tester.pumpWidget(buildFeed(videos: videos, initialIndex: 1));
+
+        final state = tester.state<PooledVideoFeedState>(
+          find.byType(PooledVideoFeed),
+        );
+
+        expect(find.text('Video 1 (active)'), findsOneWidget);
+
+        final result = state.skipToNext();
+        expect(result, isFalse);
+      });
+
+      testWidgets('can be called via GlobalKey', (tester) async {
+        final feedKey = GlobalKey<PooledVideoFeedState>();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: PooledVideoFeed(
+                key: feedKey,
+                videos: createTestVideos(),
+                pool: pool,
+                itemBuilder: (context, video, index, {required isActive}) =>
+                    Center(
+                      child: Text(
+                        'Video $index${isActive ? ' (active)' : ''}',
+                      ),
+                    ),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Video 0 (active)'), findsOneWidget);
+
+        feedKey.currentState!.skipToNext();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Video 1 (active)'), findsOneWidget);
+      });
+    });
+
     group('lifecycle', () {
       testWidgets('proper cleanup on dispose', (tester) async {
         await tester.pumpWidget(buildFeed());

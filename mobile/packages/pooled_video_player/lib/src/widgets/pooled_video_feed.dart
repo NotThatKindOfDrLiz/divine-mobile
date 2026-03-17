@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:pooled_video_player/src/controllers/player_pool.dart';
@@ -93,6 +95,23 @@ class PooledVideoFeedState extends State<PooledVideoFeed> {
 
   /// The feed controller.
   VideoFeedController get controller => _controller;
+
+  /// Animate to the next video in the feed.
+  ///
+  /// Used for auto-advancing past broken/stalled videos.
+  /// Returns `true` if there is a next video to advance to.
+  bool skipToNext() {
+    final nextIndex = _currentIndex + 1;
+    if (nextIndex >= _controller.videoCount) return false;
+    unawaited(
+      _pageController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ),
+    );
+    return true;
+  }
 
   @override
   void initState() {
