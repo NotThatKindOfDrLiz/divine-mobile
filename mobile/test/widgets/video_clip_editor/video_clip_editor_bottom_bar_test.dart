@@ -2,17 +2,17 @@
 // ABOUTME: Validates playback controls, mute button, and time display
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:openvine/blocs/video_editor/clip_editor/clip_editor_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
-import 'package:openvine/models/clip_manager_state.dart';
 import 'package:openvine/models/divine_video_clip.dart';
 import 'package:openvine/models/video_editor/video_editor_provider_state.dart';
-import 'package:openvine/providers/clip_manager_provider.dart';
 import 'package:openvine/providers/video_editor_provider.dart';
 import 'package:openvine/utils/video_editor_utils.dart';
-import 'package:openvine/widgets/video_clip_editor/video_clip_editor_bottom_bar.dart';
-import 'package:openvine/widgets/video_clip_editor/video_time_display.dart';
+import 'package:openvine/widgets/video_editor/clip_editor/video_clip_editor_bottom_bar.dart';
+import 'package:openvine/widgets/video_editor/clip_editor/video_time_display.dart';
 import 'package:pro_video_editor/pro_video_editor.dart';
 
 void main() {
@@ -26,37 +26,35 @@ void main() {
       bool isMuted = false,
       Duration totalDuration = const Duration(seconds: 10),
     }) {
+      final clips = [
+        DivineVideoClip(
+          id: 'test-clip',
+          video: EditorVideo.file('/test/clip.mp4'),
+          duration: totalDuration,
+          recordedAt: DateTime.now(),
+          targetAspectRatio: .vertical,
+          originalAspectRatio: 9 / 16,
+        ),
+      ];
+      final bloc = _TestClipEditorBloc(
+        initialState: ClipEditorState(
+          clips: clips,
+          isPlaying: isPlaying,
+          isEditing: isEditing,
+          isReordering: isReordering,
+          isMuted: isMuted,
+        ),
+      );
+
       return ProviderScope(
         overrides: [
-          videoEditorProvider.overrideWith(
-            () => TestVideoEditorNotifier(
-              VideoEditorProviderState(
-                isPlaying: isPlaying,
-                isEditing: isEditing,
-                isReordering: isReordering,
-                isMuted: isMuted,
-              ),
-            ),
-          ),
-          clipManagerProvider.overrideWith(
-            () => TestClipManagerNotifier(
-              ClipManagerState(
-                clips: [
-                  DivineVideoClip(
-                    id: 'test-clip',
-                    video: EditorVideo.file('/test/clip.mp4'),
-                    duration: totalDuration,
-                    recordedAt: DateTime.now(),
-                    targetAspectRatio: .vertical,
-                    originalAspectRatio: 9 / 16,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          videoEditorProvider.overrideWith(TestVideoEditorNotifier.new),
         ],
-        child: const MaterialApp(
-          home: Scaffold(body: VideoClipEditorBottomBar()),
+        child: BlocProvider<ClipEditorBloc>.value(
+          value: bloc,
+          child: const MaterialApp(
+            home: Scaffold(body: VideoClipEditorBottomBar()),
+          ),
         ),
       );
     }
@@ -100,7 +98,12 @@ void main() {
 
       // VideoTimeDisplay should be present with correct duration
       expect(find.byType(VideoTimeDisplay), findsOneWidget);
-      expect(find.textContaining('3.00s'), findsOneWidget);
+      expect(
+        find.textContaining(
+          const Duration(seconds: 3).toFormattedSeconds(),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('limit time display to maximum', (tester) async {
@@ -141,23 +144,14 @@ void main() {
 }
 
 class TestVideoEditorNotifier extends VideoEditorNotifier {
-  TestVideoEditorNotifier(this._state);
-  final VideoEditorProviderState _state;
-
   @override
-  VideoEditorProviderState build() => _state;
-
-  @override
-  void togglePlayPause() {}
-
-  @override
-  void toggleMute() {}
+  VideoEditorProviderState build() => VideoEditorProviderState();
 }
 
-class TestClipManagerNotifier extends ClipManagerNotifier {
-  TestClipManagerNotifier(this._state);
-  final ClipManagerState _state;
-
-  @override
-  ClipManagerState build() => _state;
+class _TestClipEditorBloc extends ClipEditorBloc {
+  _TestClipEditorBloc({
+    ClipEditorState initialState = const ClipEditorState(),
+  }) {
+    emit(initialState);
+  }
 }
