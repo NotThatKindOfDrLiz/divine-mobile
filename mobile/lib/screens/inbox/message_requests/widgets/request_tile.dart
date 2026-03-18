@@ -1,6 +1,5 @@
-// ABOUTME: Individual conversation list item for the inbox screen.
-// ABOUTME: Shows avatar, display name, last message preview, and relative time.
-// ABOUTME: Unread conversations show a red dot indicator next to the timestamp.
+// ABOUTME: Conversation tile variant for message requests.
+// ABOUTME: Always shows "Sent a message request" as the subtitle.
 
 import 'package:divine_ui/divine_ui.dart';
 import 'package:flutter/material.dart';
@@ -12,13 +11,12 @@ import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/user_avatar.dart';
 import 'package:time_formatter/time_formatter.dart';
 
-/// A single conversation row in the DM conversation list.
+/// A conversation row in the message requests list.
 ///
-/// Layout matches the Figma "preview" component:
-/// 40px avatar | 20px gap | content (name + timestamp row, message preview)
-/// with a bottom border divider.
-class ConversationTile extends ConsumerWidget {
-  const ConversationTile({
+/// Layout matches [ConversationTile] but the subtitle always reads
+/// "Sent a message request" regardless of last message content.
+class RequestTile extends ConsumerWidget {
+  const RequestTile({
     required this.conversation,
     required this.currentUserPubkey,
     required this.onTap,
@@ -36,12 +34,11 @@ class ConversationTile extends ConsumerWidget {
       orElse: () => conversation.participantPubkeys.first,
     );
 
-    final profileAsync = ref.watch(fetchUserProfileProvider(otherPubkey));
+    final profileAsync = ref.watch(userProfileReactiveProvider(otherPubkey));
 
     final displayName = profileAsync.maybeWhen(
-      data: (profile) => profile?.displayName?.isNotEmpty == true
-          ? profile!.displayName!
-          : profile?.name ?? NostrKeyUtils.truncateNpub(otherPubkey),
+      data: (profile) =>
+          profile?.bestDisplayName ?? NostrKeyUtils.truncateNpub(otherPubkey),
       orElse: () => NostrKeyUtils.truncateNpub(otherPubkey),
     );
 
@@ -58,12 +55,12 @@ class ConversationTile extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      label: '$displayName conversation',
+      label: '$displayName message request',
       child: GestureDetector(
         onTap: () {
           Log.debug(
-            '🎯 ConversationTile tapped: ${conversation.id}',
-            name: 'ConversationTile',
+            'RequestTile tapped: ${conversation.id}',
+            name: 'RequestTile',
             category: LogCategory.ui,
           );
           onTap();
@@ -78,6 +75,7 @@ class ConversationTile extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Row(
+              spacing: 20,
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
@@ -87,21 +85,16 @@ class ConversationTile extends ConsumerWidget {
                     size: 40,
                   ),
                 ),
-                const SizedBox(width: 20),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Name + timestamp row
                       Row(
                         children: [
                           Expanded(
                             child: Text(
                               displayName,
-                              style: VineTheme.titleMediumFont(
-                                fontSize: 16,
-                                height: 24 / 16,
-                              ),
+                              style: VineTheme.titleMediumFont(),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -121,17 +114,15 @@ class ConversationTile extends ConsumerWidget {
                           ],
                         ],
                       ),
-                      if (conversation.lastMessageContent != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          conversation.lastMessageContent!,
-                          style: VineTheme.bodyMediumFont(
-                            color: VineTheme.onSurfaceVariant,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sent a message request',
+                        style: VineTheme.bodyMediumFont(
+                          color: VineTheme.onSurfaceVariant,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),
