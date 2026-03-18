@@ -546,7 +546,6 @@ void main() {
         build: () => createBloc(retainedCache: mockRetainedCache),
         seed: () => VideoFeedState(
           status: VideoFeedStatus.success,
-          mode: FeedMode.home,
           videos: createTestVideos(3),
         ),
         act: (bloc) => bloc.add(const VideoFeedModeChanged(FeedMode.latest)),
