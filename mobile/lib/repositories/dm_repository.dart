@@ -1,7 +1,9 @@
-// ABOUTME: Repository for NIP-17 direct message management.
-// ABOUTME: Handles subscribing to gift-wrapped events, decrypting messages,
-// ABOUTME: persisting to the database, and providing reactive streams.
-// ABOUTME: Supports both Kind 14 (text) and Kind 15 (file) messages.
+// ABOUTME: Repository for direct message management (NIP-17 and NIP-04).
+// ABOUTME: Handles subscribing to gift-wrapped (kind 1059) and legacy
+// ABOUTME: encrypted (kind 4) events, decrypting messages, persisting to
+// ABOUTME: the database, and providing reactive streams.
+// ABOUTME: Supports NIP-17 Kind 14 (text) and Kind 15 (file) messages,
+// ABOUTME: plus NIP-04 Kind 4 (legacy DMs from other Nostr clients).
 // ABOUTME: Works with any NostrSigner (local keys, Keycast RPC, Amber, etc.)
 
 import 'dart:async';
@@ -26,27 +28,39 @@ import 'package:openvine/utils/unified_logger.dart';
 /// Returns `null` if decryption fails at any layer.
 typedef RumorDecryptor = Future<Event?> Function(Nostr nostr, Event giftWrap);
 
+/// Decrypts a NIP-04 encrypted direct message (kind 4).
+///
+/// Takes the sender's pubkey and the NIP-04 ciphertext, returns plaintext.
+/// Returns `null` if decryption fails.
+typedef Nip04Decryptor =
+    Future<String?> Function(
+      String senderPubkey,
+      String ciphertext,
+    );
+
 /// Supported NIP-17 rumor event kinds.
 const Set<int> _supportedDmKinds = {
   EventKind.privateDirectMessage, // 14
   EventKind.fileMessage, // 15
 };
 
-/// Repository for NIP-17 direct message operations.
+/// Repository for direct message operations (NIP-17 and NIP-04).
 ///
 /// Manages the full DM lifecycle:
-/// - **Receiving**: Subscribes to kind 1059 gift-wrap events, decrypts
-///   through the three-layer encryption, and persists decrypted messages.
-///   Supports both kind 14 (text) and kind 15 (file) messages.
+/// - **Receiving**: Subscribes to kind 1059 gift-wrap events (NIP-17) and
+///   kind 4 encrypted direct messages (NIP-04), decrypts through the
+///   appropriate encryption layer, and persists decrypted messages.
+///   Supports NIP-17 kind 14 (text) and kind 15 (file) messages, plus
+///   NIP-04 kind 4 legacy DMs from other Nostr clients.
 /// - **Sending**: Delegates to [NIP17MessageService] for encryption and
-///   publishing.
+///   publishing. Outgoing messages always use NIP-17 (the modern standard).
 /// - **Querying**: Provides reactive streams for conversation lists and
 ///   individual conversation messages via Drift DAOs.
 ///
 /// Accepts any [NostrSigner] implementation (local keys, Keycast RPC,
-/// Amber, etc.) for NIP-17 gift-wrap decryption. The signer is held for
-/// the lifetime of this object; callers should ensure the repository is
-/// disposed when the user logs out.
+/// Amber, etc.) for NIP-17 gift-wrap decryption and NIP-04 decryption.
+/// The signer is held for the lifetime of this object; callers should
+/// ensure the repository is disposed when the user logs out.
 class DmRepository {
   DmRepository({
     required NostrClient nostrClient,
@@ -56,13 +70,15 @@ class DmRepository {
     String? userPubkey,
     NostrSigner? signer,
     RumorDecryptor? rumorDecryptor,
+    Nip04Decryptor? nip04Decryptor,
   }) : _nostrClient = nostrClient,
        _directMessagesDao = directMessagesDao,
        _conversationsDao = conversationsDao,
        _messageService = messageService,
        _userPubkey = userPubkey ?? '',
        _signer = signer,
-       _rumorDecryptor = rumorDecryptor ?? GiftWrapUtil.getRumorEvent;
+       _rumorDecryptor = rumorDecryptor ?? GiftWrapUtil.getRumorEvent,
+       _nip04Decryptor = nip04Decryptor;
 
   final NostrClient _nostrClient;
   final DirectMessagesDao _directMessagesDao;
@@ -71,6 +87,7 @@ class DmRepository {
   String _userPubkey;
   NostrSigner? _signer;
   RumorDecryptor _rumorDecryptor;
+  final Nip04Decryptor? _nip04Decryptor;
 
   StreamSubscription<Event>? _giftWrapSubscription;
   Timer? _pollTimer;
@@ -123,10 +140,11 @@ class DmRepository {
   // Subscription lifecycle
   // -------------------------------------------------------------------------
 
-  /// Start listening for incoming gift-wrapped DMs.
+  /// Start listening for incoming DMs (NIP-17 gift wraps and NIP-04 legacy).
   ///
-  /// Subscribes to kind 1059 events p-tagged to the current user.
-  /// Each received event is decrypted and persisted automatically.
+  /// Subscribes to kind 1059 (gift wrap) and kind 4 (legacy encrypted DM)
+  /// events p-tagged to the current user. Each received event is decrypted
+  /// through the appropriate pipeline and persisted automatically.
   ///
   /// If the relay stream closes unexpectedly (e.g. relay disconnect,
   /// NostrClient rebuild), automatically re-subscribes after a brief delay.
@@ -138,7 +156,7 @@ class DmRepository {
     if (_giftWrapSubscription != null || _disposed || !isInitialized) return;
 
     final filter = nostr_filter.Filter(
-      kinds: [EventKind.giftWrap],
+      kinds: [EventKind.giftWrap, EventKind.directMessage],
       p: [_userPubkey],
     );
 
@@ -157,7 +175,7 @@ class DmRepository {
     );
 
     _giftWrapSubscription = stream.listen(
-      _handleGiftWrapEvent,
+      _handleIncomingEvent,
       onError: (Object error) {
         Log.error(
           'DM subscription error: $error',
@@ -199,10 +217,10 @@ class DmRepository {
     }
   }
 
-  /// Periodically poll the relay for new kind 1059 events.
+  /// Periodically poll the relay for new DM events.
   ///
   /// Workaround for relays that accept subscriptions and deliver stored
-  /// events but don't push new real-time events for `#p`-filtered kind 1059.
+  /// events but don't push new real-time events for `#p`-filtered kinds.
   void _startPolling() {
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(_pollInterval, (_) async {
@@ -215,7 +233,7 @@ class DmRepository {
         // Instead, fetch the most recent events and rely on dedup to skip
         // already-processed ones.
         final filter = nostr_filter.Filter(
-          kinds: [EventKind.giftWrap],
+          kinds: [EventKind.giftWrap, EventKind.directMessage],
           p: [_userPubkey],
           limit: 20,
         );
@@ -227,7 +245,7 @@ class DmRepository {
         );
 
         for (final event in events) {
-          await _handleGiftWrapEvent(event);
+          await _handleIncomingEvent(event);
         }
       } on Object catch (e) {
         Log.error(
@@ -243,6 +261,116 @@ class DmRepository {
   // -------------------------------------------------------------------------
   // Receive pipeline
   // -------------------------------------------------------------------------
+
+  /// Routes incoming events to the appropriate handler based on kind.
+  Future<void> _handleIncomingEvent(Event event) async {
+    if (event.kind == EventKind.directMessage) {
+      await _handleNip04Event(event);
+    } else {
+      await _handleGiftWrapEvent(event);
+    }
+  }
+
+  /// Handle a NIP-04 encrypted direct message (kind 4).
+  ///
+  /// For kind 4, the sender is [event.pubkey] and the recipient is in the
+  /// first `p` tag. Content is NIP-04 encrypted (ECDH + AES-256-CBC).
+  Future<void> _handleNip04Event(Event nip04Event) async {
+    try {
+      Log.debug(
+        'Received NIP-04 DM ${nip04Event.id} from ${nip04Event.pubkey}',
+        category: LogCategory.system,
+      );
+
+      // Dedup: use the event ID as the gift wrap ID for NIP-04 events
+      if (await _directMessagesDao.hasGiftWrap(nip04Event.id)) {
+        Log.debug(
+          'Skipping duplicate NIP-04 DM ${nip04Event.id}',
+          category: LogCategory.system,
+        );
+        return;
+      }
+
+      // Determine the other party's pubkey for decryption.
+      // If we sent this message, decrypt with the recipient's pubkey.
+      // If we received it, decrypt with the sender's pubkey.
+      final senderPubkey = nip04Event.pubkey;
+      final isSentByMe = senderPubkey == _userPubkey;
+
+      String? recipientPubkey;
+      for (final tag in nip04Event.tags) {
+        if (tag.length >= 2 && tag[0] == 'p') {
+          recipientPubkey = tag[1];
+          break;
+        }
+      }
+
+      if (recipientPubkey == null) {
+        Log.debug(
+          'NIP-04 DM ${nip04Event.id} has no p tag, skipping',
+          category: LogCategory.system,
+        );
+        return;
+      }
+
+      // Decrypt using the other party's pubkey
+      final decryptPubkey = isSentByMe ? recipientPubkey : senderPubkey;
+
+      final decryptor =
+          _nip04Decryptor ??
+          (String pubkey, String ciphertext) =>
+              _signer!.decrypt(pubkey, ciphertext);
+
+      final plaintext = await decryptor(decryptPubkey, nip04Event.content);
+      if (plaintext == null || plaintext.isEmpty) {
+        Log.debug(
+          'Failed to decrypt NIP-04 DM ${nip04Event.id}',
+          category: LogCategory.system,
+        );
+        return;
+      }
+
+      // Build participants list (sender + recipient)
+      final participants = [senderPubkey, recipientPubkey]..sort();
+      if (participants.length < 2) return;
+
+      final conversationId = computeConversationId(participants);
+
+      // Persist the message
+      await _directMessagesDao.insertMessage(
+        id: nip04Event.id,
+        conversationId: conversationId,
+        senderPubkey: senderPubkey,
+        content: plaintext,
+        createdAt: nip04Event.createdAt,
+        giftWrapId: nip04Event.id,
+      );
+
+      // Update or create the conversation
+      await _conversationsDao.upsertConversation(
+        id: conversationId,
+        participantPubkeys: jsonEncode(participants),
+        isGroup: false,
+        createdAt: nip04Event.createdAt,
+        lastMessageContent: plaintext,
+        lastMessageTimestamp: nip04Event.createdAt,
+        lastMessageSenderPubkey: senderPubkey,
+        isRead: isSentByMe,
+      );
+
+      Log.debug(
+        'Persisted NIP-04 DM in conversation $conversationId',
+        category: LogCategory.system,
+      );
+    } catch (e, stackTrace) {
+      Log.error(
+        'Failed to process NIP-04 DM event: $e',
+        category: LogCategory.system,
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
 
   Future<void> _handleGiftWrapEvent(Event giftWrapEvent) async {
     try {

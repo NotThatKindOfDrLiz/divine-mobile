@@ -64,6 +64,7 @@ void main() {
     DmRepository createRepository({
       String? userPubkey,
       RumorDecryptor? rumorDecryptor,
+      Nip04Decryptor? nip04Decryptor,
     }) {
       return DmRepository(
         nostrClient: mockNostrClient,
@@ -73,6 +74,7 @@ void main() {
         userPubkey: userPubkey ?? _validPubkeyA,
         signer: LocalNostrSigner(_validPrivateKey),
         rumorDecryptor: rumorDecryptor,
+        nip04Decryptor: nip04Decryptor,
       );
     }
 
@@ -1051,6 +1053,449 @@ void main() {
         // Should not throw — error is caught internally
         controller.add(giftWrap);
         await Future<void>.delayed(Duration.zero);
+
+        await controller.close();
+        await repository.stopListening();
+      });
+    });
+
+    // -----------------------------------------------------------------
+    // NIP-04 receive pipeline
+    // -----------------------------------------------------------------
+
+    group('NIP-04 receive pipeline', () {
+      Event createNip04Event({
+        String? id,
+        String? pubkey,
+        String? content,
+        List<List<String>>? tags,
+        int? createdAt,
+      }) {
+        return Event.fromJson({
+          'id': id ?? _rumorEventId,
+          'pubkey': pubkey ?? _validPubkeyB,
+          'created_at': createdAt ?? 1700000000,
+          'kind': EventKind.directMessage,
+          'tags':
+              tags ??
+              [
+                ['p', _validPubkeyA],
+              ],
+          'content': content ?? 'nip04-encrypted-content',
+          'sig': '',
+        });
+      }
+
+      void stubDaoInserts() {
+        when(
+          () => mockDirectMessagesDao.insertMessage(
+            id: any(named: 'id'),
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: any(named: 'senderPubkey'),
+            content: any(named: 'content'),
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: any(named: 'giftWrapId'),
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          () => mockConversationsDao.upsertConversation(
+            id: any(named: 'id'),
+            participantPubkeys: any(named: 'participantPubkeys'),
+            isGroup: any(named: 'isGroup'),
+            createdAt: any(named: 'createdAt'),
+            lastMessageContent: any(named: 'lastMessageContent'),
+            lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
+            lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
+            subject: any(named: 'subject'),
+            isRead: any(named: 'isRead'),
+          ),
+        ).thenAnswer((_) async {});
+      }
+
+      test('decrypts and persists a NIP-04 message', () async {
+        final nip04Event = createNip04Event();
+
+        when(
+          () => mockDirectMessagesDao.hasGiftWrap(_rumorEventId),
+        ).thenAnswer((_) async => false);
+        stubDaoInserts();
+
+        final controller = StreamController<Event>();
+        when(
+          () => mockNostrClient.subscribe(
+            any(),
+            subscriptionId: any(named: 'subscriptionId'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final repository = createRepository(
+          nip04Decryptor: (pubkey, ciphertext) async => 'Hello via NIP-04!',
+        );
+
+        repository.startListening();
+        controller.add(nip04Event);
+        await Future<void>.delayed(Duration.zero);
+
+        verify(
+          () => mockDirectMessagesDao.insertMessage(
+            id: _rumorEventId,
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: _validPubkeyB,
+            content: 'Hello via NIP-04!',
+            createdAt: 1700000000,
+            giftWrapId: _rumorEventId,
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        ).called(1);
+
+        verify(
+          () => mockConversationsDao.upsertConversation(
+            id: any(named: 'id'),
+            participantPubkeys: any(named: 'participantPubkeys'),
+            isGroup: false,
+            createdAt: 1700000000,
+            lastMessageContent: 'Hello via NIP-04!',
+            lastMessageTimestamp: 1700000000,
+            lastMessageSenderPubkey: _validPubkeyB,
+            isRead: false,
+          ),
+        ).called(1);
+
+        await controller.close();
+        await repository.stopListening();
+      });
+
+      test('marks NIP-04 conversation as read for own messages', () async {
+        // Current user sent a NIP-04 message to B
+        final nip04Event = createNip04Event(
+          pubkey: _validPubkeyA,
+          tags: [
+            ['p', _validPubkeyB],
+          ],
+        );
+
+        when(
+          () => mockDirectMessagesDao.hasGiftWrap(_rumorEventId),
+        ).thenAnswer((_) async => false);
+        stubDaoInserts();
+
+        final controller = StreamController<Event>();
+        when(
+          () => mockNostrClient.subscribe(
+            any(),
+            subscriptionId: any(named: 'subscriptionId'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final repository = createRepository(
+          nip04Decryptor: (pubkey, ciphertext) async => 'My sent message',
+        );
+
+        repository.startListening();
+        controller.add(nip04Event);
+        await Future<void>.delayed(Duration.zero);
+
+        verify(
+          () => mockConversationsDao.upsertConversation(
+            id: any(named: 'id'),
+            participantPubkeys: any(named: 'participantPubkeys'),
+            isGroup: false,
+            createdAt: any(named: 'createdAt'),
+            lastMessageContent: 'My sent message',
+            lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
+            lastMessageSenderPubkey: _validPubkeyA,
+          ),
+        ).called(1);
+
+        await controller.close();
+        await repository.stopListening();
+      });
+
+      test('skips duplicate NIP-04 events', () async {
+        final nip04Event = createNip04Event();
+
+        when(
+          () => mockDirectMessagesDao.hasGiftWrap(_rumorEventId),
+        ).thenAnswer((_) async => true);
+
+        final controller = StreamController<Event>();
+        when(
+          () => mockNostrClient.subscribe(
+            any(),
+            subscriptionId: any(named: 'subscriptionId'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final repository = createRepository(
+          nip04Decryptor: (pubkey, ciphertext) async => 'decrypted',
+        );
+
+        repository.startListening();
+        controller.add(nip04Event);
+        await Future<void>.delayed(Duration.zero);
+
+        verifyNever(
+          () => mockDirectMessagesDao.insertMessage(
+            id: any(named: 'id'),
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: any(named: 'senderPubkey'),
+            content: any(named: 'content'),
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: any(named: 'giftWrapId'),
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        );
+
+        await controller.close();
+        await repository.stopListening();
+      });
+
+      test('skips NIP-04 events with no p tag', () async {
+        final nip04Event = createNip04Event(tags: []);
+
+        when(
+          () => mockDirectMessagesDao.hasGiftWrap(_rumorEventId),
+        ).thenAnswer((_) async => false);
+
+        final controller = StreamController<Event>();
+        when(
+          () => mockNostrClient.subscribe(
+            any(),
+            subscriptionId: any(named: 'subscriptionId'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final repository = createRepository(
+          nip04Decryptor: (pubkey, ciphertext) async => 'decrypted',
+        );
+
+        repository.startListening();
+        controller.add(nip04Event);
+        await Future<void>.delayed(Duration.zero);
+
+        verifyNever(
+          () => mockDirectMessagesDao.insertMessage(
+            id: any(named: 'id'),
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: any(named: 'senderPubkey'),
+            content: any(named: 'content'),
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: any(named: 'giftWrapId'),
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        );
+
+        await controller.close();
+        await repository.stopListening();
+      });
+
+      test('skips NIP-04 events when decryption fails', () async {
+        final nip04Event = createNip04Event();
+
+        when(
+          () => mockDirectMessagesDao.hasGiftWrap(_rumorEventId),
+        ).thenAnswer((_) async => false);
+
+        final controller = StreamController<Event>();
+        when(
+          () => mockNostrClient.subscribe(
+            any(),
+            subscriptionId: any(named: 'subscriptionId'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final repository = createRepository(
+          nip04Decryptor: (pubkey, ciphertext) async => null,
+        );
+
+        repository.startListening();
+        controller.add(nip04Event);
+        await Future<void>.delayed(Duration.zero);
+
+        verifyNever(
+          () => mockDirectMessagesDao.insertMessage(
+            id: any(named: 'id'),
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: any(named: 'senderPubkey'),
+            content: any(named: 'content'),
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: any(named: 'giftWrapId'),
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        );
+
+        await controller.close();
+        await repository.stopListening();
+      });
+
+      test('routes NIP-17 and NIP-04 events correctly', () async {
+        // NIP-17 gift wrap event
+        final giftWrap = Event.fromJson({
+          'id': _giftWrapEventId,
+          'pubkey':
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+              'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          'created_at': 1700000000,
+          'kind': EventKind.giftWrap,
+          'tags': [
+            ['p', _validPubkeyA],
+          ],
+          'content': 'encrypted-gift-wrap',
+          'sig': '',
+        });
+
+        // NIP-04 direct message event
+        final nip04Event = createNip04Event(
+          id: _giftWrapEventId2,
+        );
+
+        final rumor = Event.fromJson({
+          'id': _rumorEventId,
+          'pubkey': _validPubkeyB,
+          'created_at': 1700000000,
+          'kind': EventKind.privateDirectMessage,
+          'tags': [
+            ['p', _validPubkeyA],
+          ],
+          'content': 'Hello via NIP-17!',
+          'sig': '',
+        });
+
+        when(
+          () => mockDirectMessagesDao.hasGiftWrap(any()),
+        ).thenAnswer((_) async => false);
+        stubDaoInserts();
+
+        final controller = StreamController<Event>();
+        when(
+          () => mockNostrClient.subscribe(
+            any(),
+            subscriptionId: any(named: 'subscriptionId'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final repository = createRepository(
+          rumorDecryptor: (_, _) async => rumor,
+          nip04Decryptor: (pubkey, ciphertext) async => 'Hello via NIP-04!',
+        );
+
+        repository.startListening();
+
+        // Send both event types
+        controller.add(giftWrap);
+        await Future<void>.delayed(Duration.zero);
+        controller.add(nip04Event);
+        await Future<void>.delayed(Duration.zero);
+
+        // Verify both were persisted with correct content
+        verify(
+          () => mockDirectMessagesDao.insertMessage(
+            id: _rumorEventId,
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: _validPubkeyB,
+            content: 'Hello via NIP-17!',
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: _giftWrapEventId,
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        ).called(1);
+
+        verify(
+          () => mockDirectMessagesDao.insertMessage(
+            id: _giftWrapEventId2,
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: _validPubkeyB,
+            content: 'Hello via NIP-04!',
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: _giftWrapEventId2,
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        ).called(1);
 
         await controller.close();
         await repository.stopListening();
