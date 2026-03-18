@@ -44,6 +44,20 @@ const _giftWrapEventId2 =
     '06789012345678901234567890abcdef1234567890123456789012ab12c3d4e5';
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(
+      Event.fromJson({
+        'id': _validPubkeyA,
+        'pubkey': _validPubkeyA,
+        'created_at': 0,
+        'kind': 1,
+        'tags': <List<String>>[],
+        'content': '',
+        'sig': '',
+      }),
+    );
+  });
+
   group(DmRepository, () {
     late _MockNostrClient mockNostrClient;
     late _MockNIP17MessageService mockMessageService;
@@ -203,6 +217,9 @@ void main() {
 
       test('persists message and conversation on success', () async {
         when(
+          () => mockConversationsDao.getConversation(any()),
+        ).thenAnswer((_) async => null);
+        when(
           () => mockMessageService.sendPrivateMessage(
             recipientPubkey: any(named: 'recipientPubkey'),
             content: any(named: 'content'),
@@ -249,6 +266,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).thenAnswer((_) async {});
 
@@ -294,11 +312,15 @@ void main() {
             lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
             lastMessageSenderPubkey: _validPubkeyA,
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).called(1);
       });
 
       test('does not persist on send failure', () async {
+        when(
+          () => mockConversationsDao.getConversation(any()),
+        ).thenAnswer((_) async => null);
         when(
           () => mockMessageService.sendPrivateMessage(
             recipientPubkey: any(named: 'recipientPubkey'),
@@ -343,6 +365,183 @@ void main() {
           ),
         );
       });
+
+      test('sends NIP-04 when conversation protocol is nip04', () async {
+        final participants = [_validPubkeyA, _validPubkeyB]..sort();
+        final conversationId = DmRepository.computeConversationId(
+          participants,
+        );
+
+        // Existing conversation with nip04 protocol
+        when(
+          () => mockConversationsDao.getConversation(conversationId),
+        ).thenAnswer(
+          (_) async => ConversationRow(
+            id: conversationId,
+            participantPubkeys: jsonEncode(participants),
+            isGroup: false,
+            isRead: true,
+            createdAt: 1700000000,
+            dmProtocol: 'nip04',
+          ),
+        );
+
+        // Stub publish for NIP-04 send path
+        when(
+          () => mockNostrClient.publishEvent(any()),
+        ).thenAnswer(
+          (_) async => Event.fromJson({
+            'id': _rumorEventId,
+            'pubkey': _validPubkeyA,
+            'created_at': 1700000000,
+            'kind': EventKind.directMessage,
+            'tags': [
+              ['p', _validPubkeyB],
+            ],
+            'content': 'encrypted',
+            'sig': 'sig',
+          }),
+        );
+
+        when(
+          () => mockDirectMessagesDao.insertMessage(
+            id: any(named: 'id'),
+            conversationId: any(named: 'conversationId'),
+            senderPubkey: any(named: 'senderPubkey'),
+            content: any(named: 'content'),
+            createdAt: any(named: 'createdAt'),
+            giftWrapId: any(named: 'giftWrapId'),
+            messageKind: any(named: 'messageKind'),
+            replyToId: any(named: 'replyToId'),
+            subject: any(named: 'subject'),
+            fileType: any(named: 'fileType'),
+            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+            decryptionKey: any(named: 'decryptionKey'),
+            decryptionNonce: any(named: 'decryptionNonce'),
+            fileHash: any(named: 'fileHash'),
+            originalFileHash: any(named: 'originalFileHash'),
+            fileSize: any(named: 'fileSize'),
+            dimensions: any(named: 'dimensions'),
+            blurhash: any(named: 'blurhash'),
+            thumbnailUrl: any(named: 'thumbnailUrl'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          () => mockConversationsDao.upsertConversation(
+            id: any(named: 'id'),
+            participantPubkeys: any(named: 'participantPubkeys'),
+            isGroup: any(named: 'isGroup'),
+            createdAt: any(named: 'createdAt'),
+            lastMessageContent: any(named: 'lastMessageContent'),
+            lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
+            lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
+            subject: any(named: 'subject'),
+            isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
+          ),
+        ).thenAnswer((_) async {});
+
+        final repository = createRepository();
+
+        final result = await repository.sendMessage(
+          recipientPubkey: _validPubkeyB,
+          content: 'Reply via NIP-04',
+        );
+
+        expect(result.success, isTrue);
+
+        // Should have published via NostrClient (NIP-04 path),
+        // NOT via NIP17MessageService
+        verify(() => mockNostrClient.publishEvent(any())).called(1);
+        verifyNever(
+          () => mockMessageService.sendPrivateMessage(
+            recipientPubkey: any(named: 'recipientPubkey'),
+            content: any(named: 'content'),
+            eventKind: any(named: 'eventKind'),
+            additionalTags: any(named: 'additionalTags'),
+          ),
+        );
+      });
+
+      test(
+        'sends NIP-17 when conversation protocol is nip17 or null',
+        () async {
+          // Test with null protocol (no existing conversation)
+          when(
+            () => mockConversationsDao.getConversation(any()),
+          ).thenAnswer((_) async => null);
+          when(
+            () => mockMessageService.sendPrivateMessage(
+              recipientPubkey: any(named: 'recipientPubkey'),
+              content: any(named: 'content'),
+              eventKind: any(named: 'eventKind'),
+              additionalTags: any(named: 'additionalTags'),
+            ),
+          ).thenAnswer(
+            (_) async => NIP17SendResult.success(
+              messageEventId: _rumorEventId,
+              recipientPubkey: _validPubkeyB,
+            ),
+          );
+          when(
+            () => mockDirectMessagesDao.insertMessage(
+              id: any(named: 'id'),
+              conversationId: any(named: 'conversationId'),
+              senderPubkey: any(named: 'senderPubkey'),
+              content: any(named: 'content'),
+              createdAt: any(named: 'createdAt'),
+              giftWrapId: any(named: 'giftWrapId'),
+              messageKind: any(named: 'messageKind'),
+              replyToId: any(named: 'replyToId'),
+              subject: any(named: 'subject'),
+              fileType: any(named: 'fileType'),
+              encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+              decryptionKey: any(named: 'decryptionKey'),
+              decryptionNonce: any(named: 'decryptionNonce'),
+              fileHash: any(named: 'fileHash'),
+              originalFileHash: any(named: 'originalFileHash'),
+              fileSize: any(named: 'fileSize'),
+              dimensions: any(named: 'dimensions'),
+              blurhash: any(named: 'blurhash'),
+              thumbnailUrl: any(named: 'thumbnailUrl'),
+            ),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockConversationsDao.upsertConversation(
+              id: any(named: 'id'),
+              participantPubkeys: any(named: 'participantPubkeys'),
+              isGroup: any(named: 'isGroup'),
+              createdAt: any(named: 'createdAt'),
+              lastMessageContent: any(named: 'lastMessageContent'),
+              lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
+              lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
+              subject: any(named: 'subject'),
+              isRead: any(named: 'isRead'),
+              dmProtocol: any(named: 'dmProtocol'),
+            ),
+          ).thenAnswer((_) async {});
+
+          final repository = createRepository();
+
+          final result = await repository.sendMessage(
+            recipientPubkey: _validPubkeyB,
+            content: 'Hello via NIP-17!',
+          );
+
+          expect(result.success, isTrue);
+
+          // Should have used NIP17MessageService, NOT direct publish
+          verify(
+            () => mockMessageService.sendPrivateMessage(
+              recipientPubkey: any(named: 'recipientPubkey'),
+              content: any(named: 'content'),
+              eventKind: any(named: 'eventKind'),
+              additionalTags: any(named: 'additionalTags'),
+            ),
+          ).called(1);
+          verifyNever(() => mockNostrClient.publishEvent(any()));
+        },
+      );
     });
 
     group('sendGroupMessage', () {
@@ -482,6 +681,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).thenAnswer((_) async {});
       }
@@ -546,6 +746,7 @@ void main() {
             lastMessageTimestamp: 1700000000,
             lastMessageSenderPubkey: _validPubkeyB,
             isRead: false,
+            dmProtocol: 'nip17',
           ),
         ).called(1);
 
@@ -596,6 +797,9 @@ void main() {
             lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
+            // ignore: avoid_redundant_argument_values
+            isRead: true,
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).called(1);
 
@@ -922,6 +1126,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).called(1);
 
@@ -1121,6 +1326,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).thenAnswer((_) async {});
       }
@@ -1183,6 +1389,7 @@ void main() {
             lastMessageTimestamp: 1700000000,
             lastMessageSenderPubkey: _validPubkeyB,
             isRead: false,
+            dmProtocol: 'nip04',
           ),
         ).called(1);
 
@@ -1229,6 +1436,9 @@ void main() {
             lastMessageContent: 'My sent message',
             lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
             lastMessageSenderPubkey: _validPubkeyA,
+            // ignore: avoid_redundant_argument_values
+            isRead: true,
+            dmProtocol: 'nip04',
           ),
         ).called(1);
 
@@ -1715,6 +1925,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).thenAnswer((_) async {});
       }
@@ -1811,6 +2022,7 @@ void main() {
             lastMessageTimestamp: 1700000000,
             lastMessageSenderPubkey: _validPubkeyB,
             isRead: false,
+            dmProtocol: 'nip17',
           ),
         ).called(1);
 
@@ -2047,6 +2259,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).thenAnswer((_) async {});
 
@@ -2102,6 +2315,7 @@ void main() {
             lastMessageSenderPubkey: _validPubkeyA,
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).called(1);
       });
@@ -2197,6 +2411,7 @@ void main() {
             lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
             subject: any(named: 'subject'),
             isRead: any(named: 'isRead'),
+            dmProtocol: any(named: 'dmProtocol'),
           ),
         ).thenAnswer((_) async {});
       }
@@ -2209,6 +2424,9 @@ void main() {
               'Reason: Spam or Unwanted Content\n'
               'Event: abc123eventid';
 
+          when(
+            () => mockConversationsDao.getConversation(any()),
+          ).thenAnswer((_) async => null);
           when(
             () => mockMessageService.sendPrivateMessage(
               recipientPubkey: any(named: 'recipientPubkey'),
@@ -2354,6 +2572,7 @@ void main() {
               lastMessageSenderPubkey: moderationPubkey,
               subject: any(named: 'subject'),
               isRead: false,
+              dmProtocol: 'nip17',
             ),
           ).called(1);
 
@@ -2432,6 +2651,9 @@ void main() {
           const externalUserPubkey =
               'ff0011223344556677889900aabbccddeeff0011223344556677889900aabbcc';
 
+          when(
+            () => mockConversationsDao.getConversation(any()),
+          ).thenAnswer((_) async => null);
           when(
             () => mockMessageService.sendPrivateMessage(
               recipientPubkey: any(named: 'recipientPubkey'),

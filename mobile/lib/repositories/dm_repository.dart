@@ -30,11 +30,11 @@ typedef RumorDecryptor = Future<Event?> Function(Nostr nostr, Event giftWrap);
 
 /// Decrypts a NIP-04 encrypted direct message (kind 4).
 ///
-/// Takes the sender's pubkey and the NIP-04 ciphertext, returns plaintext.
-/// Returns `null` if decryption fails.
+/// Takes the other party's pubkey and the NIP-04 ciphertext, returns
+/// plaintext. Returns `null` if decryption fails.
 typedef Nip04Decryptor =
     Future<String?> Function(
-      String senderPubkey,
+      String peerPubkey,
       String ciphertext,
     );
 
@@ -87,7 +87,7 @@ class DmRepository {
   String _userPubkey;
   NostrSigner? _signer;
   RumorDecryptor _rumorDecryptor;
-  final Nip04Decryptor? _nip04Decryptor;
+  Nip04Decryptor? _nip04Decryptor;
 
   StreamSubscription<Event>? _giftWrapSubscription;
   Timer? _pollTimer;
@@ -115,6 +115,7 @@ class DmRepository {
     required NostrSigner signer,
     required NIP17MessageService messageService,
     RumorDecryptor? rumorDecryptor,
+    Nip04Decryptor? nip04Decryptor,
   }) {
     if (isInitialized) return;
 
@@ -122,6 +123,7 @@ class DmRepository {
     _signer = signer;
     _messageService = messageService;
     if (rumorDecryptor != null) _rumorDecryptor = rumorDecryptor;
+    if (nip04Decryptor != null) _nip04Decryptor = nip04Decryptor;
     startListening();
   }
 
@@ -332,7 +334,6 @@ class DmRepository {
 
       // Build participants list (sender + recipient)
       final participants = [senderPubkey, recipientPubkey]..sort();
-      if (participants.length < 2) return;
 
       final conversationId = computeConversationId(participants);
 
@@ -356,6 +357,7 @@ class DmRepository {
         lastMessageTimestamp: nip04Event.createdAt,
         lastMessageSenderPubkey: senderPubkey,
         isRead: isSentByMe,
+        dmProtocol: 'nip04',
       );
 
       Log.debug(
@@ -468,6 +470,7 @@ class DmRepository {
         lastMessageSenderPubkey: rumorEvent.pubkey,
         subject: subject,
         isRead: isSentByMe,
+        dmProtocol: 'nip17',
       );
 
       Log.debug(
@@ -505,15 +508,31 @@ class DmRepository {
       throw ArgumentError.value(content, 'content', 'must not be empty');
     }
 
-    final additionalTags = <List<String>>[
-      if (replyToId != null) ['e', replyToId],
-    ];
-
-    final result = await _messageService!.sendPrivateMessage(
-      recipientPubkey: recipientPubkey,
-      content: content,
-      additionalTags: additionalTags,
+    // Look up the conversation protocol to decide NIP-04 vs NIP-17.
+    final participants = [_userPubkey, recipientPubkey]..sort();
+    final conversationId = computeConversationId(participants);
+    final existingConversation = await _conversationsDao.getConversation(
+      conversationId,
     );
+    final protocol = existingConversation?.dmProtocol;
+
+    final NIP17SendResult result;
+    if (protocol == 'nip04') {
+      result = await _sendNip04Message(
+        recipientPubkey: recipientPubkey,
+        content: content,
+      );
+    } else {
+      final additionalTags = <List<String>>[
+        if (replyToId != null) ['e', replyToId],
+      ];
+
+      result = await _messageService!.sendPrivateMessage(
+        recipientPubkey: recipientPubkey,
+        content: content,
+        additionalTags: additionalTags,
+      );
+    }
 
     if (result.success) {
       // Persist our own sent message locally so it appears immediately
@@ -728,6 +747,55 @@ class DmRepository {
   }
 
   // -------------------------------------------------------------------------
+  // Send - NIP-04 (Kind 4)
+  // -------------------------------------------------------------------------
+
+  /// Send a NIP-04 encrypted direct message (kind 4).
+  ///
+  /// Used when replying to a conversation that was initiated via NIP-04,
+  /// ensuring the recipient's client can read the reply.
+  Future<NIP17SendResult> _sendNip04Message({
+    required String recipientPubkey,
+    required String content,
+  }) async {
+    try {
+      final encryptedContent = await _signer!.encrypt(
+        recipientPubkey,
+        content,
+      );
+      if (encryptedContent == null) {
+        return NIP17SendResult.failure('NIP-04 encryption failed');
+      }
+
+      final event = Event(
+        _userPubkey,
+        EventKind.directMessage,
+        [
+          ['p', recipientPubkey],
+        ],
+        encryptedContent,
+      );
+
+      final signed = await _signer!.signEvent(event);
+      if (signed == null) {
+        return NIP17SendResult.failure('Failed to sign NIP-04 event');
+      }
+
+      final published = await _nostrClient.publishEvent(signed);
+      if (published == null) {
+        return NIP17SendResult.failure('Failed to publish NIP-04 event');
+      }
+
+      return NIP17SendResult.success(
+        messageEventId: published.id,
+        recipientPubkey: recipientPubkey,
+      );
+    } catch (e) {
+      return NIP17SendResult.failure('Failed to send NIP-04 message: $e');
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Query - Conversations
   // -------------------------------------------------------------------------
 
@@ -903,6 +971,7 @@ class DmRepository {
       lastMessageSenderPubkey: row.lastMessageSenderPubkey,
       subject: row.subject,
       isRead: row.isRead,
+      dmProtocol: row.dmProtocol,
     );
   }
 

@@ -27,6 +27,7 @@ class ConversationsDao extends DatabaseAccessor<AppDatabase>
     String? lastMessageSenderPubkey,
     String? subject,
     bool isRead = true,
+    String? dmProtocol,
   }) {
     return into(conversations).insertOnConflictUpdate(
       ConversationsCompanion.insert(
@@ -39,6 +40,7 @@ class ConversationsDao extends DatabaseAccessor<AppDatabase>
         lastMessageSenderPubkey: Value(lastMessageSenderPubkey),
         subject: Value(subject),
         isRead: Value(isRead),
+        dmProtocol: Value(dmProtocol),
       ),
     );
   }

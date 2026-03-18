@@ -9335,6 +9335,17 @@ class $ConversationsTable extends Conversations
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _dmProtocolMeta = const VerificationMeta(
+    'dmProtocol',
+  );
+  @override
+  late final GeneratedColumn<String> dmProtocol = GeneratedColumn<String>(
+    'dm_protocol',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -9356,6 +9367,7 @@ class $ConversationsTable extends Conversations
     lastMessageSenderPubkey,
     subject,
     isRead,
+    dmProtocol,
     createdAt,
   ];
   @override
@@ -9431,6 +9443,12 @@ class $ConversationsTable extends Conversations
         isRead.isAcceptableOrUnknown(data['is_read']!, _isReadMeta),
       );
     }
+    if (data.containsKey('dm_protocol')) {
+      context.handle(
+        _dmProtocolMeta,
+        dmProtocol.isAcceptableOrUnknown(data['dm_protocol']!, _dmProtocolMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -9480,6 +9498,10 @@ class $ConversationsTable extends Conversations
         DriftSqlType.bool,
         data['${effectivePrefix}is_read'],
       )!,
+      dmProtocol: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dm_protocol'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}created_at'],
@@ -9519,6 +9541,11 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
   /// Whether the conversation has unread messages.
   final bool isRead;
 
+  /// The DM protocol used in this conversation.
+  /// 'nip17' for NIP-17 gift-wrapped messages, 'nip04' for legacy NIP-04.
+  /// Null means unknown / default to NIP-17.
+  final String? dmProtocol;
+
   /// Unix timestamp when the conversation was first created.
   final int createdAt;
   const ConversationRow({
@@ -9530,6 +9557,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     this.lastMessageSenderPubkey,
     this.subject,
     required this.isRead,
+    this.dmProtocol,
     required this.createdAt,
   });
   @override
@@ -9553,6 +9581,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       map['subject'] = Variable<String>(subject);
     }
     map['is_read'] = Variable<bool>(isRead);
+    if (!nullToAbsent || dmProtocol != null) {
+      map['dm_protocol'] = Variable<String>(dmProtocol);
+    }
     map['created_at'] = Variable<int>(createdAt);
     return map;
   }
@@ -9575,6 +9606,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           ? const Value.absent()
           : Value(subject),
       isRead: Value(isRead),
+      dmProtocol: dmProtocol == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dmProtocol),
       createdAt: Value(createdAt),
     );
   }
@@ -9601,6 +9635,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       ),
       subject: serializer.fromJson<String?>(json['subject']),
       isRead: serializer.fromJson<bool>(json['isRead']),
+      dmProtocol: serializer.fromJson<String?>(json['dmProtocol']),
       createdAt: serializer.fromJson<int>(json['createdAt']),
     );
   }
@@ -9618,6 +9653,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
       ),
       'subject': serializer.toJson<String?>(subject),
       'isRead': serializer.toJson<bool>(isRead),
+      'dmProtocol': serializer.toJson<String?>(dmProtocol),
       'createdAt': serializer.toJson<int>(createdAt),
     };
   }
@@ -9631,6 +9667,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     Value<String?> lastMessageSenderPubkey = const Value.absent(),
     Value<String?> subject = const Value.absent(),
     bool? isRead,
+    Value<String?> dmProtocol = const Value.absent(),
     int? createdAt,
   }) => ConversationRow(
     id: id ?? this.id,
@@ -9647,6 +9684,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
         : this.lastMessageSenderPubkey,
     subject: subject.present ? subject.value : this.subject,
     isRead: isRead ?? this.isRead,
+    dmProtocol: dmProtocol.present ? dmProtocol.value : this.dmProtocol,
     createdAt: createdAt ?? this.createdAt,
   );
   ConversationRow copyWithCompanion(ConversationsCompanion data) {
@@ -9667,6 +9705,9 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           : this.lastMessageSenderPubkey,
       subject: data.subject.present ? data.subject.value : this.subject,
       isRead: data.isRead.present ? data.isRead.value : this.isRead,
+      dmProtocol: data.dmProtocol.present
+          ? data.dmProtocol.value
+          : this.dmProtocol,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -9682,6 +9723,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           ..write('lastMessageSenderPubkey: $lastMessageSenderPubkey, ')
           ..write('subject: $subject, ')
           ..write('isRead: $isRead, ')
+          ..write('dmProtocol: $dmProtocol, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -9697,6 +9739,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
     lastMessageSenderPubkey,
     subject,
     isRead,
+    dmProtocol,
     createdAt,
   );
   @override
@@ -9711,6 +9754,7 @@ class ConversationRow extends DataClass implements Insertable<ConversationRow> {
           other.lastMessageSenderPubkey == this.lastMessageSenderPubkey &&
           other.subject == this.subject &&
           other.isRead == this.isRead &&
+          other.dmProtocol == this.dmProtocol &&
           other.createdAt == this.createdAt);
 }
 
@@ -9723,6 +9767,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
   final Value<String?> lastMessageSenderPubkey;
   final Value<String?> subject;
   final Value<bool> isRead;
+  final Value<String?> dmProtocol;
   final Value<int> createdAt;
   final Value<int> rowid;
   const ConversationsCompanion({
@@ -9734,6 +9779,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
     this.lastMessageSenderPubkey = const Value.absent(),
     this.subject = const Value.absent(),
     this.isRead = const Value.absent(),
+    this.dmProtocol = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -9746,6 +9792,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
     this.lastMessageSenderPubkey = const Value.absent(),
     this.subject = const Value.absent(),
     this.isRead = const Value.absent(),
+    this.dmProtocol = const Value.absent(),
     required int createdAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -9760,6 +9807,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
     Expression<String>? lastMessageSenderPubkey,
     Expression<String>? subject,
     Expression<bool>? isRead,
+    Expression<String>? dmProtocol,
     Expression<int>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -9775,6 +9823,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
         'last_message_sender_pubkey': lastMessageSenderPubkey,
       if (subject != null) 'subject': subject,
       if (isRead != null) 'is_read': isRead,
+      if (dmProtocol != null) 'dm_protocol': dmProtocol,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -9789,6 +9838,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
     Value<String?>? lastMessageSenderPubkey,
     Value<String?>? subject,
     Value<bool>? isRead,
+    Value<String?>? dmProtocol,
     Value<int>? createdAt,
     Value<int>? rowid,
   }) {
@@ -9802,6 +9852,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
           lastMessageSenderPubkey ?? this.lastMessageSenderPubkey,
       subject: subject ?? this.subject,
       isRead: isRead ?? this.isRead,
+      dmProtocol: dmProtocol ?? this.dmProtocol,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -9836,6 +9887,9 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
     if (isRead.present) {
       map['is_read'] = Variable<bool>(isRead.value);
     }
+    if (dmProtocol.present) {
+      map['dm_protocol'] = Variable<String>(dmProtocol.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<int>(createdAt.value);
     }
@@ -9856,6 +9910,7 @@ class ConversationsCompanion extends UpdateCompanion<ConversationRow> {
           ..write('lastMessageSenderPubkey: $lastMessageSenderPubkey, ')
           ..write('subject: $subject, ')
           ..write('isRead: $isRead, ')
+          ..write('dmProtocol: $dmProtocol, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -14343,6 +14398,7 @@ typedef $$ConversationsTableCreateCompanionBuilder =
       Value<String?> lastMessageSenderPubkey,
       Value<String?> subject,
       Value<bool> isRead,
+      Value<String?> dmProtocol,
       required int createdAt,
       Value<int> rowid,
     });
@@ -14356,6 +14412,7 @@ typedef $$ConversationsTableUpdateCompanionBuilder =
       Value<String?> lastMessageSenderPubkey,
       Value<String?> subject,
       Value<bool> isRead,
+      Value<String?> dmProtocol,
       Value<int> createdAt,
       Value<int> rowid,
     });
@@ -14406,6 +14463,11 @@ class $$ConversationsTableFilterComposer
 
   ColumnFilters<bool> get isRead => $composableBuilder(
     column: $table.isRead,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dmProtocol => $composableBuilder(
+    column: $table.dmProtocol,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14464,6 +14526,11 @@ class $$ConversationsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get dmProtocol => $composableBuilder(
+    column: $table.dmProtocol,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14511,6 +14578,11 @@ class $$ConversationsTableAnnotationComposer
   GeneratedColumn<bool> get isRead =>
       $composableBuilder(column: $table.isRead, builder: (column) => column);
 
+  GeneratedColumn<String> get dmProtocol => $composableBuilder(
+    column: $table.dmProtocol,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
@@ -14554,6 +14626,7 @@ class $$ConversationsTableTableManager
                 Value<String?> lastMessageSenderPubkey = const Value.absent(),
                 Value<String?> subject = const Value.absent(),
                 Value<bool> isRead = const Value.absent(),
+                Value<String?> dmProtocol = const Value.absent(),
                 Value<int> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ConversationsCompanion(
@@ -14565,6 +14638,7 @@ class $$ConversationsTableTableManager
                 lastMessageSenderPubkey: lastMessageSenderPubkey,
                 subject: subject,
                 isRead: isRead,
+                dmProtocol: dmProtocol,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -14578,6 +14652,7 @@ class $$ConversationsTableTableManager
                 Value<String?> lastMessageSenderPubkey = const Value.absent(),
                 Value<String?> subject = const Value.absent(),
                 Value<bool> isRead = const Value.absent(),
+                Value<String?> dmProtocol = const Value.absent(),
                 required int createdAt,
                 Value<int> rowid = const Value.absent(),
               }) => ConversationsCompanion.insert(
@@ -14589,6 +14664,7 @@ class $$ConversationsTableTableManager
                 lastMessageSenderPubkey: lastMessageSenderPubkey,
                 subject: subject,
                 isRead: isRead,
+                dmProtocol: dmProtocol,
                 createdAt: createdAt,
                 rowid: rowid,
               ),

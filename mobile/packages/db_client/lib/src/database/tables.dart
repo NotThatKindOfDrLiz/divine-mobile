@@ -789,6 +789,11 @@ class Conversations extends Table {
   BoolColumn get isRead =>
       boolean().withDefault(const Constant(true)).named('is_read')();
 
+  /// The DM protocol used in this conversation.
+  /// 'nip17' for NIP-17 gift-wrapped messages, 'nip04' for legacy NIP-04.
+  /// Null means unknown / default to NIP-17.
+  TextColumn get dmProtocol => text().nullable().named('dm_protocol')();
+
   /// Unix timestamp when the conversation was first created.
   IntColumn get createdAt => integer().named('created_at')();
 

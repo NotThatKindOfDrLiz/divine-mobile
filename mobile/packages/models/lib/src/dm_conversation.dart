@@ -18,6 +18,7 @@ class DmConversation extends Equatable {
     this.lastMessageSenderPubkey,
     this.subject,
     this.isRead = true,
+    this.dmProtocol,
   }) : participantPubkeys = List.unmodifiable(participantPubkeys);
 
   /// Deterministic conversation ID (SHA-256 of sorted participant pubkeys).
@@ -47,6 +48,11 @@ class DmConversation extends Equatable {
   /// Whether the conversation has been read.
   final bool isRead;
 
+  /// The DM protocol used in this conversation.
+  /// 'nip17' for NIP-17 gift-wrapped messages, 'nip04' for legacy NIP-04.
+  /// Null means unknown / default to NIP-17.
+  final String? dmProtocol;
+
   /// Creates a copy with the given fields replaced.
   ///
   /// To explicitly clear a nullable field, set the corresponding
@@ -65,6 +71,8 @@ class DmConversation extends Equatable {
     String? subject,
     bool clearSubject = false,
     bool? isRead,
+    String? dmProtocol,
+    bool clearDmProtocol = false,
   }) {
     return DmConversation(
       id: id ?? this.id,
@@ -82,6 +90,7 @@ class DmConversation extends Equatable {
           : lastMessageSenderPubkey ?? this.lastMessageSenderPubkey,
       subject: clearSubject ? null : subject ?? this.subject,
       isRead: isRead ?? this.isRead,
+      dmProtocol: clearDmProtocol ? null : dmProtocol ?? this.dmProtocol,
     );
   }
 
@@ -96,5 +105,6 @@ class DmConversation extends Equatable {
     lastMessageSenderPubkey,
     subject,
     isRead,
+    dmProtocol,
   ];
 }
