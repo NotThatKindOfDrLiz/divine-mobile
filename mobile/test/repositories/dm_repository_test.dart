@@ -232,6 +232,10 @@ void main() {
             recipientPubkey: _validPubkeyB,
           ),
         );
+        // Stub NIP-04 fallback publish (fire-and-forget, unknown protocol)
+        when(
+          () => mockNostrClient.publishEvent(any()),
+        ).thenAnswer((_) async => null);
         when(
           () => mockDirectMessagesDao.insertMessage(
             id: any(named: 'id'),
@@ -331,6 +335,10 @@ void main() {
         ).thenAnswer(
           (_) async => NIP17SendResult.failure('Relay rejected'),
         );
+        // Stub NIP-04 fallback (still fires even on NIP-17 failure)
+        when(
+          () => mockNostrClient.publishEvent(any()),
+        ).thenAnswer((_) async => null);
 
         final repository = createRepository();
 
@@ -366,110 +374,132 @@ void main() {
         );
       });
 
-      test('sends NIP-04 when conversation protocol is nip04', () async {
-        final participants = [_validPubkeyA, _validPubkeyB]..sort();
-        final conversationId = DmRepository.computeConversationId(
-          participants,
-        );
-
-        // Existing conversation with nip04 protocol
-        when(
-          () => mockConversationsDao.getConversation(conversationId),
-        ).thenAnswer(
-          (_) async => ConversationRow(
-            id: conversationId,
-            participantPubkeys: jsonEncode(participants),
-            isGroup: false,
-            isRead: true,
-            createdAt: 1700000000,
-            dmProtocol: 'nip04',
-          ),
-        );
-
-        // Stub publish for NIP-04 send path
-        when(
-          () => mockNostrClient.publishEvent(any()),
-        ).thenAnswer(
-          (_) async => Event.fromJson({
-            'id': _rumorEventId,
-            'pubkey': _validPubkeyA,
-            'created_at': 1700000000,
-            'kind': EventKind.directMessage,
-            'tags': [
-              ['p', _validPubkeyB],
-            ],
-            'content': 'encrypted',
-            'sig': 'sig',
-          }),
-        );
-
-        when(
-          () => mockDirectMessagesDao.insertMessage(
-            id: any(named: 'id'),
-            conversationId: any(named: 'conversationId'),
-            senderPubkey: any(named: 'senderPubkey'),
-            content: any(named: 'content'),
-            createdAt: any(named: 'createdAt'),
-            giftWrapId: any(named: 'giftWrapId'),
-            messageKind: any(named: 'messageKind'),
-            replyToId: any(named: 'replyToId'),
-            subject: any(named: 'subject'),
-            fileType: any(named: 'fileType'),
-            encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
-            decryptionKey: any(named: 'decryptionKey'),
-            decryptionNonce: any(named: 'decryptionNonce'),
-            fileHash: any(named: 'fileHash'),
-            originalFileHash: any(named: 'originalFileHash'),
-            fileSize: any(named: 'fileSize'),
-            dimensions: any(named: 'dimensions'),
-            blurhash: any(named: 'blurhash'),
-            thumbnailUrl: any(named: 'thumbnailUrl'),
-          ),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockConversationsDao.upsertConversation(
-            id: any(named: 'id'),
-            participantPubkeys: any(named: 'participantPubkeys'),
-            isGroup: any(named: 'isGroup'),
-            createdAt: any(named: 'createdAt'),
-            lastMessageContent: any(named: 'lastMessageContent'),
-            lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
-            lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
-            subject: any(named: 'subject'),
-            isRead: any(named: 'isRead'),
-            dmProtocol: any(named: 'dmProtocol'),
-          ),
-        ).thenAnswer((_) async {});
-
-        final repository = createRepository();
-
-        final result = await repository.sendMessage(
-          recipientPubkey: _validPubkeyB,
-          content: 'Reply via NIP-04',
-        );
-
-        expect(result.success, isTrue);
-
-        // Should have published via NostrClient (NIP-04 path),
-        // NOT via NIP17MessageService
-        verify(() => mockNostrClient.publishEvent(any())).called(1);
-        verifyNever(
-          () => mockMessageService.sendPrivateMessage(
-            recipientPubkey: any(named: 'recipientPubkey'),
-            content: any(named: 'content'),
-            eventKind: any(named: 'eventKind'),
-            additionalTags: any(named: 'additionalTags'),
-          ),
-        );
-      });
-
       test(
-        'sends NIP-17 when conversation protocol is nip17 or null',
+        'dual-sends NIP-17 + NIP-04 when protocol is unknown or nip04',
         () async {
-          // Test with null protocol (no existing conversation)
+          // No existing conversation (unknown protocol)
           when(
             () => mockConversationsDao.getConversation(any()),
           ).thenAnswer((_) async => null);
+
+          when(
+            () => mockMessageService.sendPrivateMessage(
+              recipientPubkey: any(named: 'recipientPubkey'),
+              content: any(named: 'content'),
+              eventKind: any(named: 'eventKind'),
+              additionalTags: any(named: 'additionalTags'),
+            ),
+          ).thenAnswer(
+            (_) async => NIP17SendResult.success(
+              messageEventId: _rumorEventId,
+              recipientPubkey: _validPubkeyB,
+            ),
+          );
+
+          // Stub NIP-04 publish (fire-and-forget fallback)
+          when(
+            () => mockNostrClient.publishEvent(any()),
+          ).thenAnswer(
+            (_) async => Event.fromJson({
+              'id': _rumorEventId,
+              'pubkey': _validPubkeyA,
+              'created_at': 1700000000,
+              'kind': EventKind.directMessage,
+              'tags': [
+                ['p', _validPubkeyB],
+              ],
+              'content': 'encrypted',
+              'sig': 'sig',
+            }),
+          );
+
+          when(
+            () => mockDirectMessagesDao.insertMessage(
+              id: any(named: 'id'),
+              conversationId: any(named: 'conversationId'),
+              senderPubkey: any(named: 'senderPubkey'),
+              content: any(named: 'content'),
+              createdAt: any(named: 'createdAt'),
+              giftWrapId: any(named: 'giftWrapId'),
+              messageKind: any(named: 'messageKind'),
+              replyToId: any(named: 'replyToId'),
+              subject: any(named: 'subject'),
+              fileType: any(named: 'fileType'),
+              encryptionAlgorithm: any(named: 'encryptionAlgorithm'),
+              decryptionKey: any(named: 'decryptionKey'),
+              decryptionNonce: any(named: 'decryptionNonce'),
+              fileHash: any(named: 'fileHash'),
+              originalFileHash: any(named: 'originalFileHash'),
+              fileSize: any(named: 'fileSize'),
+              dimensions: any(named: 'dimensions'),
+              blurhash: any(named: 'blurhash'),
+              thumbnailUrl: any(named: 'thumbnailUrl'),
+            ),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockConversationsDao.upsertConversation(
+              id: any(named: 'id'),
+              participantPubkeys: any(named: 'participantPubkeys'),
+              isGroup: any(named: 'isGroup'),
+              createdAt: any(named: 'createdAt'),
+              lastMessageContent: any(named: 'lastMessageContent'),
+              lastMessageTimestamp: any(named: 'lastMessageTimestamp'),
+              lastMessageSenderPubkey: any(named: 'lastMessageSenderPubkey'),
+              subject: any(named: 'subject'),
+              isRead: any(named: 'isRead'),
+              dmProtocol: any(named: 'dmProtocol'),
+            ),
+          ).thenAnswer((_) async {});
+
+          final repository = createRepository();
+
+          final result = await repository.sendMessage(
+            recipientPubkey: _validPubkeyB,
+            content: 'Hello!',
+          );
+
+          expect(result.success, isTrue);
+
+          // Should send NIP-17 (always)
+          verify(
+            () => mockMessageService.sendPrivateMessage(
+              recipientPubkey: any(named: 'recipientPubkey'),
+              content: any(named: 'content'),
+              eventKind: any(named: 'eventKind'),
+              additionalTags: any(named: 'additionalTags'),
+            ),
+          ).called(1);
+
+          // NIP-04 fallback is fire-and-forget; give it a tick to execute
+          await Future<void>.delayed(Duration.zero);
+
+          // Should also publish NIP-04 copy
+          verify(() => mockNostrClient.publishEvent(any())).called(1);
+        },
+      );
+
+      test(
+        'skips NIP-04 fallback when conversation is known NIP-17',
+        () async {
+          final participants = [_validPubkeyA, _validPubkeyB]..sort();
+          final conversationId = DmRepository.computeConversationId(
+            participants,
+          );
+
+          // Existing conversation with nip17 protocol
+          when(
+            () => mockConversationsDao.getConversation(conversationId),
+          ).thenAnswer(
+            (_) async => ConversationRow(
+              id: conversationId,
+              participantPubkeys: jsonEncode(participants),
+              isGroup: false,
+              isRead: true,
+              createdAt: 1700000000,
+              dmProtocol: 'nip17',
+            ),
+          );
+
           when(
             () => mockMessageService.sendPrivateMessage(
               recipientPubkey: any(named: 'recipientPubkey'),
@@ -525,12 +555,12 @@ void main() {
 
           final result = await repository.sendMessage(
             recipientPubkey: _validPubkeyB,
-            content: 'Hello via NIP-17!',
+            content: 'Hello NIP-17 friend!',
           );
 
           expect(result.success, isTrue);
 
-          // Should have used NIP17MessageService, NOT direct publish
+          // Should send NIP-17
           verify(
             () => mockMessageService.sendPrivateMessage(
               recipientPubkey: any(named: 'recipientPubkey'),
@@ -539,6 +569,10 @@ void main() {
               additionalTags: any(named: 'additionalTags'),
             ),
           ).called(1);
+
+          await Future<void>.delayed(Duration.zero);
+
+          // Should NOT publish NIP-04 (recipient is known NIP-17)
           verifyNever(() => mockNostrClient.publishEvent(any()));
         },
       );
@@ -2428,6 +2462,9 @@ void main() {
             () => mockConversationsDao.getConversation(any()),
           ).thenAnswer((_) async => null);
           when(
+            () => mockNostrClient.publishEvent(any()),
+          ).thenAnswer((_) async => null);
+          when(
             () => mockMessageService.sendPrivateMessage(
               recipientPubkey: any(named: 'recipientPubkey'),
               content: any(named: 'content'),
@@ -2653,6 +2690,9 @@ void main() {
 
           when(
             () => mockConversationsDao.getConversation(any()),
+          ).thenAnswer((_) async => null);
+          when(
+            () => mockNostrClient.publishEvent(any()),
           ).thenAnswer((_) async => null);
           when(
             () => mockMessageService.sendPrivateMessage(

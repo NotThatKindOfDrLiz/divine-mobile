@@ -52,8 +52,10 @@ const Set<int> _supportedDmKinds = {
 ///   appropriate encryption layer, and persists decrypted messages.
 ///   Supports NIP-17 kind 14 (text) and kind 15 (file) messages, plus
 ///   NIP-04 kind 4 legacy DMs from other Nostr clients.
-/// - **Sending**: Delegates to [NIP17MessageService] for encryption and
-///   publishing. Outgoing messages always use NIP-17 (the modern standard).
+/// - **Sending**: Dual-sends outgoing messages as both NIP-17 (gift wrap)
+///   and NIP-04 (legacy) to guarantee delivery to all clients. Skips the
+///   NIP-04 copy when the conversation is known to be NIP-17 only (i.e.
+///   the other party has sent us a NIP-17 message).
 /// - **Querying**: Provides reactive streams for conversation lists and
 ///   individual conversation messages via Drift DAOs.
 ///
@@ -494,6 +496,12 @@ class DmRepository {
 
   /// Send a text message to a 1:1 conversation.
   ///
+  /// Always sends via NIP-17 (gift wrap). Additionally sends a NIP-04 copy
+  /// unless the conversation is known to be NIP-17 only (i.e. we have
+  /// received a NIP-17 message from the other party). This dual-send
+  /// guarantees delivery to both modern and legacy Nostr clients during
+  /// the NIP-04 → NIP-17 transition period.
+  ///
   /// Throws [StateError] if the repository has not been initialized.
   /// Throws [ArgumentError] if [recipientPubkey] is not a 64-character
   /// hex string or if [content] is empty.
@@ -508,7 +516,21 @@ class DmRepository {
       throw ArgumentError.value(content, 'content', 'must not be empty');
     }
 
-    // Look up the conversation protocol to decide NIP-04 vs NIP-17.
+    // Always send NIP-17 (the modern standard).
+    final additionalTags = <List<String>>[
+      if (replyToId != null) ['e', replyToId],
+    ];
+
+    final result = await _messageService!.sendPrivateMessage(
+      recipientPubkey: recipientPubkey,
+      content: content,
+      additionalTags: additionalTags,
+    );
+
+    // Also send NIP-04 copy unless conversation is known NIP-17.
+    // This ensures legacy clients (Damus, Amethyst, Primal, etc.) can
+    // read the message. Skip when we know the recipient supports NIP-17
+    // (they've sent us a NIP-17 message) to avoid unnecessary publishes.
     final participants = [_userPubkey, recipientPubkey]..sort();
     final conversationId = computeConversationId(participants);
     final existingConversation = await _conversationsDao.getConversation(
@@ -516,21 +538,19 @@ class DmRepository {
     );
     final protocol = existingConversation?.dmProtocol;
 
-    final NIP17SendResult result;
-    if (protocol == 'nip04') {
-      result = await _sendNip04Message(
-        recipientPubkey: recipientPubkey,
-        content: content,
-      );
-    } else {
-      final additionalTags = <List<String>>[
-        if (replyToId != null) ['e', replyToId],
-      ];
-
-      result = await _messageService!.sendPrivateMessage(
-        recipientPubkey: recipientPubkey,
-        content: content,
-        additionalTags: additionalTags,
+    if (protocol != 'nip17') {
+      // Fire-and-forget: NIP-04 copy is best-effort. The NIP-17 message
+      // is the authoritative one; NIP-04 is a compatibility fallback.
+      unawaited(
+        _sendNip04Message(
+          recipientPubkey: recipientPubkey,
+          content: content,
+        ).catchError((Object e) {
+          Log.warning(
+            'NIP-04 fallback send failed (NIP-17 succeeded): $e',
+            category: LogCategory.system,
+          );
+        }),
       );
     }
 
@@ -538,8 +558,6 @@ class DmRepository {
       // Persist our own sent message locally so it appears immediately
       // without waiting for a relay round-trip.
       try {
-        final participants = [_userPubkey, recipientPubkey]..sort();
-        final conversationId = computeConversationId(participants);
         final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
         await _directMessagesDao.insertMessage(
