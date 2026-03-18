@@ -1,9 +1,12 @@
 // ABOUTME: Chat message bubble widget for sent and received messages.
 // ABOUTME: Supports message grouping with variable border radius and
 // ABOUTME: conditional timestamp display based on position in group.
+// ABOUTME: Detects URLs in message text and renders them as tappable links.
 
 import 'package:divine_ui/divine_ui.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// A single chat message bubble.
 ///
@@ -23,8 +26,15 @@ class MessageBubble extends StatelessWidget {
     required this.isSent,
     this.isFirstInGroup = true,
     this.isLastInGroup = true,
+    this.onLinkTap,
     super.key,
   });
+
+  /// Regex to detect HTTP/HTTPS URLs in message text.
+  static final _urlRegex = RegExp(
+    r'https?://[^\s<>\[\]]+',
+    caseSensitive: false,
+  );
 
   final String message;
   final String timestamp;
@@ -37,6 +47,10 @@ class MessageBubble extends StatelessWidget {
   /// Whether this is the last (bottommost) message in a consecutive group
   /// from the same sender.  When true the tail corner is rendered.
   final bool isLastInGroup;
+
+  /// Optional callback when a link is tapped. If null, URLs are opened
+  /// externally via [launchUrl].
+  final ValueChanged<String>? onLinkTap;
 
   @override
   Widget build(BuildContext context) {
@@ -75,15 +89,75 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-              Text(
-                message,
-                style: VineTheme.bodyMediumFont(),
-              ),
+              _buildMessageText(),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildMessageText() {
+    final style = VineTheme.bodyMediumFont();
+
+    if (!_urlRegex.hasMatch(message)) {
+      return Text(message, style: style);
+    }
+
+    final linkStyle = style.copyWith(
+      decoration: TextDecoration.underline,
+      decorationColor: style.color,
+    );
+
+    final spans = <InlineSpan>[];
+    var lastEnd = 0;
+
+    for (final match in _urlRegex.allMatches(message)) {
+      // Trim trailing punctuation that is likely not part of the URL.
+      var url = match.group(0)!;
+      var end = match.end;
+      while (url.length > 1 && _isTrailingPunctuation(url[url.length - 1])) {
+        url = url.substring(0, url.length - 1);
+        end--;
+      }
+
+      if (match.start > lastEnd) {
+        spans.add(
+          TextSpan(text: message.substring(lastEnd, match.start), style: style),
+        );
+      }
+
+      spans.add(
+        TextSpan(
+          text: url,
+          style: linkStyle,
+          recognizer: TapGestureRecognizer()..onTap = () => _handleLinkTap(url),
+        ),
+      );
+
+      lastEnd = end;
+    }
+
+    if (lastEnd < message.length) {
+      spans.add(TextSpan(text: message.substring(lastEnd), style: style));
+    }
+
+    return Text.rich(TextSpan(children: spans));
+  }
+
+  void _handleLinkTap(String url) {
+    if (onLinkTap != null) {
+      onLinkTap!(url);
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  static bool _isTrailingPunctuation(String char) {
+    return char == '.' || char == ',' || char == ')' || char == ';';
   }
 
   BorderRadius get _borderRadius {
