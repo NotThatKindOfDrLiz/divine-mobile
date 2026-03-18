@@ -28,6 +28,7 @@ import 'package:openvine/widgets/user_name.dart';
 import 'package:openvine/widgets/video_feed_item/actions/actions.dart';
 import 'package:openvine/widgets/video_thumbnail_widget.dart';
 import 'package:openvine/widgets/watermark_download_progress_sheet.dart';
+import 'package:profile_repository/profile_repository.dart';
 import 'package:share_plus/share_plus.dart';
 
 part 'share_sheet_header.dart';
@@ -53,8 +54,17 @@ class ShareActionButton extends StatelessWidget {
   /// This is exposed as a static method so share entry points can reuse the
   /// same bottom-sheet wiring without duplicating setup logic.
   static void showShareSheet(BuildContext context, VideoEvent video) {
+    // Read here so the sheet receives a guaranteed non-null repository.
+    // If Nostr client hasn't initialized yet, skip opening the sheet.
+    final container = ProviderScope.containerOf(context);
+    final profileRepository = container.read(profileRepositoryProvider);
+    if (profileRepository == null) return;
+
     context.showVideoPausingVineBottomSheet<void>(
-      builder: (context) => _UnifiedShareSheet(video: video),
+      builder: (context) => _UnifiedShareSheet(
+        video: video,
+        profileRepository: profileRepository,
+      ),
     );
   }
 
@@ -81,9 +91,13 @@ class ShareActionButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _UnifiedShareSheet extends ConsumerStatefulWidget {
-  const _UnifiedShareSheet({required this.video});
+  const _UnifiedShareSheet({
+    required this.video,
+    required this.profileRepository,
+  });
 
   final VideoEvent video;
+  final ProfileRepository profileRepository;
 
   @override
   ConsumerState<_UnifiedShareSheet> createState() => _UnifiedShareSheetState();
@@ -91,25 +105,10 @@ class _UnifiedShareSheet extends ConsumerStatefulWidget {
 
 class _UnifiedShareSheetState extends ConsumerState<_UnifiedShareSheet> {
   final TextEditingController _messageController = TextEditingController();
-  late final ShareSheetBloc _bloc;
-
-  @override
-  void initState() {
-    super.initState();
-    _bloc = ShareSheetBloc(
-      video: widget.video,
-      relayUrl: ref.read(currentEnvironmentProvider).relayUrl,
-      videoSharingService: ref.read(videoSharingServiceProvider),
-      profileRepository: ref.read(profileRepositoryProvider)!,
-      followRepository: ref.read(followRepositoryProvider),
-      bookmarkServiceFuture: ref.read(bookmarkServiceProvider.future),
-    )..add(const ShareSheetContactsLoadRequested());
-  }
 
   @override
   void dispose() {
     _messageController.dispose();
-    _bloc.close();
     super.dispose();
   }
 
@@ -131,8 +130,15 @@ class _UnifiedShareSheetState extends ConsumerState<_UnifiedShareSheet> {
   Widget build(BuildContext context) {
     final isOwnContent = _isUserOwnContent();
 
-    return BlocProvider.value(
-      value: _bloc,
+    return BlocProvider(
+      create: (_) => ShareSheetBloc(
+        video: widget.video,
+        relayUrl: ref.read(currentEnvironmentProvider).relayUrl,
+        videoSharingService: ref.read(videoSharingServiceProvider),
+        profileRepository: widget.profileRepository,
+        followRepository: ref.read(followRepositoryProvider),
+        bookmarkServiceFuture: ref.read(bookmarkServiceProvider.future),
+      )..add(const ShareSheetContactsLoadRequested()),
       child: BlocListener<ShareSheetBloc, ShareSheetState>(
         listenWhen: (prev, curr) =>
             curr.actionResult != null && prev.actionResult != curr.actionResult,
@@ -189,12 +195,13 @@ class _UnifiedShareSheetState extends ConsumerState<_UnifiedShareSheet> {
   }
 
   Future<void> _handleFindPeople() async {
+    final bloc = context.read<ShareSheetBloc>();
     final selectedUser = await FindPeopleSheet.show(
       context,
-      contacts: _bloc.state.contacts,
+      contacts: bloc.state.contacts,
     );
     if (selectedUser != null && mounted) {
-      _bloc.add(ShareSheetRecipientSelected(selectedUser));
+      bloc.add(ShareSheetRecipientSelected(selectedUser));
     }
   }
 
