@@ -498,7 +498,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                   ? const []
                   : [
                       DiVineAppBarAction(
-                        icon: const SvgIconSource('assets/icon/search.svg'),
+                        icon: SvgIconSource(DivineIconName.search.assetPath),
                         tooltip: 'Search',
                         onPressed: () {
                           Log.info(
@@ -526,7 +526,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _buildTabButton(
                 context,
                 ref,
-                'assets/icon/house.svg',
+                DivineIconName.house.assetPath,
                 0,
                 currentIndex,
                 'home_tab',
@@ -534,7 +534,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _buildTabButton(
                 context,
                 ref,
-                'assets/icon/compass.svg',
+                DivineIconName.compass.assetPath,
                 1,
                 currentIndex,
                 'explore_tab',
@@ -565,7 +565,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: SvgPicture.asset(
-                      'assets/icon/retro-camera.svg',
+                      DivineIconName.cameraRetro.assetPath,
                       width: 32,
                       height: 32,
                     ),
@@ -579,7 +579,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 child: _buildTabButton(
                   context,
                   ref,
-                  'assets/icon/${DivineIconName.chat.fileName}.svg',
+                  DivineIconName.chat.assetPath,
                   2,
                   currentIndex,
                   'inbox_tab',
@@ -588,7 +588,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _buildTabButton(
                 context,
                 ref,
-                'assets/icon/userCircle.svg',
+                DivineIconName.userCircle.assetPath,
                 3,
                 currentIndex,
                 'profile_tab',
