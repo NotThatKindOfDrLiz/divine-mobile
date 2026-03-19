@@ -100,7 +100,7 @@ class _SharedVideoBubbleState extends ConsumerState<SharedVideoBubble> {
           constraints: BoxConstraints(
             maxWidth: MediaQuery.sizeOf(context).width * 0.75,
           ),
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: widget.isSent
                 ? VineTheme.primaryAccessible
@@ -114,7 +114,7 @@ class _SharedVideoBubbleState extends ConsumerState<SharedVideoBubble> {
             children: [
               if (widget.isFirstInGroup)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
                     widget.timestamp,
                     style: VineTheme.labelSmallFont(
