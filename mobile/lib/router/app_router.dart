@@ -48,7 +48,10 @@ import 'package:openvine/screens/pure/search_screen_pure.dart';
 import 'package:openvine/screens/relay_diagnostic_screen.dart';
 import 'package:openvine/screens/relay_settings_screen.dart';
 import 'package:openvine/screens/safety_settings_screen.dart';
-import 'package:openvine/screens/settings_screen.dart';
+import 'package:openvine/screens/settings/content_preferences_screen.dart';
+import 'package:openvine/screens/settings/nostr_settings_screen.dart';
+import 'package:openvine/screens/settings/settings_screen.dart';
+import 'package:openvine/screens/settings/support_center_screen.dart';
 import 'package:openvine/screens/sound_detail_screen.dart';
 import 'package:openvine/screens/video_detail_screen.dart';
 import 'package:openvine/screens/video_editor/video_editor_screen.dart';
@@ -251,9 +254,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 key: NavigatorKeys.inbox,
                 onGenerateRoute: (r) => MaterialPageRoute(
                   builder: (_) => const InboxPage(),
-                  settings: const RouteSettings(
-                    name: InboxPage.routeName,
-                  ),
+                  settings: const RouteSettings(name: InboxPage.routeName),
                 ),
               ),
             ),
@@ -586,6 +587,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: SettingsScreen.path,
         name: SettingsScreen.routeName,
         builder: (_, _) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: SupportCenterScreen.path,
+        name: SupportCenterScreen.routeName,
+        builder: (_, _) => const SupportCenterScreen(),
+      ),
+      GoRoute(
+        path: ContentPreferencesScreen.path,
+        name: ContentPreferencesScreen.routeName,
+        builder: (_, _) => const ContentPreferencesScreen(),
+      ),
+      GoRoute(
+        path: NostrSettingsScreen.path,
+        name: NostrSettingsScreen.routeName,
+        builder: (_, _) => const NostrSettingsScreen(),
       ),
       GoRoute(
         path: RelaySettingsScreen.path,
@@ -924,6 +940,9 @@ int tabIndexFromLocation(String loc) {
     case 'key-management':
     case 'safety-settings':
     case 'content-filters':
+    case 'content-preferences':
+    case 'support-center':
+    case 'nostr-settings':
     case 'developer-options':
     case 'edit-profile':
     case 'setup-profile':
