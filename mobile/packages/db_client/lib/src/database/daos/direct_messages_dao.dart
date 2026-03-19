@@ -52,6 +52,7 @@ class DirectMessagesDao extends DatabaseAccessor<AppDatabase>
     String? dimensions,
     String? blurhash,
     String? thumbnailUrl,
+    String? videoEventId,
     String? ownerPubkey,
   }) {
     return into(directMessages).insertOnConflictUpdate(
@@ -75,6 +76,7 @@ class DirectMessagesDao extends DatabaseAccessor<AppDatabase>
         dimensions: Value(dimensions),
         blurhash: Value(blurhash),
         thumbnailUrl: Value(thumbnailUrl),
+        videoEventId: Value(videoEventId),
         ownerPubkey: Value(ownerPubkey),
       ),
     );

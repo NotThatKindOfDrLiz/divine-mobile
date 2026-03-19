@@ -108,6 +108,7 @@ class VideoSharingService {
         return _shareViaNip17(
           recipientPubkey: recipientPubkey,
           content: dmContent,
+          videoEventId: video.id,
         );
       }
 
@@ -130,11 +131,13 @@ class VideoSharingService {
   Future<ShareResult> _shareViaNip17({
     required String recipientPubkey,
     required String content,
+    String? videoEventId,
   }) async {
     final dmRepo = _dmRepository!;
     final result = await dmRepo.sendMessage(
       recipientPubkey: recipientPubkey,
       content: content,
+      videoEventId: videoEventId,
     );
 
     if (result.success) {

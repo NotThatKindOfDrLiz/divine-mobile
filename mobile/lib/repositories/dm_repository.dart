@@ -346,12 +346,21 @@ class DmRepository {
 
       final conversationId = computeConversationId(participants);
 
-      // Extract common tags
+      // Extract common tags.
+      // An 'e' tag with a 'mention' marker (NIP-10) references a shared
+      // video event; an unmarked 'e' tag is a threaded reply.
       String? replyToId;
       String? subject;
+      String? videoEventId;
       for (final tag in rumorEvent.tags) {
         if (tag.length >= 2) {
-          if (tag[0] == 'e') replyToId = tag[1];
+          if (tag[0] == 'e') {
+            if (tag.length >= 4 && tag[3] == 'mention') {
+              videoEventId = tag[1];
+            } else {
+              replyToId = tag[1];
+            }
+          }
           if (tag[0] == 'subject') subject = tag[1];
         }
       }
@@ -399,6 +408,7 @@ class DmRepository {
         dimensions: fileMetadata?.dimensions,
         blurhash: fileMetadata?.blurhash,
         thumbnailUrl: fileMetadata?.thumbnailUrl,
+        videoEventId: videoEventId,
         ownerPubkey: _userPubkey,
       );
 
@@ -583,6 +593,7 @@ class DmRepository {
     required String recipientPubkey,
     required String content,
     String? replyToId,
+    String? videoEventId,
   }) async {
     _assertInitialized();
     validatePubkey(recipientPubkey);
@@ -592,6 +603,7 @@ class DmRepository {
 
     final additionalTags = <List<String>>[
       if (replyToId != null) ['e', replyToId],
+      if (videoEventId != null) ['e', videoEventId, '', 'mention'],
     ];
 
     final result = await _messageService!.sendPrivateMessage(
@@ -616,6 +628,7 @@ class DmRepository {
           createdAt: now,
           giftWrapId: result.messageEventId!,
           replyToId: replyToId,
+          videoEventId: videoEventId,
           ownerPubkey: _userPubkey,
         );
 
@@ -1272,6 +1285,7 @@ class DmRepository {
       replyToId: row.replyToId,
       subject: row.subject,
       fileMetadata: fileMetadata,
+      videoEventId: row.videoEventId,
     );
   }
 

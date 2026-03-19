@@ -723,6 +723,10 @@ class DirectMessages extends Table {
   /// URL of an encrypted thumbnail (same key/nonce).
   TextColumn get thumbnailUrl => text().nullable().named('thumbnail_url')();
 
+  /// Nostr event ID of a shared video referenced via `e`/`mention` tag.
+  /// NULL for regular text messages.
+  TextColumn get videoEventId => text().nullable().named('video_event_id')();
+
   /// Hex public key of the account that received/sent this message.
   /// NULL for legacy messages created before multi-account support.
   TextColumn get ownerPubkey => text().nullable().named('owner_pubkey')();

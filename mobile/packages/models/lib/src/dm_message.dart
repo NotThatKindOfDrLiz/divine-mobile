@@ -23,6 +23,7 @@ class DmMessage extends Equatable {
     this.replyToId,
     this.subject,
     this.fileMetadata,
+    this.videoEventId,
   });
 
   /// The rumor event ID (kind 14 or 15).
@@ -56,6 +57,13 @@ class DmMessage extends Equatable {
   /// File metadata for kind 15 messages. Null for kind 14.
   final DmFileMetadata? fileMetadata;
 
+  /// Nostr event ID of a shared video (from `e`/`mention` tag).
+  /// Null for regular text messages.
+  final String? videoEventId;
+
+  /// Whether this message contains a shared video reference.
+  bool get isVideoShare => videoEventId != null;
+
   /// Whether this is a file message (kind 15).
   bool get isFileMessage => messageKind == 15;
 
@@ -74,6 +82,7 @@ class DmMessage extends Equatable {
     replyToId,
     subject,
     fileMetadata,
+    videoEventId,
   ];
 }
 

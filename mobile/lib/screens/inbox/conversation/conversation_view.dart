@@ -244,9 +244,21 @@ class _MessageList extends StatelessWidget {
             index == 0 ||
             messages[index - 1].senderPubkey != message.senderPubkey;
 
+        final timestamp = TimeFormatter.formatMessageTime(message.createdAt);
+
+        if (message.isVideoShare) {
+          return SharedVideoBubble(
+            videoEventId: message.videoEventId!,
+            timestamp: timestamp,
+            isSent: isSent,
+            isFirstInGroup: isFirstInGroup,
+            isLastInGroup: isLastInGroup,
+          );
+        }
+
         return MessageBubble(
           message: message.content,
-          timestamp: TimeFormatter.formatMessageTime(message.createdAt),
+          timestamp: timestamp,
           isSent: isSent,
           isFirstInGroup: isFirstInGroup,
           isLastInGroup: isLastInGroup,

@@ -97,6 +97,28 @@ void main() {
       });
     });
 
+    group('isVideoShare', () {
+      test('returns false when videoEventId is null', () {
+        final message = createMessage();
+
+        expect(message.isVideoShare, isFalse);
+      });
+
+      test('returns true when videoEventId is set', () {
+        const message = DmMessage(
+          id: messageId,
+          conversationId: conversationId,
+          senderPubkey: senderPubkey,
+          content: 'Check this out',
+          createdAt: 1700000000,
+          giftWrapId: giftWrapId,
+          videoEventId: otherPubkey,
+        );
+
+        expect(message.isVideoShare, isTrue);
+      });
+    });
+
     group('isFileMessage', () {
       test('returns false for kind 14', () {
         final message = createMessage();
