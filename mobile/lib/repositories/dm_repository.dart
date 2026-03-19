@@ -477,12 +477,18 @@ class DmRepository {
         return;
       }
 
-      // Extract recipient from p tag
+      // Extract recipient and video-share tag from event tags.
       String? recipientPubkey;
+      String? videoEventId;
       for (final tag in nip04Event.tags) {
-        if (tag.length >= 2 && tag[0] == 'p') {
-          recipientPubkey = tag[1];
-          break;
+        if (tag.length >= 2) {
+          if (tag[0] == 'p' && recipientPubkey == null) {
+            recipientPubkey = tag[1];
+          } else if (tag[0] == 'e') {
+            if (tag.length >= 4 && tag[3] == 'mention') {
+              videoEventId = tag[1];
+            }
+          }
         }
       }
       if (recipientPubkey == null) return;
@@ -542,6 +548,7 @@ class DmRepository {
         createdAt: nip04Event.createdAt,
         giftWrapId: nip04Event.id,
         messageKind: EventKind.directMessage,
+        videoEventId: videoEventId,
         ownerPubkey: _userPubkey,
       );
 

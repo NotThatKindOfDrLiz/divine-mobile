@@ -340,6 +340,7 @@ class AppDatabase extends _$AppDatabase {
     await _addColumnIfMissing('direct_messages', 'dimensions', 'TEXT');
     await _addColumnIfMissing('direct_messages', 'blurhash', 'TEXT');
     await _addColumnIfMissing('direct_messages', 'thumbnail_url', 'TEXT');
+    await _addColumnIfMissing('direct_messages', 'video_event_id', 'TEXT');
 
     // Check if conversations table exists, create if missing
     final convResult = await customSelect(
