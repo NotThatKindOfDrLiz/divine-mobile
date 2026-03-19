@@ -2261,9 +2261,13 @@ class AuthService implements BackgroundAwareService {
     _hasExpiredOAuthSession = false;
 
     try {
-      _keycastSigner = KeycastRpc.fromSession(_oauthConfig, session);
+      // Create signer as a local variable first. _setupUserSession will
+      // unconditionally clear _keycastSigner to prevent stale-signer bugs
+      // when switching between divineOAuth accounts, so we assign the field
+      // only AFTER _setupUserSession completes.
+      final signer = KeycastRpc.fromSession(_oauthConfig, session);
 
-      final publicKeyHex = await _keycastSigner?.getPublicKey();
+      final publicKeyHex = await signer.getPublicKey();
       if (publicKeyHex == null) {
         throw Exception('Could not retrieve public key from server');
       }
@@ -2287,6 +2291,9 @@ class AuthService implements BackgroundAwareService {
       final keyContainer = SecureKeyContainer.fromPublicKey(publicKeyHex);
       await _setupUserSession(keyContainer, AuthenticationSource.divineOAuth);
 
+      // Assign signer AFTER _setupUserSession (which clears stale signers)
+      _keycastSigner = signer;
+
       Log.info(
         '✅ Divine oauth session successfully integrated for $publicKeyHex',
         name: 'AuthService',
@@ -2298,6 +2305,8 @@ class AuthService implements BackgroundAwareService {
         name: 'AuthService',
         category: LogCategory.auth,
       );
+      // Clear any partially-set signer to prevent stale-signer desync
+      _keycastSigner = null;
       _lastError = 'oauth integration failed: $e';
       _setAuthState(AuthState.unauthenticated);
     }
@@ -2444,13 +2453,15 @@ class AuthService implements BackgroundAwareService {
         if (currentPubkey != null) {
           await _archiveSignerInfo(currentPubkey);
         }
-        // When the current session used an external signer (Amber/Bunker),
+        // When the current session used a remote signer (Amber/Bunker/OAuth),
         // local key storage may contain stale keys from a previous identity
-        // (e.g., auto-created keys before the user connected Amber).
-        // Delete these stale keys to prevent _checkExistingAuth() from
-        // auto-signing in with the wrong identity.
+        // (e.g., auto-created keys before the user connected Amber, or keys
+        // from a different account on the same device). Delete these stale
+        // keys to prevent _checkExistingAuth() from auto-signing in with the
+        // wrong identity or local-key fallback from signing with the wrong key.
         if (_authSource == AuthenticationSource.amber ||
-            _authSource == AuthenticationSource.bunker) {
+            _authSource == AuthenticationSource.bunker ||
+            _authSource == AuthenticationSource.divineOAuth) {
           final storedContainer = await _keyStorage.getKeyContainer();
           Log.debug(
             'signOut: external signer check — '
@@ -2492,6 +2503,9 @@ class AuthService implements BackgroundAwareService {
       _currentKeyContainer = null;
       _currentProfile = null;
       _lastError = null;
+      _authSource = AuthenticationSource.none;
+      _hasExpiredOAuthSession = false;
+      _pendingRefresh = null;
 
       // Unregister relay-discovery callback so we don't hold a client reference
       _onUserRelaysDiscovered = null;
@@ -2526,7 +2540,7 @@ class AuthService implements BackgroundAwareService {
 
       try {
         if (_oauthClient != null) {
-          _oauthClient.logout();
+          await _oauthClient.logout();
         } else {
           await KeycastSession.clear(_flutterSecureStorage);
         }
@@ -2700,6 +2714,23 @@ class AuthService implements BackgroundAwareService {
           '❌ Signing failed: Signer returned null',
           name: 'AuthService',
         );
+        return null;
+      }
+
+      // Safety net: detect pubkey mismatch between the signed event and
+      // the current identity. A stale RPC signer bound to a different
+      // account's token would sign with that account's key, producing an
+      // event whose pubkey doesn't match the signature.
+      if (signedEvent.pubkey != _currentKeyContainer!.publicKeyHex) {
+        Log.error(
+          '❌ PUBKEY MISMATCH after signing: '
+          'signedEventPubkey=${signedEvent.pubkey}, '
+          'currentIdentity=${_currentKeyContainer!.publicKeyHex}, '
+          'authSource=${_authSource.name}. Clearing stale signer.',
+          name: 'AuthService',
+          category: LogCategory.auth,
+        );
+        _keycastSigner = null;
         return null;
       }
 
@@ -2950,19 +2981,19 @@ class AuthService implements BackgroundAwareService {
     _currentKeyContainer = keyContainer;
     _authSource = source;
 
-    // Clear any stale remote signers that don't match the new auth source.
-    // This prevents a Keycast RPC signer from a previous Divine OAuth session
-    // from being used when signing events for an anonymous/imported-key account.
-    if (source != AuthenticationSource.divineOAuth) {
-      if (_keycastSigner != null) {
-        Log.info(
-          '_setupUserSession: clearing stale Keycast signer '
-          '(new source=${source.name})',
-          name: 'AuthService',
-          category: LogCategory.auth,
-        );
-        _keycastSigner = null;
-      }
+    // Always clear the Keycast signer. When switching between two divineOAuth
+    // accounts, a stale signer bound to the previous user's access token would
+    // sign events with the wrong key, producing signature validation failures.
+    // The caller (signInWithDivineOAuth) re-assigns _keycastSigner AFTER this
+    // method returns.
+    if (_keycastSigner != null) {
+      Log.info(
+        '_setupUserSession: clearing Keycast signer '
+        '(new source=${source.name})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      _keycastSigner = null;
     }
     if (source != AuthenticationSource.bunker && _bunkerSigner != null) {
       Log.info(
