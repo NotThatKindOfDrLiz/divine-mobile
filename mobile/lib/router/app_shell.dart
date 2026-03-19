@@ -14,7 +14,6 @@ import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/classic_vines_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/for_you_provider.dart';
-import 'package:openvine/providers/overlay_visibility_provider.dart';
 import 'package:openvine/providers/relay_notifications_provider.dart';
 import 'package:openvine/providers/route_feed_providers.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
@@ -32,7 +31,6 @@ import 'package:openvine/utils/pause_aware_modals.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/environment_indicator.dart';
 import 'package:openvine/widgets/notification_badge.dart';
-import 'package:openvine/widgets/vine_drawer.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({required this.child, required this.currentIndex, super.key});
@@ -45,8 +43,6 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell> {
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
-
   int get currentIndex => widget.currentIndex;
   Widget get child => widget.child;
 
@@ -338,11 +334,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     final environment = ref.watch(currentEnvironmentProvider);
 
     return Scaffold(
-      key: _scaffoldKey,
-      onDrawerChanged: (isOpen) {
-        // Track drawer visibility for video pause/resume
-        ref.read(overlayVisibilityProvider.notifier).setDrawerOpen(isOpen);
-      },
       // Home tab uses FeedModeSwitch overlay (menu + mode dropdown + search)
       // instead of the standard AppBar, for full-screen video UX.
       // Inbox uses its own segmented toggle header.
@@ -401,9 +392,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                           // For Profile, grid mode is null
                           case RouteType.profile:
                             return context.go(
-                              ProfileScreenRouter.pathForNpub(
-                                ctx.npub ?? 'me',
-                              ),
+                              ProfileScreenRouter.pathForNpub(ctx.npub ?? 'me'),
                             );
                           // For Notifications, index 0 is the base state
                           case RouteType.notifications when ctx.videoIndex != 0:
@@ -416,17 +405,13 @@ class _AppShellState extends ConsumerState<AppShell> {
                       }
 
                       // Check tab history for navigation
-                      final tabHistory = ref.read(
-                        tabHistoryProvider.notifier,
-                      );
+                      final tabHistory = ref.read(tabHistoryProvider.notifier);
                       final previousTab = tabHistory.getPreviousTab();
 
                       // If there's a previous tab in history, navigate to it
                       if (previousTab != null) {
                         // Navigate to previous tab
-                        final previousRouteType = _routeTypeForTab(
-                          previousTab,
-                        );
+                        final previousRouteType = _routeTypeForTab(previousTab);
                         final lastIndex = ref
                             .read(lastTabPositionProvider.notifier)
                             .getPosition(previousRouteType);
@@ -450,9 +435,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                             }
                           case 2:
                             return context.go(
-                              NotificationsScreen.pathForIndex(
-                                lastIndex ?? 0,
-                              ),
+                              NotificationsScreen.pathForIndex(lastIndex ?? 0),
                             );
                           case 3:
                             final authService = ref.read(authServiceProvider);
@@ -481,24 +464,11 @@ class _AppShellState extends ConsumerState<AppShell> {
                       // Already at home with no history - let system handle exit
                     }
                   : null,
-              showMenuButton: !showBackButton,
-              onMenuPressed: !showBackButton
-                  ? () {
-                      Log.info(
-                        '👆 User tapped menu button',
-                        name: 'Navigation',
-                        category: LogCategory.ui,
-                      );
-                      // Drawer open state is tracked via onDrawerChanged callback
-                      // which triggers overlay visibility provider to pause videos
-                      _scaffoldKey.currentState?.openDrawer();
-                    }
-                  : null,
               actions: isSearchRoute
                   ? const []
                   : [
                       DiVineAppBarAction(
-                        icon: const SvgIconSource('assets/icon/search.svg'),
+                        icon: SvgIconSource(DivineIconName.search.assetPath),
                         tooltip: 'Search',
                         onPressed: () {
                           Log.info(
@@ -511,7 +481,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                       ),
                     ],
             ),
-      drawer: const VineDrawer(),
       body: child,
       // Bottom nav visible for all shell routes (search, tabs, etc.)
       // For search (currentIndex=-1), no tab is highlighted
@@ -526,7 +495,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _buildTabButton(
                 context,
                 ref,
-                'assets/icon/house.svg',
+                DivineIconName.house.assetPath,
                 0,
                 currentIndex,
                 'home_tab',
@@ -534,7 +503,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _buildTabButton(
                 context,
                 ref,
-                'assets/icon/compass.svg',
+                DivineIconName.compass.assetPath,
                 1,
                 currentIndex,
                 'explore_tab',
@@ -565,7 +534,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: SvgPicture.asset(
-                      'assets/icon/retro-camera.svg',
+                      DivineIconName.cameraRetro.assetPath,
                       width: 32,
                       height: 32,
                     ),
@@ -579,7 +548,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                 child: _buildTabButton(
                   context,
                   ref,
-                  'assets/icon/${DivineIconName.chat.fileName}.svg',
+                  DivineIconName.chat.assetPath,
                   2,
                   currentIndex,
                   'inbox_tab',
@@ -588,7 +557,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               _buildTabButton(
                 context,
                 ref,
-                'assets/icon/userCircle.svg',
+                DivineIconName.userCircle.assetPath,
                 3,
                 currentIndex,
                 'profile_tab',

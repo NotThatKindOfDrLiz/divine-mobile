@@ -54,7 +54,7 @@ class FeedModeSwitch extends StatelessWidget {
               builder: (context, state) {
                 return Row(
                   children: [
-                    _MenuButton(onTap: () => Scaffold.of(context).openDrawer()),
+                    const SizedBox(width: 48),
                     Expanded(
                       child: Center(
                         child: GestureDetector(
@@ -82,7 +82,7 @@ class FeedModeSwitch extends StatelessWidget {
                               ),
                               const SizedBox(width: 12),
                               SvgPicture.asset(
-                                'assets/icon/CaretDown.svg',
+                                DivineIconName.caretDown.assetPath,
                                 width: 24,
                                 height: 24,
                                 colorFilter: const ColorFilter.mode(
@@ -131,23 +131,6 @@ class FeedModeSwitch extends StatelessWidget {
   }
 }
 
-class _MenuButton extends StatelessWidget {
-  const _MenuButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return DiVineAppBarIconButton(
-      icon: const SvgIconSource('assets/icon/menu.svg'),
-      onPressed: onTap,
-      iconSize: 24,
-      semanticLabel: 'Open menu',
-      backgroundColor: VineTheme.scrim30,
-    );
-  }
-}
-
 class _SearchButton extends StatelessWidget {
   const _SearchButton({required this.onTap});
 
@@ -156,7 +139,7 @@ class _SearchButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DiVineAppBarIconButton(
-      icon: const SvgIconSource('assets/icon/search.svg'),
+      icon: SvgIconSource(DivineIconName.search.assetPath),
       onPressed: onTap,
       iconSize: 24,
       semanticLabel: 'Search',
