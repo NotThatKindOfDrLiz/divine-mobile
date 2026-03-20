@@ -10,12 +10,14 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/models/audio_event.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/nostr_client_provider.dart';
+import 'package:openvine/providers/sound_library_service_provider.dart';
 import 'package:openvine/providers/sounds_providers.dart';
 import 'package:openvine/services/screen_analytics_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/widgets/branded_loading_indicator.dart';
 import 'package:openvine/widgets/video_feed_item/video_feed_item.dart';
 import 'package:sound_service/sound_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Screen displaying details of a specific sound and videos using it.
 ///
@@ -288,7 +290,7 @@ class _SoundDetailScreenState extends ConsumerState<SoundDetailScreen> {
 }
 
 /// Header section displaying sound info and action buttons.
-class _SoundHeader extends StatelessWidget {
+class _SoundHeader extends ConsumerWidget {
   const _SoundHeader({
     required this.sound,
     required this.usageCount,
@@ -323,7 +325,23 @@ class _SoundHeader extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Look up attribution info for bundled sounds
+    String? artistName;
+    String? license;
+    String? sourceUrl;
+
+    if (sound.isBundled) {
+      final soundId = sound.id.replaceFirst('${AudioEvent.bundledMarker}_', '');
+      final service = ref.watch(soundLibraryServiceSyncProvider);
+      final vineSound = service.getSoundById(soundId);
+      if (vineSound != null) {
+        artistName = vineSound.artist;
+        license = vineSound.license;
+        sourceUrl = vineSound.sourceUrl;
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       color: VineTheme.cardBackground,
@@ -363,6 +381,14 @@ class _SoundHeader extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     _buildMetadataRow(),
+                    if (artistName != null) ...[
+                      const SizedBox(height: 4),
+                      _AttributionInfo(
+                        artistName: artistName,
+                        license: license,
+                        sourceUrl: sourceUrl,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -449,6 +475,57 @@ class _SoundHeader extends StatelessWidget {
     return Text(
       items.join(' · '),
       style: const TextStyle(color: VineTheme.secondaryText, fontSize: 14),
+    );
+  }
+}
+
+/// Displays artist name, license, and optional "View on Freesound" link.
+class _AttributionInfo extends StatelessWidget {
+  const _AttributionInfo({
+    required this.artistName,
+    this.license,
+    this.sourceUrl,
+  });
+
+  final String artistName;
+  final String? license;
+  final String? sourceUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      children: [
+        Text(
+          [
+            'by $artistName',
+            if (license != null) license,
+          ].join(' · '),
+          style: const TextStyle(
+            color: VineTheme.secondaryText,
+            fontSize: 12,
+          ),
+        ),
+        if (sourceUrl != null)
+          GestureDetector(
+            onTap: () async {
+              final uri = Uri.parse(sourceUrl!);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text(
+              'View source',
+              style: TextStyle(
+                color: VineTheme.vineGreen,
+                fontSize: 12,
+                decoration: TextDecoration.underline,
+                decorationColor: VineTheme.vineGreen,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
