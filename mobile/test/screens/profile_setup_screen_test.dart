@@ -332,4 +332,62 @@ void main() {
       );
     });
   });
+
+  group('ATProtoPublishingSection', () {
+    Widget buildSection(ProfileEditorState state, {required bool flagEnabled}) {
+      return MaterialApp(
+        theme: VineTheme.theme,
+        home: Scaffold(
+          body: AtprotoPublishingSection(
+            featureEnabled: flagEnabled,
+            state: state,
+            onToggle: (_) {},
+            onRetry: () {},
+          ),
+        ),
+      );
+    }
+
+    testWidgets('hides ATProto controls when feature flag is disabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSection(
+          const ProfileEditorState(),
+          flagEnabled: false,
+        ),
+      );
+
+      expect(find.text('Publish to Bluesky/ATProto'), findsNothing);
+      expect(find.byType(SwitchListTile), findsNothing);
+    });
+
+    testWidgets('shows pending and ready ATProto states in profile setup', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        buildSection(
+          const ProfileEditorState(
+            atprotoOptInEnabled: true,
+            atprotoPending: true,
+          ),
+          flagEnabled: true,
+        ),
+      );
+
+      expect(find.text('ATProto setup pending'), findsOneWidget);
+
+      await tester.pumpWidget(
+        buildSection(
+          const ProfileEditorState(
+            atprotoOptInEnabled: true,
+            atprotoReady: true,
+          ),
+          flagEnabled: true,
+        ),
+      );
+
+      expect(find.text('ATProto ready'), findsOneWidget);
+    });
+  });
 }

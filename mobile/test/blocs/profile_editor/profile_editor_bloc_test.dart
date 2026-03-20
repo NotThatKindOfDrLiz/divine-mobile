@@ -1730,6 +1730,98 @@ void main() {
       );
     });
 
+    group('ATProto opt-in flow', () {
+      blocTest<ProfileEditorBloc, ProfileEditorState>(
+        'claims username first, then triggers ATProto enable when toggle is on',
+        setUp: () {
+          when(
+            () => mockProfileRepository.getCachedProfile(pubkey: testPubkey),
+          ).thenAnswer((_) async => null);
+          when(
+            () => mockProfileRepository.saveProfileEvent(
+              displayName: testDisplayName,
+              about: testAbout,
+              username: testUsername,
+              picture: testPicture,
+            ),
+          ).thenAnswer((_) async => createTestProfile());
+          when(
+            () => mockProfileRepository.claimUsername(username: testUsername),
+          ).thenAnswer((_) async => const UsernameClaimSuccess());
+          when(
+            () => mockProfileRepository.enableAtproto(username: testUsername),
+          ).thenAnswer((_) async {});
+        },
+        build: createBloc,
+        act: (bloc) {
+          bloc
+            ..add(const AtprotoOptInChanged(true))
+            ..add(
+              const ProfileSaved(
+                pubkey: testPubkey,
+                displayName: testDisplayName,
+                about: testAbout,
+                picture: testPicture,
+                username: testUsername,
+              ),
+            );
+        },
+        expect: () => [
+          isA<ProfileEditorState>().having(
+            (s) => s.atprotoOptInEnabled,
+            'atprotoOptInEnabled',
+            isTrue,
+          ),
+          isA<ProfileEditorState>().having(
+            (s) => s.status,
+            'status',
+            ProfileEditorStatus.loading,
+          ),
+          isA<ProfileEditorState>()
+              .having((s) => s.status, 'status', ProfileEditorStatus.success)
+              .having((s) => s.atprotoPending, 'atprotoPending', isTrue),
+        ],
+        verify: (_) {
+          verifyInOrder([
+            () => mockProfileRepository.claimUsername(username: testUsername),
+            () => mockProfileRepository.enableAtproto(username: testUsername),
+          ]);
+        },
+      );
+
+      blocTest<ProfileEditorBloc, ProfileEditorState>(
+        'retry event re-runs ATProto enable for claimed username',
+        setUp: () {
+          when(
+            () => mockProfileRepository.enableAtproto(username: testUsername),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockProfileRepository.getAtprotoStatus(),
+          ).thenAnswer(
+            (_) async => const AtprotoStatus(
+              enabled: true,
+              state: 'pending',
+              did: null,
+              error: null,
+              username: testUsername,
+            ),
+          );
+        },
+        build: createBloc,
+        seed: () => const ProfileEditorState(
+          username: testUsername,
+          atprotoOptInEnabled: true,
+          atprotoErrorMessage: 'failed',
+        ),
+        act: (bloc) => bloc.add(const AtprotoRetryRequested(testUsername)),
+        verify: (_) {
+          verify(
+            () => mockProfileRepository.enableAtproto(username: testUsername),
+          ).called(1);
+        },
+      );
+    });
+
     group('isUsernameSaveReady', () {
       test('returns true when username is empty', () {
         const state = ProfileEditorState();

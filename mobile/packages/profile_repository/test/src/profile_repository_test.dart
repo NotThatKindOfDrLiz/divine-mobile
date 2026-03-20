@@ -3221,5 +3221,88 @@ void main() {
         verifyNever(() => mockUserProfilesDao.upsertProfiles(any()));
       });
     });
+
+    group('atproto opt-in APIs', () {
+      test('enableAtproto posts username to keycast endpoint', () async {
+        when(
+          () => mockNostrClient.createNip98AuthHeader(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+            payload: any(named: 'payload'),
+          ),
+        ).thenAnswer((_) async => 'Nostr test-auth-header');
+        when(
+          () => mockHttpClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => Response('{}', 202));
+
+        await profileRepository.enableAtproto(username: 'Alice');
+
+        verify(
+          () => mockHttpClient.post(
+            Uri.parse('https://login.divine.video/api/user/atproto/enable'),
+            headers: any(named: 'headers'),
+            body: '{"username":"alice"}',
+          ),
+        ).called(1);
+      });
+
+      test(
+        'disableAtproto posts disable request to keycast endpoint',
+        () async {
+          when(
+            () => mockNostrClient.createNip98AuthHeader(
+              url: any(named: 'url'),
+              method: any(named: 'method'),
+              payload: any(named: 'payload'),
+            ),
+          ).thenAnswer((_) async => 'Nostr test-auth-header');
+          when(
+            () => mockHttpClient.post(
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer((_) async => Response('{}', 200));
+
+          await profileRepository.disableAtproto();
+
+          verify(
+            () => mockHttpClient.post(
+              Uri.parse('https://login.divine.video/api/user/atproto/disable'),
+              headers: any(named: 'headers'),
+              body: '{}',
+            ),
+          ).called(1);
+        },
+      );
+
+      test('getAtprotoStatus returns parsed status payload', () async {
+        when(
+          () => mockNostrClient.createNip98AuthHeader(
+            url: any(named: 'url'),
+            method: any(named: 'method'),
+          ),
+        ).thenAnswer((_) async => 'Nostr test-auth-header');
+        when(
+          () => mockHttpClient.get(any(), headers: any(named: 'headers')),
+        ).thenAnswer(
+          (_) async => Response(
+            '{"enabled":true,"state":"pending","did":null,"error":null,"username":"alice"}',
+            200,
+          ),
+        );
+
+        final status = await profileRepository.getAtprotoStatus();
+
+        expect(status, isA<AtprotoStatus>());
+        expect(status.enabled, isTrue);
+        expect(status.state, equals('pending'));
+        expect(status.username, equals('alice'));
+      });
+    });
   });
 }

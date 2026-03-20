@@ -94,3 +94,22 @@ final class InitialExternalNip05Set extends ProfileEditorEvent {
 final class UsernameRechecked extends ProfileEditorEvent {
   const UsernameRechecked();
 }
+
+/// Enables/disables ATProto opt-in intent in the editor UI.
+final class AtprotoOptInChanged extends ProfileEditorEvent {
+  const AtprotoOptInChanged(this.enabled);
+
+  final bool enabled;
+}
+
+/// Requests the latest ATProto lifecycle status from keycast.
+final class AtprotoStatusRequested extends ProfileEditorEvent {
+  const AtprotoStatusRequested();
+}
+
+/// Retries ATProto provisioning for the current username.
+final class AtprotoRetryRequested extends ProfileEditorEvent {
+  const AtprotoRetryRequested(this.username);
+
+  final String username;
+}

@@ -123,6 +123,10 @@ final class ProfileEditorState extends Equatable {
     this.externalNip05 = '',
     this.initialExternalNip05,
     this.externalNip05Error,
+    this.atprotoOptInEnabled = false,
+    this.atprotoPending = false,
+    this.atprotoReady = false,
+    this.atprotoErrorMessage,
   });
 
   /// Current status of the operation.
@@ -163,6 +167,18 @@ final class ProfileEditorState extends Equatable {
 
   /// Validation error for external NIP-05 input.
   final ExternalNip05ValidationError? externalNip05Error;
+
+  /// Whether the user wants ATProto publishing enabled after claim.
+  final bool atprotoOptInEnabled;
+
+  /// Whether ATProto provisioning is currently pending.
+  final bool atprotoPending;
+
+  /// Whether ATProto provisioning is complete and ready.
+  final bool atprotoReady;
+
+  /// ATProto provisioning failure text shown with a retry action.
+  final String? atprotoErrorMessage;
 
   /// Whether the username state allows saving the profile (divine.video mode).
   bool get isUsernameSaveReady {
@@ -205,6 +221,11 @@ final class ProfileEditorState extends Equatable {
     String? externalNip05,
     String? initialExternalNip05,
     ExternalNip05ValidationError? externalNip05Error,
+    bool? atprotoOptInEnabled,
+    bool? atprotoPending,
+    bool? atprotoReady,
+    String? atprotoErrorMessage,
+    bool clearAtprotoErrorMessage = false,
   }) {
     return ProfileEditorState(
       status: status ?? this.status,
@@ -220,6 +241,12 @@ final class ProfileEditorState extends Equatable {
       externalNip05: externalNip05 ?? this.externalNip05,
       initialExternalNip05: initialExternalNip05 ?? this.initialExternalNip05,
       externalNip05Error: externalNip05Error,
+      atprotoOptInEnabled: atprotoOptInEnabled ?? this.atprotoOptInEnabled,
+      atprotoPending: atprotoPending ?? this.atprotoPending,
+      atprotoReady: atprotoReady ?? this.atprotoReady,
+      atprotoErrorMessage: clearAtprotoErrorMessage
+          ? null
+          : (atprotoErrorMessage ?? this.atprotoErrorMessage),
     );
   }
 
@@ -237,5 +264,9 @@ final class ProfileEditorState extends Equatable {
     externalNip05,
     initialExternalNip05,
     externalNip05Error,
+    atprotoOptInEnabled,
+    atprotoPending,
+    atprotoReady,
+    atprotoErrorMessage,
   ];
 }

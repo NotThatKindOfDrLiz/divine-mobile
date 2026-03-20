@@ -17,6 +17,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:openvine/blocs/my_profile/my_profile_bloc.dart';
 import 'package:openvine/blocs/profile_editor/profile_editor_bloc.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/services/zendesk_support_service.dart';
@@ -109,6 +111,7 @@ class _ProfileSetupScreenViewState
   File? _selectedImage;
   String? _uploadedImageUrl;
   Color? _selectedProfileColor;
+  Timer? _atprotoStatusPollTimer;
 
   @override
   void initState() {
@@ -142,6 +145,7 @@ class _ProfileSetupScreenViewState
     _bioFocusNode.dispose();
     _usernameFocusNode.dispose();
     _externalNip05FocusNode.dispose();
+    _stopAtprotoStatusPolling();
 
     super.dispose();
   }
@@ -149,6 +153,9 @@ class _ProfileSetupScreenViewState
   @override
   Widget build(BuildContext context) {
     final pubkey = ref.watch(authServiceProvider).currentPublicKeyHex;
+    final atprotoFeatureEnabled = ref.watch(
+      isFeatureEnabledProvider(FeatureFlag.atprotoPublishing),
+    );
 
     return MultiBlocListener(
       listeners: [
@@ -178,6 +185,9 @@ class _ProfileSetupScreenViewState
             final editorBloc = context.read<ProfileEditorBloc>();
             if (extractedUsername != null) {
               editorBloc.add(InitialUsernameSet(extractedUsername));
+              if (atprotoFeatureEnabled) {
+                editorBloc.add(const AtprotoStatusRequested());
+              }
             }
             if (externalNip05 != null) {
               editorBloc
@@ -323,6 +333,19 @@ class _ProfileSetupScreenViewState
                 case null:
                   break;
               }
+            }
+          },
+        ),
+        BlocListener<ProfileEditorBloc, ProfileEditorState>(
+          listenWhen: (prev, curr) =>
+              prev.atprotoPending != curr.atprotoPending ||
+              prev.atprotoReady != curr.atprotoReady ||
+              prev.atprotoErrorMessage != curr.atprotoErrorMessage,
+          listener: (context, state) {
+            if (state.atprotoPending) {
+              _startAtprotoStatusPolling(context);
+            } else {
+              _stopAtprotoStatusPolling();
             }
           },
         ),
@@ -895,6 +918,21 @@ class _ProfileSetupScreenViewState
                                 focusNode: _externalNip05FocusNode,
                               ),
 
+                              const SizedBox(height: 16),
+                              AtprotoPublishingSection(
+                                featureEnabled: atprotoFeatureEnabled,
+                                state: profileEditorState,
+                                onToggle: (enabled) => context
+                                    .read<ProfileEditorBloc>()
+                                    .add(AtprotoOptInChanged(enabled)),
+                                onRetry: () =>
+                                    context.read<ProfileEditorBloc>().add(
+                                      AtprotoRetryRequested(
+                                        _nip05Controller.text,
+                                      ),
+                                    ),
+                              ),
+
                               const SizedBox(height: 24),
 
                               // Profile Color (optional)
@@ -1365,6 +1403,94 @@ class _ProfileSetupScreenViewState
         FocusScope.of(context).unfocus();
       }
     });
+  }
+
+  void _startAtprotoStatusPolling(BuildContext context) {
+    _atprotoStatusPollTimer?.cancel();
+    _atprotoStatusPollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted) return;
+      context.read<ProfileEditorBloc>().add(const AtprotoStatusRequested());
+    });
+  }
+
+  void _stopAtprotoStatusPolling() {
+    _atprotoStatusPollTimer?.cancel();
+    _atprotoStatusPollTimer = null;
+  }
+}
+
+/// Feature-flagged ATProto publishing controls shown in profile setup.
+class AtprotoPublishingSection extends StatelessWidget {
+  const AtprotoPublishingSection({
+    required this.featureEnabled,
+    required this.state,
+    required this.onToggle,
+    required this.onRetry,
+    super.key,
+  });
+
+  final bool featureEnabled;
+  final ProfileEditorState state;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!featureEnabled) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile.adaptive(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          title: Text(
+            'Publish to Bluesky/ATProto',
+            style: VineTheme.labelMediumFont(color: VineTheme.onSurface),
+          ),
+          subtitle: Text(
+            'Opt in after username claim. Posting starts when provisioning is ready.',
+            style: VineTheme.bodySmallFont(color: VineTheme.onSurfaceMuted),
+          ),
+          value: state.atprotoOptInEnabled,
+          onChanged: onToggle,
+          activeColor: VineTheme.primary,
+        ),
+        if (state.atprotoPending)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'ATProto setup pending',
+              style: VineTheme.bodySmallFont(color: VineTheme.onSurfaceMuted),
+            ),
+          ),
+        if (state.atprotoReady)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Text(
+              'ATProto ready',
+              style: VineTheme.bodySmallFont(color: VineTheme.vineGreen),
+            ),
+          ),
+        if (state.atprotoErrorMessage != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    state.atprotoErrorMessage!,
+                    style: VineTheme.bodySmallFont(color: VineTheme.error),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onRetry,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 }
 

@@ -2,6 +2,7 @@
 library;
 
 export 'src/exceptions.dart';
+export 'src/atproto_status.dart';
 export 'src/profile_repository.dart';
 export 'src/username_availability_result.dart';
 export 'src/username_claim_result.dart';

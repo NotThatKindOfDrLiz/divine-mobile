@@ -60,6 +60,9 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
     on<ExternalNip05Changed>(_onExternalNip05Changed);
     on<InitialExternalNip05Set>(_onInitialExternalNip05Set);
     on<UsernameRechecked>(_onUsernameRechecked);
+    on<AtprotoOptInChanged>(_onAtprotoOptInChanged);
+    on<AtprotoStatusRequested>(_onAtprotoStatusRequested);
+    on<AtprotoRetryRequested>(_onAtprotoRetryRequested);
   }
 
   final ProfileRepository _profileRepository;
@@ -286,6 +289,78 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
     emit(state.copyWith(initialExternalNip05: event.nip05));
   }
 
+  void _onAtprotoOptInChanged(
+    AtprotoOptInChanged event,
+    Emitter<ProfileEditorState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        atprotoOptInEnabled: event.enabled,
+        atprotoPending: event.enabled ? state.atprotoPending : false,
+        atprotoReady: event.enabled ? state.atprotoReady : false,
+        clearAtprotoErrorMessage: true,
+      ),
+    );
+  }
+
+  Future<void> _onAtprotoStatusRequested(
+    AtprotoStatusRequested event,
+    Emitter<ProfileEditorState> emit,
+  ) async {
+    try {
+      final status = await _profileRepository.getAtprotoStatus();
+      _applyAtprotoStatus(status, emit);
+    } catch (error) {
+      Log.error(
+        'Failed to load ATProto status: $error',
+        name: 'ProfileEditorBloc',
+      );
+    }
+  }
+
+  Future<void> _onAtprotoRetryRequested(
+    AtprotoRetryRequested event,
+    Emitter<ProfileEditorState> emit,
+  ) async {
+    final username = event.username.trim().toLowerCase();
+    if (username.isEmpty) {
+      emit(
+        state.copyWith(
+          atprotoErrorMessage:
+              'Choose a username before retrying ATProto setup.',
+          atprotoPending: false,
+          atprotoReady: false,
+        ),
+      );
+      return;
+    }
+
+    emit(
+      state.copyWith(
+        atprotoOptInEnabled: true,
+        atprotoPending: true,
+        atprotoReady: false,
+        clearAtprotoErrorMessage: true,
+      ),
+    );
+
+    try {
+      await _profileRepository.enableAtproto(username: username);
+      final status = await _profileRepository.getAtprotoStatus();
+      _applyAtprotoStatus(status, emit);
+    } catch (error) {
+      Log.error('ATProto retry failed: $error', name: 'ProfileEditorBloc');
+      emit(
+        state.copyWith(
+          atprotoPending: false,
+          atprotoReady: false,
+          atprotoErrorMessage:
+              'Failed to start ATProto provisioning. Please try again.',
+        ),
+      );
+    }
+  }
+
   /// Re-checks a previously reserved username against the nameserver.
   ///
   /// Removes the username from the local reserved cache and performs a fresh
@@ -448,7 +523,56 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
 
     if (error == null) {
       Log.info('📝 Username claim SUCCESS', name: 'ProfileEditorBloc');
-      emit(state.copyWith(status: ProfileEditorStatus.success));
+      if (!state.atprotoOptInEnabled) {
+        emit(state.copyWith(status: ProfileEditorStatus.success));
+        return;
+      }
+
+      try {
+        await _profileRepository.enableAtproto(username: username);
+
+        AtprotoStatus? status;
+        try {
+          status = await _profileRepository.getAtprotoStatus();
+        } catch (statusError) {
+          Log.error(
+            'ATProto status fetch failed after enable: $statusError',
+            name: 'ProfileEditorBloc',
+          );
+        }
+
+        if (status != null) {
+          _applyAtprotoStatus(
+            status,
+            emit,
+            baseStatus: ProfileEditorStatus.success,
+          );
+          return;
+        }
+
+        emit(
+          state.copyWith(
+            status: ProfileEditorStatus.success,
+            atprotoPending: true,
+            atprotoReady: false,
+            clearAtprotoErrorMessage: true,
+          ),
+        );
+      } catch (atprotoError) {
+        Log.error(
+          'ATProto opt-in request failed: $atprotoError',
+          name: 'ProfileEditorBloc',
+        );
+        emit(
+          state.copyWith(
+            status: ProfileEditorStatus.success,
+            atprotoPending: false,
+            atprotoReady: false,
+            atprotoErrorMessage:
+                'Username claimed, but ATProto setup failed to start. Retry to continue.',
+          ),
+        );
+      }
       return;
     }
 
@@ -487,6 +611,26 @@ class ProfileEditorBloc extends Bloc<ProfileEditorEvent, ProfileEditorState> {
         error: error,
         usernameStatus: usernameStatus,
         reservedUsernames: reservedUsernames,
+      ),
+    );
+  }
+
+  void _applyAtprotoStatus(
+    AtprotoStatus status,
+    Emitter<ProfileEditorState> emit, {
+    ProfileEditorStatus? baseStatus,
+  }) {
+    emit(
+      state.copyWith(
+        status: baseStatus ?? state.status,
+        atprotoOptInEnabled: status.enabled,
+        atprotoPending: status.isPending,
+        atprotoReady: status.isReady,
+        atprotoErrorMessage: status.isFailed
+            ? (status.error ??
+                  'ATProto provisioning failed. Retry to continue.')
+            : null,
+        clearAtprotoErrorMessage: !status.isFailed,
       ),
     );
   }

@@ -38,6 +38,7 @@ void main() {
       expect(FeatureFlag.values, contains(FeatureFlag.newProfileLayout));
       expect(FeatureFlag.values, contains(FeatureFlag.livestreamingBeta));
       expect(FeatureFlag.values, contains(FeatureFlag.debugTools));
+      expect(FeatureFlag.values, contains(FeatureFlag.atprotoPublishing));
     });
 
     test('should provide meaningful descriptions', () {

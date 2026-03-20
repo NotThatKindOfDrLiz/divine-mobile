@@ -19,6 +19,10 @@ import 'package:profile_repository/profile_repository.dart';
 const _usernameClaimUrl = 'https://names.divine.video/api/username/claim';
 const _usernameCheckUrl = 'https://names.divine.video/api/username/check';
 const _keycastNip05Url = 'https://login.divine.video/.well-known/nostr.json';
+const _atprotoEnableUrl = 'https://login.divine.video/api/user/atproto/enable';
+const _atprotoDisableUrl =
+    'https://login.divine.video/api/user/atproto/disable';
+const _atprotoStatusUrl = 'https://login.divine.video/api/user/atproto/status';
 
 // TODO(search): Move ProfileSearchFilter to a shared package
 // (e.g., search_utils) when we need to reuse search logic across
@@ -374,6 +378,91 @@ class ProfileRepository {
     final profile = UserProfile.fromNostrEvent(profileEvent);
     await _userProfilesDao.upsertProfile(profile);
     return profile;
+  }
+
+  /// Enables ATProto provisioning for the current user.
+  ///
+  /// Calls keycast after a username has already been claimed successfully.
+  Future<void> enableAtproto({required String username}) async {
+    final normalizedUsername = username.trim().toLowerCase();
+    final payload = jsonEncode({'username': normalizedUsername});
+    final authHeader = await _nostrClient.createNip98AuthHeader(
+      url: _atprotoEnableUrl,
+      method: 'POST',
+      payload: payload,
+    );
+
+    if (authHeader == null) {
+      throw Exception('NIP-98 authorization failed');
+    }
+
+    final response = await _httpClient.post(
+      Uri.parse(_atprotoEnableUrl),
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: payload,
+    );
+
+    if (response.statusCode != 200 &&
+        response.statusCode != 201 &&
+        response.statusCode != 202) {
+      throw Exception('ATProto enable failed: ${response.statusCode}');
+    }
+  }
+
+  /// Disables ATProto cross-posting for the current user.
+  Future<void> disableAtproto() async {
+    const payload = '{}';
+    final authHeader = await _nostrClient.createNip98AuthHeader(
+      url: _atprotoDisableUrl,
+      method: 'POST',
+      payload: payload,
+    );
+
+    if (authHeader == null) {
+      throw Exception('NIP-98 authorization failed');
+    }
+
+    final response = await _httpClient.post(
+      Uri.parse(_atprotoDisableUrl),
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json',
+      },
+      body: payload,
+    );
+
+    if (response.statusCode != 200 &&
+        response.statusCode != 201 &&
+        response.statusCode != 202) {
+      throw Exception('ATProto disable failed: ${response.statusCode}');
+    }
+  }
+
+  /// Fetches ATProto provisioning status from keycast.
+  Future<AtprotoStatus> getAtprotoStatus() async {
+    final authHeader = await _nostrClient.createNip98AuthHeader(
+      url: _atprotoStatusUrl,
+      method: 'GET',
+    );
+
+    if (authHeader == null) {
+      throw Exception('NIP-98 authorization failed');
+    }
+
+    final response = await _httpClient.get(
+      Uri.parse(_atprotoStatusUrl),
+      headers: {'Authorization': authHeader},
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('ATProto status failed: ${response.statusCode}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return AtprotoStatus.fromJson(data);
   }
 
   /// Claims a username via NIP-98 authenticated request.

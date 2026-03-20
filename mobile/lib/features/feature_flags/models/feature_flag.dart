@@ -29,7 +29,11 @@ enum FeatureFlag {
     'Classics Trending Hashtags',
     'Show trending hashtags section on the Classics tab',
   ),
-  curatedLists('Curated Lists', 'Enable curated lists feature in share menu')
+  curatedLists('Curated Lists', 'Enable curated lists feature in share menu'),
+  atprotoPublishing(
+    'ATProto Publishing',
+    'Enable opt-in Bluesky/ATProto publishing controls in profile setup',
+  )
   ;
 
   const FeatureFlag(this.displayName, this.description);
