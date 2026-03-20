@@ -61,14 +61,14 @@ void main() {
     when(() => mockNostrClient.queryEvents(any())).thenAnswer(
       (_) async => [
         _FakeLabelEvent(
-          pubkey: ModerationLabelService.divineModerationPubkeyHex,
+          pubkey: moderationLabelService.divineModerationPubkeyHex,
           tags: tags,
         ),
       ],
     );
 
     await moderationLabelService.subscribeToLabeler(
-      ModerationLabelService.divineModerationPubkeyHex,
+      moderationLabelService.divineModerationPubkeyHex,
     );
   }
 
@@ -78,6 +78,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
     mockNostrClient = _MockNostrClient();
     mockSubscriptionManager = _MockSubscriptionManager();
     mockAuthService = _MockAuthService();
@@ -92,6 +93,7 @@ void main() {
     moderationLabelService = ModerationLabelService(
       nostrClient: mockNostrClient,
       authService: mockAuthService,
+      sharedPreferences: prefs,
     );
 
     videoEventService = VideoEventService(
