@@ -28,6 +28,9 @@ import 'package:openvine/widgets/video_recorder/video_recorder_ghost_frame.dart'
 import 'package:openvine/widgets/video_recorder/video_recorder_record_button.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const _kWhySixSecondsShownKey = 'why_six_seconds_shown';
 
 /// Video recorder screen with camera preview and recording controls.
 class VideoRecorderScreen extends ConsumerStatefulWidget {
@@ -56,14 +59,36 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addObserver(this);
     _pauseBackgroundPlayback();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       _initializeCamera();
+      await _maybeShowWhySixSeconds();
+      if (!mounted) return;
       _checkAutosavedChanges();
     });
     Log.info('📹 Initialized', name: 'VideoRecorderScreen', category: .video);
+  }
+
+  /// Shows the "Why six seconds?" prompt only once per user.
+  Future<void> _maybeShowWhySixSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kWhySixSecondsShownKey) ?? false) return;
+    await prefs.setBool(_kWhySixSecondsShownKey, true);
+    if (!mounted) return;
+
+    await VineBottomSheetPrompt.show(
+      context: context,
+      sticker: .grandfather,
+      title: 'Why six seconds?',
+      subtitle:
+          'Quick clips make space for spontaneity. The 6-second format helps '
+          'you capture authentic moments as they happen.',
+      secondaryButtonText: 'Got it!',
+      onSecondaryPressed: context.pop,
+    );
   }
 
   /// Initialize camera and handle permission failures
