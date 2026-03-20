@@ -18,12 +18,16 @@ const int _videoKind = EventKind.videoVertical;
 class DbVideoLocalStorage implements VideoLocalStorage {
   /// Creates a new db_client-backed local storage.
   ///
-  /// Requires a [NostrEventsDao] for database operations.
+  /// Requires a [NostrEventsDao] for database operations and a
+  /// [FeedCacheDao] for per-feed cache isolation.
   DbVideoLocalStorage({
     required NostrEventsDao dao,
-  }) : _dao = dao;
+    required FeedCacheDao feedCacheDao,
+  }) : _dao = dao,
+       _feedCacheDao = feedCacheDao;
 
   final NostrEventsDao _dao;
+  final FeedCacheDao _feedCacheDao;
 
   @override
   Future<void> saveEvent(Event event) async {
@@ -164,5 +168,28 @@ class DbVideoLocalStorage implements VideoLocalStorage {
     // For video-specific count, we'd need to add a method to the DAO.
     // For now, this gives a rough indication of cache size.
     return _dao.getEventCount();
+  }
+
+  @override
+  Future<void> saveFeedResponseBody(
+    String feedKey,
+    String responseBody,
+  ) async {
+    await _feedCacheDao.saveResponseBody(feedKey, responseBody);
+  }
+
+  @override
+  Future<String?> getFeedResponseBody(String feedKey) async {
+    return _feedCacheDao.getResponseBody(feedKey);
+  }
+
+  @override
+  Future<void> clearFeedResponseBody(String feedKey) async {
+    await _feedCacheDao.clearResponseBody(feedKey);
+  }
+
+  @override
+  Future<void> clearAllFeedResponseBodies() async {
+    await _feedCacheDao.clearAll();
   }
 }

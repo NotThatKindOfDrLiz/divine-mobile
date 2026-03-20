@@ -477,7 +477,7 @@ void main() {
           );
         });
 
-        test('returns cached result without network call', () async {
+        test('returns cached result and revalidates in background', () async {
           when(
             () => mockFunnelcakeClient.getRecentVideos(
               limit: any(named: 'limit'),
@@ -496,23 +496,23 @@ void main() {
 
           // First call → network
           await repoWithCache.getNewVideos();
+
+          // Second call → returns cache immediately,
+          // fires background revalidation
+          final cached = await repoWithCache.getNewVideos();
+          expect(cached, hasLength(1));
+          expect(cached.first.id, equals('v1'));
+
+          // Wait for background revalidation to complete.
+          await Future<void>.delayed(Duration.zero);
+
+          // 1 initial + 1 background revalidation = 2
           verify(
             () => mockFunnelcakeClient.getRecentVideos(
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
-          ).called(1);
-
-          // Second call → served from cache, no new network call
-          final cached = await repoWithCache.getNewVideos();
-          verifyNever(
-            () => mockFunnelcakeClient.getRecentVideos(
-              limit: any(named: 'limit'),
-              before: any(named: 'before'),
-            ),
-          );
-          expect(cached, hasLength(1));
-          expect(cached.first.id, equals('v1'));
+          ).called(2);
         });
 
         test('skipCache bypasses the in-memory cache', () async {
@@ -1227,7 +1227,7 @@ void main() {
           );
         });
 
-        test('returns cached result without network call', () async {
+        test('returns cached result and revalidates in background', () async {
           when(
             () => mockFunnelcakeClient.getHomeFeed(
               pubkey: any(named: 'pubkey'),
@@ -1257,15 +1257,20 @@ void main() {
             userPubkey: 'user1',
           );
 
+          expect(cached.videos, hasLength(1));
+          expect(cached.videos.first.id, equals('h1'));
+
+          // Wait for background revalidation to complete.
+          await Future<void>.delayed(Duration.zero);
+
+          // 1 initial + 1 background revalidation = 2
           verify(
             () => mockFunnelcakeClient.getHomeFeed(
               pubkey: any(named: 'pubkey'),
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
-          ).called(1);
-          expect(cached.videos, hasLength(1));
-          expect(cached.videos.first.id, equals('h1'));
+          ).called(2);
         });
       });
     });
@@ -2474,14 +2479,15 @@ void main() {
           await repoWithCache.getPopularVideos();
           final cached = await repoWithCache.getPopularVideos();
 
+          expect(cached, hasLength(1));
+          expect(cached.first.id, equals('pop1'));
+
           verify(
             () => mockFunnelcakeClient.getTrendingVideos(
               limit: any(named: 'limit'),
               before: any(named: 'before'),
             ),
           ).called(1);
-          expect(cached, hasLength(1));
-          expect(cached.first.id, equals('pop1'));
         });
       });
     });
@@ -5992,7 +5998,7 @@ void main() {
       });
     });
 
-    group('clearInMemoryFeedCache', () {
+    group('clearFeedCache', () {
       late MockFunnelcakeApiClient mockFunnelcakeClient;
       late InMemoryFeedCache feedCache;
       late VideosRepository repoWithCache;
@@ -6029,7 +6035,7 @@ void main() {
         await repoWithCache.getNewVideos();
 
         // Clear latest cache
-        repoWithCache.clearInMemoryFeedCache(key: 'latest');
+        repoWithCache.clearFeedCache(key: 'latest');
 
         // Next call hits network again
         await repoWithCache.getNewVideos();
@@ -6078,7 +6084,7 @@ void main() {
         await repoWithCache.getPopularVideos();
 
         // Clear all
-        repoWithCache.clearInMemoryFeedCache();
+        repoWithCache.clearFeedCache();
 
         // Both hit network again
         await repoWithCache.getNewVideos();

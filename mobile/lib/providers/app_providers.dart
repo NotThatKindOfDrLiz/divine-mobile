@@ -1784,7 +1784,10 @@ CommentsRepository commentsRepository(Ref ref) {
 @Riverpod(keepAlive: true)
 VideoLocalStorage videoLocalStorage(Ref ref) {
   final db = ref.watch(databaseProvider);
-  return DbVideoLocalStorage(dao: db.nostrEventsDao);
+  return DbVideoLocalStorage(
+    dao: db.nostrEventsDao,
+    feedCacheDao: db.feedCacheDao,
+  );
 }
 
 /// Provider for VideosRepository instance

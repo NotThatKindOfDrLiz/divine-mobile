@@ -14,6 +14,9 @@ QueryExecutor openConnection() {
     final dbPath = await getSharedDatabasePath();
     return NativeDatabase(
       File(dbPath),
+      setup: (db) {
+        db.execute('PRAGMA foreign_keys = ON');
+      },
     );
   });
 }
