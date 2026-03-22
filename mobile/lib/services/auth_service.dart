@@ -2966,6 +2966,14 @@ class AuthService implements BackgroundAwareService {
     _currentKeyContainer = keyContainer;
     _authSource = source;
 
+    // This flag only applies to degraded Divine OAuth sessions. Any switch to
+    // a local-key, Amber, or bunker-backed session should clear the stale
+    // expired-session state so the UI does not inherit "Session Expired"
+    // across auth-mode changes.
+    if (source != AuthenticationSource.divineOAuth) {
+      _hasExpiredOAuthSession = false;
+    }
+
     // Clear any stale remote signers that don't match the new auth source.
     // This prevents a Keycast RPC signer from a previous Divine OAuth session
     // from being used when signing events for an anonymous/imported-key account.

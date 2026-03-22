@@ -144,18 +144,20 @@ class ProfileHeaderWidget extends ConsumerWidget {
                     onSetupProfile != null)
                   _SetupProfileBanner(onSetup: onSetupProfile!),
 
+                // Secure account banner for anonymous users (only on own
+                // profile)
+                if (isOwnProfile && isAnonymous)
+                  const _IdentityNotRecoverableBanner(),
                 // Session expired banner for divineOAuth users (only on own
-                // profile) — prompts re-login instead of "Secure Your Account"
+                // profile) — anonymous users should still see the secure
+                // account prompt even if a stale expired-session flag leaked.
                 if (isOwnProfile &&
+                    !isAnonymous &&
                     hasExpiredSession &&
                     !isDivineLoginBannerHidden)
                   _SessionExpiredBanner(
                     userIdHex: userIdHex,
-                  )
-                // Secure account banner for anonymous users (only on own
-                // profile)
-                else if (isOwnProfile && isAnonymous)
-                  const _IdentityNotRecoverableBanner(),
+                  ),
 
                 // Profile picture and stats row
                 Row(

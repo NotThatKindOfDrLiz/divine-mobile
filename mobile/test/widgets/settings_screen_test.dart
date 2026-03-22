@@ -179,5 +179,35 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
     });
+
+    testWidgets(
+      'shows secure account tile instead of session expired for anonymous users',
+      (tester) async {
+        when(() => mockAuthService.isAnonymous).thenReturn(true);
+        when(
+          () => mockAuthService.hasExpiredOAuthSession,
+        ).thenReturn(true);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+              authServiceProvider.overrideWithValue(mockAuthService),
+              currentAuthStateProvider.overrideWithValue(
+                AuthState.authenticated,
+              ),
+            ],
+            child: const MaterialApp(home: SettingsScreen()),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Secure Your Account'), findsOneWidget);
+        expect(find.text('Session Expired'), findsNothing);
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+      },
+    );
   });
 }

@@ -588,6 +588,24 @@ void main() {
       expect(accounts, hasLength(1));
       expect(accounts[0].authSource, equals(AuthenticationSource.automatic));
     });
+
+    test('clears stale expired OAuth session flag', () async {
+      SharedPreferences.setMockInitialValues({
+        'authentication_source': AuthenticationSource.divineOAuth.code,
+      });
+      when(() => mockKeyStorage.hasKeys()).thenAnswer((_) async => true);
+      when(
+        () => mockKeyStorage.getKeyContainer(),
+      ).thenAnswer((_) async => testKeyContainer);
+
+      await _ignoringDiscoveryErrors(authService.initialize);
+      expect(authService.hasExpiredOAuthSession, isTrue);
+
+      await _ignoringDiscoveryErrors(authService.createAnonymousAccount);
+
+      expect(authService.authenticationSource, AuthenticationSource.automatic);
+      expect(authService.hasExpiredOAuthSession, isFalse);
+    });
   });
 
   group('_archiveSignerInfo (via signOut)', () {

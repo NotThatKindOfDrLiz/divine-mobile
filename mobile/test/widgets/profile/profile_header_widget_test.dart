@@ -731,6 +731,27 @@ void main() {
 
         expect(find.text('Session Expired'), findsOneWidget);
       });
+
+      testWidgets(
+        'prefers secure account banner over session expired banner for anonymous users',
+        (tester) async {
+          final testProfile = createTestProfile(displayName: 'Test User');
+
+          await tester.pumpWidget(
+            buildTestWidget(
+              userIdHex: testUserHex,
+              isOwnProfile: true,
+              profile: testProfile,
+              isAnonymous: true,
+              hasExpiredSession: true,
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          expect(find.text('Secure Your Account'), findsOneWidget);
+          expect(find.text('Session Expired'), findsNothing);
+        },
+      );
     });
   });
 
