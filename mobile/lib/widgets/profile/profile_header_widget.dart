@@ -18,6 +18,7 @@ import 'package:openvine/screens/auth/secure_account_screen.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/services/nip05_verification_service.dart';
 import 'package:openvine/utils/clipboard_utils.dart';
+import 'package:openvine/utils/divine_login_banner_dismissal.dart';
 import 'package:openvine/utils/nostr_key_utils.dart';
 import 'package:openvine/utils/user_profile_utils.dart';
 import 'package:openvine/widgets/profile/profile_followers_stat.dart';
@@ -28,9 +29,6 @@ import 'package:openvine/widgets/user_name.dart';
 
 /// Profile header widget displaying avatar, stats, name, and bio.
 class ProfileHeaderWidget extends ConsumerWidget {
-  static const _dismissedDivineLoginBannerPrefix =
-      'dismissed_divine_login_banner_';
-
   const ProfileHeaderWidget({
     required this.userIdHex,
     required this.isOwnProfile,
@@ -105,10 +103,10 @@ class ProfileHeaderWidget extends ConsumerWidget {
     final isAnonymous = authService.isAnonymous;
     final hasExpiredSession = authService.hasExpiredOAuthSession;
     final prefs = ref.watch(sharedPreferencesProvider);
-    final dismissedDivineLoginBannerKey =
-        '$_dismissedDivineLoginBannerPrefix$userIdHex';
-    final isDivineLoginBannerDismissed =
-        prefs.getBool(dismissedDivineLoginBannerKey) ?? false;
+    final isDivineLoginBannerHidden = isDivineLoginBannerDismissed(
+      prefs,
+      userIdHex,
+    );
 
     // Use profile color as header background (like original Vine)
     // Color covers avatar/stats, then fades to dark for name/bio readability
@@ -150,9 +148,9 @@ class ProfileHeaderWidget extends ConsumerWidget {
                 // profile) — prompts re-login instead of "Secure Your Account"
                 if (isOwnProfile &&
                     hasExpiredSession &&
-                    !isDivineLoginBannerDismissed)
+                    !isDivineLoginBannerHidden)
                   _SessionExpiredBanner(
-                    dismissedPreferenceKey: dismissedDivineLoginBannerKey,
+                    userIdHex: userIdHex,
                   )
                 // Secure account banner for anonymous users (only on own
                 // profile)
@@ -444,9 +442,9 @@ class _IdentityNotRecoverableBanner extends StatelessWidget {
 /// Prompts the user to sign in again instead of showing "Secure Your Account".
 /// Attempts a silent token refresh first; navigates to login only if that fails.
 class _SessionExpiredBanner extends ConsumerStatefulWidget {
-  const _SessionExpiredBanner({required this.dismissedPreferenceKey});
+  const _SessionExpiredBanner({required this.userIdHex});
 
-  final String dismissedPreferenceKey;
+  final String userIdHex;
 
   @override
   ConsumerState<_SessionExpiredBanner> createState() =>
@@ -474,7 +472,7 @@ class _SessionExpiredBannerState extends ConsumerState<_SessionExpiredBanner> {
   Future<void> _dismissBanner() async {
     setState(() => _isDismissed = true);
     final prefs = ref.read(sharedPreferencesProvider);
-    await prefs.setBool(widget.dismissedPreferenceKey, true);
+    await dismissDivineLoginBanner(prefs, widget.userIdHex);
   }
 
   @override
