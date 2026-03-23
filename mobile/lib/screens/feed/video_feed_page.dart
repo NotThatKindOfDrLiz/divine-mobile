@@ -67,7 +67,6 @@ class VideoFeedPage extends ConsumerWidget {
         contentBlocklistService: blocklistService,
         userPubkey: authService.currentPublicKeyHex,
         sharedPreferences: sharedPreferences,
-        serveCachedHomeFeed: !showDivineHostedOnly,
         feedTracker: FeedPerformanceTracker(),
       )..add(VideoFeedStarted(mode: initialMode)),
       child: const VideoFeedView(),
