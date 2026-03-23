@@ -234,7 +234,9 @@ class VideosRepository {
 
     final events = await _nostrClient.queryEvents([filter]);
 
-    return (videos: _transformAndFilter(events), rawBody: null);
+    final videos = _transformAndFilter(events);
+    final body = _serializeVideoEventList(videos);
+    return (videos: videos, rawBody: body);
   }
 
   /// Merges list videos with following videos and builds attribution.
@@ -504,6 +506,7 @@ class VideosRepository {
     final videos = _transformAndFilter(events);
     if (until == null) {
       _inMemoryFeedCache?.set('latest', HomeFeedResult(videos: videos));
+      _writeFeedToDb('latest', _serializeVideoEventList(videos));
     }
     return videos;
   }
@@ -1037,6 +1040,7 @@ class VideosRepository {
           'latest',
           HomeFeedResult(videos: videos),
         );
+        _writeFeedToDb('latest', _serializeVideoEventList(videos));
       }
     } on Exception catch (e, s) {
       developer.log(
@@ -1144,6 +1148,16 @@ class VideosRepository {
   /// Serializes a [VideoStats] list to a JSON array string for DB caching.
   static String _serializeVideoStatsList(List<VideoStats> stats) {
     return jsonEncode(stats.map((s) => s.toJson()).toList());
+  }
+
+  /// Serializes a [VideoEvent] list to a JSON array string for DB caching.
+  ///
+  /// Converts each [VideoEvent] to [VideoStats] first so the cached format
+  /// matches what [_parseCachedFeedBody] expects.
+  static String _serializeVideoEventList(List<VideoEvent> videos) {
+    return jsonEncode(
+      videos.map((v) => VideoStats.fromVideoEvent(v).toJson()).toList(),
+    );
   }
 
   /// Searches local cache for videos matching [query].
