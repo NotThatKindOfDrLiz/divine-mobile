@@ -63,14 +63,14 @@ void main() {
       when(() => mockNostrClient.queryEvents(any())).thenAnswer(
         (_) async => [
           _FakeLabelEvent(
-            pubkey: ModerationLabelService.divineModerationPubkeyHex,
+            pubkey: moderationLabelService.divineModerationPubkeyHex,
             tags: tags,
           ),
         ],
       );
 
       await moderationLabelService.subscribeToLabeler(
-        ModerationLabelService.divineModerationPubkeyHex,
+        moderationLabelService.divineModerationPubkeyHex,
       );
     }
 
@@ -80,6 +80,7 @@ void main() {
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
       ageService = AgeVerificationService();
       contentFilterService = ContentFilterService(
         ageVerificationService: ageService,
@@ -90,6 +91,7 @@ void main() {
       moderationLabelService = ModerationLabelService(
         nostrClient: mockNostrClient,
         authService: mockAuthService,
+        sharedPreferences: prefs,
       );
     });
 

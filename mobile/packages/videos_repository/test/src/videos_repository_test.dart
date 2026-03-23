@@ -3188,6 +3188,7 @@ void main() {
               () => mockFunnelcakeClient.getVideosByAuthor(
                 pubkey: any(named: 'pubkey'),
                 limit: any(named: 'limit'),
+                before: any(named: 'before'),
               ),
             );
           },
@@ -3224,6 +3225,7 @@ void main() {
               () => mockFunnelcakeClient.getVideosByAuthor(
                 pubkey: any(named: 'pubkey'),
                 limit: any(named: 'limit'),
+                before: any(named: 'before'),
               ),
             );
           },
@@ -3255,7 +3257,8 @@ void main() {
             when(
               () => mockFunnelcakeClient.getVideosByAuthor(
                 pubkey: 'pubkey1',
-                limit: 100,
+                limit: any(named: 'limit'),
+                before: any(named: 'before'),
               ),
             ).thenAnswer((_) async => [videoStats]);
 
@@ -3269,7 +3272,8 @@ void main() {
             verify(
               () => mockFunnelcakeClient.getVideosByAuthor(
                 pubkey: 'pubkey1',
-                limit: 100,
+                limit: any(named: 'limit', that: equals(50)),
+                before: any(named: 'before'),
               ),
             ).called(1);
           },
@@ -3308,7 +3312,8 @@ void main() {
             when(
               () => mockFunnelcakeClient.getVideosByAuthor(
                 pubkey: 'pubkey2',
-                limit: 100,
+                limit: any(named: 'limit'),
+                before: any(named: 'before'),
               ),
             ).thenAnswer((_) async => [videoStats]);
 
@@ -3361,14 +3366,16 @@ void main() {
           when(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: 'pubkey1',
-              limit: 100,
+              limit: any(named: 'limit'),
+              before: any(named: 'before'),
             ),
           ).thenAnswer((_) async => [videoStats1]);
 
           when(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: 'pubkey3',
-              limit: 100,
+              limit: any(named: 'limit'),
+              before: any(named: 'before'),
             ),
           ).thenAnswer((_) async => [videoStats3]);
 
@@ -3410,7 +3417,8 @@ void main() {
           when(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: 'pubkey2',
-              limit: 100,
+              limit: any(named: 'limit'),
+              before: any(named: 'before'),
             ),
           ).thenThrow(const FunnelcakeException('Network error'));
 
@@ -3453,7 +3461,8 @@ void main() {
           when(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: blockedPubkey,
-              limit: 100,
+              limit: any(named: 'limit'),
+              before: any(named: 'before'),
             ),
           ).thenAnswer((_) async => [videoStats]);
 
@@ -3489,7 +3498,8 @@ void main() {
           when(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: 'pubkey1',
-              limit: 100,
+              limit: any(named: 'limit'),
+              before: any(named: 'before'),
             ),
           ).thenAnswer((_) async => [videoStats]);
 
@@ -3531,7 +3541,8 @@ void main() {
           when(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: 'same-pubkey',
-              limit: 100,
+              limit: any(named: 'limit'),
+              before: any(named: 'before'),
             ),
           ).thenAnswer((_) async => [videoStats1, videoStats2]);
 
@@ -3546,7 +3557,8 @@ void main() {
           verify(
             () => mockFunnelcakeClient.getVideosByAuthor(
               pubkey: 'same-pubkey',
-              limit: 100,
+              limit: any(named: 'limit', that: equals(50)),
+              before: any(named: 'before'),
             ),
           ).called(1);
         });

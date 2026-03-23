@@ -27,12 +27,12 @@ class MockContentBlocklistService extends Mock
   Set<String> get runtimeBlockedUsers => Set.unmodifiable(_runtimeBlocklist);
 
   @override
-  void blockUser(String pubkey, {String? ourPubkey}) {
+  Future<void> blockUser(String pubkey, {String? ourPubkey}) async {
     _runtimeBlocklist.add(pubkey);
   }
 
   @override
-  void unblockUser(String pubkey) {
+  Future<void> unblockUser(String pubkey) async {
     _runtimeBlocklist.remove(pubkey);
   }
 
@@ -105,8 +105,15 @@ void main() {
       when(
         () => mockModerationLabelService.initialize(),
       ).thenAnswer((_) async {});
+      when(
+        () => mockModerationLabelService.divineModerationPubkeyHex,
+      ).thenReturn(ModerationLabelService.fallbackModerationPubkeyHex);
+      when(
+        () => mockModerationLabelService.isDivineLabelerSubscribed,
+      ).thenReturn(true);
+      when(() => mockModerationLabelService.customLabelers).thenReturn({});
       when(() => mockModerationLabelService.subscribedLabelers).thenReturn({
-        ModerationLabelService.divineModerationPubkeyHex,
+        ModerationLabelService.fallbackModerationPubkeyHex,
       });
       when(
         () => mockModerationLabelService.isFollowingModerationEnabled,
@@ -116,6 +123,12 @@ void main() {
       ).thenAnswer((_) async {});
       when(
         () => mockModerationLabelService.removeLabeler(any()),
+      ).thenAnswer((_) async {});
+      when(
+        mockModerationLabelService.addDivineLabeler,
+      ).thenAnswer((_) async {});
+      when(
+        mockModerationLabelService.removeDivineLabeler,
       ).thenAnswer((_) async {});
       when(
         () => mockModerationLabelService.setFollowingModerationEnabled(

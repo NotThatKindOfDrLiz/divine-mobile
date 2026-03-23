@@ -30,19 +30,22 @@ class _FakeLabelEvent extends Fake implements Event {
 void main() {
   late _MockNostrClient mockNostrClient;
   late _MockAuthService mockAuthService;
+  late SharedPreferences mockPrefs;
   late ModerationLabelService service;
 
   setUpAll(() {
     registerFallbackValue(<Filter>[_FakeFilter()]);
   });
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    mockPrefs = await SharedPreferences.getInstance();
     mockNostrClient = _MockNostrClient();
     mockAuthService = _MockAuthService();
     service = ModerationLabelService(
       nostrClient: mockNostrClient,
       authService: mockAuthService,
+      sharedPreferences: mockPrefs,
     );
   });
 
@@ -52,7 +55,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'nudity', 'content-warning'],
@@ -63,7 +66,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final warnings = service.getContentWarnings('target_event_id_abc');
@@ -71,7 +74,7 @@ void main() {
         expect(warnings.first.labelValue, equals('nudity'));
         expect(
           warnings.first.labelerPubkey,
-          equals(ModerationLabelService.divineModerationPubkeyHex),
+          equals(service.divineModerationPubkeyHex),
         );
       });
 
@@ -81,7 +84,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'ai-generated', 'content-warning', metadata],
@@ -92,7 +95,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final warnings = service.getContentWarnings('event_123');
@@ -107,7 +110,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'ai-generated', 'content-warning', 'not-valid-json'],
@@ -118,7 +121,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final warnings = service.getContentWarnings('event_456');
@@ -134,7 +137,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'ai-generated', 'content-warning', metadata],
@@ -146,7 +149,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final result = service.getAIDetectionByHash(
@@ -167,7 +170,7 @@ void main() {
           when(() => mockNostrClient.queryEvents(any())).thenAnswer(
             (_) async => [
               _FakeLabelEvent(
-                pubkey: ModerationLabelService.divineModerationPubkeyHex,
+                pubkey: service.divineModerationPubkeyHex,
                 tags: [
                   ['L', 'content-warning'],
                   ['l', 'nudity', 'content-warning'],
@@ -178,7 +181,7 @@ void main() {
           );
 
           await service.subscribeToLabeler(
-            ModerationLabelService.divineModerationPubkeyHex,
+            service.divineModerationPubkeyHex,
           );
 
           final labels = service.getContentWarningsByAddressableId(
@@ -195,7 +198,7 @@ void main() {
           when(() => mockNostrClient.queryEvents(any())).thenAnswer(
             (_) async => [
               _FakeLabelEvent(
-                pubkey: ModerationLabelService.divineModerationPubkeyHex,
+                pubkey: service.divineModerationPubkeyHex,
                 tags: [
                   ['L', 'content-warning'],
                   ['l', 'graphic-media', 'content-warning'],
@@ -206,7 +209,7 @@ void main() {
           );
 
           await service.subscribeToLabeler(
-            ModerationLabelService.divineModerationPubkeyHex,
+            service.divineModerationPubkeyHex,
           );
 
           final labels = service.getContentWarningsByHash(
@@ -221,7 +224,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'spam', 'content-warning'],
@@ -232,7 +235,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final labels = service.getLabelsForPubkey('target_pubkey_xyz');
@@ -244,7 +247,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'other-namespace'],
                 ['l', 'some-label', 'other-namespace'],
@@ -255,7 +258,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         expect(service.hasContentWarning('ignored_event'), isFalse);
@@ -268,7 +271,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'ai-generated', 'content-warning', metadata],
@@ -279,7 +282,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final result = service.getAIDetectionResult('ai_event_1');
@@ -292,7 +295,7 @@ void main() {
         when(() => mockNostrClient.queryEvents(any())).thenAnswer(
           (_) async => [
             _FakeLabelEvent(
-              pubkey: ModerationLabelService.divineModerationPubkeyHex,
+              pubkey: service.divineModerationPubkeyHex,
               tags: [
                 ['L', 'content-warning'],
                 ['l', 'nudity', 'content-warning'],
@@ -303,7 +306,7 @@ void main() {
         );
 
         await service.subscribeToLabeler(
-          ModerationLabelService.divineModerationPubkeyHex,
+          service.divineModerationPubkeyHex,
         );
 
         final result = service.getAIDetectionResult('non_ai_event');

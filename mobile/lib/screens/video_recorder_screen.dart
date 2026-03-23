@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:openvine/blocs/sound_waveform/sound_waveform_bloc.dart';
 import 'package:openvine/constants/video_editor_constants.dart';
 import 'package:openvine/models/audio_event.dart';
@@ -19,15 +20,16 @@ import 'package:openvine/providers/video_publish_provider.dart';
 import 'package:openvine/providers/video_recorder_provider.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:openvine/utils/video_controller_cleanup.dart';
-import 'package:openvine/widgets/video_editor/sheets/video_editor_restore_autosave_sheet.dart';
 import 'package:openvine/widgets/video_recorder/preview/video_recorder_camera_preview.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_audio_progress_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_bottom_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_countdown_overlay.dart';
-import 'package:openvine/widgets/video_recorder/video_recorder_ghost_frame.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_record_button.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_segment_bar.dart';
 import 'package:openvine/widgets/video_recorder/video_recorder_top_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const _kWhySixSecondsShownKey = 'why_six_seconds_shown';
 
 /// Video recorder screen with camera preview and recording controls.
 class VideoRecorderScreen extends ConsumerStatefulWidget {
@@ -56,14 +58,36 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addObserver(this);
     _pauseBackgroundPlayback();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       _initializeCamera();
+      await _maybeShowWhySixSeconds();
+      if (!mounted) return;
       _checkAutosavedChanges();
     });
     Log.info('📹 Initialized', name: 'VideoRecorderScreen', category: .video);
+  }
+
+  /// Shows the "Why six seconds?" prompt only once per user.
+  Future<void> _maybeShowWhySixSeconds() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_kWhySixSecondsShownKey) ?? false) return;
+    await prefs.setBool(_kWhySixSecondsShownKey, true);
+    if (!mounted) return;
+
+    await VineBottomSheetPrompt.show(
+      context: context,
+      sticker: .grandfather,
+      title: 'Why six seconds?',
+      subtitle:
+          'Quick clips make space for spontaneity. The 6-second format helps '
+          'you capture authentic moments as they happen.',
+      secondaryButtonText: 'Got it!',
+      onSecondaryPressed: context.pop,
+    );
   }
 
   /// Initialize camera and handle permission failures
@@ -127,12 +151,21 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
         name: 'VideoRecorderScreen',
         category: LogCategory.video,
       );
-      await VineBottomSheet.show(
+      await VineBottomSheetPrompt.show(
         context: context,
-        expanded: false,
-        scrollable: false,
-        isScrollControlled: true,
-        body: const VideoEditorRestoreAutosaveSheet(),
+        sticker: .videoClapBoard,
+        title: 'We found work in progress',
+        subtitle: 'Would you like to continue where you left off?',
+        primaryButtonText: 'Yes, continue',
+        onPrimaryPressed: () {
+          ref.read(videoEditorProvider.notifier).restoreDraft();
+          context.pop();
+        },
+        secondaryButtonText: 'No, start a new video',
+        onSecondaryPressed: () {
+          ref.read(videoEditorProvider.notifier).removeAutosavedDraft();
+          context.pop();
+        },
       );
     } else {
       Log.debug(
@@ -317,11 +350,8 @@ class _VideoRecorderScreenState extends ConsumerState<VideoRecorderScreen>
                       child: Stack(
                         fit: .expand,
                         children: [
-                          // Camera preview
+                          // Camera preview (includes ghost frame)
                           VideoRecorderCameraPreview(),
-
-                          // Ghost Frame
-                          VideoRecorderGhostFrame(),
 
                           // Audio progress bar (shows during recording with sound)
                           VideoRecorderAudioProgressBar(),
