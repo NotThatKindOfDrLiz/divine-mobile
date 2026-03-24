@@ -8,6 +8,8 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide AspectRatio;
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/individual_video_providers.dart'
+    show moderatedVideoIdsProvider;
 import 'package:openvine/providers/nostr_client_provider.dart';
 import 'package:openvine/services/content_deletion_service.dart';
 import 'package:openvine/widgets/share_video_menu.dart';
@@ -115,19 +117,27 @@ class _ComposableVideoGridState extends ConsumerState<ComposableVideoGrid> {
   Widget build(BuildContext context) {
     // Watch broken video tracker asynchronously
     final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
+    final moderatedIds = ref.watch(moderatedVideoIdsProvider);
 
     return brokenTrackerAsync.when(
       loading: () => const Center(
         child: CircularProgressIndicator(color: VineTheme.vineGreen),
       ),
       error: (error, stack) {
-        // Fallback: show all videos if tracker fails
-        return _buildGrid(context, widget.videos);
+        // Fallback: still filter moderated videos
+        final filteredVideos = widget.videos
+            .where((video) => !moderatedIds.contains(video.id))
+            .toList();
+        return _buildGrid(context, filteredVideos);
       },
       data: (tracker) {
-        // Filter out broken videos
+        // Filter out broken and moderated videos
         final filteredVideos = widget.videos
-            .where((video) => !tracker.isVideoBroken(video.id))
+            .where(
+              (video) =>
+                  !tracker.isVideoBroken(video.id) &&
+                  !moderatedIds.contains(video.id),
+            )
             .toList();
 
         if (filteredVideos.isEmpty && widget.emptyBuilder != null) {

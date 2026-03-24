@@ -9,6 +9,8 @@ import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/mixins/pagination_mixin.dart';
 import 'package:openvine/mixins/video_prefetch_mixin.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/individual_video_providers.dart'
+    show moderatedVideoIdsProvider;
 import 'package:openvine/screens/explore_screen.dart';
 import 'package:openvine/services/view_event_publisher.dart';
 import 'package:openvine/utils/unified_logger.dart';
@@ -96,14 +98,21 @@ class _ExploreVideoScreenPureState extends ConsumerState<ExploreVideoScreenPure>
   @override
   Widget build(BuildContext context) {
     // Use the tab-specific sorted list from parent (maintains sort order from grid)
-    // Apply broken video filter if available
+    // Apply broken and moderated video filter
     final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
+    final moderatedIds = ref.watch(moderatedVideoIdsProvider);
 
     final videos = brokenTrackerAsync.maybeWhen(
       data: (tracker) => widget.videoList
-          .where((video) => !tracker.isVideoBroken(video.id))
+          .where(
+            (video) =>
+                !tracker.isVideoBroken(video.id) &&
+                !moderatedIds.contains(video.id),
+          )
           .toList(),
-      orElse: () => widget.videoList, // No filtering if tracker not ready
+      orElse: () => widget.videoList
+          .where((video) => !moderatedIds.contains(video.id))
+          .toList(),
     );
 
     if (videos.isEmpty) {

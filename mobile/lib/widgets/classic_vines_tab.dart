@@ -11,6 +11,8 @@ import 'package:go_router/go_router.dart';
 import 'package:models/models.dart' hide LogCategory;
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/classic_vines_provider.dart';
+import 'package:openvine/providers/individual_video_providers.dart'
+    show moderatedVideoIdsProvider;
 import 'package:openvine/screens/feed/pooled_fullscreen_video_feed_screen.dart';
 import 'package:openvine/services/feed_performance_tracker.dart';
 import 'package:openvine/services/view_event_publisher.dart';
@@ -282,17 +284,27 @@ class _ClassicVideosSliverGrid extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Watch broken video tracker
+    // Watch broken video tracker and moderated video IDs
     final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
+    final moderatedIds = ref.watch(moderatedVideoIdsProvider);
 
     return brokenTrackerAsync.when(
       loading: () => const SliverToBoxAdapter(
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, _) => _buildGrid(context, ref, videos),
+      error: (_, _) {
+        final filteredVideos = videos
+            .where((video) => !moderatedIds.contains(video.id))
+            .toList();
+        return _buildGrid(context, ref, filteredVideos);
+      },
       data: (tracker) {
         final filteredVideos = videos
-            .where((video) => !tracker.isVideoBroken(video.id))
+            .where(
+              (video) =>
+                  !tracker.isVideoBroken(video.id) &&
+                  !moderatedIds.contains(video.id),
+            )
             .toList();
         return _buildGrid(context, ref, filteredVideos);
       },

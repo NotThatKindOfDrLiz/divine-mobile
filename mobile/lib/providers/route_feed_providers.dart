@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:models/models.dart';
 import 'package:openvine/providers/app_providers.dart';
+import 'package:openvine/providers/individual_video_providers.dart'
+    show moderatedVideoIdsProvider;
 import 'package:openvine/providers/video_events_providers.dart';
 import 'package:openvine/router/router.dart';
 import 'package:openvine/state/video_feed_state.dart';
@@ -72,6 +74,7 @@ final videosForExploreRouteProvider = Provider<AsyncValue<VideoFeedState>>((
       }
 
       final brokenTrackerAsync = ref.watch(brokenVideoTrackerProvider);
+      final moderatedIds = ref.watch(moderatedVideoIdsProvider);
 
       // Check if we have a tab-specific list (set when user enters feed mode)
       final tabVideos = ref.watch(exploreTabVideosProvider);
@@ -80,14 +83,20 @@ final videosForExploreRouteProvider = Provider<AsyncValue<VideoFeedState>>((
         final videoEventService = ref.read(videoEventServiceProvider);
         final visibleTabVideos = videoEventService.filterVideoList(tabVideos);
 
-        // Filter broken videos to match ExploreVideoScreenPure's PageView.
-        // Both must use the same filtered list so URL indices align with
-        // the videos actually shown on screen.
+        // Filter broken and moderated videos to match
+        // ExploreVideoScreenPure's PageView. Both must use the same
+        // filtered list so URL indices align with the videos shown.
         final filteredTabVideos = brokenTrackerAsync.maybeWhen(
           data: (tracker) => visibleTabVideos
-              .where((video) => !tracker.isVideoBroken(video.id))
+              .where(
+                (video) =>
+                    !tracker.isVideoBroken(video.id) &&
+                    !moderatedIds.contains(video.id),
+              )
               .toList(),
-          orElse: () => visibleTabVideos,
+          orElse: () => visibleTabVideos
+              .where((video) => !moderatedIds.contains(video.id))
+              .toList(),
         );
         return AsyncValue.data(
           VideoFeedState(
@@ -103,12 +112,18 @@ final videosForExploreRouteProvider = Provider<AsyncValue<VideoFeedState>>((
 
       return eventsAsync.when(
         data: (videos) {
-          // Filter out broken videos to match ComposableVideoGrid behavior
+          // Filter out broken and moderated videos
           final filteredVideos = brokenTrackerAsync.maybeWhen(
             data: (tracker) => videos
-                .where((video) => !tracker.isVideoBroken(video.id))
+                .where(
+                  (video) =>
+                      !tracker.isVideoBroken(video.id) &&
+                      !moderatedIds.contains(video.id),
+                )
                 .toList(),
-            orElse: () => videos, // No filtering if tracker not ready
+            orElse: () => videos
+                .where((video) => !moderatedIds.contains(video.id))
+                .toList(),
           );
 
           // Sort by loop count (descending) as default
