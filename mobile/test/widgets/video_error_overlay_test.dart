@@ -1,5 +1,5 @@
 // ABOUTME: Tests for VideoErrorOverlay widget
-// ABOUTME: Verifies error display, 401 age-restricted content handling, and retry functionality
+// ABOUTME: Verifies error display for 401, 403/moderated, and general playback errors
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,10 +44,12 @@ void main() {
     Widget buildWidget({
       required String errorDescription,
       bool isActive = true,
+      Set<String> moderatedVideoIds = const {},
     }) {
       return ProviderScope(
         overrides: [
           ageVerificationServiceProvider.overrideWithValue(mockAgeVerification),
+          moderatedVideoIdsProvider.overrideWith((ref) => moderatedVideoIds),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -195,5 +197,71 @@ void main() {
         expect(find.text('Verify Age'), findsOneWidget);
       },
     );
+
+    group('moderated content', () {
+      testWidgets(
+        'displays shield icon and "Content restricted" for 403 errors',
+        (tester) async {
+          await tester.pumpWidget(
+            buildWidget(
+              errorDescription: 'HttpException: Invalid statusCode: 403',
+            ),
+          );
+
+          expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
+          expect(find.text('Content restricted'), findsOneWidget);
+          // No retry button for moderated content
+          expect(find.byType(ElevatedButton), findsNothing);
+          // Should NOT show lock or error icons
+          expect(find.byIcon(Icons.lock_outline), findsNothing);
+          expect(find.byIcon(Icons.error_outline), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'displays moderated UI when "forbidden" appears in error',
+        (tester) async {
+          await tester.pumpWidget(
+            buildWidget(errorDescription: 'Access Forbidden'),
+          );
+
+          expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
+          expect(find.text('Content restricted'), findsOneWidget);
+          expect(find.byType(ElevatedButton), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'displays moderated UI when video ID is in moderatedVideoIdsProvider',
+        (tester) async {
+          await tester.pumpWidget(
+            buildWidget(
+              errorDescription: 'HttpException: Invalid statusCode: 404',
+              moderatedVideoIds: {'test-video-id'},
+            ),
+          );
+
+          expect(find.byIcon(Icons.shield_outlined), findsOneWidget);
+          expect(find.text('Content restricted'), findsOneWidget);
+          expect(find.byType(ElevatedButton), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'displays normal error when video ID is not in moderated set',
+        (tester) async {
+          await tester.pumpWidget(
+            buildWidget(
+              errorDescription: 'HttpException: Invalid statusCode: 404',
+              moderatedVideoIds: {'some-other-video'},
+            ),
+          );
+
+          expect(find.byIcon(Icons.error_outline), findsOneWidget);
+          expect(find.text('Video not found'), findsOneWidget);
+          expect(find.text('Retry'), findsOneWidget);
+        },
+      );
+    });
   });
 }
