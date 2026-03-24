@@ -14,6 +14,7 @@ import 'package:openvine/services/bandwidth_tracker_service.dart';
 import 'package:openvine/services/broken_video_tracker.dart'
     show BrokenVideoTracker;
 import 'package:openvine/services/openvine_media_cache.dart';
+import 'package:openvine/services/video_moderation_status_service.dart';
 import 'package:openvine/utils/unified_logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:video_player/video_player.dart';
@@ -49,6 +50,13 @@ final ageVerificationRetryProvider = StateProvider<Map<String, bool>>(
 final fallbackUrlCacheProvider = StateProvider<Map<String, String>>(
   (ref) => {},
 );
+
+/// Tracks video IDs that failed due to moderation (403 or moderation-service check).
+///
+/// Separate from [BrokenVideoTracker] because moderated content may become
+/// available later (after review/appeal) and should not be cached for 7 days.
+/// Session-scoped: cleared on app restart.
+final moderatedVideoIdsProvider = StateProvider<Set<String>>((ref) => {});
 
 /// Blossom fallback server URL
 const _blossomFallbackServer = 'https://media.divine.video';
@@ -840,8 +848,27 @@ VideoPlayerController individualVideoController(
           }
         }
 
-        // Check for corrupted cache file (OSStatus error -12848 or "media may be damaged")
-        if (_isCacheCorruption(errorMessage) && !kIsWeb) {
+        // Check for 403 Forbidden - moderated/restricted content
+        if (_is403Error(errorMessage)) {
+          Log.warning(
+            'Detected 403 Forbidden for video $videoIdDisplay - content is moderated/restricted',
+            name: 'IndividualVideoController',
+            category: LogCategory.video,
+          );
+
+          try {
+            final current = ref.read(moderatedVideoIdsProvider);
+            ref.read(moderatedVideoIdsProvider.notifier).state = {
+              ...current,
+              params.videoId,
+            };
+          } catch (_) {
+            // Provider already disposed
+          }
+          // Do NOT try fallback URLs or mark as broken —
+          // this is moderated content, not a playback failure.
+        } else if (_isCacheCorruption(errorMessage) && !kIsWeb) {
+          // Corrupted cache file (OSStatus error -12848 or "media may be damaged")
           Log.warning(
             '🗑️ Detected corrupted cache for video $videoIdDisplay... - removing and will retry',
             name: 'IndividualVideoController',
@@ -977,25 +1004,67 @@ VideoPlayerController individualVideoController(
               }
             }
 
-            // No fallback available or already tried - mark video as broken
-            // Get tracker synchronously, then mark broken in fire-and-forget manner
-            final trackerFuture = ref.read(brokenVideoTrackerProvider.future);
-            unawaited(
-              trackerFuture
-                  .then((tracker) {
-                    tracker.markVideoBroken(
-                      params.videoId,
-                      'Playback initialization failed: $errorMessage',
-                    );
-                  })
-                  .catchError((trackerError) {
-                    Log.warning(
-                      'Failed to mark video as broken: $trackerError',
-                      name: 'IndividualVideoController',
-                      category: LogCategory.system,
-                    );
-                  }),
-            );
+            // No fallback available or already tried.
+            // Before marking as broken, check moderation service —
+            // 14% of 404s are actually moderated content, not missing.
+            final sha256 =
+                _extractSha256FromUrl(params.videoUrl) ??
+                (params.videoEvent is VideoEvent
+                    ? (params.videoEvent as dynamic).sha256 as String?
+                    : null);
+
+            if (sha256 != null &&
+                VideoModerationStatusService.shouldCheckModeration(
+                  params.videoUrl,
+                )) {
+              unawaited(
+                ref
+                    .read(videoModerationStatusServiceProvider)
+                    .fetchStatus(sha256)
+                    .then((status) {
+                      if (status != null &&
+                          status.isUnavailableDueToModeration) {
+                        Log.info(
+                          'Video $videoIdDisplay is moderated (blocked=${status.blocked}, quarantined=${status.quarantined}) — not marking as broken',
+                          name: 'IndividualVideoController',
+                          category: LogCategory.video,
+                        );
+                        try {
+                          final current = ref.read(moderatedVideoIdsProvider);
+                          ref.read(moderatedVideoIdsProvider.notifier).state = {
+                            ...current,
+                            params.videoId,
+                          };
+                        } catch (_) {
+                          // Provider disposed
+                        }
+                        return;
+                      }
+
+                      // Not moderated — mark as broken
+                      _markBrokenAsync(
+                        ref,
+                        params.videoId,
+                        'Playback initialization failed: $errorMessage',
+                      );
+                    })
+                    .catchError((_) {
+                      // Moderation check failed — fall back to marking broken
+                      _markBrokenAsync(
+                        ref,
+                        params.videoId,
+                        'Playback initialization failed: $errorMessage',
+                      );
+                    }),
+              );
+            } else {
+              // Non-Divine video or no sha256 — mark as broken directly
+              _markBrokenAsync(
+                ref,
+                params.videoId,
+                'Playback initialization failed: $errorMessage',
+              );
+            }
           } catch (e) {
             // Provider may be disposed - ignore since this is error handling
             Log.debug(
@@ -1313,12 +1382,38 @@ Future<dynamic> _cacheVideoWithAuth(
   }
 }
 
+/// Fire-and-forget helper to mark a video as broken via BrokenVideoTracker.
+void _markBrokenAsync(Ref ref, String videoId, String reason) {
+  unawaited(
+    ref
+        .read(brokenVideoTrackerProvider.future)
+        .then((tracker) {
+          tracker.markVideoBroken(videoId, reason);
+        })
+        .catchError((trackerError) {
+          Log.warning(
+            'Failed to mark video as broken: $trackerError',
+            name: 'IndividualVideoController',
+            category: LogCategory.system,
+          );
+        }),
+  );
+}
+
 /// Check if error indicates a 401 Unauthorized (likely NSFW content)
 bool _is401Error(String errorMessage) {
   final lowerError = errorMessage.toLowerCase();
   return lowerError.contains('401') ||
       lowerError.contains('unauthorized') ||
       lowerError.contains('invalid statuscode: 401');
+}
+
+/// Check if error indicates a 403 Forbidden (moderated/restricted content)
+bool _is403Error(String errorMessage) {
+  final lowerError = errorMessage.toLowerCase();
+  return lowerError.contains('403') ||
+      lowerError.contains('forbidden') ||
+      lowerError.contains('invalid statuscode: 403');
 }
 
 /// Check if error indicates a corrupted cache file
