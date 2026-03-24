@@ -122,7 +122,7 @@ class NostrIdentity implements NostrSigner {
     if (_remoteSigner case final signer?) {
       return signer.nip44Encrypt(pubkey, plaintext);
     }
-    return _withLocalKey((privateKeyHex) {
+    return _withLocalKeyAsync((privateKeyHex) async {
       final conversationKey = NIP44V2.shareSecret(privateKeyHex, pubkey);
       return NIP44V2.encrypt(plaintext, conversationKey);
     });
@@ -133,7 +133,7 @@ class NostrIdentity implements NostrSigner {
     if (_remoteSigner case final signer?) {
       return signer.nip44Decrypt(pubkey, ciphertext);
     }
-    return _withLocalKey((privateKeyHex) {
+    return _withLocalKeyAsync((privateKeyHex) async {
       final sealKey = NIP44V2.shareSecret(privateKeyHex, pubkey);
       return NIP44V2.decrypt(ciphertext, sealKey);
     });
@@ -167,6 +167,25 @@ class NostrIdentity implements NostrSigner {
     if (keyStorage == null) return null;
     try {
       return await keyStorage.withPrivateKey<T?>(
+        (privateKeyHex) => callback(privateKeyHex),
+      );
+    } on Exception catch (e) {
+      Log.error(
+        'Local key operation failed: $e',
+        name: 'NostrIdentity',
+        category: LogCategory.auth,
+      );
+      return null;
+    }
+  }
+
+  Future<T?> _withLocalKeyAsync<T>(
+    Future<T> Function(String privateKeyHex) callback,
+  ) async {
+    final keyStorage = _keyStorage;
+    if (keyStorage == null) return null;
+    try {
+      return await keyStorage.withPrivateKey<Future<T?>>(
         (privateKeyHex) => callback(privateKeyHex),
       );
     } on Exception catch (e) {
