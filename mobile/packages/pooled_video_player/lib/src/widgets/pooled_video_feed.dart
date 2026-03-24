@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:pooled_video_player/src/controllers/player_pool.dart';
@@ -94,6 +96,7 @@ class PooledVideoFeedState extends State<PooledVideoFeed> {
   bool _ownsController = false;
   int _currentIndex = 0;
   int _videoCount = 0;
+  VoidCallback? _errorListener;
 
   /// The feed controller.
   VideoFeedController get controller => _controller;
@@ -136,6 +139,7 @@ class PooledVideoFeedState extends State<PooledVideoFeed> {
 
     _videoCount = _controller.videoCount;
     _controller.addListener(_onControllerChanged);
+    _watchCurrentIndexForErrors();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -157,6 +161,29 @@ class PooledVideoFeedState extends State<PooledVideoFeed> {
         _videoCount = _controller.videoCount;
       });
     }
+  }
+
+  /// Watch the current index's state notifier for error transitions.
+  /// Auto-advances to the next video when the current one fails to load.
+  void _watchCurrentIndexForErrors() {
+    final notifier = _controller.getIndexNotifier(_currentIndex);
+    void listener() {
+      if (!mounted) return;
+      if (notifier.value.loadState == LoadState.error) {
+        final nextIndex = _currentIndex + 1;
+        if (nextIndex < _controller.videoCount) {
+          unawaited(animateToPage(nextIndex));
+        }
+      }
+    }
+
+    _errorListener = () => notifier.removeListener(listener);
+    notifier.addListener(listener);
+  }
+
+  void _unwatchErrors() {
+    _errorListener?.call();
+    _errorListener = null;
   }
 
   @override
@@ -186,8 +213,10 @@ class PooledVideoFeedState extends State<PooledVideoFeed> {
   }
 
   void _onPageChanged(int index) {
+    _unwatchErrors();
     setState(() => _currentIndex = index);
     _controller.onPageChanged(index);
+    _watchCurrentIndexForErrors();
 
     if (index < _controller.videoCount) {
       widget.onActiveVideoChanged?.call(_controller.videos[index], index);
@@ -232,6 +261,7 @@ class PooledVideoFeedState extends State<PooledVideoFeed> {
 
   @override
   void dispose() {
+    _unwatchErrors();
     _controller.removeListener(_onControllerChanged);
     _pageController
       ..removeListener(_onScrollChanged)

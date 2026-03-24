@@ -14,6 +14,9 @@ typedef VideoReadyCallback = void Function(int index, Player player);
 /// Called periodically with position updates for the active video.
 typedef PositionCallback = void Function(int index, Duration position);
 
+/// Called when the current video enters an error state (load failure, timeout).
+typedef VideoErrorCallback = void Function(int index);
+
 /// Configuration for video pool and preloading.
 class VideoPoolConfig extends Equatable {
   /// Creates a video pool configuration.

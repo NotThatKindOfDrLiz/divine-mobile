@@ -65,6 +65,7 @@ class VideoFeedController extends ChangeNotifier {
     this.preloadBehind = 1,
     this.mediaSourceResolver,
     this.onVideoReady,
+    this.onVideoError,
     this.positionCallback,
     this.positionCallbackInterval = const Duration(milliseconds: 250),
     this.slowLoadThreshold = const Duration(seconds: 8),
@@ -100,6 +101,11 @@ class VideoFeedController extends ChangeNotifier {
   ///
   /// Used for triggering background caching, analytics, etc.
   final VideoReadyCallback? onVideoReady;
+
+  /// Hook: Called when the current video enters an error state.
+  ///
+  /// Used for auto-advancing past unavailable videos (e.g. removed content).
+  final VideoErrorCallback? onVideoError;
 
   /// Hook: Called periodically with position updates.
   ///
@@ -259,6 +265,16 @@ class VideoFeedController extends ChangeNotifier {
     return 'index=$index videoId=${video.id} url=${video.url}';
   }
 
+  /// Mark [index] as errored, notify listeners, and fire [onVideoError]
+  /// if it is the currently visible video.
+  void _markError(int index) {
+    _loadStates[index] = LoadState.error;
+    _notifyIndex(index);
+    if (index == _currentIndex) {
+      onVideoError?.call(index);
+    }
+  }
+
   void _logDebug(String message) {
     debugPrint('[POOLED] $message');
   }
@@ -312,8 +328,7 @@ class VideoFeedController extends ChangeNotifier {
           );
           timer.cancel();
           _loadWatchdogTimers.remove(index);
-          _loadStates[index] = LoadState.error;
-          _notifyIndex(index);
+          _markError(index);
           return;
         }
       }
@@ -730,8 +745,7 @@ class VideoFeedController extends ChangeNotifier {
       );
       _stopLoadWatchdog(index);
       if (!_isDisposed) {
-        _loadStates[index] = LoadState.error;
-        _notifyIndex(index);
+        _markError(index);
       }
     } finally {
       _loadingIndices.remove(index);
@@ -923,8 +937,7 @@ class VideoFeedController extends ChangeNotifier {
           'stuck_playback ${_videoDebugDetails(index)} '
           'giving up',
         );
-        _loadStates[index] = LoadState.error;
-        _notifyIndex(index);
+        _markError(index);
       }
     });
   }
@@ -1067,8 +1080,7 @@ class VideoFeedController extends ChangeNotifier {
           '${_videoDebugDetails(index)}',
         );
         _staleRecoveryAttempts = 0;
-        _loadStates[index] = LoadState.error;
-        _notifyIndex(index);
+        _markError(index);
         return;
       }
 
