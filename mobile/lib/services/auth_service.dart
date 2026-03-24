@@ -2496,8 +2496,8 @@ class AuthService implements BackgroundAwareService {
         }
       }
 
-      // Clear session
-      _currentIdentity?.close();
+      // Clear session (don't close identity here — individual signers are
+      // closed below, and identity wraps the same signer object).
       _currentIdentity = null;
       _currentKeyContainer?.dispose();
       _currentKeyContainer = null;
