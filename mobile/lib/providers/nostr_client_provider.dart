@@ -38,13 +38,13 @@ class NostrService extends _$NostrService {
         .map((relay) => relay.url)
         .toList();
 
-    // Create initial NostrClient (prefer RPC signer when available)
+    // Create initial NostrClient using unified identity signer
     final client = NostrServiceFactory.create(
       keyContainer: authService.currentKeyContainer,
       statisticsService: statisticsService,
       environmentConfig: environmentConfig,
       dbClient: dbClient,
-      rpcSigner: authService.rpcSigner,
+      rpcSigner: authService.currentIdentity,
     );
 
     // Register callback so when NIP-65 discovery completes later, we add those
@@ -138,7 +138,7 @@ class NostrService extends _$NostrService {
         statisticsService: statisticsService,
         environmentConfig: environmentConfig,
         dbClient: dbClient,
-        rpcSigner: authService.rpcSigner,
+        rpcSigner: authService.currentIdentity,
       );
 
       // Register callback for new client so later discovery adds relays to it

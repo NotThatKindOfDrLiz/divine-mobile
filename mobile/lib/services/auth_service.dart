@@ -15,6 +15,7 @@ import 'package:nostr_sdk/nostr_sdk.dart';
 import 'package:openvine/models/known_account.dart';
 import 'package:openvine/services/background_activity_manager.dart';
 import 'package:openvine/services/crash_reporting_service.dart';
+import 'package:openvine/services/nostr_identity.dart';
 import 'package:openvine/services/pending_verification_service.dart';
 import 'package:openvine/services/relay_discovery_service.dart';
 import 'package:openvine/services/user_data_cleanup_service.dart';
@@ -175,6 +176,7 @@ class AuthService implements BackgroundAwareService {
 
   AuthState _authState = AuthState.checking;
   SecureKeyContainer? _currentKeyContainer;
+  NostrIdentity? _currentIdentity;
   UserProfile? _currentProfile;
   String? _lastError;
   bool _storageErrorOccurred = false;
@@ -235,6 +237,12 @@ class AuthService implements BackgroundAwareService {
   /// Used by NostrClientProvider to create AuthServiceSigner.
   /// The container provides secure access to private key operations.
   SecureKeyContainer? get currentKeyContainer => _currentKeyContainer;
+
+  /// The current user's signing identity.
+  ///
+  /// Bundles pubkey + signing method into a single [NostrSigner].
+  /// Prefer this over [currentKeyContainer] + [rpcSigner] for new code.
+  NostrIdentity? get currentIdentity => _currentIdentity;
 
   /// Check if user is authenticated
   bool get isAuthenticated => _authState == AuthState.authenticated;
@@ -2489,6 +2497,8 @@ class AuthService implements BackgroundAwareService {
       }
 
       // Clear session
+      _currentIdentity?.close();
+      _currentIdentity = null;
       _currentKeyContainer?.dispose();
       _currentKeyContainer = null;
       _currentProfile = null;
@@ -2635,7 +2645,8 @@ class AuthService implements BackgroundAwareService {
     String? biometricPrompt,
     int? createdAt,
   }) async {
-    if (!isAuthenticated || _currentKeyContainer == null) {
+    final identity = _currentIdentity;
+    if (!isAuthenticated || identity == null) {
       Log.error(
         'Cannot sign event - user not authenticated',
         name: 'AuthService',
@@ -2661,7 +2672,7 @@ class AuthService implements BackgroundAwareService {
       // Create the unsigned event object
       final driftTolerance = NostrTimestamp.getDriftToleranceForKind(kind);
       final event = Event(
-        _currentKeyContainer!.publicKeyHex,
+        identity.publicKeyHex,
         kind,
         eventTags,
         content,
@@ -2669,31 +2680,15 @@ class AuthService implements BackgroundAwareService {
             createdAt ?? NostrTimestamp.now(driftTolerance: driftTolerance),
       );
 
-      // 2. Branch Signing Logic (Local vs RPC)
-      Event? signedEvent;
-
-      if (rpcSigner case final rpcSigner?) {
-        Log.info(
-          '🚀 Signing kind $kind via Remote RPC '
-          '(authSource=${_authSource.name}, '
-          'eventPubkey=${event.pubkey})',
-          name: 'AuthService',
-          category: LogCategory.auth,
-        );
-        signedEvent = await rpcSigner.signEvent(event);
-      } else {
-        Log.info(
-          '🔐 Signing kind $kind via Local Secure Storage '
-          '(authSource=${_authSource.name}, '
-          'eventPubkey=${event.pubkey})',
-          name: 'AuthService',
-          category: LogCategory.auth,
-        );
-        signedEvent = await _keyStorage.withPrivateKey<Event?>((privateKey) {
-          event.sign(privateKey);
-          return event;
-        }, biometricPrompt: biometricPrompt);
-      }
+      // 2. Sign via NostrIdentity (handles local vs remote transparently)
+      Log.info(
+        'Signing kind $kind via ${identity.signingMethod.name} '
+        '(authSource=${_authSource.name}, '
+        'eventPubkey=${event.pubkey})',
+        name: 'AuthService',
+        category: LogCategory.auth,
+      );
+      final signedEvent = await identity.signEvent(event);
 
       // 3. Post-Signing Validation and Debugging
       if (signedEvent == null) {
@@ -2986,6 +2981,9 @@ class AuthService implements BackgroundAwareService {
       _amberSigner = null;
     }
 
+    // Build NostrIdentity atomically from the current signer state.
+    _currentIdentity = _buildIdentity(keyContainer, source);
+
     // Create user profile
     _currentProfile = UserProfile(
       npub: keyContainer.npub,
@@ -3122,6 +3120,37 @@ class AuthService implements BackgroundAwareService {
       '📱 Security: Hardware-backed storage active',
       name: 'AuthService',
       category: LogCategory.auth,
+    );
+  }
+
+  /// Build a [NostrIdentity] from the current signer state.
+  ///
+  /// Picks the active remote signer (amber > bunker > keycast) if one exists,
+  /// otherwise falls back to local signing via [SecureKeyStorage].
+  NostrIdentity _buildIdentity(
+    SecureKeyContainer keyContainer,
+    AuthenticationSource source,
+  ) {
+    final remoteSigner = rpcSigner;
+    if (remoteSigner != null) {
+      final method = switch (remoteSigner) {
+        AndroidNostrSigner() => SigningMethod.amber,
+        NostrRemoteSigner() => SigningMethod.bunker,
+        _ => SigningMethod.keycastRpc,
+      };
+      return NostrIdentity.remote(
+        publicKeyHex: keyContainer.publicKeyHex,
+        npub: keyContainer.npub,
+        signer: remoteSigner,
+        signingMethod: method,
+        authSource: source,
+        keyContainer: keyContainer,
+      );
+    }
+    return NostrIdentity.local(
+      keyContainer: keyContainer,
+      keyStorage: _keyStorage,
+      authSource: source,
     );
   }
 
@@ -3408,7 +3437,8 @@ class AuthService implements BackgroundAwareService {
     _amberSigner?.close();
     _amberSigner = null;
 
-    // Securely dispose of key container
+    // Securely dispose of key container and identity
+    _currentIdentity = null;
     _currentKeyContainer?.dispose();
     _currentKeyContainer = null;
 
