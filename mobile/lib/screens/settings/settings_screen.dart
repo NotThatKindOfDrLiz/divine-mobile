@@ -14,6 +14,7 @@ import 'package:openvine/providers/environment_provider.dart';
 import 'package:openvine/providers/nip05_verification_provider.dart';
 import 'package:openvine/providers/user_profile_providers.dart';
 import 'package:openvine/screens/apps/apps_directory_screen.dart';
+import 'package:openvine/screens/apps/apps_permissions_screen.dart';
 import 'package:openvine/screens/auth/secure_account_screen.dart';
 import 'package:openvine/screens/auth/welcome_screen.dart';
 import 'package:openvine/screens/creator_analytics_screen.dart';
@@ -238,6 +239,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'Apps',
                 subtitle: 'Launch vetted Nostr apps in Divine',
                 onTap: () => context.push(AppsDirectoryScreen.path),
+              ),
+              _SettingsTile(
+                icon: Icons.lock_open,
+                title: 'App Permissions',
+                subtitle: 'Review and revoke remembered sandbox approvals',
+                onTap: () => context.push(AppsPermissionsScreen.path),
               ),
 
               const SizedBox(height: 24),
