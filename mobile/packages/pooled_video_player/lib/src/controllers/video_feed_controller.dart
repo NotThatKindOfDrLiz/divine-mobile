@@ -612,7 +612,7 @@ class VideoFeedController extends ChangeNotifier {
       // The identity check in _onPlayerEvicted ensures stale callbacks
       // (from previously-released indices that loaded the same player)
       // are ignored.
-      pooledPlayer.addOnDisposedCallback(
+      pooledPlayer.addOnEvictedCallback(
         () => _onPlayerEvicted(index, pooledPlayer),
       );
 

@@ -199,6 +199,7 @@ PooledPlayer createMockPooledPlayer({
   when(() => mockPooledPlayer.player).thenReturn(mockPlayer);
   when(() => mockPooledPlayer.videoController).thenReturn(mockController);
   when(() => mockPooledPlayer.isDisposed).thenReturn(isDisposed);
+  when(mockPooledPlayer.recycle).thenReturn(null);
   when(mockPooledPlayer.dispose).thenAnswer((_) async {});
 
   return mockPooledPlayer;
@@ -206,8 +207,8 @@ PooledPlayer createMockPooledPlayer({
 
 /// Creates a mock [PooledPlayer] from an existing [MockPlayerSetup].
 ///
-/// Wires up `addOnDisposedCallback` and `dispose` so the disposal callbacks
-/// fire correctly (matching real [PooledPlayer] behaviour).
+/// Wires up `addOnEvictedCallback`, `recycle`, and `dispose` so eviction
+/// callbacks fire correctly (matching real [PooledPlayer] behaviour).
 PooledPlayer createMockPooledPlayerFromSetup(MockPlayerSetup setup) {
   final mockPooledPlayer = _MockPooledPlayer();
   final callbacks = <VoidCallback>[];
@@ -217,13 +218,19 @@ PooledPlayer createMockPooledPlayerFromSetup(MockPlayerSetup setup) {
     () => mockPooledPlayer.videoController,
   ).thenReturn(createMockVideoController());
   when(() => mockPooledPlayer.isDisposed).thenReturn(false);
-  when(() => mockPooledPlayer.addOnDisposedCallback(any())).thenAnswer((inv) {
+  when(() => mockPooledPlayer.addOnEvictedCallback(any())).thenAnswer((inv) {
     callbacks.add(inv.positionalArguments.first as VoidCallback);
   });
-  when(() => mockPooledPlayer.removeOnDisposedCallback(any())).thenAnswer((
+  when(() => mockPooledPlayer.removeOnEvictedCallback(any())).thenAnswer((
     inv,
   ) {
     callbacks.remove(inv.positionalArguments.first as VoidCallback);
+  });
+  when(mockPooledPlayer.recycle).thenAnswer((_) {
+    for (final cb in List<VoidCallback>.of(callbacks)) {
+      cb();
+    }
+    callbacks.clear();
   });
   when(mockPooledPlayer.dispose).thenAnswer((_) async {
     for (final cb in List<VoidCallback>.of(callbacks)) {
@@ -347,13 +354,22 @@ class TestablePlayerPool extends PlayerPool {
       return existing;
     }
 
-    // Evict if at capacity
+    // Recycle LRU players until there is room, mirroring real PlayerPool.
+    PooledPlayer? recycled;
     while (_testPlayers.length >= maxPlayers && _testLruOrder.isNotEmpty) {
       final evictUrl = _testLruOrder.removeAt(0);
       final evicted = _testPlayers.remove(evictUrl);
       if (evicted != null && !evicted.isDisposed) {
-        await evicted.dispose();
+        evicted.recycle();
+        recycled = evicted;
+        break;
       }
+    }
+
+    if (recycled != null) {
+      _testPlayers[url] = recycled;
+      _testLruOrder.add(url);
+      return recycled;
     }
 
     final player = mockPlayerFactory(url);

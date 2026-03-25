@@ -1826,18 +1826,27 @@ void main() {
             // prioritization means eviction happens after _loadPlayer
             // completes, so the callback is the only eviction signal.
             when(
-              () => mockPooledPlayer.addOnDisposedCallback(any()),
+              () => mockPooledPlayer.addOnEvictedCallback(any()),
             ).thenAnswer((inv) {
               callbacks.add(
                 inv.positionalArguments.first as VoidCallback,
               );
             });
             when(
-              () => mockPooledPlayer.removeOnDisposedCallback(any()),
+              () => mockPooledPlayer.removeOnEvictedCallback(any()),
             ).thenAnswer((inv) {
               callbacks.remove(
                 inv.positionalArguments.first as VoidCallback,
               );
+            });
+            // recycle() fires callbacks synchronously without disposing
+            // native resources (mirrors real PooledPlayer.recycle()).
+            when(mockPooledPlayer.recycle).thenAnswer((_) {
+              disposedState[url] = true;
+              for (final cb in List<VoidCallback>.of(callbacks)) {
+                cb();
+              }
+              callbacks.clear();
             });
             when(mockPooledPlayer.dispose).thenAnswer((_) async {
               disposedState[url] = true;
@@ -2055,20 +2064,29 @@ void main() {
 
             // Track disposal callbacks (mirrors real PooledPlayer behavior).
             when(
-              () => mockPooledPlayer.addOnDisposedCallback(any()),
+              () => mockPooledPlayer.addOnEvictedCallback(any()),
             ).thenAnswer((invocation) {
               final callback =
                   invocation.positionalArguments[0] as VoidCallback;
               playerCallbacks[url]!.add(callback);
             });
             when(
-              () => mockPooledPlayer.removeOnDisposedCallback(any()),
+              () => mockPooledPlayer.removeOnEvictedCallback(any()),
             ).thenAnswer((invocation) {
               final callback =
                   invocation.positionalArguments[0] as VoidCallback;
               playerCallbacks[url]!.remove(callback);
             });
 
+            // recycle() fires callbacks synchronously without disposing
+            // native resources (mirrors real PooledPlayer.recycle()).
+            when(mockPooledPlayer.recycle).thenAnswer((_) {
+              callbackDisposedState[url] = true;
+              for (final cb in List<VoidCallback>.of(playerCallbacks[url]!)) {
+                cb();
+              }
+              playerCallbacks[url]!.clear();
+            });
             // Dispose fires callbacks synchronously (mirrors real behavior).
             when(mockPooledPlayer.dispose).thenAnswer((_) async {
               callbackDisposedState[url] = true;
@@ -3104,10 +3122,10 @@ void main() {
               when(() => mockPooledPlayer.isDisposed).thenReturn(false);
               when(mockPooledPlayer.dispose).thenAnswer((_) async {});
               when(
-                () => mockPooledPlayer.addOnDisposedCallback(any()),
+                () => mockPooledPlayer.addOnEvictedCallback(any()),
               ).thenAnswer((_) {});
               when(
-                () => mockPooledPlayer.removeOnDisposedCallback(any()),
+                () => mockPooledPlayer.removeOnEvictedCallback(any()),
               ).thenAnswer((_) {});
               return mockPooledPlayer;
             },
@@ -3157,10 +3175,10 @@ void main() {
               when(() => mockPooledPlayer.isDisposed).thenReturn(false);
               when(mockPooledPlayer.dispose).thenAnswer((_) async {});
               when(
-                () => mockPooledPlayer.addOnDisposedCallback(any()),
+                () => mockPooledPlayer.addOnEvictedCallback(any()),
               ).thenAnswer((_) {});
               when(
-                () => mockPooledPlayer.removeOnDisposedCallback(any()),
+                () => mockPooledPlayer.removeOnEvictedCallback(any()),
               ).thenAnswer((_) {});
               return mockPooledPlayer;
             },

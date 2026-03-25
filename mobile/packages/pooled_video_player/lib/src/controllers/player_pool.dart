@@ -25,25 +25,43 @@ class PooledPlayer {
   /// Whether this player has been disposed.
   bool get isDisposed => _isDisposed;
 
-  /// Callbacks invoked synchronously when this player is disposed.
+  /// Callbacks invoked synchronously when this player is evicted (recycled
+  /// or disposed).
   ///
   /// Used by `VideoFeedController` to detect pool eviction and update
   /// the widget tree before Flutter rebuilds with a stale controller.
-  final List<VoidCallback> _onDisposedCallbacks = [];
+  final List<VoidCallback> _onEvictedCallbacks = [];
 
-  /// Registers a callback to be invoked when this player is disposed.
-  void addOnDisposedCallback(VoidCallback callback) {
-    _onDisposedCallbacks.add(callback);
+  /// Registers a callback to be invoked when this player is evicted.
+  void addOnEvictedCallback(VoidCallback callback) {
+    _onEvictedCallbacks.add(callback);
   }
 
-  /// Removes a previously registered disposal callback.
-  void removeOnDisposedCallback(VoidCallback callback) {
-    _onDisposedCallbacks.remove(callback);
+  /// Removes a previously registered eviction callback.
+  void removeOnEvictedCallback(VoidCallback callback) {
+    _onEvictedCallbacks.remove(callback);
+  }
+
+  /// Fires all eviction callbacks and clears them without touching native
+  /// resources.
+  ///
+  /// Called by [PlayerPool] when this player is recycled under a new URL.
+  /// Consumers (e.g. `VideoFeedController`) react identically to a real
+  /// disposal — they null-out widget state — but the underlying [Player] and
+  /// [VideoController] remain valid for immediate reuse.
+  ///
+  /// Is a no-op if already disposed.
+  void recycle() {
+    if (_isDisposed) return;
+    for (final callback in List<VoidCallback>.of(_onEvictedCallbacks)) {
+      callback();
+    }
+    _onEvictedCallbacks.clear();
   }
 
   /// Safely dispose the player.
   ///
-  /// Invokes all registered [_onDisposedCallbacks] synchronously before
+  /// Invokes all registered [_onEvictedCallbacks] synchronously before
   /// disposing native resources, allowing consumers to react (e.g., update
   /// widget state) before the underlying [VideoController] becomes invalid.
   Future<void> dispose() async {
@@ -53,10 +71,10 @@ class PooledPlayer {
     // Notify listeners synchronously so they can update UI state before
     // native resources (including VideoController's ValueNotifier<int?>)
     // are torn down.
-    for (final callback in List<VoidCallback>.of(_onDisposedCallbacks)) {
+    for (final callback in List<VoidCallback>.of(_onEvictedCallbacks)) {
       callback();
     }
-    _onDisposedCallbacks.clear();
+    _onEvictedCallbacks.clear();
 
     try {
       await player.stop();
@@ -243,12 +261,23 @@ class PlayerPool {
       return existing;
     }
 
-    // Evict if at capacity
+    // Recycle or evict LRU players until there is room.
+    PooledPlayer? recycled;
     while (_players.length >= maxPlayers && _lruOrder.isNotEmpty) {
-      await _evictLru();
+      recycled = _recycleLru();
+      if (recycled != null) break; // Got a reusable player — stop evicting.
     }
 
-    // Create new player
+    if (recycled != null) {
+      // Re-key the recycled player under the new URL and return it directly,
+      // avoiding a native player allocation entirely.
+      _players[url] = recycled;
+      _lruOrder.add(url);
+      return recycled;
+    }
+
+    // No reusable player found (all LRU entries were already disposed) —
+    // fall back to allocating a new native player.
     final player = await createPlayer();
     _players[url] = player;
     _lruOrder.add(url);
@@ -275,15 +304,21 @@ class PlayerPool {
       ..add(url);
   }
 
-  /// Evict the least recently used player.
-  Future<void> _evictLru() async {
-    if (_lruOrder.isEmpty) return;
+  /// Removes the LRU entry, fires its eviction callbacks, and returns the
+  /// player for reuse.
+  ///
+  /// Returns `null` if the LRU order is empty or the player is already
+  /// disposed. In that case the caller must fall back to [createPlayer].
+  ///
+  /// Synchronous — no async steps, no yield points.
+  PooledPlayer? _recycleLru() {
+    if (_lruOrder.isEmpty) return null;
 
     final url = _lruOrder.removeAt(0);
     final player = _players.remove(url);
-    if (player != null && !player.isDisposed) {
-      await player.dispose();
-    }
+    if (player == null || player.isDisposed) return null;
+    player.recycle();
+    return player;
   }
 
   /// Release a specific URL from the pool.

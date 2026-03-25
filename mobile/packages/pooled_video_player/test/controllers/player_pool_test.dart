@@ -26,6 +26,7 @@ _MockPooledPlayer _createMockPooledPlayer() {
   when(() => mockPooledPlayer.videoController).thenReturn(mockController);
   when(() => mockPooledPlayer.isDisposed).thenReturn(false);
   when(mockPooledPlayer.dispose).thenAnswer((_) async {});
+  when(mockPooledPlayer.recycle).thenReturn(null);
 
   return mockPooledPlayer;
 }
@@ -276,7 +277,7 @@ void main() {
           expect(pool.hasPlayer('https://example.com/v4.mp4'), isTrue);
         });
 
-        test('disposes evicted player', () async {
+        test('recycles evicted player instead of disposing', () async {
           await pool.getPlayer('https://example.com/v1.mp4');
           await pool.getPlayer('https://example.com/v2.mp4');
           await pool.getPlayer('https://example.com/v3.mp4');
@@ -285,7 +286,22 @@ void main() {
 
           await pool.getPlayer('https://example.com/v4.mp4');
 
-          verify(evictedPlayer.dispose).called(1);
+          // Player is recycled (callbacks fired) but NOT disposed — native
+          // resources are kept alive for reuse under the new URL.
+          verify(evictedPlayer.recycle).called(1);
+          verifyNever(evictedPlayer.dispose);
+        });
+
+        test('returns same native player instance under new URL', () async {
+          await pool.getPlayer('https://example.com/v1.mp4');
+          await pool.getPlayer('https://example.com/v2.mp4');
+          await pool.getPlayer('https://example.com/v3.mp4');
+
+          // v1 is LRU; requesting v4 should recycle v1's player under v4.
+          final player4 = await pool.getPlayer('https://example.com/v4.mp4');
+
+          expect(identical(player4, createdPlayers[0]), isTrue);
+          expect(createdPlayers.length, equals(3)); // no new player created
         });
       });
 
@@ -568,18 +584,24 @@ void main() {
 
       group('eviction with disposed player', () {
         test(
-          'skips disposing already disposed player during eviction',
+          'skips recycling already disposed player and creates a new one',
           () async {
             await pool.getPlayer('https://example.com/v1.mp4');
             await pool.getPlayer('https://example.com/v2.mp4');
             await pool.getPlayer('https://example.com/v3.mp4');
 
+            // Mark the LRU player as already disposed.
             when(() => createdPlayers[0].isDisposed).thenReturn(true);
 
             await pool.getPlayer('https://example.com/v4.mp4');
 
+            // Disposed player must not be recycled or double-disposed.
+            verifyNever(() => createdPlayers[0].recycle());
             verifyNever(() => createdPlayers[0].dispose());
             expect(pool.hasPlayer('https://example.com/v1.mp4'), isFalse);
+            // A fresh player was created as fallback (createdPlayers[3]).
+            expect(createdPlayers.length, equals(4));
+            expect(pool.hasPlayer('https://example.com/v4.mp4'), isTrue);
           },
         );
       });
