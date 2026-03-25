@@ -362,7 +362,6 @@ class _TestVideoRecorderNotifier extends VideoRecorderNotifier {
   VideoRecorderProviderState build() {
     return VideoRecorderProviderState(
       recordingState: recordingState,
-      selectedSound: selectedSound,
     );
   }
 }
