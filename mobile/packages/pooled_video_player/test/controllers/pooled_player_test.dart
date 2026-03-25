@@ -308,10 +308,10 @@ void main() {
       });
 
       test('does not call player.stop() or player.dispose()', () {
-        final pooledPlayer = PooledPlayer(
+        PooledPlayer(
           player: mockPlayer,
           videoController: mockVideoController,
-        )..recycle();
+        ).recycle();
 
         verifyNever(() => mockPlayer.stop());
         verifyNever(() => mockPlayer.dispose());
