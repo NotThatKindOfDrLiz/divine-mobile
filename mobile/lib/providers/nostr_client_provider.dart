@@ -38,9 +38,10 @@ class NostrService extends _$NostrService {
         .map((relay) => relay.url)
         .toList();
 
-    // Create initial NostrClient using unified identity signer
+    // Create initial NostrClient using unified identity signer.
+    // NostrIdentity implements NostrSigner and handles both local and remote
+    // signing transparently — no separate keyContainer needed.
     final client = NostrServiceFactory.create(
-      keyContainer: authService.currentKeyContainer,
       statisticsService: statisticsService,
       environmentConfig: environmentConfig,
       dbClient: dbClient,
@@ -134,7 +135,6 @@ class NostrService extends _$NostrService {
           .toList();
 
       final newClient = NostrServiceFactory.create(
-        keyContainer: authService.currentKeyContainer,
         statisticsService: statisticsService,
         environmentConfig: environmentConfig,
         dbClient: dbClient,

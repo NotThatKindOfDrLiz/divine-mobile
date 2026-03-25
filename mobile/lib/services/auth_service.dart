@@ -175,7 +175,6 @@ class AuthService implements BackgroundAwareService {
   final String? _profileCheckIndexerUrl;
 
   AuthState _authState = AuthState.checking;
-  SecureKeyContainer? _currentKeyContainer;
   NostrIdentity? _currentIdentity;
   UserProfile? _currentProfile;
   String? _lastError;
@@ -225,18 +224,18 @@ class AuthService implements BackgroundAwareService {
   Stream<UserProfile?> get profileStream => _profileController.stream;
 
   /// Current public key (npub format)
-  String? get currentNpub => _currentKeyContainer?.npub;
+  String? get currentNpub => _currentIdentity?.npub;
 
   /// Current public key (hex format)
   /// Works for both local keys (via keyContainer) and bunker auth (via profile)
   String? get currentPublicKeyHex =>
-      _currentKeyContainer?.publicKeyHex ?? _currentProfile?.publicKeyHex;
+      _currentIdentity?.publicKeyHex ?? _currentProfile?.publicKeyHex;
 
   /// Current secure key container (null if not authenticated)
   ///
   /// Used by NostrClientProvider to create AuthServiceSigner.
   /// The container provides secure access to private key operations.
-  SecureKeyContainer? get currentKeyContainer => _currentKeyContainer;
+  SecureKeyContainer? get currentKeyContainer => _currentIdentity?.keyContainer;
 
   /// The current user's signing identity.
   ///
@@ -1484,7 +1483,12 @@ class AuthService implements BackgroundAwareService {
         throw Exception('Failed to get public key from bunker');
       }
 
-      _currentKeyContainer = SecureKeyContainer.fromPublicKey(userPubkey);
+      final keyContainer = SecureKeyContainer.fromPublicKey(userPubkey);
+      _authSource = AuthenticationSource.bunker;
+      _currentIdentity = _buildIdentity(
+        keyContainer,
+        AuthenticationSource.bunker,
+      );
 
       // Create a minimal profile for the bunker user
       final npub = NostrKeyUtils.encodePubKey(userPubkey);
@@ -1493,8 +1497,6 @@ class AuthService implements BackgroundAwareService {
         publicKeyHex: userPubkey,
         displayName: NostrKeyUtils.maskKey(npub),
       );
-
-      _authSource = AuthenticationSource.bunker;
 
       _setAuthState(AuthState.authenticated);
       _profileController.add(_currentProfile);
@@ -1711,7 +1713,12 @@ class AuthService implements BackgroundAwareService {
       // Recreate signer with saved pubkey and package
       _amberSigner = AndroidNostrSigner(pubkey: pubkey, package: package);
 
-      _currentKeyContainer = SecureKeyContainer.fromPublicKey(pubkey);
+      final keyContainer = SecureKeyContainer.fromPublicKey(pubkey);
+      _authSource = AuthenticationSource.amber;
+      _currentIdentity = _buildIdentity(
+        keyContainer,
+        AuthenticationSource.amber,
+      );
 
       // Create a minimal profile for the Amber user
       final npub = NostrKeyUtils.encodePubKey(pubkey);
@@ -1720,8 +1727,6 @@ class AuthService implements BackgroundAwareService {
         publicKeyHex: pubkey,
         displayName: NostrKeyUtils.maskKey(npub),
       );
-
-      _authSource = AuthenticationSource.amber;
 
       _setAuthState(AuthState.authenticated);
       _profileController.add(_currentProfile);
@@ -2398,12 +2403,16 @@ class AuthService implements BackgroundAwareService {
       'signOut: starting — '
       'authSource=${_authSource.name}, '
       'deleteKeys=$deleteKeys, '
-      'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"}',
+      'currentPubkey=${_currentIdentity?.publicKeyHex ?? "null"}',
       name: 'AuthService',
       category: LogCategory.auth,
     );
 
     try {
+      // Capture identity info before clearing state
+      final identityNpub = _currentIdentity?.npub;
+      final identityPubkey = _currentIdentity?.publicKeyHex;
+
       // Clear TOS acceptance on any logout - user must re-accept when logging
       // back in
       final prefs = await SharedPreferences.getInstance();
@@ -2428,13 +2437,13 @@ class AuthService implements BackgroundAwareService {
 
       // Clear relay discovery cache so next login re-queries indexers
       // (even for same-user re-login, relays may have changed)
-      await _relayDiscoveryService.clearCache(_currentKeyContainer?.npub ?? '');
+      await _relayDiscoveryService.clearCache(identityNpub ?? '');
 
       // Clear the stored pubkey tracking so next login is treated as new
       await prefs.remove('current_user_pubkey_hex');
 
       // Multi-account: archive or remove this account's signer info
-      final currentPubkey = _currentKeyContainer?.publicKeyHex;
+      final currentPubkey = identityPubkey;
       if (deleteKeys) {
         // Destructive sign-out: remove from known accounts and clean up
         if (currentPubkey != null) {
@@ -2464,14 +2473,13 @@ class AuthService implements BackgroundAwareService {
           Log.debug(
             'signOut: external signer check — '
             'storedKeyPubkey=${storedContainer?.publicKeyHex ?? "null"}, '
-            'currentPubkey=${_currentKeyContainer?.publicKeyHex ?? "null"}, '
-            'match=${storedContainer?.publicKeyHex == _currentKeyContainer?.publicKeyHex}',
+            'currentPubkey=${identityPubkey ?? "null"}, '
+            'match=${storedContainer?.publicKeyHex == identityPubkey}',
             name: 'AuthService',
             category: LogCategory.auth,
           );
           if (storedContainer != null &&
-              storedContainer.publicKeyHex !=
-                  _currentKeyContainer?.publicKeyHex) {
+              storedContainer.publicKeyHex != identityPubkey) {
             Log.debug(
               'signOut: deleting stale local keys from previous identity',
               name: 'AuthService',
@@ -2496,11 +2504,11 @@ class AuthService implements BackgroundAwareService {
         }
       }
 
-      // Clear session (don't close identity here — individual signers are
-      // closed below, and identity wraps the same signer object).
+      // Clear session — dispose key container for secure memory wipe, then
+      // null the identity. Don't close identity's signer here — individual
+      // signers are closed below.
+      _currentIdentity?.keyContainer?.dispose();
       _currentIdentity = null;
-      _currentKeyContainer?.dispose();
-      _currentKeyContainer = null;
       _currentProfile = null;
       _lastError = null;
 
@@ -2620,7 +2628,7 @@ class AuthService implements BackgroundAwareService {
       // from platform storage. iOS keychain can fail transiently, causing
       // "Unable to access your keys" errors even though the key is in RAM.
       // Falls back to storage read if the container isn't loaded yet.
-      final container = _currentKeyContainer;
+      final container = _currentIdentity?.keyContainer;
       if (container != null && container.hasPrivateKey) {
         return container.withNsec((nsec) => nsec);
       }
@@ -2705,7 +2713,7 @@ class AuthService implements BackgroundAwareService {
           '❌ Event signature validation FAILED! '
           'kind=$kind, eventPubkey=${signedEvent.pubkey}, '
           'authSource=${_authSource.name}, '
-          'currentPubkey=${_currentKeyContainer?.publicKeyHex}',
+          'currentPubkey=${identity.publicKeyHex}',
           name: 'AuthService',
           category: LogCategory.auth,
         );
@@ -2943,7 +2951,6 @@ class AuthService implements BackgroundAwareService {
       category: LogCategory.auth,
     );
 
-    _currentKeyContainer = keyContainer;
     _authSource = source;
 
     // Clear any stale remote signers that don't match the new auth source.
@@ -3166,9 +3173,10 @@ class AuthService implements BackgroundAwareService {
   ///
   /// For returning users, this runs in background via unawaited().
   Future<void> _performDiscovery() async {
-    if (_currentKeyContainer == null) return;
+    final identity = _currentIdentity;
+    if (identity == null) return;
 
-    final npub = _currentKeyContainer!.npub;
+    final npub = identity.npub;
 
     Log.info(
       '🔍 Starting user discovery (relays + profile)...',
@@ -3254,7 +3262,8 @@ class AuthService implements BackgroundAwareService {
   /// Uses a direct WebSocket connection to an indexer relay (purplepag.es
   /// indexes kind 0 events) to check for existing profiles.
   Future<void> _checkExistingProfile() async {
-    if (_currentKeyContainer == null) {
+    final identity = _currentIdentity;
+    if (identity == null) {
       _hasExistingProfile = false;
       return;
     }
@@ -3266,7 +3275,7 @@ class AuthService implements BackgroundAwareService {
     );
 
     try {
-      final pubkeyHex = _currentKeyContainer!.publicKeyHex;
+      final pubkeyHex = identity.publicKeyHex;
       final indexerUrl =
           _profileCheckIndexerUrl ?? IndexerRelayConfig.defaultIndexers.first;
 
@@ -3438,9 +3447,8 @@ class AuthService implements BackgroundAwareService {
     _amberSigner = null;
 
     // Securely dispose of key container and identity
+    _currentIdentity?.keyContainer?.dispose();
     _currentIdentity = null;
-    _currentKeyContainer?.dispose();
-    _currentKeyContainer = null;
 
     await _authStateController.close();
     await _profileController.close();
