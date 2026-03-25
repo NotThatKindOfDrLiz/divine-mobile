@@ -87,7 +87,7 @@ class _SoundListItem extends ConsumerWidget {
         child: Row(
           spacing: 16,
           children: [
-            _AudioCover(audio: audio),
+            const _AudioCover(),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,11 +128,13 @@ class _SoundListItem extends ConsumerWidget {
   }
 }
 
-/// 40px rounded album cover with border.
+/// 40px rounded placeholder with music note icon.
+///
+/// [AudioEvent] has no cover image field — `url` is the audio file itself.
+/// Always shows the placeholder icon, matching the existing
+/// [AudioAttributionRow] pattern.
 class _AudioCover extends StatelessWidget {
-  const _AudioCover({required this.audio});
-
-  final AudioEvent audio;
+  const _AudioCover();
 
   @override
   Widget build(BuildContext context) {
@@ -144,13 +146,7 @@ class _AudioCover extends StatelessWidget {
         border: Border.all(color: VineTheme.onSurfaceDisabled),
       ),
       clipBehavior: Clip.antiAlias,
-      child: audio.url != null && !audio.isBundled
-          ? Image.network(
-              audio.url!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => const _AudioCoverPlaceholder(),
-            )
-          : const _AudioCoverPlaceholder(),
+      child: const _AudioCoverPlaceholder(),
     );
   }
 }
