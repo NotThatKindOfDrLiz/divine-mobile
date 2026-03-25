@@ -1,0 +1,6 @@
+export 'metadata_expanded_sheet.dart';
+export 'metadata_section.dart';
+export 'metadata_sounds_section.dart';
+export 'metadata_stats_row.dart';
+export 'metadata_tags_section.dart';
+export 'metadata_user_chips.dart';
