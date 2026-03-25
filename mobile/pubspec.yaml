@@ -30,6 +30,7 @@ workspace:
   - packages/divine_camera
   - packages/funnelcake_api_client
   - packages/hashtag_repository
+  - packages/image_metadata_stripper
   - packages/keycast_flutter
   - packages/likes_repository
   - packages/media_cache
@@ -95,6 +96,8 @@ dependencies:
   visibility_detector: ^0.4.0+2 # Detect widget visibility for proper video control
   image: ^4.1.7 # Image processing for GIF generation
   image_picker: ^1.2.0 # For selecting images from gallery or camera
+  image_metadata_stripper:
+    path: packages/image_metadata_stripper
   gal: ^2.3.2 # Save videos to device photo gallery
   file_selector: ^1.0.4 # For desktop file selection (macOS, Windows, Linux)
 
