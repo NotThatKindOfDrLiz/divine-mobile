@@ -1,4 +1,6 @@
 import Flutter
+import ImageIO
+import MobileCoreServices
 import UIKit
 
 public class ImageMetadataStripperPlugin: NSObject, FlutterPlugin {
@@ -46,7 +48,12 @@ public class ImageMetadataStripperPlugin: NSObject, FlutterPlugin {
 
     DispatchQueue.global(qos: .userInitiated).async {
       guard let imageData = FileManager.default.contents(atPath: inputPath),
-            let uiImage = UIImage(data: imageData) else {
+            let imageSource = CGImageSourceCreateWithData(
+              imageData as CFData, nil
+            ),
+            let srcImage = CGImageSourceCreateImageAtIndex(
+              imageSource, 0, nil
+            ) else {
         DispatchQueue.main.async {
           result(FlutterError(
             code: "DECODE_FAILED",
@@ -57,16 +64,71 @@ public class ImageMetadataStripperPlugin: NSObject, FlutterPlugin {
         return
       }
 
-      let isPng = inputPath.lowercased().hasSuffix(".png")
-      let outputData: Data?
-
-      if isPng {
-        outputData = uiImage.pngData()
-      } else {
-        outputData = uiImage.jpegData(compressionQuality: 0.85)
+      // Draw into a fresh bitmap context to sever all metadata links
+      let width = srcImage.width
+      let height = srcImage.height
+      let colorSpace =
+        srcImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+      guard let ctx = CGContext(
+        data: nil,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: colorSpace,
+        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+      ) else {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "DECODE_FAILED",
+            message: "Could not create bitmap context",
+            details: nil
+          ))
+        }
+        return
+      }
+      ctx.draw(
+        srcImage,
+        in: CGRect(x: 0, y: 0, width: width, height: height)
+      )
+      guard let cleanImage = ctx.makeImage() else {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "DECODE_FAILED",
+            message: "Could not create clean image from context",
+            details: nil
+          ))
+        }
+        return
       }
 
-      guard let data = outputData else {
+      let isPng = inputPath.lowercased().hasSuffix(".png")
+      let utType: CFString = isPng ? kUTTypePNG : kUTTypeJPEG
+      let outputURL = URL(fileURLWithPath: outputPath)
+
+      guard let destination = CGImageDestinationCreateWithURL(
+        outputURL as CFURL, utType, 1, nil
+      ) else {
+        DispatchQueue.main.async {
+          result(FlutterError(
+            code: "ENCODE_FAILED",
+            message: "Could not create image destination",
+            details: nil
+          ))
+        }
+        return
+      }
+
+      var properties: [CFString: Any] = [:]
+      if !isPng {
+        properties[kCGImageDestinationLossyCompressionQuality] =
+          0.85
+      }
+      CGImageDestinationAddImage(
+        destination, cleanImage, properties as CFDictionary
+      )
+
+      guard CGImageDestinationFinalize(destination) else {
         DispatchQueue.main.async {
           result(FlutterError(
             code: "ENCODE_FAILED",
@@ -77,19 +139,8 @@ public class ImageMetadataStripperPlugin: NSObject, FlutterPlugin {
         return
       }
 
-      do {
-        try data.write(to: URL(fileURLWithPath: outputPath))
-        DispatchQueue.main.async {
-          result(nil)
-        }
-      } catch {
-        DispatchQueue.main.async {
-          result(FlutterError(
-            code: "WRITE_FAILED",
-            message: error.localizedDescription,
-            details: nil
-          ))
-        }
+      DispatchQueue.main.async {
+        result(nil)
       }
     }
   }
