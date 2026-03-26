@@ -33,6 +33,8 @@ class BuildConfiguration {
         return const bool.fromEnvironment('FF_CLASSICS_HASHTAGS');
       case FeatureFlag.curatedLists:
         return const bool.fromEnvironment('FF_CURATED_LISTS');
+      case FeatureFlag.under16Onboarding:
+        return const bool.fromEnvironment('FF_UNDER16_ONBOARDING');
     }
   }
 
@@ -65,6 +67,8 @@ class BuildConfiguration {
         return 'FF_CLASSICS_HASHTAGS';
       case FeatureFlag.curatedLists:
         return 'FF_CURATED_LISTS';
+      case FeatureFlag.under16Onboarding:
+        return 'FF_UNDER16_ONBOARDING';
     }
   }
 }

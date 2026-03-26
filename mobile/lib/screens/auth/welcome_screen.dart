@@ -10,6 +10,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:models/models.dart';
 import 'package:openvine/blocs/welcome/welcome_bloc.dart';
+import 'package:openvine/features/feature_flags/models/feature_flag.dart';
+import 'package:openvine/features/feature_flags/providers/feature_flag_providers.dart';
 import 'package:openvine/providers/app_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
 import 'package:openvine/services/auth_service.dart' hide UserProfile;
@@ -68,6 +70,10 @@ class WelcomeScreen extends ConsumerWidget {
         authState == AuthState.checking ||
         authState == AuthState.authenticating;
 
+    final isUnder16FlowEnabled = ref
+        .watch(featureFlagServiceProvider)
+        .isEnabled(FeatureFlag.under16Onboarding);
+
     return BlocProvider(
       create: (_) => WelcomeBloc(
         userProfilesDao: db.userProfilesDao,
@@ -76,6 +82,7 @@ class WelcomeScreen extends ConsumerWidget {
       child: _WelcomeView(
         isAuthLoading: isAuthLoading,
         lastError: authService.lastError,
+        isUnder16FlowEnabled: isUnder16FlowEnabled,
       ),
     );
   }
@@ -83,13 +90,20 @@ class WelcomeScreen extends ConsumerWidget {
 
 /// Welcome screen — View that consumes [WelcomeBloc] state.
 class _WelcomeView extends StatelessWidget {
-  const _WelcomeView({required this.isAuthLoading, required this.lastError});
+  const _WelcomeView({
+    required this.isAuthLoading,
+    required this.lastError,
+    this.isUnder16FlowEnabled = false,
+  });
 
   /// Whether the global auth state is in a loading state.
   final bool isAuthLoading;
 
   /// Auth service error to display, if any.
   final String? lastError;
+
+  /// Whether the under-16 PRR onboarding flow is enabled via feature flag.
+  final bool isUnder16FlowEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +115,13 @@ class _WelcomeView extends StatelessWidget {
       listener: (context, state) {
         switch (state.status) {
           case WelcomeStatus.navigatingToCreateAccount:
-            context.push(WelcomeScreen.inviteGatePath);
+            if (isUnder16FlowEnabled) {
+              context.push(
+                '${WelcomeScreen.path}/age-check',
+              );
+            } else {
+              context.push(WelcomeScreen.inviteGatePath);
+            }
           case WelcomeStatus.navigatingToLoginOptions:
             context.push(WelcomeScreen.loginOptionsPath);
           case WelcomeStatus.error when state.error != null:
@@ -128,8 +148,13 @@ class _WelcomeView extends StatelessWidget {
                       state: state,
                       isLoading: isLoading,
                       lastError: lastError,
+                      hideTermsNotice: isUnder16FlowEnabled,
                     )
-                  : _NewUserLayout(isLoading: isLoading, lastError: lastError),
+                  : _NewUserLayout(
+                      isLoading: isLoading,
+                      lastError: lastError,
+                      hideTermsNotice: isUnder16FlowEnabled,
+                    ),
             ),
           ),
         );
@@ -140,10 +165,15 @@ class _WelcomeView extends StatelessWidget {
 
 /// Default layout for new users — AuthHeroSection with create/login buttons.
 class _NewUserLayout extends StatelessWidget {
-  const _NewUserLayout({required this.isLoading, required this.lastError});
+  const _NewUserLayout({
+    required this.isLoading,
+    required this.lastError,
+    this.hideTermsNotice = false,
+  });
 
   final bool isLoading;
   final String? lastError;
+  final bool hideTermsNotice;
 
   @override
   Widget build(BuildContext context) {
@@ -178,9 +208,10 @@ class _NewUserLayout extends StatelessWidget {
 
           const SizedBox(height: 20),
         ],
-        const _TermsNotice(),
-
-        const SizedBox(height: 32),
+        if (!hideTermsNotice) ...[
+          const _TermsNotice(),
+          const SizedBox(height: 32),
+        ],
       ],
     );
   }
@@ -192,11 +223,13 @@ class _ReturningUserLayout extends StatelessWidget {
     required this.state,
     required this.isLoading,
     required this.lastError,
+    this.hideTermsNotice = false,
   });
 
   final WelcomeState state;
   final bool isLoading;
   final String? lastError;
+  final bool hideTermsNotice;
 
   void _showAccountPicker(
     BuildContext context, {
@@ -305,9 +338,10 @@ class _ReturningUserLayout extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              const _TermsNotice(),
-
-              const SizedBox(height: 32),
+              if (!hideTermsNotice) ...[
+                const _TermsNotice(),
+                const SizedBox(height: 32),
+              ],
             ],
           ),
         ),
@@ -623,9 +657,7 @@ class _TermsNoticeState extends State<_TermsNotice> {
         style: VineTheme.bodySmallFont(color: VineTheme.secondaryText),
         children: [
           const TextSpan(
-            text:
-                'By selecting an option above, you confirm you are '
-                'at least 16 years old and agree to the ',
+            text: 'By continuing, you agree to the ',
           ),
           TextSpan(
             text: 'Terms of Service',
