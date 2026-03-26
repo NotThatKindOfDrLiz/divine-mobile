@@ -44,6 +44,12 @@ import 'package:openvine/screens/library_screen.dart';
 import 'package:openvine/screens/liked_videos_screen_router.dart';
 import 'package:openvine/screens/notification_settings_screen.dart';
 import 'package:openvine/screens/notifications_screen.dart';
+import 'package:openvine/screens/onboarding_under16/age_acknowledgment_screen.dart';
+import 'package:openvine/screens/onboarding_under16/come_back_later_screen.dart';
+import 'package:openvine/screens/onboarding_under16/confirmation_screen.dart';
+import 'package:openvine/screens/onboarding_under16/consent_video_screen.dart';
+import 'package:openvine/screens/onboarding_under16/honesty_screen.dart';
+import 'package:openvine/screens/onboarding_under16/options_screen.dart';
 import 'package:openvine/screens/other_profile_screen.dart';
 import 'package:openvine/screens/profile_screen_router.dart';
 import 'package:openvine/screens/profile_setup_screen.dart';
@@ -543,6 +549,39 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   final token = st.uri.queryParameters['token'];
                   return ResetPasswordScreen(token: token ?? '');
                 },
+              ),
+            ],
+          ),
+          // Under-16 PRR-informed onboarding flow (feature-flagged)
+          GoRoute(
+            path: AgeAcknowledgmentScreen.path,
+            name: AgeAcknowledgmentScreen.routeName,
+            builder: (_, _) => const AgeAcknowledgmentScreen(),
+            routes: [
+              GoRoute(
+                path: HonestyScreen.path,
+                name: HonestyScreen.routeName,
+                builder: (_, _) => const HonestyScreen(),
+              ),
+              GoRoute(
+                path: OptionsScreen.path,
+                name: OptionsScreen.routeName,
+                builder: (_, _) => const OptionsScreen(),
+              ),
+              GoRoute(
+                path: ConsentVideoScreen.path,
+                name: ConsentVideoScreen.routeName,
+                builder: (_, _) => const ConsentVideoScreen(),
+              ),
+              GoRoute(
+                path: ConfirmationScreen.path,
+                name: ConfirmationScreen.routeName,
+                builder: (_, _) => const ConfirmationScreen(),
+              ),
+              GoRoute(
+                path: ComeBackLaterScreen.path,
+                name: ComeBackLaterScreen.routeName,
+                builder: (_, _) => const ComeBackLaterScreen(),
               ),
             ],
           ),
