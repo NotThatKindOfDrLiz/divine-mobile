@@ -42,6 +42,9 @@ import 'package:openvine/screens/key_import_screen.dart';
 import 'package:openvine/screens/key_management_screen.dart';
 import 'package:openvine/screens/library_screen.dart';
 import 'package:openvine/screens/liked_videos_screen_router.dart';
+import 'package:openvine/screens/minor_account_review_parent_contact_screen.dart';
+import 'package:openvine/screens/minor_account_review_screen.dart';
+import 'package:openvine/screens/minor_account_review_under13_support_screen.dart';
 import 'package:openvine/screens/notification_settings_screen.dart';
 import 'package:openvine/screens/notifications_screen.dart';
 import 'package:openvine/screens/onboarding_under16/age_acknowledgment_screen.dart';
@@ -89,6 +92,7 @@ void resetNavigationState() {
 final goRouterProvider = Provider<GoRouter>((ref) {
   // Use ref.read to avoid recreating the router on auth state changes
   final authService = ref.read(authServiceProvider);
+  ref.watch(currentMinorAccountReviewStatusProvider);
 
   // Convert auth state stream to a Listenable for GoRouter
   final authListenable = _StreamListenable(authService.authStateStream);
@@ -97,18 +101,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     navigatorKey: NavigatorKeys.root,
     // Start at /welcome - redirect logic will navigate to appropriate route
     initialLocation: WelcomeScreen.path,
-    observers: [
-      routeObserver,
-      PageLoadObserver(),
-      VideoStopNavigatorObserver(),
-      FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
-    ],
+    observers: _buildRouterObservers(),
     // Refresh router when auth state changes
     refreshListenable: authListenable,
     redirect: (context, state) {
       final location = state.matchedLocation;
       final authService = ref.read(authServiceProvider);
       final authState = authService.authState;
+      final reviewStatusAsync = ref.read(currentMinorAccountReviewStatusProvider);
+      final reviewStatus = reviewStatusAsync.asData?.value;
 
       Log.debug(
         'Router redirect: location=$location, '
@@ -176,6 +177,30 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           category: LogCategory.auth,
         );
         return WelcomeScreen.path;
+      }
+
+      if (authState == AuthState.authenticated && reviewStatus?.isRestricted == true) {
+        final isReviewRoute = location == MinorAccountReviewScreen.path;
+        final isParentContactRoute =
+            location == MinorAccountReviewParentContactScreen.path;
+        final isUnder13SupportRoute =
+            location == MinorAccountReviewUnder13SupportScreen.path;
+        final isSupportRoute = location == SupportCenterScreen.path;
+        final isModerationConversationRoute = location.startsWith('/inbox/conversation/');
+
+        if (!isReviewRoute &&
+            !isParentContactRoute &&
+            !isUnder13SupportRoute &&
+            !isSupportRoute &&
+            !isModerationConversationRoute) {
+          Log.info(
+            'Router redirect: restricted account on $location — '
+            'redirecting to ${MinorAccountReviewScreen.path}',
+            name: 'AppRouter',
+            category: LogCategory.auth,
+          );
+          return MinorAccountReviewScreen.path;
+        }
       }
 
       return null;
@@ -485,6 +510,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: CreatorAnalyticsScreen.routeName,
         parentNavigatorKey: NavigatorKeys.root,
         builder: (ctx, st) => const CreatorAnalyticsScreen(),
+      ),
+      GoRoute(
+        path: MinorAccountReviewScreen.path,
+        name: MinorAccountReviewScreen.routeName,
+        parentNavigatorKey: NavigatorKeys.root,
+        builder: (ctx, st) => const MinorAccountReviewScreen(),
+      ),
+      GoRoute(
+        path: MinorAccountReviewParentContactScreen.path,
+        name: MinorAccountReviewParentContactScreen.routeName,
+        parentNavigatorKey: NavigatorKeys.root,
+        builder: (ctx, st) => const MinorAccountReviewParentContactScreen(),
+      ),
+      GoRoute(
+        path: MinorAccountReviewUnder13SupportScreen.path,
+        name: MinorAccountReviewUnder13SupportScreen.routeName,
+        parentNavigatorKey: NavigatorKeys.root,
+        builder: (ctx, st) => const MinorAccountReviewUnder13SupportScreen(),
       ),
 
       // CURATED LIST route (NIP-51 kind 30005 video lists)
@@ -972,6 +1015,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+List<NavigatorObserver> _buildRouterObservers() {
+  final observers = <NavigatorObserver>[
+    routeObserver,
+    PageLoadObserver(),
+    VideoStopNavigatorObserver(),
+  ];
+
+  try {
+    observers.add(FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance));
+  } catch (_) {
+    // Firebase is not available in some tests and local harnesses.
+  }
+
+  return observers;
+}
 
 /// Maps URL location to bottom nav tab index.
 ///

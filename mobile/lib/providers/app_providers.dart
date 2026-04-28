@@ -21,6 +21,7 @@ import 'package:nostr_client/nostr_client.dart'
 import 'package:nostr_key_manager/nostr_key_manager.dart';
 import 'package:openvine/extensions/video_event_extensions.dart';
 import 'package:openvine/models/environment_config.dart';
+import 'package:openvine/models/minor_account_review_status.dart';
 import 'package:openvine/providers/curation_providers.dart';
 import 'package:openvine/providers/database_provider.dart';
 import 'package:openvine/providers/environment_provider.dart';
@@ -29,6 +30,7 @@ import 'package:openvine/providers/shared_preferences_provider.dart';
 import 'package:openvine/repositories/categories_repository.dart';
 import 'package:openvine/repositories/dm_repository.dart';
 import 'package:openvine/repositories/follow_repository.dart';
+import 'package:openvine/repositories/minor_account_review_repository.dart';
 import 'package:openvine/services/account_deletion_service.dart';
 import 'package:openvine/services/account_label_service.dart';
 import 'package:openvine/services/age_verification_service.dart';
@@ -63,6 +65,7 @@ import 'package:openvine/services/hashtag_cache_service.dart';
 import 'package:openvine/services/hashtag_service.dart';
 import 'package:openvine/services/language_preference_service.dart';
 import 'package:openvine/services/media_auth_interceptor.dart';
+import 'package:openvine/services/minor_account_review_override_service.dart';
 import 'package:openvine/services/moderation_label_service.dart';
 import 'package:openvine/services/mute_service.dart';
 import 'package:openvine/services/nip17_message_service.dart';
@@ -1402,6 +1405,40 @@ ApiService apiService(Ref ref) {
   final authService = ref.watch(nip98AuthServiceProvider);
   return ApiService(authService: authService);
 }
+
+/// Repository for the current account's parental consent / minor-account
+/// review restriction state.
+final minorAccountReviewRepositoryProvider =
+    Provider<MinorAccountReviewRepository>((ref) {
+      final apiService = ref.watch(apiServiceProvider);
+      return MinorAccountReviewRepository(apiService: apiService);
+    });
+
+/// Developer-only local override service for simulating minor-account review
+/// states without backend wiring.
+final minorAccountReviewOverrideServiceProvider =
+    Provider<MinorAccountReviewOverrideService>((ref) {
+      final prefs = ref.watch(sharedPreferencesProvider);
+      return MinorAccountReviewOverrideService(prefs: prefs);
+    });
+
+/// Server-backed restriction status for the authenticated account.
+final currentMinorAccountReviewStatusProvider =
+    FutureProvider<MinorAccountReviewStatus>((ref) async {
+      final authState = ref.watch(currentAuthStateProvider);
+      if (authState != AuthState.authenticated) {
+        return MinorAccountReviewStatus.active();
+      }
+
+      final overrideService = ref.watch(minorAccountReviewOverrideServiceProvider);
+      final localOverride = overrideService.getOverride();
+      if (localOverride != null) {
+        return localOverride;
+      }
+
+      final repository = ref.watch(minorAccountReviewRepositoryProvider);
+      return repository.fetchCurrentStatus();
+    });
 
 /// Video event publisher depends on multiple services
 @Riverpod(keepAlive: true)
